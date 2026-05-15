@@ -6,7 +6,7 @@
 // (v90/v91) is intentionally left for Stage 4 — it depends on screen-level
 // triggers that don't exist yet.
 
-import { applyLegalOfficeData, LS, lsSet, persistCurrentDataToLocalStorage } from './storage';
+import { applyLegalOfficeData, LS, lsGet, lsSet, persistCurrentDataToLocalStorage } from './storage';
 import { firstNonEmpty, isNonEmpty } from './utils';
 import type {
   AppState,
@@ -278,6 +278,14 @@ export async function legalOfficeLoadFromSupabaseV88(
 ): Promise<SupabaseLoadResult> {
   if (loading) return { loaded: true };
   if (!options.force && loadedOnce) return { loaded: true };
+  // Once a device has loaded from Supabase, local edits become the source of
+  // truth — re-running the loader on subsequent reloads would REPLACE_ALL the
+  // state and wipe any client/case edits made since the last boot. Skip unless
+  // the caller passed force:true (the manual "refresh from cloud" button).
+  if (!options.force && lsGet(LS.SUPA_LOADED_V88) === '1') {
+    loadedOnce = true;
+    return { loaded: true };
+  }
   loading = true;
   try {
     const [
