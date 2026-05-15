@@ -66,7 +66,10 @@ function ShellInner() {
         <Sidebar />
         <main className="main">
           <Topbar />
-          <section className="content" id="content">
+          <section
+            className={'content' + (state.currentTab === 'home' ? ' home-content' : '')}
+            id="content"
+          >
             <ScreenRouter />
           </section>
         </main>
