@@ -1,12 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { caseName, caseStatusView, clientName, money } from '@/lib/cases';
 import { Modal } from './Modal';
 import { CaseLastHearingCard } from './CaseLastHearingCard';
-import { CaseEdit } from './CaseEdit';
 import { CaseStatusWarning } from './CaseStatusWarning';
 import { TaskModal } from './TaskModal';
 import { NewEventModal } from './NewEventModal';
@@ -68,10 +68,6 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
 
   const status = caseStatusView(c.status, t);
   const close = () => modalStack.close(modalStack.topId() ?? 0);
-  const openEdit = () => {
-    close();
-    modalStack.open(<CaseEdit caseId={caseId} />);
-  };
   const openStatusWarning = () => {
     modalStack.open(<CaseStatusWarning caseId={caseId} />);
   };
@@ -125,41 +121,6 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
     close();
     dispatch({ type: 'SET_TAB', tab: 'tasks' });
   };
-  const onDeleteCase = () => {
-    const ok = window.confirm(
-      lang === 'ar'
-        ? 'هل تريد حذف هذه القضية نهائياً؟'
-        : 'האם למחוק את התיק לחלוטין?',
-    );
-    if (!ok) return;
-    dispatch({
-      type: 'SET_CASES',
-      cases: state.casesArr.filter((x) => x.id !== caseId),
-    });
-    // Cleanup related rows. Same fan-out as supabase delete (source line 9842).
-    dispatch({
-      type: 'SET_EVENTS',
-      events: state.eventsList.filter((e) => e.caseId !== caseId),
-    });
-    dispatch({
-      type: 'SET_TASKS',
-      tasks: state.tasksArr.filter((tk) => tk.caseId !== caseId),
-    });
-    dispatch({
-      type: 'SET_FINANCES',
-      finances: state.finances.filter((f) => f.caseId !== caseId),
-    });
-    dispatch({
-      type: 'SET_DOCUMENTS',
-      documents: state.documentsArr.filter((d) => d.caseId !== caseId),
-    });
-    dispatch({
-      type: 'SET_TIMELINE',
-      timeline: state.timelineItems.filter((ti) => ti.caseId !== caseId),
-    });
-    close();
-  };
-
   // vNNN class set applied directly — the CSS rules in globals.css use these
   // selectors. Mirrors what v140/v215/v219/v220 scripts used to add at runtime.
   const modalClass =
@@ -168,7 +129,6 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
 
   const docsLabel = lang === 'ar' ? 'مستندات القضية' : 'מסמכי התיק';
   const newTaskLabel = lang === 'ar' ? 'مهمة جديدة' : 'משימה חדשה';
-  const deleteLabel = lang === 'ar' ? 'حذف الملف' : 'מחק תיק';
 
   const court = lang === 'ar' ? c.courtAr || c.court : c.court || c.courtAr;
   const titleStr = caseName(c, lang);
@@ -225,25 +185,6 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
           </div>
         </div>
 
-        {/* Edit + delete toolbar. Only the v143 delete button is rendered —
-         *  the v140/v142/v215 alternates that used to fight for this slot are
-         *  not part of the React port. */}
-        <div className="case-edit-toolbar">
-          <button type="button" className="case-edit-btn" onClick={openEdit}>
-            <i className="fas fa-pen" />
-            <span>{t('edit')}</span>
-          </button>
-          <button
-            type="button"
-            className="case-delete-btn-v143"
-            data-case-delete-v143="1"
-            onClick={onDeleteCase}
-          >
-            <i className="fas fa-trash" />
-            <span>{deleteLabel}</span>
-          </button>
-        </div>
-
         <CaseLastHearingCard caseId={caseId} />
 
         {/* Main detail grid. The grid carries all three case-main-detail-grid-vNNN
@@ -252,11 +193,14 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
          *  v141 and v215 blocks are intentionally omitted (CSS hid them when
          *  v220 was present anyway). */}
         <div className="detail-grid case-main-detail-grid-v141 case-main-detail-grid-v215 case-main-detail-grid-v219 case-main-detail-grid-v220">
-          <div className="case-detail-mobile-fields-v220" data-v220="1">
-            <BoxedField label={lang === 'ar' ? 'اسم الموكل' : 'שם לקוח'} value={clientLabel} full />
+          <div
+            className="case-detail-mobile-fields-v220 case-detail-mobile-fields-v215"
+            data-v220="1"
+          >
+            <BoxedField label={lang === 'ar' ? 'اسم الموكل' : 'שם לקוח'} value={clientLabel} />
             <BoxedField label={lang === 'ar' ? 'نوع الدعوى' : 'מהות התביעה'} value={titleStr} />
+            <BoxedField label={lang === 'ar' ? 'رقم الملف' : 'מספר תיק'} value={c.caseNumber || ''} full />
             <BoxedField label={lang === 'ar' ? 'المحكمة' : 'בית משפט'} value={court || ''} />
-            <BoxedField label={lang === 'ar' ? 'رقم الملف' : 'מספר תיק'} value={c.caseNumber || ''} />
             <BoxedField
               label={lang === 'ar' ? 'الرصيد' : 'יתרת חוב'}
               value={money(balance)}
@@ -283,22 +227,7 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
         />
 
 
-        <div className="case-timeline-search-row">
-          <input
-            className="case-timeline-search"
-            type="search"
-            placeholder={
-              lang === 'ar'
-                ? 'بحث في المستندات، المهام، المكالمات والملاحظات'
-                : 'חיפוש במסמכים, משימות, שיחות והערות'
-            }
-            disabled
-          />
-        </div>
-        <div id="caseTimelineFilters" />
-        <div id="caseTimelineList" className="detail-grid">
-          <Placeholder stage="4b" name="Timeline" />
-        </div>
+        <CaseTimelineSection caseId={caseId} onShowDocs={onShowDocs} />
       </div>
     </Modal>
   );
@@ -318,13 +247,13 @@ function BoxedField({
   return (
     <div
       className={
-        'case-field-v220' +
-        (full ? ' case-field-full-v220' : '') +
-        (balance ? ' case-field-balance-v220' : '')
+        'case-field-v220 case-field-v215' +
+        (full ? ' case-field-full-v220 case-field-full-v215' : '') +
+        (balance ? ' case-field-balance-v220 case-field-balance-v215' : '')
       }
     >
-      <span className="case-field-label-v220">{label}</span>
-      <span className="case-field-value-v220">{value || '-'}</span>
+      <span className="case-field-label-v220 case-field-label-v215">{label}</span>
+      <span className="case-field-value-v220 case-field-value-v215">{value || '-'}</span>
     </div>
   );
 }
@@ -399,7 +328,7 @@ function CaseRecentDocumentsPanel({
                     <span>·</span>
                     <span>
                       {formatDocumentDate(
-                        (doc as { uploadedAt?: string }).uploadedAt,
+                        (doc as { uploadedAt?: string }).uploadedAt || doc.date,
                         lang,
                       )}
                     </span>
@@ -557,11 +486,188 @@ function CaseTasksPanel({
   );
 }
 
-function Placeholder({ stage, name }: { stage: string; name: string }) {
+type TimelineFilterType = 'note' | 'call' | 'task' | 'document';
+
+interface TimelineEntry {
+  id: string;
+  type: TimelineFilterType;
+  title: string;
+  description: string;
+  date: string;
+  docId?: string;
+}
+
+function caseTimelineEntries(
+  caseId: string,
+  state: ReturnType<typeof useAppState>['state'],
+  lang: 'he' | 'ar',
+): TimelineEntry[] {
+  const items: TimelineEntry[] = [];
+
+  state.timelineItems
+    .filter((t) => String(t.caseId) === String(caseId))
+    .forEach((t) => {
+      const rawType = String(t.type || 'note').toLowerCase();
+      const type: TimelineFilterType =
+        rawType === 'document'
+          ? 'document'
+          : rawType === 'task'
+            ? 'task'
+            : rawType === 'call'
+              ? 'call'
+              : 'note';
+      items.push({
+        id: 't_' + t.id,
+        type,
+        title: (lang === 'ar' ? t.titleAr || t.title : t.title || t.titleAr) || '',
+        description:
+          (lang === 'ar'
+            ? t.descriptionAr || t.description
+            : t.description || t.descriptionAr) || '',
+        date: t.date || '',
+      });
+    });
+
+  state.documentsArr
+    .filter((d) => String(d.caseId || '') === String(caseId))
+    .forEach((d) => {
+      items.push({
+        id: 'd_' + d.id,
+        type: 'document',
+        title: d.title || d.fileName || '-',
+        description: '',
+        date: d.date || '',
+        docId: d.id,
+      });
+    });
+
+  return items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+}
+
+function CaseTimelineSection({
+  caseId,
+  onShowDocs,
+}: {
+  caseId: string;
+  onShowDocs: () => void;
+}) {
+  const { state } = useAppState();
+  const { lang } = useT();
+  const [selected, setSelected] = useState<Set<TimelineFilterType>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const entries = caseTimelineEntries(caseId, state, lang);
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = entries.filter((e) => {
+    if (selected.size > 0 && !selected.has(e.type)) return false;
+    if (q) {
+      const hay = (e.title + ' ' + e.description).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const toggle = (t: TimelineFilterType) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
+  };
+  const clear = () => setSelected(new Set());
+
+  const labels =
+    lang === 'ar'
+      ? { clear: 'إلغاء التحديد', note: 'ملاحظة', call: 'مكالمة', task: 'مهمة', document: 'مستند', open: 'فتح المستند', empty: 'لا توجد إدخالات في الجدول الزمني.' }
+      : { clear: 'ניקוי בחירה', note: 'הערה', call: 'שיחה', task: 'משימה', document: 'מסמך', open: 'פתח מסמך', empty: 'אין רשומות בציר הזמן.' };
+
+  const FILTERS: { key: TimelineFilterType; cls: string; icon: string }[] = [
+    { key: 'note', cls: 'filter-note', icon: 'fa-comment' },
+    { key: 'call', cls: 'filter-call', icon: 'fa-phone' },
+    { key: 'task', cls: 'filter-task', icon: 'fa-list-check' },
+    { key: 'document', cls: 'filter-document', icon: 'fa-file-lines' },
+  ];
+
   return (
-    <div style={{ padding: 16, textAlign: 'center', color: 'var(--muted)' }}>
-      {name} — coming in Stage {stage}.
-    </div>
+    <>
+      <div className="case-timeline-search-row">
+        <input
+          className="case-timeline-search"
+          type="search"
+          placeholder={
+            lang === 'ar'
+              ? 'بحث في المستندات، المهام، المكالمات والملاحظات'
+              : 'חיפוש במסמכים, משימות, שיחות והערות'
+          }
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+      <div id="caseTimelineFilters" className="case-timeline-filter-bar">
+        <button
+          type="button"
+          className={'case-timeline-filter-btn clear' + (selected.size > 0 ? ' active' : '')}
+          onClick={clear}
+        >
+          <i className="fas fa-rotate-left" />
+          <span>{labels.clear}</span>
+        </button>
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            className={
+              'case-timeline-filter-btn ' + f.cls + (selected.has(f.key) ? ' active' : '')
+            }
+            onClick={() => toggle(f.key)}
+          >
+            <i className={'fas ' + f.icon} />
+            <span>{labels[f.key]}</span>
+          </button>
+        ))}
+      </div>
+      <div id="caseTimelineList" className="detail-grid">
+        {filtered.length === 0 ? (
+          <div className="case-timeline-empty">{labels.empty}</div>
+        ) : (
+          filtered.map((e) => (
+            <div key={e.id} className="detail-row">
+              <span className={'timeline-icon timeline-icon-' + e.type}>
+                <i
+                  className={
+                    'fas ' +
+                    (e.type === 'document'
+                      ? 'fa-file-lines'
+                      : e.type === 'task'
+                        ? 'fa-list-check'
+                        : e.type === 'call'
+                          ? 'fa-phone'
+                          : 'fa-comment')
+                  }
+                />
+              </span>
+              <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontWeight: 850 }}>{e.title}</span>
+                {e.description && <span className="sub">{e.description}</span>}
+                {e.type === 'document' && e.docId && (
+                  <button
+                    type="button"
+                    className="case-document-btn open"
+                    onClick={onShowDocs}
+                    style={{ alignSelf: 'flex-start', marginTop: 4 }}
+                  >
+                    <i className="fas fa-folder-open" />
+                    {labels.open}
+                  </button>
+                )}
+              </span>
+              <span className="timeline-date-small">{e.date || ''}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </>
   );
 }
 
