@@ -40,8 +40,8 @@ export function NewClientModal() {
       alert(lang === 'ar' ? 'يجب إدخال اسم الموكل' : 'יש להזין שם לקוח');
       return;
     }
-    const nameHe = lang === 'ar' ? altName.trim() || trimmed : trimmed;
-    const nameAr = lang === 'ar' ? trimmed : altName.trim() || trimmed;
+    const nameHe = lang === 'ar' ? altName.trim() : trimmed;
+    const nameAr = lang === 'ar' ? trimmed : altName.trim();
     const next: Client = {
       id: nextClientId(state.clients),
       name: nameHe,

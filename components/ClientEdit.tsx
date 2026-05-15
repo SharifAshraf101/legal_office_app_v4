@@ -64,16 +64,14 @@ export function ClientEdit({ clientId }: ClientEditProps) {
         next.nameAr = name;
         next.addressAr = address;
         next.notesAr = notes;
-        if (otherName) next.name = otherName;
-        if (!next.name) next.name = name;
+        next.name = otherName;
         if (!next.address) next.address = address;
         if (!next.notes) next.notes = notes;
       } else {
         next.name = name;
         next.address = address;
         next.notes = notes;
-        if (otherName) next.nameAr = otherName;
-        if (!next.nameAr) next.nameAr = name;
+        next.nameAr = otherName;
         if (!next.addressAr) next.addressAr = address;
         if (!next.notesAr) next.notesAr = notes;
       }
