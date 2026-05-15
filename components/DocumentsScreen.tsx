@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
-import { caseName, clientName } from '@/lib/cases';
+import { caseName } from '@/lib/cases';
 import { clientDisplayName } from '@/lib/clients';
 import {
   documentSearchText,
@@ -13,12 +13,7 @@ import {
   formatDocumentSize,
 } from '@/lib/documents';
 import { CaseDetail } from './CaseDetail';
-import {
-  loadSavedLegalOfficeDirectoryHandle,
-  pickAndSaveDirectory,
-  resetLegalOfficeDataFolder,
-  verifyLegalOfficeDirectoryPermission,
-} from '@/lib/disk';
+import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import type { DocumentRecord } from '@/types';
 
 /**
@@ -66,19 +61,36 @@ export function DocumentsScreen() {
       ? `يعرض ${filtered.length} من ${documents.length} مستندات.`
       : `מוצגים ${filtered.length} מתוך ${documents.length} מסמכים.`;
   const documentsTitle = lang === 'ar' ? 'المستندات' : 'מסמכים';
-  const resetLabel = lang === 'ar' ? 'إعادة ضبط Dropbox' : 'איפוס Dropbox';
-  const syncLabel = lang === 'ar' ? 'مزامنة' : 'סנכרון';
   const emptyText =
     lang === 'ar'
       ? 'لا توجد مستندات مطابقة للبحث'
       : 'לא נמצאו מסמכים התואמים לחיפוש';
 
-  const openDoc = () => {
-    window.alert(
-      lang === 'ar'
-        ? 'فتح المستند من القرص يتطلب اختيار مجلد Dropbox أولاً.'
-        : 'פתיחת המסמך מהדיסק דורשת בחירת תיקיית Dropbox תחילה.',
-    );
+  const openDoc = async (doc: DocumentRecord) => {
+    const rp = doc.relativePath;
+    if (!rp) {
+      window.alert(
+        lang === 'ar'
+          ? 'لم يتم حفظ ملف لهذا المستند.'
+          : 'לא נשמר קובץ עבור מסמך זה.',
+      );
+      return;
+    }
+    // Mobile docs store the Dropbox share URL directly in relativePath —
+    // navigate to it so the browser (or Dropbox app) handles download.
+    if (rp.startsWith('http://') || rp.startsWith('https://')) {
+      window.open(rp, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    // Desktop path — read the file from the local Dropbox folder via FS Access
+    const ok = await openDocumentFromLegalOfficeFolder(rp, lang);
+    if (!ok) {
+      window.alert(
+        lang === 'ar'
+          ? 'تعذر فتح الملف من مجلد Dropbox.'
+          : 'פתיחת הקובץ מתיקיית Dropbox נכשלה.',
+      );
+    }
   };
   const openDocCase = (caseId: string) => {
     modalStack.open(<CaseDetail caseId={caseId} />);
@@ -94,47 +106,6 @@ export function DocumentsScreen() {
       type: 'SET_DOCUMENTS',
       documents: documents.filter((d) => String(d.id) !== String(docId)),
     });
-  };
-
-  const onSync = async () => {
-    try {
-      let handle = await loadSavedLegalOfficeDirectoryHandle();
-      if (!handle) handle = await pickAndSaveDirectory(lang);
-      const ok = await verifyLegalOfficeDirectoryPermission(handle);
-      if (!ok) {
-        window.alert(
-          lang === 'ar'
-            ? 'لم يتم منح إذن للقراءة والكتابة في المجلد.'
-            : 'לא ניתנה הרשאת קריאה וכתיבה לתיקייה.',
-        );
-        return;
-      }
-      // Full per-file scan integration ships in Stage 5; here we just confirm
-      // the handle is healthy.
-      window.alert(
-        lang === 'ar' ? 'تم ربط مجلد Dropbox.' : 'תיקיית Dropbox מקושרת.',
-      );
-    } catch (err) {
-      console.error(err);
-      window.alert(
-        lang === 'ar' ? 'تعذرت المزامنة.' : 'הסנכרון נכשל.',
-      );
-    }
-  };
-
-  const onReset = async () => {
-    const ok = window.confirm(
-      lang === 'ar'
-        ? 'إعادة ضبط مجلد Dropbox المحفوظ؟'
-        : 'לאפס את תיקיית Dropbox השמורה?',
-    );
-    if (!ok) return;
-    await resetLegalOfficeDataFolder();
-    window.alert(
-      lang === 'ar'
-        ? 'تمت إعادة الضبط. اضغط مزامنة لاختيار المجلد من جديد.'
-        : 'תיקיית Dropbox אופסה. לחץ סנכרון לבחור את התיקייה מחדש.',
-    );
   };
 
   return (
@@ -156,26 +127,6 @@ export function DocumentsScreen() {
               {hint}
             </div>
           </div>
-          <div className="documents-toolbar-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              id="resetDropboxFolderBtn"
-              onClick={onReset}
-            >
-              <i className="fas fa-rotate-left" />
-              {resetLabel}
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              id="syncDocumentsBtn"
-              onClick={onSync}
-            >
-              <i className="fas fa-rotate" />
-              {syncLabel}
-            </button>
-          </div>
         </div>
         <div id="documentsTableWrap" className="documents-scroll-list">
           {filtered.length === 0 ? (
@@ -196,7 +147,7 @@ function DocumentsTable({
   onDelete,
 }: {
   docs: DocumentRecord[];
-  onOpen: (id: string) => void;
+  onOpen: (doc: DocumentRecord) => void;
   onOpenCase: (caseId: string) => void;
   onDelete: (id: string) => void;
 }) {
@@ -253,7 +204,7 @@ function DocumentsTable({
                         className="document-mini-action open"
                         data-open-doc={doc.id}
                         aria-label="Dropbox"
-                        onClick={() => onOpen(doc.id)}
+                        onClick={() => onOpen(doc)}
                       >
                         <i className="fab fa-dropbox" />
                         Dropbox
@@ -296,7 +247,7 @@ function DocumentsTable({
                     type="button"
                     className="document-mini-action open"
                     data-open-doc={doc.id}
-                    onClick={() => onOpen(doc.id)}
+                    onClick={() => onOpen(doc)}
                   >
                     <i className="fas fa-folder-open" />
                     {lang === 'ar' ? 'فتح' : 'פתח'}

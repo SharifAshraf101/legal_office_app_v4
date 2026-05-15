@@ -441,6 +441,227 @@ export async function legalOfficeLoadFromSupabaseV88(
   }
 }
 
+// ---- Live save (per-table PostgREST upserts) ------------------------------
+// Mirrors how the loader reads: writes back into the same columns the
+// normalize* functions read from, keyed on (user_id, source_id) so the
+// schema's `unique` constraint resolves the upsert.
+
+const upsertHeaders = {
+  ...headers,
+  Prefer: 'resolution=merge-duplicates,return=minimal',
+};
+
+function emptyToNull(v: string | undefined | null): string | null {
+  const s = (v ?? '').toString();
+  return s.length ? s : null;
+}
+
+async function upsert(table: string, rows: Record<string, unknown>[]): Promise<void> {
+  if (!rows.length) return;
+  const url = API + '/' + table + '?on_conflict=user_id,source_id';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: upsertHeaders,
+      body: JSON.stringify(rows),
+    });
+    if (!res.ok) {
+      console.warn(
+        '[LegalOffice Supabase save] upsert failed',
+        table,
+        res.status,
+        await res.text(),
+      );
+    }
+  } catch (e) {
+    console.warn('[LegalOffice Supabase save] upsert error', table, e);
+  }
+}
+
+function clientToRow(c: Client): Record<string, unknown> {
+  return {
+    user_id: USER_ID,
+    source_id: c.id,
+    full_name: emptyToNull(c.name),
+    full_name_ar: emptyToNull(c.nameAr),
+    phone: emptyToNull(c.phone),
+    email: emptyToNull(c.email),
+    id_number: emptyToNull(c.idNumber),
+    address: emptyToNull(c.address),
+    address_ar: emptyToNull(c.addressAr),
+    notes: emptyToNull(c.notes),
+    notes_ar: emptyToNull(c.notesAr),
+    photo_url: emptyToNull(c.photoUrl),
+  };
+}
+
+function caseToRow(c: Case): Record<string, unknown> {
+  return {
+    user_id: USER_ID,
+    source_id: c.id,
+    client_source_id: emptyToNull(c.clientId),
+    case_number: emptyToNull(c.caseNumber),
+    title: emptyToNull(c.title),
+    title_ar: emptyToNull(c.titleAr),
+    status: c.status || 'active',
+    description: emptyToNull(c.description),
+    description_ar: emptyToNull(c.descriptionAr),
+    court: emptyToNull(c.court),
+    court_ar: emptyToNull(c.courtAr),
+    agreed_fee: typeof c.agreedFee === 'number' ? c.agreedFee : 0,
+    last_hearing: emptyToNull(c.lastHearing),
+  };
+}
+
+function taskToRow(t: Task): Record<string, unknown> {
+  return {
+    user_id: USER_ID,
+    source_id: t.id,
+    case_source_id: emptyToNull(t.caseId),
+    client_source_id: emptyToNull(t.clientId),
+    title: t.title || '',
+    due_date: emptyToNull(t.dueDate),
+    status: t.status || 'open',
+    priority: t.priority || 'normal',
+    notes: emptyToNull(t.notes),
+    done_at: emptyToNull(t.doneAt),
+  };
+}
+
+function eventToRow(e: CalendarEvent): Record<string, unknown> {
+  return {
+    user_id: USER_ID,
+    source_id: e.id,
+    case_source_id: emptyToNull(e.caseId ?? e.case_source_id),
+    client_source_id: emptyToNull(e.clientId ?? e.client_source_id),
+    title: emptyToNull(e.title),
+    title_ar: emptyToNull(e.titleAr),
+    date_time: emptyToNull(e.dateTime),
+    description: emptyToNull(e.description),
+    description_ar: emptyToNull(e.descriptionAr),
+    type: e.type || 'hearingMeeting',
+  };
+}
+
+function docToRow(d: DocumentRecord): Record<string, unknown> {
+  return {
+    user_id: USER_ID,
+    source_id: d.id,
+    case_source_id: emptyToNull(d.caseId),
+    client_source_id: emptyToNull(d.clientId),
+    title: emptyToNull(d.title),
+    file_name: emptyToNull(d.fileName),
+    relative_path: emptyToNull(d.relativePath),
+    date: emptyToNull(d.date),
+  };
+}
+
+function financeToRow(f: Finance): Record<string, unknown> {
+  return {
+    user_id: USER_ID,
+    source_id: f.id,
+    case_source_id: emptyToNull(f.caseId),
+    date: emptyToNull(f.date),
+    amount: typeof f.amount === 'number' ? f.amount : 0,
+    type: f.type || 'payment',
+    description: emptyToNull(f.description),
+    description_ar: emptyToNull(f.descriptionAr),
+  };
+}
+
+function timelineToRow(t: TimelineItem): Record<string, unknown> {
+  return {
+    user_id: USER_ID,
+    source_id: t.id,
+    case_source_id: emptyToNull(t.caseId),
+    type: t.type || 'note',
+    title: emptyToNull(t.title),
+    title_ar: emptyToNull(t.titleAr),
+    date: emptyToNull(t.date),
+    description: emptyToNull(t.description),
+    description_ar: emptyToNull(t.descriptionAr),
+  };
+}
+
+export interface SupabaseSaveInput {
+  clients: Client[];
+  casesArr: Case[];
+  tasksArr: Task[];
+  eventsList: CalendarEvent[];
+  documentsArr: DocumentRecord[];
+  finances: Finance[];
+  timelineItems: TimelineItem[];
+}
+
+export async function legalOfficeSaveToSupabase(s: SupabaseSaveInput): Promise<void> {
+  await Promise.all([
+    upsert('clients', s.clients.filter((x) => x.id).map(clientToRow)),
+    upsert('cases', s.casesArr.filter((x) => x.id).map(caseToRow)),
+    upsert('tasks', s.tasksArr.filter((x) => x.id).map(taskToRow)),
+    upsert('calendar_events', s.eventsList.filter((x) => x.id).map(eventToRow)),
+    upsert('documents', s.documentsArr.filter((x) => x.id).map(docToRow)),
+    upsert('payments', s.finances.filter((x) => x.id).map(financeToRow)),
+    upsert('timeline_items', s.timelineItems.filter((x) => x.id).map(timelineToRow)),
+  ]);
+}
+
+// ---- Supabase Storage: document file upload --------------------------------
+// File bytes live in the bucket below; the `documents.relative_path` column
+// is what links a row to its blob. Public bucket = direct GET on the public
+// URL, no signed-URL dance needed.
+
+const STORAGE_BUCKET = 'legal-office-documents';
+const STORAGE_API = SUPABASE_URL.replace(/\/$/, '') + '/storage/v1';
+
+function safeStorageName(name: string): string {
+  // Strip anything that isn't url-safe so the path round-trips without
+  // double-encoding. Keep dots so the extension survives.
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 180) || 'file';
+}
+
+export function documentPublicUrl(relativePath: string | undefined | null): string {
+  if (!relativePath) return '';
+  return `${STORAGE_API}/object/public/${STORAGE_BUCKET}/${relativePath}`;
+}
+
+export interface UploadedDocument {
+  path: string;
+  publicUrl: string;
+}
+
+export async function uploadDocumentToStorage(
+  file: File,
+  hint: { caseId?: string; clientId?: string } = {},
+): Promise<UploadedDocument | null> {
+  const subdir = hint.caseId || hint.clientId || 'misc';
+  const path = `${USER_ID}/${subdir}/${Date.now()}-${safeStorageName(file.name)}`;
+  const url = `${STORAGE_API}/object/${STORAGE_BUCKET}/${path}`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: 'Bearer ' + SUPABASE_KEY,
+        'x-upsert': 'true',
+        'Content-Type': file.type || 'application/octet-stream',
+      },
+      body: file,
+    });
+    if (!res.ok) {
+      console.warn(
+        '[LegalOffice Supabase storage] upload failed',
+        res.status,
+        await res.text(),
+      );
+      return null;
+    }
+    return { path, publicUrl: documentPublicUrl(path) };
+  } catch (e) {
+    console.warn('[LegalOffice Supabase storage] upload error', e);
+    return null;
+  }
+}
+
 // ---- Delete RPCs (source line 9775+) --------------------------------------
 
 export async function supabaseDeleteBySource(

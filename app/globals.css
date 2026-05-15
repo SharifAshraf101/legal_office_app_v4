@@ -1,4 +1,4 @@
-/*
+﻿/*
  * app/globals.css
  *
  * Auto-generated from the original single-file HTML app by
@@ -13356,3 +13356,3458 @@ body.dark .modal:has(#newCalendarAppointmentForm) .modal-box > h2:first-of-type{
 .modal.client-detail-stable-v229 .client-edit-toolbar .case-edit-btn span{
   color:#fff!important;
 }
+
+/* =========================================================================
+   Legal Office — Secondary surfaces (Navy & Cream)
+   ---------------------------------------------------------------------------
+   Applies to every screen wrapped by <Modal> (CaseDetail, ClientDetail,
+   NewEventModal, NewClientModal, NewCaseModal, CaseEdit, ClientEdit,
+   FinanceEdit, CalendarEventEdit, CalendarEventDetail, TaskModal,
+   AddPaymentModal, CaseDocumentsModal, UpcomingAgendaModal,
+   NewCalendarAppointmentModal, CaseStatusWarning, SettingsDrawer).
+   Main-nav screens (Home, Clients, Cases, Documents, Calendar, Tasks,
+   Finance, Portal) keep their current bright-blue tokens.
+   =========================================================================*/
+
+.modal.ls.ls.ls.ls.ls.ls{
+  --bg:#F1F5F9;
+  --bg-2:#E2E8F0;
+  --surface:#FFFFFF;
+  --surface-soft:#F8FAFC;
+  --surface-2:#F1F5F9;
+  --text:#0F172A;
+  --muted:#64748B;
+  --line:#E5E7EB;
+  --primary:#1E293B;
+  --primary-2:#0F172A;
+  --primary-3:#CBD5E1;
+  --accent:#2563EB;
+  --accent-2:#DBEAFE;
+  --rose:#FEE2E2;
+  --peach:#FEF3C7;
+  --success:#059669;
+  --warning:#D97706;
+  --danger:#DC2626;
+  --shadow:0 12px 32px rgba(15,23,42,.06);
+  --shadow-soft:0 4px 12px rgba(15,23,42,.04);
+}
+
+/* Modal shell — flat fill, hairline border, warm-tinted shadow */
+.modal.ls.ls.ls.ls.ls.ls .modal-box{
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  box-shadow:var(--shadow)!important;
+  border-radius:14px!important;
+  color:var(--text);
+}
+
+/* Close × + mobile back-arrow */
+.modal.ls.ls.ls.ls.ls.ls .modal-close-x,
+.modal.ls.ls.ls.ls.ls.ls .modal-mobile-back-btn{
+  color:var(--muted)!important;
+  background:transparent!important;
+  border:1px solid transparent!important;
+  transition:background 140ms,border-color 140ms,color 140ms;
+}
+.modal.ls.ls.ls.ls.ls.ls .modal-close-x:hover,
+.modal.ls.ls.ls.ls.ls.ls .modal-mobile-back-btn:hover{
+  background:var(--surface-soft)!important;
+  border-color:var(--line)!important;
+  color:var(--primary)!important;
+}
+
+/* Title hierarchy — navy headings, brass accent only on small details */
+.modal.ls.ls.ls.ls.ls.ls h1,
+.modal.ls.ls.ls.ls.ls.ls h2,
+.modal.ls.ls.ls.ls.ls.ls h3,
+.modal.ls.ls.ls.ls.ls.ls h4,
+.modal.ls.ls.ls.ls.ls.ls .case-detail-title h2,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-head h2{
+  color:var(--primary)!important;
+  font-weight:600;
+  letter-spacing:-.01em;
+}
+
+/* Form labels — muted small-caps */
+.modal.ls.ls.ls.ls.ls.ls .form-field > label{
+  color:var(--muted)!important;
+  font-weight:500;
+  font-size:12px;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+
+/* Inputs / selects / textareas */
+.modal.ls.ls.ls.ls.ls.ls .form-field input,
+.modal.ls.ls.ls.ls.ls.ls .form-field select,
+.modal.ls.ls.ls.ls.ls.ls .form-field textarea,
+.modal.ls.ls.ls.ls.ls.ls input[type="text"],
+.modal.ls.ls.ls.ls.ls.ls input[type="search"],
+.modal.ls.ls.ls.ls.ls.ls input[type="date"],
+.modal.ls.ls.ls.ls.ls.ls input[type="email"],
+.modal.ls.ls.ls.ls.ls.ls input[type="tel"]{
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  color:var(--text)!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .form-field input:focus,
+.modal.ls.ls.ls.ls.ls.ls .form-field select:focus,
+.modal.ls.ls.ls.ls.ls.ls .form-field textarea:focus{
+  border-color:var(--primary)!important;
+  outline:2px solid rgba(37,99,235,.14)!important;
+  outline-offset:0!important;
+}
+
+/* Panels / cards */
+.modal.ls.ls.ls.ls.ls.ls .panel,
+.modal.ls.ls.ls.ls.ls.ls .case-documents-panel,
+.modal.ls.ls.ls.ls.ls.ls .case-recent-documents-panel,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-head{
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  box-shadow:none!important;
+  border-radius:12px!important;
+  color:var(--text);
+}
+
+/* Buttons — 3-tone system:
+   - primary (navy fill)
+   - secondary (cream + navy border)
+   - danger (cream + deep-red border, fills on hover)
+   Color-coded action chips collapse into this system. */
+.modal.ls.ls.ls.ls.ls.ls .btn-primary,
+.modal.ls.ls.ls.ls.ls.ls .case-new-event-btn{
+  background:var(--primary)!important;
+  color:#fff!important;
+  border:1px solid var(--primary)!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .btn-primary:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-new-event-btn:hover{
+  background:var(--primary-2)!important;
+  border-color:var(--primary-2)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .btn-primary i,
+.modal.ls.ls.ls.ls.ls.ls .btn-primary span,
+.modal.ls.ls.ls.ls.ls.ls .case-new-event-btn i,
+.modal.ls.ls.ls.ls.ls.ls .case-new-event-btn span{
+  color:#fff!important;
+}
+
+.modal.ls.ls.ls.ls.ls.ls .btn-secondary,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-btn,
+.modal.ls.ls.ls.ls.ls.ls .case-edit-btn,
+.modal.ls.ls.ls.ls.ls.ls .case-document-btn,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-btn,
+.modal.ls.ls.ls.ls.ls.ls .document-mini-action{
+  background:var(--surface)!important;
+  color:var(--primary)!important;
+  border:1px solid var(--line)!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .btn-secondary:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-btn:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-edit-btn:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-document-btn:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-btn:hover{
+  background:var(--surface-soft)!important;
+  border-color:var(--primary)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-docs-btn i,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-btn span,
+.modal.ls.ls.ls.ls.ls.ls .case-edit-btn i,
+.modal.ls.ls.ls.ls.ls.ls .case-edit-btn span,
+.modal.ls.ls.ls.ls.ls.ls .case-document-btn i,
+.modal.ls.ls.ls.ls.ls.ls .case-document-btn span{
+  color:var(--primary)!important;
+}
+
+/* Danger / delete buttons */
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v143,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v215,
+.modal.ls.ls.ls.ls.ls.ls .case-document-btn.delete,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-btn.delete,
+.modal.ls.ls.ls.ls.ls.ls .document-mini-action.delete{
+  background:var(--surface)!important;
+  color:var(--danger)!important;
+  border:1px solid var(--danger)!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v143 i,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v143 span,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v215 i,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v215 span{
+  color:var(--danger)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v143:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v215:hover{
+  background:var(--danger)!important;
+  color:#fff!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v143:hover i,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v143:hover span,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v215:hover i,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v215:hover span{
+  color:#fff!important;
+}
+
+/* Status pill — muted, semantic */
+.modal.ls.ls.ls.ls.ls.ls .case-status-btn{
+  background:var(--surface-soft)!important;
+  color:var(--muted)!important;
+  border:1px solid var(--line)!important;
+  border-radius:999px!important;
+  box-shadow:none!important;
+  font-weight:500;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-status-btn.active{
+  background:rgba(5,150,105,.10)!important;
+  color:var(--success)!important;
+  border-color:rgba(5,150,105,.30)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-status-btn.closed,
+.modal.ls.ls.ls.ls.ls.ls .case-status-btn.inactive{
+  background:var(--surface-soft)!important;
+  color:var(--muted)!important;
+  border-color:var(--line)!important;
+}
+
+/* Hearing alert / "next hearing" highlight — brass accent strip */
+.modal.ls.ls.ls.ls.ls.ls .case-last-hearing-card,
+.modal.ls.ls.ls.ls.ls.ls [class*="next-hearing"],
+.modal.ls.ls.ls.ls.ls.ls [class*="hearing-alert"]{
+  background:var(--accent-2)!important;
+  color:var(--text)!important;
+  border:1px solid var(--accent)!important;
+  border-radius:10px!important;
+  box-shadow:none!important;
+}
+
+/* Boxed metadata fields (case-detail-mobile-fields-v220) */
+.modal.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 > div,
+.modal.ls.ls.ls.ls.ls.ls .boxed-field{
+  background:var(--surface-soft)!important;
+  border:1px solid var(--line)!important;
+  border-radius:10px!important;
+  box-shadow:none!important;
+}
+
+/* Tables inside modals */
+.modal.ls.ls.ls.ls.ls.ls table.table{
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  border-radius:10px!important;
+  overflow:hidden;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls table.table th{
+  background:var(--surface-soft)!important;
+  color:var(--muted)!important;
+  border-bottom:1px solid var(--line)!important;
+  font-weight:500;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  font-size:11px;
+}
+.modal.ls.ls.ls.ls.ls.ls table.table td{
+  border-bottom:1px solid var(--line)!important;
+}
+
+/* Pills / search-box wrappers inside secondary */
+.modal.ls.ls.ls.ls.ls.ls .case-search-input,
+.modal.ls.ls.ls.ls.ls.ls .case-search-meta{
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  color:var(--text)!important;
+}
+
+/* Quick action chip (the "1 משימות" pill etc.) */
+.modal.ls.ls.ls.ls.ls.ls .quick-plus,
+.modal.ls.ls.ls.ls.ls.ls .quick-label{
+  color:inherit;
+}
+
+/* =========================================================================
+   Legal Office — Secondary surfaces: MINIMALIST DESIGN PASS
+   ---------------------------------------------------------------------------
+   Builds on the Navy & Cream token block above. Goal: real visual rebuild,
+   not just color swap — typographic hierarchy, generous whitespace,
+   hairline borders, restrained color, consistent button shapes & sizing.
+   Scoped only to .modal.ls (everything wrapped by <Modal>). Main-nav
+   screens — Home dashboard cards in particular — are untouched.
+   =========================================================================*/
+
+/* ----- Modal shell --------------------------------------------------------*/
+.modal.ls.ls.ls.ls.ls.ls .modal-box{
+  padding:32px 28px!important;
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  border-radius:14px!important;
+  box-shadow:0 16px 48px rgba(31,41,55,.10)!important;
+  color:var(--text)!important;
+  font-family:inherit;
+}
+@media (max-width:640px){
+  .modal.ls.ls.ls.ls.ls.ls .modal-box{
+    padding:22px 18px!important;
+    border-radius:14px!important;
+  }
+}
+
+/* Close × and back arrow — square, transparent, subtle */
+.modal.ls.ls.ls.ls.ls.ls .modal-close-x,
+.modal.ls.ls.ls.ls.ls.ls .modal-mobile-back-btn{
+  width:34px!important;
+  height:34px!important;
+  min-width:34px!important;
+  border-radius:8px!important;
+  background:transparent!important;
+  border:0!important;
+  color:var(--muted)!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  font-size:18px!important;
+  line-height:1!important;
+  box-shadow:none!important;
+  transition:background 120ms,color 120ms!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .modal-close-x:hover,
+.modal.ls.ls.ls.ls.ls.ls .modal-mobile-back-btn:hover{
+  background:var(--surface-soft)!important;
+  color:var(--primary)!important;
+}
+
+/* ----- Typography ---------------------------------------------------------*/
+.modal.ls.ls.ls.ls.ls.ls{
+  font-size:14px;
+  line-height:1.5;
+}
+.modal.ls.ls.ls.ls.ls.ls h2{
+  font-size:20px!important;
+  font-weight:600!important;
+  color:var(--primary)!important;
+  letter-spacing:-.015em!important;
+  margin:0 0 20px!important;
+  line-height:1.3!important;
+}
+.modal.ls.ls.ls.ls.ls.ls h3{
+  font-size:12px!important;
+  font-weight:600!important;
+  color:var(--primary)!important;
+  text-transform:uppercase!important;
+  letter-spacing:.08em!important;
+  margin:0 0 14px!important;
+  line-height:1.4!important;
+}
+.modal.ls.ls.ls.ls.ls.ls h4{
+  font-size:14px!important;
+  font-weight:600!important;
+  color:var(--text)!important;
+  margin:0 0 10px!important;
+}
+
+/* ----- Section panels (cards) --------------------------------------------*/
+.modal.ls.ls.ls.ls.ls.ls .panel,
+.modal.ls.ls.ls.ls.ls.ls .case-documents-panel,
+.modal.ls.ls.ls.ls.ls.ls .case-recent-documents-panel,
+.modal.ls.ls.ls.ls.ls.ls [class*="-panel"]:not(.panel-body):not(.panel-head){
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  border-radius:12px!important;
+  box-shadow:none!important;
+  padding:20px!important;
+  margin-bottom:14px!important;
+}
+
+/* Panel head row — title left, actions right */
+.modal.ls.ls.ls.ls.ls.ls .case-documents-head,
+.modal.ls.ls.ls.ls.ls.ls .case-tasks-head,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-head{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  flex-wrap:wrap!important;
+  margin-bottom:14px!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-documents-head-actions,
+.modal.ls.ls.ls.ls.ls.ls .case-tasks-head-actions,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-head-actions{
+  display:flex!important;
+  gap:8px!important;
+  align-items:center!important;
+  flex-wrap:wrap!important;
+}
+
+/* ----- Unified button system ---------------------------------------------*/
+/* Base — every button inside a secondary modal */
+.modal.ls.ls.ls.ls.ls.ls .btn,
+.modal.ls.ls.ls.ls.ls.ls .btn-primary,
+.modal.ls.ls.ls.ls.ls.ls .btn-secondary,
+.modal.ls.ls.ls.ls.ls.ls .case-new-event-btn,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-btn,
+.modal.ls.ls.ls.ls.ls.ls .case-edit-btn,
+.modal.ls.ls.ls.ls.ls.ls .case-document-btn,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-btn,
+.modal.ls.ls.ls.ls.ls.ls .document-mini-action,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v143,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v215{
+  font-family:inherit!important;
+  font-size:13px!important;
+  font-weight:500!important;
+  height:36px!important;
+  padding:0 14px!important;
+  border-radius:8px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:8px!important;
+  cursor:pointer!important;
+  border:1px solid var(--line)!important;
+  background:var(--surface)!important;
+  color:var(--primary)!important;
+  box-shadow:none!important;
+  white-space:nowrap!important;
+  letter-spacing:0!important;
+  transition:background 140ms,border-color 140ms,color 140ms,transform 80ms!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .btn:hover,
+.modal.ls.ls.ls.ls.ls.ls .btn-secondary:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-btn:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-edit-btn:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-document-btn:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-btn:hover,
+.modal.ls.ls.ls.ls.ls.ls .document-mini-action:hover{
+  background:var(--surface-soft)!important;
+  border-color:var(--primary)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .btn:active,
+.modal.ls.ls.ls.ls.ls.ls .btn-primary:active{
+  transform:translateY(1px);
+}
+
+/* Primary — navy fill, white text */
+.modal.ls.ls.ls.ls.ls.ls .btn-primary,
+.modal.ls.ls.ls.ls.ls.ls .case-new-event-btn{
+  background:var(--primary)!important;
+  color:#fff!important;
+  border-color:var(--primary)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .btn-primary:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-new-event-btn:hover{
+  background:var(--primary-2)!important;
+  border-color:var(--primary-2)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .btn-primary *,
+.modal.ls.ls.ls.ls.ls.ls .case-new-event-btn *{
+  color:#fff!important;
+}
+
+/* Destructive — deep-red outline, fills on hover */
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v143,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v215,
+.modal.ls.ls.ls.ls.ls.ls .case-document-btn.delete,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-btn.delete,
+.modal.ls.ls.ls.ls.ls.ls .document-mini-action.delete,
+.modal.ls.ls.ls.ls.ls.ls .btn-danger{
+  background:var(--surface)!important;
+  color:var(--danger)!important;
+  border:1px solid var(--danger)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v143 *,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v215 *,
+.modal.ls.ls.ls.ls.ls.ls .btn-danger *{
+  color:var(--danger)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v143:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v215:hover,
+.modal.ls.ls.ls.ls.ls.ls .btn-danger:hover{
+  background:var(--danger)!important;
+  color:#fff!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v143:hover *,
+.modal.ls.ls.ls.ls.ls.ls .case-delete-btn-v215:hover *,
+.modal.ls.ls.ls.ls.ls.ls .btn-danger:hover *{
+  color:#fff!important;
+}
+
+/* Icon-only mini actions (open / delete on doc rows) — smaller square */
+.modal.ls.ls.ls.ls.ls.ls .document-mini-action,
+.modal.ls.ls.ls.ls.ls.ls .case-document-btn,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-btn{
+  height:32px!important;
+  padding:0 12px!important;
+  font-size:12px!important;
+}
+
+/* ----- Status pill --------------------------------------------------------*/
+.modal.ls.ls.ls.ls.ls.ls .case-status-btn{
+  height:28px!important;
+  padding:0 12px!important;
+  font-size:12px!important;
+  font-weight:500!important;
+  border-radius:999px!important;
+  background:var(--surface-soft)!important;
+  color:var(--muted)!important;
+  border:1px solid var(--line)!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-status-btn.active{
+  background:rgba(5,150,105,.10)!important;
+  color:var(--success)!important;
+  border-color:rgba(5,150,105,.30)!important;
+}
+
+/* ----- Title block (case detail / client detail header row) ---------------*/
+.modal.ls.ls.ls.ls.ls.ls .case-detail-title,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-head{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:14px!important;
+  flex-wrap:wrap!important;
+  margin-bottom:18px!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-detail-title-actions,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-actions{
+  display:flex!important;
+  gap:8px!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-edit-toolbar{
+  display:flex!important;
+  gap:8px!important;
+  margin:0 0 14px!important;
+  flex-wrap:wrap!important;
+}
+
+/* ----- "Next hearing" alert — brass accent strip --------------------------*/
+.modal.ls.ls.ls.ls.ls.ls .case-last-hearing-card,
+.modal.ls.ls.ls.ls.ls.ls [class*="next-hearing"],
+.modal.ls.ls.ls.ls.ls.ls [class*="hearing-alert"]{
+  background:var(--accent-2)!important;
+  color:var(--text)!important;
+  border:1px solid var(--accent)!important;
+  border-inline-start:4px solid var(--accent)!important;
+  border-radius:10px!important;
+  padding:14px 16px!important;
+  box-shadow:none!important;
+  margin-bottom:14px!important;
+  font-weight:500!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-last-hearing-card *{
+  color:var(--text)!important;
+}
+
+/* ----- Boxed metadata field grid (case detail core fields) ---------------*/
+.modal.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:10px!important;
+  margin-bottom:18px!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 > div{
+  background:var(--surface-soft)!important;
+  border:1px solid var(--line)!important;
+  border-radius:10px!important;
+  padding:12px 14px!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 > div > label,
+.modal.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 > div .field-label{
+  font-size:11px!important;
+  font-weight:500!important;
+  color:var(--muted)!important;
+  text-transform:uppercase!important;
+  letter-spacing:.06em!important;
+  margin-bottom:4px!important;
+  display:block!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 > div .field-value,
+.modal.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 > div > div{
+  font-size:14px!important;
+  font-weight:500!important;
+  color:var(--text)!important;
+}
+@media (max-width:640px){
+  .modal.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220{
+    grid-template-columns:1fr!important;
+  }
+}
+
+/* ----- Document / task / timeline list rows ------------------------------*/
+.modal.ls.ls.ls.ls.ls.ls .case-document-row,
+.modal.ls.ls.ls.ls.ls.ls .case-task-row,
+.modal.ls.ls.ls.ls.ls.ls .timeline-row,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-row,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-row{
+  background:var(--surface-soft)!important;
+  border:1px solid var(--line)!important;
+  border-radius:10px!important;
+  padding:14px 16px!important;
+  margin-bottom:8px!important;
+  box-shadow:none!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-document-row:last-child,
+.modal.ls.ls.ls.ls.ls.ls .case-task-row:last-child,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-row:last-child,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-row:last-child{
+  margin-bottom:0!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-document-title,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-title{
+  font-size:14px!important;
+  font-weight:500!important;
+  color:var(--text)!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-document-meta,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-meta{
+  font-size:12px!important;
+  color:var(--muted)!important;
+  margin-top:4px!important;
+}
+
+/* ----- Form fields --------------------------------------------------------*/
+.modal.ls.ls.ls.ls.ls.ls .form-grid{
+  display:grid!important;
+  gap:14px!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .form-field{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:6px!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .form-field > label,
+.modal.ls.ls.ls.ls.ls.ls .field-label{
+  font-size:11px!important;
+  font-weight:500!important;
+  color:var(--muted)!important;
+  text-transform:uppercase!important;
+  letter-spacing:.06em!important;
+  margin:0!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .form-actions{
+  display:flex!important;
+  gap:10px!important;
+  margin-top:10px!important;
+  flex-wrap:wrap!important;
+}
+
+/* Inputs */
+.modal.ls.ls.ls.ls.ls.ls input[type="text"],
+.modal.ls.ls.ls.ls.ls.ls input[type="search"],
+.modal.ls.ls.ls.ls.ls.ls input[type="date"],
+.modal.ls.ls.ls.ls.ls.ls input[type="time"],
+.modal.ls.ls.ls.ls.ls.ls input[type="email"],
+.modal.ls.ls.ls.ls.ls.ls input[type="tel"],
+.modal.ls.ls.ls.ls.ls.ls input[type="number"],
+.modal.ls.ls.ls.ls.ls.ls input:not([type]),
+.modal.ls.ls.ls.ls.ls.ls select{
+  height:38px!important;
+  padding:0 12px!important;
+  font-size:14px!important;
+  font-family:inherit!important;
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  border-radius:8px!important;
+  color:var(--text)!important;
+  box-shadow:none!important;
+  outline:none!important;
+  width:100%!important;
+}
+.modal.ls.ls.ls.ls.ls.ls textarea{
+  min-height:96px!important;
+  padding:10px 12px!important;
+  font-size:14px!important;
+  font-family:inherit!important;
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  border-radius:8px!important;
+  color:var(--text)!important;
+  box-shadow:none!important;
+  outline:none!important;
+  width:100%!important;
+  resize:vertical!important;
+}
+.modal.ls.ls.ls.ls.ls.ls input:focus,
+.modal.ls.ls.ls.ls.ls.ls select:focus,
+.modal.ls.ls.ls.ls.ls.ls textarea:focus{
+  border-color:var(--primary)!important;
+  outline:2px solid rgba(37,99,235,.14)!important;
+  outline-offset:0!important;
+}
+
+/* ----- Empty / placeholder states ----------------------------------------*/
+.modal.ls.ls.ls.ls.ls.ls .case-documents-empty,
+.modal.ls.ls.ls.ls.ls.ls .case-docs-modal-empty,
+.modal.ls.ls.ls.ls.ls.ls .case-empty,
+.modal.ls.ls.ls.ls.ls.ls .case-tasks-empty{
+  font-size:13px!important;
+  color:var(--muted)!important;
+  padding:24px 16px!important;
+  text-align:center!important;
+  background:var(--surface-soft)!important;
+  border:1px dashed var(--line)!important;
+  border-radius:10px!important;
+}
+
+/* ----- Tables in modals ---------------------------------------------------*/
+.modal.ls.ls.ls.ls.ls.ls table.table,
+.modal.ls.ls.ls.ls.ls.ls .table{
+  width:100%!important;
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  border-radius:10px!important;
+  overflow:hidden!important;
+  box-shadow:none!important;
+  border-collapse:separate!important;
+  border-spacing:0!important;
+}
+.modal.ls.ls.ls.ls.ls.ls table.table th{
+  background:var(--surface-soft)!important;
+  color:var(--muted)!important;
+  border-bottom:1px solid var(--line)!important;
+  font-weight:500!important;
+  font-size:11px!important;
+  letter-spacing:.06em!important;
+  text-transform:uppercase!important;
+  padding:10px 14px!important;
+  text-align:start!important;
+}
+.modal.ls.ls.ls.ls.ls.ls table.table td{
+  border-bottom:1px solid var(--line)!important;
+  padding:14px!important;
+  font-size:14px!important;
+  color:var(--text)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls table.table tr:last-child td{
+  border-bottom:0!important;
+}
+
+/* ----- Quick action / chip / filter rows (timeline filters etc.) ----------*/
+.modal.ls.ls.ls.ls.ls.ls .timeline-filters,
+.modal.ls.ls.ls.ls.ls.ls .quick-actions,
+.modal.ls.ls.ls.ls.ls.ls .case-quick-actions{
+  display:flex!important;
+  gap:8px!important;
+  flex-wrap:wrap!important;
+  margin-bottom:12px!important;
+}
+.modal.ls.ls.ls.ls.ls.ls [class*="filter-"]{
+  height:32px!important;
+  padding:0 12px!important;
+  font-size:12px!important;
+  font-weight:500!important;
+  border-radius:999px!important;
+  background:var(--surface)!important;
+  color:var(--primary)!important;
+  border:1px solid var(--line)!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:6px!important;
+  cursor:pointer!important;
+  white-space:nowrap!important;
+  transition:background 120ms,border-color 120ms!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls [class*="filter-"]:hover{
+  background:var(--surface-soft)!important;
+  border-color:var(--primary)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls [class*="filter-"][class*="active"],
+.modal.ls.ls.ls.ls.ls.ls [class*="filter-"].is-active{
+  background:var(--primary)!important;
+  color:#fff!important;
+  border-color:var(--primary)!important;
+}
+
+/* ----- "Reload selection" / clear filter button (red-ish in screenshot) --*/
+.modal.ls.ls.ls.ls.ls.ls .timeline-filter-clear,
+.modal.ls.ls.ls.ls.ls.ls [class*="filter-clear"]{
+  background:var(--surface)!important;
+  color:var(--danger)!important;
+  border:1px solid var(--danger)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .timeline-filter-clear:hover,
+.modal.ls.ls.ls.ls.ls.ls [class*="filter-clear"]:hover{
+  background:var(--danger)!important;
+  color:#fff!important;
+}
+
+/* ----- Pinned-row search input (case-search-input etc.) ------------------*/
+.modal.ls.ls.ls.ls.ls.ls .case-search-wrap,
+.modal.ls.ls.ls.ls.ls.ls .documents-toolbar{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:6px!important;
+  margin-bottom:14px!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-search-input{
+  height:38px!important;
+  padding:0 12px!important;
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  border-radius:8px!important;
+  color:var(--text)!important;
+  font-size:14px!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-search-meta{
+  font-size:11px!important;
+  color:var(--muted)!important;
+  border:0!important;
+  background:transparent!important;
+  padding:0!important;
+}
+
+/* ----- Hierarchical text inside rows (row-title / .sub) ------------------*/
+.modal.ls.ls.ls.ls.ls.ls .row-title{
+  font-size:14px!important;
+  font-weight:500!important;
+  color:var(--text)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .sub{
+  font-size:12px!important;
+  color:var(--muted)!important;
+  margin-top:2px!important;
+}
+
+/* ----- Money / amount displays -------------------------------------------*/
+.modal.ls.ls.ls.ls.ls.ls .money,
+.modal.ls.ls.ls.ls.ls.ls [class*="-balance"],
+.modal.ls.ls.ls.ls.ls.ls [class*="-money"]{
+  color:var(--primary)!important;
+  font-weight:600!important;
+  font-variant-numeric:tabular-nums!important;
+}
+
+/* ----- Icons — neutralize hardcoded colors -------------------------------*/
+.modal.ls.ls.ls.ls.ls.ls .fas,
+.modal.ls.ls.ls.ls.ls.ls .fab,
+.modal.ls.ls.ls.ls.ls.ls .far,
+.modal.ls.ls.ls.ls.ls.ls .fa{
+  color:inherit;
+}
+
+/* ----- Timeline filter chips — collapse loud per-type colors -------------*/
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-bar{
+  background:var(--surface-soft)!important;
+  border:1px solid var(--line)!important;
+  border-radius:12px!important;
+  padding:8px!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.filter-document,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.filter-task,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.filter-call,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.filter-note{
+  height:30px!important;
+  padding:0 12px!important;
+  font-size:12px!important;
+  font-weight:500!important;
+  border-radius:999px!important;
+  background:var(--surface)!important;
+  color:var(--text)!important;
+  border:1px solid var(--line)!important;
+  box-shadow:none!important;
+  transform:none!important;
+  transition:background 120ms,border-color 120ms,color 120ms!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.filter-document:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.filter-task:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.filter-call:hover,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.filter-note:hover{
+  background:var(--surface-soft)!important;
+  border-color:var(--primary)!important;
+  color:var(--primary)!important;
+  transform:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.active,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.filter-document.active,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.filter-task.active,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.filter-call.active,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.filter-note.active{
+  background:var(--primary)!important;
+  color:#fff!important;
+  border-color:var(--primary)!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.clear,
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.filter-clear{
+  background:var(--surface)!important;
+  color:var(--danger)!important;
+  border:1px solid var(--danger)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.clear:hover{
+  background:var(--danger)!important;
+  color:#fff!important;
+  border-color:var(--danger)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-filter-btn.clear.active{
+  background:var(--danger)!important;
+  color:#fff!important;
+  border-color:var(--danger)!important;
+}
+/* Per-type icon colors → neutralize to inherit (brass for active state) */
+.modal.ls.ls.ls.ls.ls.ls .timeline-icon,
+.modal.ls.ls.ls.ls.ls.ls .timeline-icon-document,
+.modal.ls.ls.ls.ls.ls.ls .timeline-icon-call,
+.modal.ls.ls.ls.ls.ls.ls .timeline-icon-task,
+.modal.ls.ls.ls.ls.ls.ls .timeline-icon-note{
+  color:var(--accent)!important;
+}
+
+/* ----- Timeline search row -----------------------------------------------*/
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-search{
+  height:38px!important;
+  background:var(--surface)!important;
+  border:1px solid var(--line)!important;
+  border-radius:8px!important;
+  color:var(--text)!important;
+  padding:0 12px!important;
+  font-weight:500!important;
+  font-size:14px!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-search:focus{
+  border-color:var(--primary)!important;
+  box-shadow:0 0 0 2px rgba(37,99,235,.14)!important;
+}
+
+/* ----- Timeline empty state ----------------------------------------------*/
+.modal.ls.ls.ls.ls.ls.ls .case-timeline-empty{
+  background:var(--surface-soft)!important;
+  border:1px dashed var(--line)!important;
+  border-radius:10px!important;
+  color:var(--muted)!important;
+  padding:20px 16px!important;
+  font-size:13px!important;
+}
+
+/* ----- Task rows — refined layout ----------------------------------------*/
+.modal.ls.ls.ls.ls.ls.ls .case-task-row{
+  background:var(--surface-soft)!important;
+  border:1px solid var(--line)!important;
+  border-radius:10px!important;
+  padding:14px 16px!important;
+  box-shadow:none!important;
+  margin-bottom:8px!important;
+}
+
+/* ----- Task priority/status badges — muted semantic --------------------*/
+.modal.ls.ls.ls.ls.ls.ls .task-priority-badge,
+.modal.ls.ls.ls.ls.ls.ls .task-status-badge{
+  height:22px!important;
+  padding:0 9px!important;
+  font-size:11px!important;
+  font-weight:600!important;
+  letter-spacing:.04em!important;
+  border-radius:999px!important;
+  background:var(--surface)!important;
+  color:var(--muted)!important;
+  border:1px solid var(--line)!important;
+  display:inline-flex!important;
+  align-items:center!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .task-priority-normal{
+  background:var(--surface-soft)!important;
+  color:var(--muted)!important;
+  border-color:var(--line)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .task-priority-urgent{
+  background:rgba(217,119,6,.10)!important;
+  color:var(--accent)!important;
+  border-color:rgba(217,119,6,.30)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .task-priority-critical{
+  background:rgba(220,38,38,.10)!important;
+  color:var(--danger)!important;
+  border-color:rgba(220,38,38,.30)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .task-status-open{
+  background:rgba(217,119,6,.10)!important;
+  color:var(--accent)!important;
+  border-color:rgba(217,119,6,.30)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .task-status-progress{
+  background:rgba(37,99,235,.10)!important;
+  color:var(--primary)!important;
+  border-color:rgba(37,99,235,.30)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .task-status-done{
+  background:rgba(5,150,105,.10)!important;
+  color:var(--success)!important;
+  border-color:rgba(5,150,105,.30)!important;
+}
+
+/* Overdue / due-today row tint — replace bright pink/orange with subtle */
+.modal.ls.ls.ls.ls.ls.ls .task-row-overdue,
+.modal.ls.ls.ls.ls.ls.ls .task-row-overdue td{
+  background:rgba(220,38,38,.06)!important;
+  border-color:rgba(220,38,38,.20)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .task-row-due-today,
+.modal.ls.ls.ls.ls.ls.ls .task-row-due-today td{
+  background:rgba(217,119,6,.06)!important;
+  border-color:rgba(217,119,6,.30)!important;
+}
+
+/* ----- Hearing alert: "מועד הדיון הבא" red text override ----------------
+   This text typically has hardcoded red. Normalize to the brass accent.    */
+.modal.ls.ls.ls.ls.ls.ls .case-detail-title + .case-edit-toolbar + *[style*="color:#"],
+.modal.ls.ls.ls.ls.ls.ls *[class*="hearing"][class*="warning"],
+.modal.ls.ls.ls.ls.ls.ls *[class*="hearing"][class*="urgent"]{
+  color:var(--accent)!important;
+}
+
+/* =========================================================================
+   Home dashboard — leaf shapes on all four cards arranged like a clover:
+   each card's pinch points at the centre of the grid, so the four leaves
+   face each other where they meet.
+   - CASES   (nth-child 1, top-right in RTL):    pinch at BL
+   - CLIENTS (nth-child 2, top-left in RTL):     pinch at BR (mirror H)
+   - CALENDAR(nth-child 3, bottom-right in RTL): pinch at TL (mirror V)
+   - PORTAL  (nth-child 4, bottom-left in RTL):  pinch at TR (mirror H+V)
+   Smooth elliptical curves via border-radius; specificity 0,5,0 matches
+   existing per-card rules and source order wins.
+   =========================================================================*/
+.content.home-content .home-card-grid .home-card:nth-child(1){
+  border-radius:50% 50% 50% 20% / 60% 60% 60% 25%!important;
+}
+.content.home-content .home-card-grid .home-card:nth-child(2){
+  border-radius:50% 50% 20% 50% / 60% 60% 25% 60%!important;
+}
+.content.home-content .home-card-grid .home-card:nth-child(3){
+  border-radius:20% 50% 50% 50% / 25% 60% 60% 60%!important;
+  flex-direction:column-reverse!important;
+}
+.content.home-content .home-card-grid .home-card:nth-child(4){
+  border-radius:50% 20% 50% 50% / 60% 25% 60% 60%!important;
+  flex-direction:column-reverse!important;
+}
+
+/* Nudge the title text vertically:
+   - Top cards (cases, clients): move text UP 0.5cm so it sits higher
+     in the round body
+   - Bottom cards (calendar, portal): move text DOWN 0.5cm so it sits
+     lower in the round body (away from the inner-corner pinch at top)
+   Using BOTH transform (visual) AND margin (layout) to make sure the
+   nudge wins regardless of which CSS layer the browser ends up using
+   for these h2 elements. */
+.content.home-content .home-card-grid .home-card:nth-child(1) h2,
+.content.home-content .home-card-grid .home-card:nth-child(2) h2{
+  transform:translateY(-0.5cm)!important;
+  margin-top:-0.5cm!important;
+  margin-bottom:0.5cm!important;
+}
+.content.home-content .home-card-grid .home-card:nth-child(3) h2,
+.content.home-content .home-card-grid .home-card:nth-child(4) h2{
+  transform:translateY(0.5cm)!important;
+  margin-top:0.5cm!important;
+  margin-bottom:-0.5cm!important;
+}
+
+/* =========================================================================
+   CHARCOAL & STEEL — MAIN-SCREEN DESIGN SYSTEM
+   ---------------------------------------------------------------------------
+   Applies to every screen EXCEPT the home dashboard:
+     Clients, Cases, Documents, Calendar, Tasks, Finance, FinanceDetail,
+     Portal/Comms, GlobalSearch.
+   Home dashboard remains untouched — selectors are scoped to
+   `.content:not(.home-content)` and the four-times class repetition trick
+   `.content.content.content.content` boosts specificity to (0,4,0) so the
+   redesign wins over the existing per-screen rules (most at 0,2,0-0,3,0).
+   Palette:
+     primary  #1E293B  charcoal
+     surface  #FFFFFF  pure white
+     accent   #2563EB  steel blue (single bold accent)
+     text     #0F172A  near-black
+     muted    #64748B  slate
+     line     #E5E7EB  cool hairline
+     danger   #DC2626  red
+   Style: solid colors, no gradients, hairline borders, subtle shadows
+   only on interactive elevation, generous whitespace, tight typography.
+   =========================================================================*/
+
+/* ----- Tokens scoped to non-home content -------------------------------- */
+.content.content.content.content:not(.home-content){
+  --bg:#F8FAFC!important;
+  --bg-2:#F1F5F9!important;
+  --surface:#FFFFFF!important;
+  --surface-soft:#F8FAFC!important;
+  --surface-2:#F1F5F9!important;
+  --text:#0F172A!important;
+  --muted:#64748B!important;
+  --line:#E5E7EB!important;
+  --primary:#1E293B!important;
+  --primary-2:#0F172A!important;
+  --primary-3:#CBD5E1!important;
+  --accent:#2563EB!important;
+  --accent-2:#DBEAFE!important;
+  --success:#059669!important;
+  --warning:#D97706!important;
+  --danger:#DC2626!important;
+  --shadow:0 12px 32px rgba(15,23,42,.06)!important;
+  --shadow-soft:0 4px 12px rgba(15,23,42,.04)!important;
+  --radius:12px!important;
+  background:var(--bg)!important;
+  color:var(--text)!important;
+  font-family:inherit;
+}
+
+/* ----- Page-level layout: cool off-white background --------------------- */
+.content.content.content.content:not(.home-content){
+  padding:24px 28px 96px!important;
+}
+@media(max-width:1050px){
+  .content.content.content.content:not(.home-content){
+    padding:16px 14px 92px!important;
+  }
+}
+
+/* ----- Panels (every screen wraps its content in .panel) ---------------- */
+.content.content.content.content:not(.home-content) .panel{
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:14px!important;
+  box-shadow:0 1px 2px rgba(15,23,42,.04)!important;
+  padding:0!important;
+  overflow:hidden!important;
+  margin-bottom:16px!important;
+}
+.content.content.content.content:not(.home-content) .panel-body{
+  padding:24px!important;
+  background:transparent!important;
+}
+.content.content.content.content:not(.home-content) .panel-head,
+.content.content.content.content:not(.home-content) .panel-header{
+  padding:20px 24px!important;
+  border-bottom:1px solid #E5E7EB!important;
+  background:#F8FAFC!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  flex-wrap:wrap!important;
+}
+@media(max-width:640px){
+  .content.content.content.content:not(.home-content) .panel-body{padding:16px!important;}
+  .content.content.content.content:not(.home-content) .panel-head,
+  .content.content.content.content:not(.home-content) .panel-header{padding:14px 16px!important;}
+}
+
+/* ----- Typography -------------------------------------------------------- */
+.content.content.content.content:not(.home-content) h1,
+.content.content.content.content:not(.home-content) h2{
+  color:#0F172A!important;
+  font-weight:600!important;
+  letter-spacing:-.015em!important;
+  margin:0 0 18px!important;
+  line-height:1.25!important;
+  font-size:22px!important;
+}
+.content.content.content.content:not(.home-content) h3{
+  color:#0F172A!important;
+  font-weight:600!important;
+  font-size:13px!important;
+  text-transform:uppercase!important;
+  letter-spacing:.08em!important;
+  margin:0 0 12px!important;
+}
+.content.content.content.content:not(.home-content) h4{
+  color:#0F172A!important;
+  font-weight:600!important;
+  font-size:15px!important;
+  margin:0 0 8px!important;
+}
+.content.content.content.content:not(.home-content) p,
+.content.content.content.content:not(.home-content) .sub,
+.content.content.content.content:not(.home-content) .muted{
+  color:#64748B!important;
+  font-size:13px!important;
+  line-height:1.5!important;
+  margin:0!important;
+}
+
+/* ----- Buttons — unified 3-tone system ---------------------------------- */
+.content.content.content.content:not(.home-content) .btn,
+.content.content.content.content:not(.home-content) button.btn,
+.content.content.content.content:not(.home-content) button[class*="btn"]{
+  font-family:inherit!important;
+  font-size:13px!important;
+  font-weight:500!important;
+  height:36px!important;
+  padding:0 14px!important;
+  border-radius:8px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:8px!important;
+  cursor:pointer!important;
+  border:1px solid #E5E7EB!important;
+  background:#FFFFFF!important;
+  color:#1E293B!important;
+  box-shadow:none!important;
+  white-space:nowrap!important;
+  letter-spacing:0!important;
+  transition:background 140ms,border-color 140ms,color 140ms!important;
+}
+.content.content.content.content:not(.home-content) .btn:hover{
+  background:#F8FAFC!important;
+  border-color:#CBD5E1!important;
+}
+.content.content.content.content:not(.home-content) .btn-primary{
+  background:#1E293B!important;
+  color:#FFFFFF!important;
+  border-color:#1E293B!important;
+}
+.content.content.content.content:not(.home-content) .btn-primary:hover{
+  background:#0F172A!important;
+  border-color:#0F172A!important;
+}
+.content.content.content.content:not(.home-content) .btn-primary *{
+  color:#FFFFFF!important;
+}
+.content.content.content.content:not(.home-content) .btn-accent{
+  background:#2563EB!important;
+  color:#FFFFFF!important;
+  border-color:#2563EB!important;
+}
+.content.content.content.content:not(.home-content) .btn-accent:hover{
+  background:#1D4ED8!important;
+  border-color:#1D4ED8!important;
+}
+.content.content.content.content:not(.home-content) .btn-danger,
+.content.content.content.content:not(.home-content) [class*="-delete-"]:not(input):not(textarea){
+  background:#FFFFFF!important;
+  color:#DC2626!important;
+  border:1px solid #DC2626!important;
+}
+.content.content.content.content:not(.home-content) .btn-danger:hover{
+  background:#DC2626!important;
+  color:#FFFFFF!important;
+}
+.content.content.content.content:not(.home-content) .btn-danger:hover *{
+  color:#FFFFFF!important;
+}
+
+/* ----- Inputs / selects / textareas ------------------------------------- */
+.content.content.content.content:not(.home-content) input[type="text"],
+.content.content.content.content:not(.home-content) input[type="search"],
+.content.content.content.content:not(.home-content) input[type="date"],
+.content.content.content.content:not(.home-content) input[type="time"],
+.content.content.content.content:not(.home-content) input[type="email"],
+.content.content.content.content:not(.home-content) input[type="tel"],
+.content.content.content.content:not(.home-content) input[type="number"],
+.content.content.content.content:not(.home-content) input:not([type]),
+.content.content.content.content:not(.home-content) select{
+  height:38px!important;
+  padding:0 12px!important;
+  font-size:14px!important;
+  font-family:inherit!important;
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:8px!important;
+  color:#0F172A!important;
+  box-shadow:none!important;
+  outline:none!important;
+  transition:border-color 140ms,box-shadow 140ms!important;
+}
+.content.content.content.content:not(.home-content) textarea{
+  min-height:96px!important;
+  padding:10px 12px!important;
+  font-size:14px!important;
+  font-family:inherit!important;
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:8px!important;
+  color:#0F172A!important;
+  box-shadow:none!important;
+  outline:none!important;
+  resize:vertical!important;
+}
+.content.content.content.content:not(.home-content) input:focus,
+.content.content.content.content:not(.home-content) select:focus,
+.content.content.content.content:not(.home-content) textarea:focus{
+  border-color:#2563EB!important;
+  box-shadow:0 0 0 3px rgba(37,99,235,.12)!important;
+}
+.content.content.content.content:not(.home-content) input::placeholder,
+.content.content.content.content:not(.home-content) textarea::placeholder{
+  color:#94A3B8!important;
+}
+
+/* ----- Labels ----------------------------------------------------------- */
+.content.content.content.content:not(.home-content) label{
+  font-size:11px!important;
+  font-weight:600!important;
+  color:#64748B!important;
+  text-transform:uppercase!important;
+  letter-spacing:.06em!important;
+  margin:0!important;
+}
+
+/* ----- Tables ----------------------------------------------------------- */
+.content.content.content.content:not(.home-content) table.table,
+.content.content.content.content:not(.home-content) .table{
+  width:100%!important;
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:10px!important;
+  overflow:hidden!important;
+  box-shadow:none!important;
+  border-collapse:separate!important;
+  border-spacing:0!important;
+}
+.content.content.content.content:not(.home-content) table.table th{
+  background:#F8FAFC!important;
+  color:#64748B!important;
+  border-bottom:1px solid #E5E7EB!important;
+  font-weight:600!important;
+  font-size:11px!important;
+  letter-spacing:.06em!important;
+  text-transform:uppercase!important;
+  padding:12px 16px!important;
+  text-align:start!important;
+}
+.content.content.content.content:not(.home-content) table.table td{
+  border-bottom:1px solid #E5E7EB!important;
+  padding:14px 16px!important;
+  font-size:14px!important;
+  color:#0F172A!important;
+  background:transparent!important;
+}
+.content.content.content.content:not(.home-content) table.table tr:last-child td{
+  border-bottom:0!important;
+}
+.content.content.content.content:not(.home-content) table.table tr:hover td{
+  background:#F8FAFC!important;
+}
+
+/* ----- Row patterns: clients/cases/documents/tasks list rows ------------ */
+.content.content.content.content:not(.home-content) .case-row,
+.content.content.content.content:not(.home-content) .client-row,
+.content.content.content.content:not(.home-content) .task-row,
+.content.content.content.content:not(.home-content) .case-task-row,
+.content.content.content.content:not(.home-content) .document-screen-row,
+.content.content.content.content:not(.home-content) .case-document-row,
+.content.content.content.content:not(.home-content) [class*="-row"]:not(thead):not(tbody):not(tr){
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:10px!important;
+  padding:14px 16px!important;
+  margin-bottom:8px!important;
+  box-shadow:none!important;
+  transition:border-color 140ms,box-shadow 140ms!important;
+}
+.content.content.content.content:not(.home-content) .case-row:hover,
+.content.content.content.content:not(.home-content) .client-row:hover{
+  border-color:#CBD5E1!important;
+  box-shadow:0 1px 3px rgba(15,23,42,.06)!important;
+}
+
+/* ----- Row titles + sub-text -------------------------------------------- */
+.content.content.content.content:not(.home-content) .row-title{
+  color:#0F172A!important;
+  font-weight:600!important;
+  font-size:14px!important;
+  letter-spacing:-.005em!important;
+}
+.content.content.content.content:not(.home-content) .sub{
+  color:#64748B!important;
+  font-size:12px!important;
+  margin-top:2px!important;
+}
+
+/* ----- Search boxes ----------------------------------------------------- */
+.content.content.content.content:not(.home-content) .case-search-wrap,
+.content.content.content.content:not(.home-content) .documents-toolbar,
+.content.content.content.content:not(.home-content) .tasks-toolbar{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:6px!important;
+  margin-bottom:16px!important;
+}
+.content.content.content.content:not(.home-content) .case-search-input,
+.content.content.content.content:not(.home-content) .case-timeline-search{
+  height:40px!important;
+  padding:0 14px!important;
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:8px!important;
+  color:#0F172A!important;
+  font-size:14px!important;
+  font-weight:400!important;
+  box-shadow:none!important;
+}
+.content.content.content.content:not(.home-content) .case-search-meta{
+  font-size:11px!important;
+  color:#64748B!important;
+  border:0!important;
+  background:transparent!important;
+  padding:0!important;
+}
+
+/* ----- Status pills (active/closed/pending etc.) ------------------------ */
+.content.content.content.content:not(.home-content) .status-pill,
+.content.content.content.content:not(.home-content) .case-status-btn,
+.content.content.content.content:not(.home-content) [class*="status-"]:not(input):not(textarea):not(select){
+  height:24px!important;
+  padding:0 10px!important;
+  font-size:11px!important;
+  font-weight:600!important;
+  letter-spacing:.04em!important;
+  text-transform:uppercase!important;
+  border-radius:999px!important;
+  background:#F1F5F9!important;
+  color:#64748B!important;
+  border:1px solid #E5E7EB!important;
+  box-shadow:none!important;
+  display:inline-flex!important;
+  align-items:center!important;
+}
+.content.content.content.content:not(.home-content) .status-active,
+.content.content.content.content:not(.home-content) .case-status-btn.active{
+  background:rgba(5,150,105,.10)!important;
+  color:#059669!important;
+  border-color:rgba(5,150,105,.30)!important;
+}
+.content.content.content.content:not(.home-content) .status-closed,
+.content.content.content.content:not(.home-content) .case-status-btn.closed,
+.content.content.content.content:not(.home-content) .case-status-btn.inactive{
+  background:#F1F5F9!important;
+  color:#64748B!important;
+  border-color:#E5E7EB!important;
+}
+
+/* ----- Task priority / status badges ------------------------------------ */
+.content.content.content.content:not(.home-content) .task-priority-badge,
+.content.content.content.content:not(.home-content) .task-status-badge{
+  height:22px!important;
+  padding:0 9px!important;
+  font-size:11px!important;
+  font-weight:600!important;
+  letter-spacing:.04em!important;
+  border-radius:999px!important;
+  background:#F1F5F9!important;
+  color:#64748B!important;
+  border:1px solid #E5E7EB!important;
+}
+.content.content.content.content:not(.home-content) .task-priority-normal{
+  background:#F1F5F9!important;
+  color:#64748B!important;
+  border-color:#E5E7EB!important;
+}
+.content.content.content.content:not(.home-content) .task-priority-urgent{
+  background:rgba(217,119,6,.10)!important;
+  color:#D97706!important;
+  border-color:rgba(217,119,6,.30)!important;
+}
+.content.content.content.content:not(.home-content) .task-priority-critical{
+  background:rgba(220,38,38,.10)!important;
+  color:#DC2626!important;
+  border-color:rgba(220,38,38,.30)!important;
+}
+.content.content.content.content:not(.home-content) .task-status-open{
+  background:rgba(37,99,235,.10)!important;
+  color:#2563EB!important;
+  border-color:rgba(37,99,235,.30)!important;
+}
+.content.content.content.content:not(.home-content) .task-status-progress{
+  background:rgba(37,99,235,.10)!important;
+  color:#2563EB!important;
+  border-color:rgba(37,99,235,.30)!important;
+}
+.content.content.content.content:not(.home-content) .task-status-done{
+  background:rgba(5,150,105,.10)!important;
+  color:#059669!important;
+  border-color:rgba(5,150,105,.30)!important;
+}
+
+/* ----- Empty states ----------------------------------------------------- */
+.content.content.content.content:not(.home-content) .case-empty,
+.content.content.content.content:not(.home-content) .case-tasks-empty,
+.content.content.content.content:not(.home-content) .case-timeline-empty,
+.content.content.content.content:not(.home-content) [class*="-empty"]{
+  font-size:13px!important;
+  color:#64748B!important;
+  padding:32px 20px!important;
+  text-align:center!important;
+  background:#F8FAFC!important;
+  border:1px dashed #E5E7EB!important;
+  border-radius:10px!important;
+}
+
+/* ----- Calendar / timeline filter chips --------------------------------- */
+.content.content.content.content:not(.home-content) .case-timeline-filter-bar{
+  background:#F8FAFC!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:10px!important;
+  padding:8px!important;
+  box-shadow:none!important;
+  display:flex!important;
+  gap:6px!important;
+  flex-wrap:wrap!important;
+}
+.content.content.content.content:not(.home-content) .case-timeline-filter-btn,
+.content.content.content.content:not(.home-content) [class*="filter-document"],
+.content.content.content.content:not(.home-content) [class*="filter-task"],
+.content.content.content.content:not(.home-content) [class*="filter-call"],
+.content.content.content.content:not(.home-content) [class*="filter-note"]{
+  height:30px!important;
+  padding:0 12px!important;
+  font-size:12px!important;
+  font-weight:500!important;
+  border-radius:999px!important;
+  background:#FFFFFF!important;
+  color:#1E293B!important;
+  border:1px solid #E5E7EB!important;
+  box-shadow:none!important;
+  transform:none!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:6px!important;
+}
+.content.content.content.content:not(.home-content) .case-timeline-filter-btn.active{
+  background:#1E293B!important;
+  color:#FFFFFF!important;
+  border-color:#1E293B!important;
+}
+.content.content.content.content:not(.home-content) .case-timeline-filter-btn.clear{
+  background:#FFFFFF!important;
+  color:#DC2626!important;
+  border-color:#DC2626!important;
+}
+.content.content.content.content:not(.home-content) .case-timeline-filter-btn.clear.active{
+  background:#DC2626!important;
+  color:#FFFFFF!important;
+  border-color:#DC2626!important;
+}
+
+/* Neutralize per-type filter colors */
+.content.content.content.content:not(.home-content) .timeline-icon,
+.content.content.content.content:not(.home-content) [class*="timeline-icon-"]{
+  color:#2563EB!important;
+}
+
+/* =========================================================================
+   APP CHROME — topbar, sidebar, mobile nav (Charcoal & Steel)
+   ---------------------------------------------------------------------------
+   The topbar on the home tab has class `home-topbar`, so we exclude that
+   via :not(.home-topbar). Sidebar and mobile nav are always shared chrome
+   and can be globally restyled. Specificity boost via class repetition.
+   =========================================================================*/
+
+/* Topbar — only on non-home pages */
+.topbar.topbar.topbar:not(.home-topbar){
+  background:#FFFFFF!important;
+  border-bottom:1px solid #E5E7EB!important;
+  box-shadow:none!important;
+  padding:18px 28px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:16px!important;
+  flex-wrap:wrap!important;
+}
+.topbar.topbar.topbar:not(.home-topbar) .page-title h1{
+  color:#0F172A!important;
+  font-size:22px!important;
+  font-weight:600!important;
+  letter-spacing:-.015em!important;
+  margin:0!important;
+  line-height:1.2!important;
+}
+.topbar.topbar.topbar:not(.home-topbar) .page-title p{
+  color:#64748B!important;
+  font-size:13px!important;
+  margin:2px 0 0!important;
+}
+.topbar.topbar.topbar:not(.home-topbar) .actions{
+  display:flex!important;
+  gap:10px!important;
+  align-items:center!important;
+}
+.topbar.topbar.topbar:not(.home-topbar) .actions .btn,
+.topbar.topbar.topbar:not(.home-topbar) .actions button{
+  height:36px!important;
+  padding:0 14px!important;
+  border-radius:8px!important;
+  font-size:13px!important;
+  font-weight:500!important;
+  border:1px solid #E5E7EB!important;
+  background:#FFFFFF!important;
+  color:#1E293B!important;
+  box-shadow:none!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  cursor:pointer!important;
+}
+.topbar.topbar.topbar:not(.home-topbar) .actions .btn-primary{
+  background:#1E293B!important;
+  color:#FFFFFF!important;
+  border-color:#1E293B!important;
+}
+.topbar.topbar.topbar:not(.home-topbar) .actions .btn-primary *{
+  color:#FFFFFF!important;
+}
+.topbar.topbar.topbar:not(.home-topbar) .actions .btn:hover{
+  background:#F8FAFC!important;
+  border-color:#CBD5E1!important;
+}
+.topbar.topbar.topbar:not(.home-topbar) .actions .btn-primary:hover{
+  background:#0F172A!important;
+  border-color:#0F172A!important;
+}
+@media(max-width:640px){
+  .topbar.topbar.topbar:not(.home-topbar){padding:14px 14px!important;}
+  .topbar.topbar.topbar:not(.home-topbar) .page-title h1{font-size:18px!important;}
+  .topbar.topbar.topbar:not(.home-topbar) .page-title p{font-size:12px!important;}
+}
+
+/* Sidebar — restyle (used on desktop). Doesn't affect home specifically;
+   the sidebar always renders alongside any content. */
+.sidebar.sidebar.sidebar{
+  background:#FFFFFF!important;
+  border-inline-end:1px solid #E5E7EB!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+}
+.sidebar.sidebar.sidebar .nav-btn{
+  background:transparent!important;
+  border:1px solid transparent!important;
+  color:#64748B!important;
+  border-radius:8px!important;
+  height:42px!important;
+  padding:0 14px!important;
+  font-size:14px!important;
+  font-weight:500!important;
+  margin-bottom:2px!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:12px!important;
+  cursor:pointer!important;
+  transition:background 140ms,color 140ms!important;
+}
+.sidebar.sidebar.sidebar .nav-btn:hover{
+  background:#F8FAFC!important;
+  color:#0F172A!important;
+}
+/* Active nav-btn: NO background on the button itself — keep it transparent.
+   Only the inner <i> icon gets the charcoal rounded square highlight. */
+.sidebar.sidebar.sidebar .nav-btn.active,
+.sidebar.sidebar.sidebar .nav-btn[aria-current="page"]{
+  background:transparent!important;
+  border-color:transparent!important;
+  color:#0F172A!important;
+  font-weight:600!important;
+}
+.sidebar.sidebar.sidebar .nav-btn.active span,
+.sidebar.sidebar.sidebar .nav-btn[aria-current="page"] span{
+  color:#0F172A!important;
+}
+.sidebar.sidebar.sidebar .nav-btn i{font-size:16px!important;}
+/* The icon itself gets the highlight when its button is active */
+.sidebar.sidebar.sidebar .nav-btn.active i,
+.sidebar.sidebar.sidebar .nav-btn[aria-current="page"] i{
+  background:#0F172A!important;
+  color:#FFFFFF!important;
+  border-radius:10px!important;
+  width:36px!important;
+  height:36px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  font-size:16px!important;
+}
+
+/* Mobile nav — bottom bar */
+.mobile-nav.mobile-nav.mobile-nav{
+  background:#FFFFFF!important;
+  border-top:1px solid #E5E7EB!important;
+  box-shadow:0 -4px 16px rgba(15,23,42,.04)!important;
+  backdrop-filter:none!important;
+}
+.mobile-nav.mobile-nav.mobile-nav button,
+.mobile-nav.mobile-nav.mobile-nav .nav-btn,
+.mobile-nav.mobile-nav.mobile-nav [class*="-btn"]{
+  background:transparent!important;
+  border:0!important;
+  color:#64748B!important;
+  font-size:11px!important;
+  font-weight:500!important;
+}
+.mobile-nav.mobile-nav.mobile-nav .active,
+.mobile-nav.mobile-nav.mobile-nav [aria-current="page"]{
+  color:#1E293B!important;
+}
+.mobile-nav.mobile-nav.mobile-nav .active i,
+.mobile-nav.mobile-nav.mobile-nav [aria-current="page"] i{
+  color:#2563EB!important;
+}
+
+/* Body background behind everything on non-home pages. We set this on
+   body itself; the home dashboard has its own background that overrides.
+   Using :has() to only apply when a non-home content is showing. */
+body:has(.content:not(.home-content)){
+  background:#F8FAFC!important;
+}
+
+/* =========================================================================
+   MOBILE REFINEMENTS for non-home screens
+   ---------------------------------------------------------------------------
+   Smaller padding, tighter spacing, stack toolbars. Charcoal & Steel
+   palette already inherited from the rules above. */
+@media(max-width:640px){
+  .content.content.content.content:not(.home-content){
+    padding:14px 12px 100px!important;
+  }
+  .content.content.content.content:not(.home-content) .panel{
+    border-radius:12px!important;
+    margin-bottom:12px!important;
+  }
+  .content.content.content.content:not(.home-content) h1,
+  .content.content.content.content:not(.home-content) h2{
+    font-size:18px!important;
+    margin:0 0 14px!important;
+  }
+  .content.content.content.content:not(.home-content) h3{
+    font-size:11px!important;
+    margin:0 0 10px!important;
+  }
+  .content.content.content.content:not(.home-content) .btn,
+  .content.content.content.content:not(.home-content) button.btn{
+    height:34px!important;
+    padding:0 12px!important;
+    font-size:12px!important;
+  }
+  .content.content.content.content:not(.home-content) input,
+  .content.content.content.content:not(.home-content) select,
+  .content.content.content.content:not(.home-content) textarea{
+    font-size:14px!important;
+  }
+  .content.content.content.content:not(.home-content) table.table th{
+    padding:10px 12px!important;
+    font-size:10px!important;
+  }
+  .content.content.content.content:not(.home-content) table.table td{
+    padding:12px!important;
+    font-size:13px!important;
+  }
+  .content.content.content.content:not(.home-content) .case-row,
+  .content.content.content.content:not(.home-content) .client-row,
+  .content.content.content.content:not(.home-content) .task-row{
+    padding:12px 14px!important;
+  }
+}
+
+/* Tablet refinements */
+@media(min-width:641px) and (max-width:1050px){
+  .content.content.content.content:not(.home-content){
+    padding:18px 18px 96px!important;
+  }
+}
+
+/* =========================================================================
+   CHARCOAL & STEEL — DEFENSIVE OVERRIDES FOR DETAIL/MODAL SCREENS
+   ---------------------------------------------------------------------------
+   The case-detail screen has hardcoded loud colored buttons baked in
+   (case-new-event-btn blue, case-docs-btn green/purple, case-status-btn
+   green/red, case-delete-btn red, etc.) at .modal.case-detail-desktop-v215
+   specificity. The .modal.ls rules above already win on specificity, but
+   this section ADDS extra safety with the same .modal.ls.ls.ls.ls.ls.ls
+   prefix repeated AGAIN to bump specificity to (0,15,1) — guaranteed to
+   beat every existing chain in the file.
+   =========================================================================*/
+
+/* Top action buttons row on case-detail — flatten to unified charcoal/white */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-new-event-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-extra-actions-v140 .case-new-event-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-extra-actions-v215 .case-new-event-btn{
+  background:#1E293B!important;
+  color:#FFFFFF!important;
+  border:1px solid #1E293B!important;
+  border-radius:8px!important;
+  height:36px!important;
+  padding:0 14px!important;
+  font-size:13px!important;
+  font-weight:500!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-new-event-btn *{
+  color:#FFFFFF!important;
+}
+
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-docs-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-extra-actions-v140 .case-docs-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-extra-actions-v215 .case-docs-btn{
+  background:#FFFFFF!important;
+  color:#1E293B!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:8px!important;
+  height:36px!important;
+  padding:0 14px!important;
+  font-size:13px!important;
+  font-weight:500!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-docs-btn *{
+  color:#1E293B!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-docs-btn:hover{
+  background:#F8FAFC!important;
+  border-color:#CBD5E1!important;
+}
+
+/* Status pill on case-detail: muted semantic colors */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-status-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-extra-actions-v140 .case-status-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-extra-actions-v215 .case-status-btn{
+  height:28px!important;
+  padding:0 12px!important;
+  border-radius:999px!important;
+  background:#F1F5F9!important;
+  color:#64748B!important;
+  border:1px solid #E5E7EB!important;
+  font-size:12px!important;
+  font-weight:600!important;
+  text-transform:uppercase!important;
+  letter-spacing:.04em!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-status-btn.active{
+  background:rgba(5,150,105,.10)!important;
+  color:#059669!important;
+  border-color:rgba(5,150,105,.30)!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-status-btn.inactive{
+  background:#F1F5F9!important;
+  color:#64748B!important;
+  border-color:#E5E7EB!important;
+}
+
+/* Edit + delete toolbar buttons */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-edit-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .client-edit-toolbar .case-edit-btn{
+  background:#FFFFFF!important;
+  color:#1E293B!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:8px!important;
+  height:36px!important;
+  padding:0 14px!important;
+  font-size:13px!important;
+  font-weight:500!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-edit-btn *,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .client-edit-toolbar .case-edit-btn *{
+  color:#1E293B!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-delete-btn-v143,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-delete-btn-v215,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .delete-action-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .client-edit-toolbar .delete-action-btn{
+  background:#FFFFFF!important;
+  color:#DC2626!important;
+  border:1px solid #DC2626!important;
+  border-radius:8px!important;
+  height:36px!important;
+  padding:0 14px!important;
+  font-size:13px!important;
+  font-weight:500!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-delete-btn-v143 *,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-delete-btn-v215 *,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .delete-action-btn *{
+  color:#DC2626!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-delete-btn-v143:hover,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-delete-btn-v215:hover,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .delete-action-btn:hover{
+  background:#DC2626!important;
+  color:#FFFFFF!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-delete-btn-v143:hover *,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-delete-btn-v215:hover *,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .delete-action-btn:hover *{
+  color:#FFFFFF!important;
+}
+
+/* "Next hearing" alert card — replace red text with steel-blue accent stripe */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-last-hearing-card,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls [class*="next-hearing"],
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls [class*="hearing-alert"]{
+  background:#DBEAFE!important;
+  color:#0F172A!important;
+  border:1px solid #BFDBFE!important;
+  border-inline-start:4px solid #2563EB!important;
+  border-radius:10px!important;
+  padding:14px 16px!important;
+  box-shadow:none!important;
+  margin-bottom:14px!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-last-hearing-card *{
+  color:#0F172A!important;
+}
+
+/* Balance / money value styled as accent steel-blue */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-field-balance-v215 .case-field-value-v215,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .money,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls [class*="-balance"] [class*="-value"]{
+  color:#2563EB!important;
+  font-weight:600!important;
+  font-variant-numeric:tabular-nums!important;
+}
+
+/* =========================================================================
+   PORTAL SCREEN (Comms / Search / Login / Bot) — Charcoal & Steel
+   ---------------------------------------------------------------------------
+   PortalScreen routes to PortalSearch (no client picked) or
+   PortalCommunication (when state.selectedPortalClientId is set). Both
+   render in .content (not modal), so they pick up the main-screen rules
+   above. This block adds portal-specific component overrides for elements
+   the generic rules don't cover. */
+.content.content.content.content:not(.home-content) [class*="portal-"]{
+  color:#0F172A!important;
+}
+.content.content.content.content:not(.home-content) .portal-search-row,
+.content.content.content.content:not(.home-content) [class*="portal-search"]{
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:10px!important;
+  padding:14px 16px!important;
+  box-shadow:none!important;
+  margin-bottom:8px!important;
+}
+.content.content.content.content:not(.home-content) .portal-login-card,
+.content.content.content.content:not(.home-content) [class*="portal-login"]{
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:14px!important;
+  padding:24px!important;
+  box-shadow:0 1px 2px rgba(15,23,42,.04)!important;
+}
+.content.content.content.content:not(.home-content) .portal-comm-card,
+.content.content.content.content:not(.home-content) [class*="portal-comm"],
+.content.content.content.content:not(.home-content) [class*="portal-bot"]{
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:12px!important;
+  padding:20px!important;
+  box-shadow:none!important;
+  margin-bottom:14px!important;
+}
+
+/* Portal "back to list" link / button */
+.content.content.content.content:not(.home-content) .portal-back-btn,
+.content.content.content.content:not(.home-content) [class*="portal-back"]{
+  background:#FFFFFF!important;
+  color:#1E293B!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:8px!important;
+  height:36px!important;
+  padding:0 14px!important;
+  font-size:13px!important;
+  font-weight:500!important;
+  box-shadow:none!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:8px!important;
+}
+
+/* Chat bubbles in PortalBot */
+.content.content.content.content:not(.home-content) .bot-message,
+.content.content.content.content:not(.home-content) [class*="bot-msg"],
+.content.content.content.content:not(.home-content) [class*="-bubble"]{
+  background:#F8FAFC!important;
+  color:#0F172A!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:12px!important;
+  padding:12px 14px!important;
+  margin-bottom:6px!important;
+  box-shadow:none!important;
+  max-width:78%!important;
+}
+.content.content.content.content:not(.home-content) .bot-message.user,
+.content.content.content.content:not(.home-content) [class*="bot-msg-user"],
+.content.content.content.content:not(.home-content) [class*="-bubble-user"]{
+  background:#1E293B!important;
+  color:#FFFFFF!important;
+  border-color:#1E293B!important;
+  margin-inline-start:auto!important;
+}
+
+/* =========================================================================
+   SIDEBAR — narrow icon-rail (135px wide, ~1cm wider than the previous
+   97px so labels stop getting clipped). Active state highlights ONLY the
+   icon (rounded square around it), not the entire button row.
+   =========================================================================*/
+:root{
+  --sidebar:135px!important;
+}
+/* Sidebar grid template ONLY on desktop. On mobile the sidebar is
+   display:none and the content must fill the whole viewport. */
+@media(min-width:1051px){
+  .app-shell.app-shell.app-shell{grid-template-columns:135px 1fr!important;}
+}
+@media(max-width:1050px){
+  .app-shell.app-shell.app-shell{grid-template-columns:1fr!important;}
+}
+
+/* Sidebar inner: tighter padding, stack icon above label — desktop only */
+@media(min-width:1051px){
+  .sidebar.sidebar.sidebar.sidebar{
+    padding:14px 10px!important;
+    width:135px!important;
+    max-width:135px!important;
+    min-width:135px!important;
+    overflow:hidden!important;
+  }
+}
+.sidebar.sidebar.sidebar.sidebar .side-brand{
+  flex-direction:column!important;
+  text-align:center!important;
+  padding:8px!important;
+  gap:4px!important;
+}
+.sidebar.sidebar.sidebar.sidebar .side-brand .mark{
+  width:36px!important;
+  height:36px!important;
+  border-radius:10px!important;
+  font-size:14px!important;
+  margin:0 auto!important;
+}
+.sidebar.sidebar.sidebar.sidebar .side-brand b{
+  font-size:11px!important;
+  line-height:1.2!important;
+}
+.sidebar.sidebar.sidebar.sidebar .side-brand span{
+  display:none!important;
+}
+
+/* Nav buttons: icon on top, label below, fits narrow rail. The button
+   row is transparent — only the inner <i> gets the active highlight. */
+.sidebar.sidebar.sidebar.sidebar .nav-btn{
+  flex-direction:column!important;
+  height:auto!important;
+  padding:8px 4px!important;
+  font-size:11px!important;
+  font-weight:500!important;
+  gap:6px!important;
+  text-align:center!important;
+  border-radius:10px!important;
+  line-height:1.2!important;
+  background:transparent!important;
+  border:1px solid transparent!important;
+  color:#64748B!important;
+}
+.sidebar.sidebar.sidebar.sidebar .nav-btn:hover{
+  background:transparent!important;
+  border-color:transparent!important;
+  color:#0F172A!important;
+}
+.sidebar.sidebar.sidebar.sidebar .nav-btn:hover i{
+  background:#F1F5F9!important;
+  color:#0F172A!important;
+}
+.sidebar.sidebar.sidebar.sidebar .nav-btn i{
+  width:38px!important;
+  height:38px!important;
+  font-size:17px!important;
+  margin:0 auto 0!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border-radius:10px!important;
+  background:transparent!important;
+  color:#64748B!important;
+  transition:background 140ms,color 140ms!important;
+}
+.sidebar.sidebar.sidebar.sidebar .nav-btn span{
+  font-size:11px!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  max-width:100%!important;
+  display:block!important;
+}
+/* Active: ONLY the icon gets the charcoal rounded square; label turns
+   near-black and bold. No background on the button itself. */
+.sidebar.sidebar.sidebar.sidebar .nav-btn.active,
+.sidebar.sidebar.sidebar.sidebar .nav-btn[aria-current="page"]{
+  background:transparent!important;
+  border-color:transparent!important;
+  color:#0F172A!important;
+  font-weight:600!important;
+}
+.sidebar.sidebar.sidebar.sidebar .nav-btn.active span,
+.sidebar.sidebar.sidebar.sidebar .nav-btn[aria-current="page"] span{
+  color:#0F172A!important;
+}
+.sidebar.sidebar.sidebar.sidebar .nav-btn.active i,
+.sidebar.sidebar.sidebar.sidebar .nav-btn[aria-current="page"] i{
+  background:#0F172A!important;
+  color:#FFFFFF!important;
+  border-radius:10px!important;
+  width:38px!important;
+  height:38px!important;
+  font-size:17px!important;
+}
+
+/* =========================================================================
+   CASE-DETAIL MODAL — CLEAN-UP PASS to match finance/payment screen
+   ---------------------------------------------------------------------------
+   The case detail had a cramped action row, loud count badges, colored
+   task action buttons, and an unstable field grid. This block tames all
+   of those to match the clean Charcoal & Steel layout used by the main
+   finance/payment screen. Specificity uses .modal.ls × 12 to beat the
+   existing per-version vNNN rules guaranteed.
+   =========================================================================*/
+
+/* Title block — clean header with title left, single primary action right */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-title{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:14px!important;
+  flex-wrap:wrap!important;
+  margin:0 0 18px!important;
+  padding-bottom:14px!important;
+  border-bottom:1px solid #E5E7EB!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-title h2{
+  margin:0!important;
+  font-size:20px!important;
+  font-weight:600!important;
+  color:#0F172A!important;
+  letter-spacing:-.015em!important;
+  line-height:1.25!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-title-actions{
+  display:flex!important;
+  gap:6px!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+}
+
+/* Quick-action buttons in title row — keep them ALL same height, allow
+   labels to NOT wrap. Compact font + padding so 4 chips fit. */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-title-actions .case-new-event-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-title-actions .case-docs-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-title-actions .case-status-btn{
+  height:34px!important;
+  padding:0 12px!important;
+  font-size:12px!important;
+  font-weight:500!important;
+  border-radius:8px!important;
+  white-space:nowrap!important;
+  min-width:0!important;
+  flex:0 0 auto!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-title-actions .quick-plus{
+  width:18px!important;
+  height:18px!important;
+  font-size:11px!important;
+}
+
+/* Edit toolbar (edit + delete) BELOW the title — own row, right-aligned */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-edit-toolbar{
+  display:flex!important;
+  gap:8px!important;
+  justify-content:flex-end!important;
+  margin:0 0 16px!important;
+  flex-wrap:wrap!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-edit-toolbar .case-edit-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-edit-toolbar .case-delete-btn-v143,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-edit-toolbar .case-delete-btn-v215{
+  height:32px!important;
+  padding:0 12px!important;
+  font-size:12px!important;
+}
+
+/* Field grid — LOCK to 2 columns, label-above-value, hairline cards */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .detail-grid{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:10px!important;
+  margin:0 0 18px!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 > div,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .detail-grid > div{
+  background:#F8FAFC!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:10px!important;
+  padding:14px 16px!important;
+  box-shadow:none!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:6px!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 .field-label,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .detail-grid label,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 > div > label{
+  font-size:11px!important;
+  font-weight:500!important;
+  color:#64748B!important;
+  text-transform:uppercase!important;
+  letter-spacing:.06em!important;
+  margin:0!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 .field-value,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 > div > div{
+  font-size:15px!important;
+  font-weight:600!important;
+  color:#0F172A!important;
+  letter-spacing:-.005em!important;
+}
+@media(max-width:640px){
+  .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220,
+  .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .detail-grid{
+    grid-template-columns:1fr!important;
+  }
+}
+
+/* Section panels (documents / tasks / timeline) — match finance card style */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-recent-documents-panel,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-documents-panel,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-tasks-panel,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-timeline-panel,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls [class*="case-"][class*="-panel"]:not([class*="title"]){
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:12px!important;
+  box-shadow:none!important;
+  padding:18px 20px!important;
+  margin-bottom:14px!important;
+}
+
+/* Panel head row: icon+title left, actions right */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-documents-head,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-tasks-head,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-timeline-head,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls [class*="case-"][class*="-head"]:not([class*="title"]){
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+  flex-wrap:wrap!important;
+  margin:0 0 14px!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-documents-head h3,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-tasks-head h3,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-timeline-head h3{
+  margin:0!important;
+  font-size:13px!important;
+  font-weight:600!important;
+  text-transform:uppercase!important;
+  letter-spacing:.08em!important;
+  color:#0F172A!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:8px!important;
+}
+
+/* Count badges (3 מסמכים, 3 משימות) — MUTED capsules, no charcoal fill */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-documents-count,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-tasks-count,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-timeline-count,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls [class*="-count"]:not(input):not(select):not(textarea){
+  height:22px!important;
+  padding:0 10px!important;
+  font-size:11px!important;
+  font-weight:600!important;
+  letter-spacing:.04em!important;
+  border-radius:999px!important;
+  background:#F1F5F9!important;
+  color:#64748B!important;
+  border:1px solid #E5E7EB!important;
+  box-shadow:none!important;
+  display:inline-flex!important;
+  align-items:center!important;
+}
+
+/* Header-row action buttons inside panel heads — secondary outline style */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-documents-head-actions .btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-tasks-head-actions .btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-documents-head-actions .case-document-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-tasks-head-actions .case-document-btn{
+  height:32px!important;
+  padding:0 12px!important;
+  font-size:12px!important;
+  background:#FFFFFF!important;
+  color:#1E293B!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-documents-head-actions .btn *,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-tasks-head-actions .btn *,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-documents-head-actions .case-document-btn *,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-tasks-head-actions .case-document-btn *{
+  color:#1E293B!important;
+}
+
+/* Task rows — calm card, muted action buttons */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row{
+  background:#F8FAFC!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:10px!important;
+  padding:14px 16px!important;
+  margin-bottom:8px!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row:last-child{
+  margin-bottom:0!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row .case-task-title{
+  font-size:14px!important;
+  font-weight:600!important;
+  color:#0F172A!important;
+  margin:0!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row .case-task-meta,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row .sub{
+  font-size:12px!important;
+  color:#64748B!important;
+}
+
+/* Task action buttons: מחק / edit / בוצע — unified secondary style with
+   semantic edges (red border on delete, green border on done). */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row .case-task-actions{
+  display:flex!important;
+  gap:6px!important;
+  align-items:center!important;
+  flex-wrap:wrap!important;
+  justify-content:flex-end!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row .case-task-actions .btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row button[class*="edit"],
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row button[class*="task-edit"]{
+  height:28px!important;
+  padding:0 10px!important;
+  font-size:11px!important;
+  font-weight:500!important;
+  border-radius:8px!important;
+  background:#FFFFFF!important;
+  color:#1E293B!important;
+  border:1px solid #E5E7EB!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row button[class*="edit"] *{
+  color:#1E293B!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row button[class*="delete"],
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row [class*="delete-action"]{
+  background:#FFFFFF!important;
+  color:#DC2626!important;
+  border:1px solid #DC2626!important;
+  height:28px!important;
+  padding:0 10px!important;
+  font-size:11px!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row button[class*="delete"] *,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row [class*="delete-action"] *{
+  color:#DC2626!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row button[class*="done"],
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row [class*="mark-done"]{
+  background:#FFFFFF!important;
+  color:#059669!important;
+  border:1px solid #059669!important;
+  height:28px!important;
+  padding:0 10px!important;
+  font-size:11px!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row button[class*="done"] *,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row [class*="mark-done"] *{
+  color:#059669!important;
+}
+
+/* Task priority/status pills inside row — muted */
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row .task-priority-badge,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-task-row .task-status-badge{
+  height:22px!important;
+  padding:0 9px!important;
+  font-size:11px!important;
+  font-weight:600!important;
+  letter-spacing:.04em!important;
+  border-radius:999px!important;
+  background:#F1F5F9!important;
+  color:#64748B!important;
+  border:1px solid #E5E7EB!important;
+}
+
+/* Sidebar footer pill row — stack vertically since width is narrow */
+.sidebar.sidebar.sidebar.sidebar .sidebar-footer{
+  gap:6px!important;
+}
+.sidebar.sidebar.sidebar.sidebar .sidebar-footer .pill-row{
+  flex-direction:column!important;
+  gap:4px!important;
+}
+.sidebar.sidebar.sidebar.sidebar .sidebar-footer .mini-btn{
+  padding:6px 8px!important;
+  font-size:10px!important;
+  width:100%!important;
+  justify-content:center!important;
+}
+
+/* =========================================================================
+   CLIENT DETAIL — FULL-PAGE MODAL (sized like the finance/payment screen)
+   ---------------------------------------------------------------------------
+   Stretches the .modal-box for ClientDetail to fill the content area
+   (leaving the sidebar uncovered on desktop). Removes the popup chrome
+   (border-radius, centered card, backdrop blur) so it reads as a page
+   not a popup. On mobile the existing client-mobile-fullscreen rules
+   take over.
+   =========================================================================*/
+.modal.client-detail-stable-v229.client-detail-stable-v229{
+  align-items:stretch!important;
+  justify-content:flex-start!important;
+  background:rgba(15,23,42,.24)!important;
+  backdrop-filter:none!important;
+  padding:0!important;
+  inset:0!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .modal-box,
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-box-stable-v228,
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-mobile-fullscreen-box{
+  width:calc(100vw - 135px)!important;
+  max-width:calc(100vw - 135px)!important;
+  height:100vh!important;
+  max-height:100vh!important;
+  min-height:100vh!important;
+  margin:0 0 0 0!important;
+  margin-inline-end:135px!important; /* RTL: leave room on the right for the sidebar */
+  border-radius:0!important;
+  border:0!important;
+  border-inline-start:1px solid #E5E7EB!important;
+  box-shadow:none!important;
+  background:#F8FAFC!important;
+  padding:32px 36px 96px!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  position:relative!important;
+}
+@media(max-width:1050px){
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .modal-box,
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-box-stable-v228,
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .client-mobile-fullscreen-box{
+    width:100vw!important;
+    max-width:100vw!important;
+    margin-inline-end:0!important;
+    padding:20px 18px 96px!important;
+    border-inline-start:0!important;
+  }
+}
+
+/* Title h2 — large heading like the finance page title */
+.modal.client-detail-stable-v229.client-detail-stable-v229 > .modal-box > h2,
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-mobile-fullscreen-box > h2{
+  margin:0 0 18px!important;
+  font-size:24px!important;
+  font-weight:600!important;
+  color:#0F172A!important;
+  letter-spacing:-.015em!important;
+  padding-bottom:14px!important;
+  border-bottom:1px solid #E5E7EB!important;
+}
+
+/* Section headings (h3) — small uppercase labels above each panel */
+.modal.client-detail-stable-v229.client-detail-stable-v229 h3{
+  margin:24px 0 14px!important;
+  font-size:13px!important;
+  font-weight:600!important;
+  text-transform:uppercase!important;
+  letter-spacing:.08em!important;
+  color:#0F172A!important;
+}
+
+/* Edit + delete toolbar at top */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-edit-toolbar{
+  display:flex!important;
+  gap:8px!important;
+  justify-content:flex-end!important;
+  margin:0 0 18px!important;
+  flex-wrap:wrap!important;
+}
+
+/* Profile card — small avatar header */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-profile-card{
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:12px!important;
+  padding:18px!important;
+  margin-bottom:16px!important;
+  box-shadow:none!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+
+/* Detail grid — 2 columns of label-above-value cards */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:10px!important;
+  margin:0 0 18px!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-row{
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:10px!important;
+  padding:14px 16px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:6px!important;
+  box-shadow:none!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-row > span{
+  font-size:11px!important;
+  font-weight:500!important;
+  color:#64748B!important;
+  text-transform:uppercase!important;
+  letter-spacing:.06em!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-row > strong{
+  font-size:15px!important;
+  font-weight:600!important;
+  color:#0F172A!important;
+}
+@media(max-width:640px){
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid{
+    grid-template-columns:1fr!important;
+  }
+}
+
+/* Phone link inside detail-row */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-phone-link{
+  color:#2563EB!important;
+  text-decoration:none!important;
+  font-weight:600!important;
+}
+
+/* Contact actions row (WhatsApp etc.) */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-contact-actions{
+  grid-column:1 / -1!important;
+  display:flex!important;
+  gap:8px!important;
+  flex-wrap:wrap!important;
+  margin-top:4px!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-whatsapp-link{
+  height:36px!important;
+  padding:0 14px!important;
+  border-radius:8px!important;
+  background:#FFFFFF!important;
+  color:#1E293B!important;
+  border:1px solid #E5E7EB!important;
+  font-size:13px!important;
+  font-weight:500!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  text-decoration:none!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-whatsapp-link:hover{
+  background:#F8FAFC!important;
+  border-color:#CBD5E1!important;
+}
+
+/* Case list under "תיקים" */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-case-list{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:8px!important;
+  margin-bottom:6px!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-case-link{
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:10px!important;
+  padding:14px 16px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+  cursor:pointer!important;
+  text-align:start!important;
+  box-shadow:none!important;
+  font-family:inherit!important;
+  transition:border-color 140ms,box-shadow 140ms!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-case-link:hover{
+  border-color:#CBD5E1!important;
+  box-shadow:0 1px 3px rgba(15,23,42,.06)!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-case-main{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:2px!important;
+  flex:1!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-case-main strong{
+  font-size:14px!important;
+  font-weight:600!important;
+  color:#0F172A!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-case-main span{
+  font-size:12px!important;
+  color:#64748B!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-case-status-btn{
+  height:22px!important;
+  padding:0 10px!important;
+  font-size:11px!important;
+  font-weight:600!important;
+  text-transform:uppercase!important;
+  letter-spacing:.04em!important;
+  border-radius:999px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  border:1px solid #E5E7EB!important;
+  background:#F1F5F9!important;
+  color:#64748B!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-case-status-btn.active{
+  background:rgba(5,150,105,.10)!important;
+  color:#059669!important;
+  border-color:rgba(5,150,105,.30)!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-case-link .fa-chevron-left{
+  color:#94A3B8!important;
+  font-size:11px!important;
+}
+
+/* Documents list under "מסמכים" */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-documents-list,
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-tasks-list{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:8px!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-document-row,
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-task-row{
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:10px!important;
+  padding:14px 16px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+  box-shadow:none!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-document-main,
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-task-main{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:2px!important;
+  flex:1!important;
+  min-width:0!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-document-main strong,
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-task-main strong{
+  font-size:14px!important;
+  font-weight:600!important;
+  color:#0F172A!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:8px!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-document-main .sub,
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-task-main .sub{
+  font-size:12px!important;
+  color:#64748B!important;
+}
+
+/* Task status badge inside client view */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-task-row .task-status-badge{
+  height:22px!important;
+  padding:0 10px!important;
+  font-size:11px!important;
+  font-weight:600!important;
+  text-transform:uppercase!important;
+  letter-spacing:.04em!important;
+  border-radius:999px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  background:rgba(37,99,235,.10)!important;
+  color:#2563EB!important;
+  border:1px solid rgba(37,99,235,.30)!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-task-row .task-status-done{
+  background:rgba(5,150,105,.10)!important;
+  color:#059669!important;
+  border-color:rgba(5,150,105,.30)!important;
+}
+
+/* Notes box */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-notes-box{
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:10px!important;
+  padding:16px 18px!important;
+  font-size:14px!important;
+  color:#0F172A!important;
+  line-height:1.55!important;
+  box-shadow:none!important;
+  margin-top:8px!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-notes-box strong{
+  font-size:11px!important;
+  font-weight:500!important;
+  color:#64748B!important;
+  text-transform:uppercase!important;
+  letter-spacing:.06em!important;
+}
+
+/* Empty state inside client detail */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .case-empty{
+  background:#FFFFFF!important;
+  border:1px dashed #E5E7EB!important;
+  border-radius:10px!important;
+  padding:24px 18px!important;
+  color:#64748B!important;
+  font-size:13px!important;
+  text-align:center!important;
+}
+
+/* =========================================================================
+   HOME TOPBAR — logo + office name + address (replaces the "ראשי" title)
+   ---------------------------------------------------------------------------
+   On the home tab Topbar.tsx renders a `.home-brand` block instead of the
+   page-title. Logo sits left/right (per direction), with the office name
+   in the "main" heading size and the address on a smaller line below.
+   =========================================================================*/
+.topbar.home-topbar .home-brand{
+  display:flex!important;
+  align-items:center!important;
+  gap:14px!important;
+  flex:1 1 auto!important;
+  min-width:0!important;
+}
+.topbar.home-topbar .home-brand-logo{
+  width:48px!important;
+  height:48px!important;
+  border-radius:12px!important;
+  object-fit:cover!important;
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  flex:0 0 48px!important;
+  display:block!important;
+}
+.topbar.home-topbar .home-brand-text{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:2px!important;
+  min-width:0!important;
+}
+.topbar.home-topbar .home-brand-name{
+  display:block!important;
+  font-size:20px!important;
+  font-weight:700!important;
+  color:#0F172A!important;
+  line-height:1.2!important;
+  letter-spacing:-.01em!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.topbar.home-topbar .home-brand-address{
+  display:block!important;
+  font-size:13px!important;
+  font-weight:400!important;
+  color:#64748B!important;
+  line-height:1.3!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+@media(max-width:640px){
+  .topbar.home-topbar{
+    padding:10px 12px!important;
+    gap:8px!important;
+  }
+  .topbar.home-topbar .home-brand{
+    gap:10px!important;
+    flex:1 1 auto!important;
+    min-width:0!important;
+    max-width:calc(100% - 100px)!important; /* leave room for the action buttons */
+  }
+  .topbar.home-topbar .home-brand-logo{
+    width:38px!important;
+    height:38px!important;
+    flex:0 0 38px!important;
+    border-radius:10px!important;
+  }
+  .topbar.home-topbar .home-brand-text{
+    min-width:0!important;
+    flex:1 1 auto!important;
+  }
+  .topbar.home-topbar .home-brand-name{
+    font-size:14px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+  .topbar.home-topbar .home-brand-address{
+    font-size:11px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+  .topbar.home-topbar .actions{
+    gap:6px!important;
+    flex:0 0 auto!important;
+  }
+}
+
+/* =========================================================================
+   HOME GREETING — "בוקר/יום/ערב טוב, אשרף"
+   ---------------------------------------------------------------------------
+   Floats inside the home-grid-wrap, absolutely positioned so it sits at
+   the horizontal centre between the top-row Cases and Clients cards
+   (the wrap is itself centred in the content area, so 50% lands between
+   the two top cards). Vertically it's ~2cm below the topbar — the wrap
+   top is right under the topbar (after the 24px content padding), so
+   `top: calc(2cm - 24px)` places the greeting bottom around that mark.
+   =========================================================================*/
+.home-grid-wrap .home-greeting,
+.content.home-content .home-grid-wrap .home-greeting{
+  position:absolute!important;
+  top:-24px!important;
+  left:50%!important;
+  transform:translateX(-50%)!important;
+  z-index:6!important;
+  font-size:18px!important;
+  font-weight:600!important;
+  color:#0F172A!important;
+  letter-spacing:-.005em!important;
+  white-space:nowrap!important;
+  pointer-events:none!important;
+  text-align:center!important;
+}
+@media(max-width:640px){
+  .home-grid-wrap .home-greeting,
+  .content.home-content .home-grid-wrap .home-greeting{
+    font-size:14px!important;
+    top:calc(-10px - 2cm)!important; /* moved up another 2cm per user request */
+    padding:0 8px!important;
+    /* Strip any inherited writing-mode that might rotate the text */
+    writing-mode:horizontal-tb!important;
+    text-orientation:mixed!important;
+  }
+}
+
+/* Mobile-specific home dashboard fixes
+   ---------------------------------------------------------------------------
+   - Force the grid wrap to fill the available width
+   - Force grid rows to a sane explicit height so cells aren't taller than
+     they are wide
+   - Slightly relax the leaf border-radius so very small cards don't
+     collapse into thin slivers
+   - Reset any writing-mode that might rotate text on the cards */
+@media(max-width:1050px){
+  .content.home-content .home-grid-wrap{
+    width:100%!important;
+    max-width:620px!important;
+    height:auto!important;
+    min-height:0!important;
+    aspect-ratio:auto!important;
+    margin:24px auto 0!important;
+  }
+  .content.home-content .home-card-grid{
+    height:auto!important;
+    gap:18px!important;
+    grid-template-rows:auto auto!important;
+  }
+  .content.home-content .home-card-grid .home-card{
+    min-height:150px!important;
+    aspect-ratio:1.15/1!important;
+    width:auto!important;
+    height:auto!important;
+    max-width:none!important;
+    writing-mode:horizontal-tb!important;
+    text-orientation:mixed!important;
+  }
+  .content.home-content .home-card-grid .home-card h2,
+  .content.home-content .home-card-grid .home-card .card-icon{
+    writing-mode:horizontal-tb!important;
+    text-orientation:mixed!important;
+  }
+  .content.home-content .home-card-grid .home-card h2{
+    transform:none!important; /* drop the 0.5cm desktop nudge on mobile */
+    margin:0!important;
+  }
+}
+
+@media(max-width:640px){
+  .content.home-content .home-card-grid{gap:12px!important;}
+  .content.home-content .home-card-grid .home-card{
+    min-height:120px!important;
+  }
+  /* Keep the per-:nth-child leaf border-radii from the desktop rules —
+     they apply unchanged on mobile so the cards look identical to the
+     desktop view. */
+}
+
+/* =========================================================================
+   CASE DETAIL — FULL-PAGE MODAL (same size treatment as ClientDetail)
+   ---------------------------------------------------------------------------
+   Modal-box stretches to fill the content area (leaving the sidebar
+   uncovered on desktop). Below that, a 2-column body grid puts the case
+   fields on the right (in RTL) and the documents + tasks panels stacked
+   on the left. Documents and tasks panel headers are colored red per the
+   user's request.
+   =========================================================================*/
+.modal.case-detail-mobile-v140.case-detail-mobile-v140,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215,
+.modal.case-detail-open-v210.case-detail-open-v210{
+  align-items:stretch!important;
+  justify-content:flex-start!important;
+  background:rgba(15,23,42,.24)!important;
+  backdrop-filter:none!important;
+  padding:0!important;
+  inset:0!important;
+}
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .modal-box,
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-modal-box,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .modal-box,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-modal-box{
+  width:calc(100vw - 135px)!important;
+  max-width:calc(100vw - 135px)!important;
+  height:100vh!important;
+  max-height:100vh!important;
+  min-height:100vh!important;
+  margin:0!important;
+  margin-inline-end:135px!important;
+  border-radius:0!important;
+  border:0!important;
+  border-inline-start:1px solid #E5E7EB!important;
+  box-shadow:none!important;
+  background:#F8FAFC!important;
+  padding:32px 36px 96px!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  position:relative!important;
+}
+@media(max-width:1050px){
+  .modal.case-detail-mobile-v140.case-detail-mobile-v140 .modal-box,
+  .modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-modal-box,
+  .modal.case-detail-desktop-v215.case-detail-desktop-v215 .modal-box,
+  .modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-modal-box{
+    width:100vw!important;
+    max-width:100vw!important;
+    margin-inline-end:0!important;
+    padding:20px 18px 96px!important;
+    border-inline-start:0!important;
+  }
+}
+
+/* 2-column body — fields on right (RTL), documents+tasks stacked on left.
+   Use direction:rtl so the first child (fields) flows to the right of
+   the grid in RTL contexts. On narrow viewports collapse to 1 column.   */
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-main-row,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-main-row{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:16px!important;
+  align-items:start!important;
+  margin:0 0 16px!important;
+}
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-fields-col,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-fields-col{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:14px!important;
+}
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-side-col,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-side-col{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:14px!important;
+}
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-side-col > *,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-side-col > *{
+  margin-bottom:0!important;
+}
+@media(max-width:900px){
+  .modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-main-row,
+  .modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-main-row{
+    grid-template-columns:1fr!important;
+  }
+}
+
+/* Panel headers: documents + tasks panel titles in RED */
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-recent-documents-panel .case-documents-head h3,
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-recent-documents-panel h3,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-recent-documents-panel .case-documents-head h3,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-recent-documents-panel h3,
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-tasks-panel .case-tasks-head h3,
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-tasks-panel h3,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-tasks-panel .case-tasks-head h3,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-tasks-panel h3{
+  color:#DC2626!important;
+}
+
+/* Fields card needs to fill the right column and align top */
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-fields-col > .detail-grid,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-fields-col > .detail-grid{
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:12px!important;
+  padding:18px 20px!important;
+  margin:0!important;
+}
+
+/* =========================================================================
+   CLIENT DETAIL — single-row info grid + avatar in title
+   ---------------------------------------------------------------------------
+   On desktop the 5 metadata boxes (name, alt-name, ID, address, phone)
+   plus the 2 WhatsApp action chips render side-by-side on one row. The
+   address box spans 2 columns so it's double-width. Text uses ellipsis
+   truncation to keep cells inside their box.
+   The client avatar moves into the title row, sized to match the header
+   height so it can't push the edges of the header.
+   Scoped to .modal.client-detail-stable-v229 (full-page ClientDetail).
+   =========================================================================*/
+
+/* Avatar lives on the edit/delete toolbar row — sized to the toolbar
+   height (36px) so it sits neatly inline with the buttons. */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-edit-toolbar{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  flex-wrap:wrap!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar{
+  flex:0 0 auto!important;
+  width:36px!important;
+  height:36px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  margin-inline-end:auto!important; /* push edit/delete to the opposite side */
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-avatar{
+  width:36px!important;
+  height:36px!important;
+  border-radius:50%!important;
+  overflow:hidden!important;
+  background:#F1F5F9!important;
+  border:1px solid #E5E7EB!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  font-size:14px!important;
+  font-weight:600!important;
+  color:#1E293B!important;
+  cursor:pointer!important;
+  flex:0 0 36px!important;
+  min-width:36px!important;
+  min-height:36px!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-avatar img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+  display:block!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-photo-actions{
+  display:none!important; /* the inline save/cancel actions show inline only — keep header clean */
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-photo-actions.is-hidden{
+  display:none!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-photo-actions:not(.is-hidden){
+  display:flex!important;
+  gap:6px!important;
+}
+
+/* Hide the legacy profile-card block (now empty since the avatar moved) */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-profile-card{
+  display:none!important;
+}
+
+/* Two-row client detail layout — info row + contact actions row.
+   Both grids are sized ~75% of the row width and aligned to the
+   start side (right in RTL). All boxes use ellipsis truncation so
+   text never overflows.
+
+   Row 1 (.client-detail-info-grid): 5-column grid, address spans 2 → 4 logical cells
+   Row 2 (.client-detail-contact-grid): 3 equal columns for phone + 2 WhatsApp links
+*/
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid{
+  display:grid!important;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  gap:8px!important;
+  margin:0 0 10px!important;
+  max-width:75%!important;
+  margin-inline-start:auto!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:8px!important;
+  margin:0 0 18px!important;
+  max-width:75%!important;
+  margin-inline-start:auto!important;
+}
+
+/* Shared cell styling on BOTH grids */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row,
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .detail-row{
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:8px!important;
+  padding:8px 10px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:2px!important;
+  box-shadow:none!important;
+  min-width:0!important;
+  overflow:hidden!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row > span,
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .detail-row > span{
+  font-size:9px!important;
+  font-weight:500!important;
+  color:#64748B!important;
+  text-transform:uppercase!important;
+  letter-spacing:.05em!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row > strong,
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .detail-row > strong{
+  font-size:11px!important;
+  font-weight:600!important;
+  color:#0F172A!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  min-width:0!important;
+  display:block!important;
+}
+
+/* Address spans 2 columns — gives the double width within the info row */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row-address{
+  grid-column:span 2!important;
+}
+
+/* WhatsApp links inside the contact row */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell{
+  background:#FFFFFF!important;
+  border:1px solid #E5E7EB!important;
+  border-radius:8px!important;
+  padding:0 10px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:5px!important;
+  height:auto!important;
+  min-height:40px!important;
+  font-size:10px!important;
+  font-weight:500!important;
+  color:#1E293B!important;
+  text-decoration:none!important;
+  overflow:hidden!important;
+  min-width:0!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell:hover{
+  background:#F8FAFC!important;
+  border-color:#CBD5E1!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell i{
+  color:#059669!important;
+  font-size:12px!important;
+  flex:0 0 auto!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell span{
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  min-width:0!important;
+}
+
+/* Phone link inside its cell — also truncates */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid .client-phone-link{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:4px!important;
+  color:#2563EB!important;
+  text-decoration:none!important;
+  font-weight:600!important;
+  font-size:11px!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  max-width:100%!important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid .client-phone-link i{
+  font-size:11px!important;
+}
+
+/* Tablet — relax both grids to full width and slightly smaller columns */
+@media(max-width:1100px){
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid,
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid{
+    max-width:100%!important;
+  }
+}
+@media(max-width:640px){
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row-address{
+    grid-column:span 2!important;
+  }
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid{
+    grid-template-columns:1fr!important;
+  }
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar,
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-avatar{
+    width:32px!important;
+    height:32px!important;
+    flex:0 0 32px!important;
+    min-width:32px!important;
+    min-height:32px!important;
+    font-size:12px!important;
+  }
+}
+
+/* =========================================================================
+   SEARCH INPUTS — per-screen overrides
+   ---------------------------------------------------------------------------
+   1) Global Search screen: light-green tint on the input
+   2) Documents screen: search bar stretches full width (side to side)
+   3) Tasks screen: search bar stretches full width (side to side)
+   Specificity (0,4,1+) beats the Charcoal & Steel input rules.
+   =========================================================================*/
+
+/* 1) Global search — light green input */
+.content.content.content.content:not(.home-content) .global-search-panel .case-search-input,
+.content.content.content.content:not(.home-content) .global-search-panel .case-search-wrap input[type="search"]{
+  background:#DCFCE7!important;       /* light green fill */
+  border:1px solid #86EFAC!important; /* matching green border */
+  color:#0F172A!important;
+}
+.content.content.content.content:not(.home-content) .global-search-panel .case-search-input::placeholder{
+  color:#15803D!important;
+  opacity:.7!important;
+}
+.content.content.content.content:not(.home-content) .global-search-panel .case-search-input:focus{
+  border-color:#22C55E!important;
+  background:#BBF7D0!important;
+  box-shadow:0 0 0 3px rgba(34,197,94,.18)!important;
+}
+
+/* 2) Documents toolbar — stack search above actions, both full width */
+.content.content.content.content:not(.home-content) .documents-screen-panel .documents-toolbar,
+.content.content.content.content:not(.home-content) .documents-toolbar{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  gap:10px!important;
+}
+.content.content.content.content:not(.home-content) .documents-toolbar .case-search-wrap{
+  width:100%!important;
+  max-width:100%!important;
+  flex:1 1 100%!important;
+}
+.content.content.content.content:not(.home-content) .documents-toolbar .case-search-input{
+  width:100%!important;
+  max-width:100%!important;
+}
+.content.content.content.content:not(.home-content) .documents-toolbar .documents-toolbar-actions{
+  display:flex!important;
+  gap:8px!important;
+  flex-wrap:wrap!important;
+  width:100%!important;
+}
+
+/* 3) Tasks toolbar — same treatment, search bar full width */
+.content.content.content.content:not(.home-content) .tasks-screen-panel .tasks-toolbar,
+.content.content.content.content:not(.home-content) .tasks-toolbar{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  gap:10px!important;
+}
+.content.content.content.content:not(.home-content) .tasks-toolbar .case-search-wrap{
+  width:100%!important;
+  max-width:100%!important;
+  flex:1 1 100%!important;
+}
+.content.content.content.content:not(.home-content) .tasks-toolbar .case-search-input{
+  width:100%!important;
+  max-width:100%!important;
+}
+
+/* =========================================================================
+   MOBILE NAV — enlarge + emphasize icons WITHOUT overflowing the viewport
+   ---------------------------------------------------------------------------
+   Nine buttons share the bottom bar, so each cell uses flex:1 1 0 (equal
+   width). Padding is tightened, FontAwesome icons grow to 22px, PNG icons
+   to 26×26, labels stay tiny + ellipsis truncated. Active state highlights
+   the icon with a rounded blue pill (matches the desktop sidebar
+   treatment) so the current tab stands out.
+   =========================================================================*/
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav{
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom))!important;
+  gap:0!important;
+  justify-content:space-around!important;
+}
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn,
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav button{
+  flex:1 1 0!important;
+  min-width:0!important;
+  padding:4px 2px!important;
+  gap:2px!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  display:flex!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:8px!important;
+  color:#64748B!important;
+  font-size:9px!important;
+  font-weight:500!important;
+  line-height:1.1!important;
+  overflow:hidden!important;
+}
+
+/* FontAwesome <i> icons — bigger and bolder */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn > i{
+  font-size:22px!important;
+  line-height:1!important;
+  width:34px!important;
+  height:34px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border-radius:999px!important;
+  background:transparent!important;
+  color:#64748B!important;
+  transition:background 140ms,color 140ms!important;
+}
+
+/* PNG icon wraps (home/cases/contacts/calendar) — grow the inner image */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-home-icon-wrap,
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-cases-icon-wrap,
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-client-icon-wrap,
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-calendar-icon-wrap{
+  width:34px!important;
+  height:34px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border-radius:999px!important;
+  background:transparent!important;
+  transition:background 140ms!important;
+}
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-home-icon-img,
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-cases-icon-img,
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-client-icon-img,
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-calendar-icon-img{
+  width:26px!important;
+  height:26px!important;
+  object-fit:contain!important;
+  display:block!important;
+}
+
+/* Labels — small enough that 9 buttons fit, ellipsis if too long */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn > span:not([class]),
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn > span:last-child{
+  font-size:9px!important;
+  font-weight:500!important;
+  color:inherit!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  max-width:100%!important;
+  display:block!important;
+}
+
+/* Active state — prominent rounded-pill highlight around the icon, label
+   bold dark. Same visual logic as the desktop sidebar active treatment. */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active,
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn[aria-current="page"]{
+  color:#0F172A!important;
+  font-weight:700!important;
+}
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active > i,
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn[aria-current="page"] > i{
+  background:#1E293B!important;
+  color:#FFFFFF!important;
+}
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active .mobile-home-icon-wrap,
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active .mobile-cases-icon-wrap,
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active .mobile-client-icon-wrap,
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active .mobile-calendar-icon-wrap{
+  background:rgba(37,99,235,.12)!important;
+}
+
+/* Hover (mostly desktop simulator) — subtle gray pill */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn:hover > i{
+  background:#F1F5F9!important;
+  color:#0F172A!important;
+}
+
+/* Very narrow phones (≤360px) — shrink labels & icons one more notch */
+@media(max-width:360px){
+  .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn > i{
+    font-size:20px!important;
+    width:30px!important;
+    height:30px!important;
+  }
+  .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-home-icon-wrap,
+  .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-cases-icon-wrap,
+  .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-client-icon-wrap,
+  .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-calendar-icon-wrap{
+    width:30px!important;
+    height:30px!important;
+  }
+  .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-home-icon-img,
+  .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-cases-icon-img,
+  .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-client-icon-img,
+  .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn .mobile-calendar-icon-img{
+    width:22px!important;
+    height:22px!important;
+  }
+  .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn > span:last-child{
+    font-size:8px!important;
+  }
+}
+

@@ -140,3 +140,119 @@ export function scheduleLegalOfficeDiskAutoSave(
     void writeFn(payload(), handle);
   }, 650);
 }
+
+// ===========================================================================
+// Per-document save/open to the local Dropbox folder via File System Access.
+// The picker is invoked at most ONCE — after the user grants a folder the
+// handle persists in IndexedDB and every subsequent document save reuses it
+// silently. No "sync" button needed; the Dropbox desktop app handles upload
+// to the cloud automatically.
+// ===========================================================================
+
+/** Get the saved Dropbox folder handle (re-verifying permission) or, if no
+ *  handle exists yet / permission was revoked, prompt the picker exactly
+ *  once. Must be called from inside a user gesture (click). */
+export async function ensureLegalOfficeFolder(
+  lang: 'he' | 'ar',
+): Promise<DirectoryHandle | null> {
+  // 1. Already saved?
+  let handle = await loadSavedLegalOfficeDirectoryHandle();
+  if (handle) {
+    const ok = await verifyLegalOfficeDirectoryPermission(handle);
+    if (ok) return handle;
+  }
+  // 2. No handle or permission lapsed — prompt the picker (one-time).
+  try {
+    handle = await pickAndSaveDirectory(lang);
+    return handle;
+  } catch (e) {
+    console.warn('[LegalOffice disk] folder pick failed', e);
+    return null;
+  }
+}
+
+/** Sanitize a filename so it can be written cross-platform. */
+function safeFilename(name: string): string {
+  return name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 200) || 'file';
+}
+
+/** Resolve a sub-directory chain inside the picked folder, creating each
+ *  level if it doesn't exist. Returns the deepest directory handle. */
+async function ensureSubdir(
+  root: DirectoryHandle,
+  parts: string[],
+): Promise<FileSystemDirectoryHandle> {
+  let dir: FileSystemDirectoryHandle = root;
+  for (const part of parts) {
+    const safe = safeFilename(part);
+    if (!safe) continue;
+    dir = await dir.getDirectoryHandle(safe, { create: true });
+  }
+  return dir;
+}
+
+/** Save a document file into the Dropbox folder under
+ *  `Clients/<caseId or clientId>/<timestamp>-<file.name>`. Returns the
+ *  relative path inside the picked folder, or null on failure. */
+export async function saveDocumentToLegalOfficeFolder(
+  file: File,
+  options: { caseId?: string; clientId?: string; lang: 'he' | 'ar' },
+): Promise<{ relativePath: string } | null> {
+  try {
+    const root = await ensureLegalOfficeFolder(options.lang);
+    if (!root) return null;
+    const subdirName = options.caseId || options.clientId || 'misc';
+    const dir = await ensureSubdir(root, [
+      LEGAL_OFFICE_DOCUMENTS_FOLDER,
+      subdirName,
+    ]);
+    const filename = `${Date.now()}-${safeFilename(file.name)}`;
+    const fileHandle = await dir.getFileHandle(filename, { create: true });
+    const writable = await (
+      fileHandle as FileSystemFileHandle & {
+        createWritable: () => Promise<FileSystemWritableFileStream>;
+      }
+    ).createWritable();
+    await writable.write(file);
+    await writable.close();
+    return {
+      relativePath: `${LEGAL_OFFICE_DOCUMENTS_FOLDER}/${safeFilename(
+        subdirName,
+      )}/${filename}`,
+    };
+  } catch (e) {
+    console.warn('[LegalOffice disk] save failed', e);
+    return null;
+  }
+}
+
+/** Open a previously-saved document by reading its file from the picked
+ *  folder and creating an Object URL. The URL is opened in a new tab. */
+export async function openDocumentFromLegalOfficeFolder(
+  relativePath: string,
+  lang: 'he' | 'ar',
+): Promise<boolean> {
+  try {
+    const root = await ensureLegalOfficeFolder(lang);
+    if (!root) return false;
+    const parts = relativePath.split('/').filter(Boolean);
+    if (parts.length < 2) return false;
+    // All but the last part are directories.
+    const dirParts = parts.slice(0, -1);
+    const fileName = parts[parts.length - 1];
+    let dir: FileSystemDirectoryHandle = root;
+    for (const part of dirParts) {
+      dir = await dir.getDirectoryHandle(part, { create: false });
+    }
+    const fileHandle = await dir.getFileHandle(fileName, { create: false });
+    const file = await fileHandle.getFile();
+    const url = URL.createObjectURL(file);
+    const w = window.open(url, '_blank', 'noopener,noreferrer');
+    // Revoke after a short delay so the new tab has time to read it.
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    return !!w;
+  } catch (e) {
+    console.warn('[LegalOffice disk] open failed', e);
+    return false;
+  }
+}

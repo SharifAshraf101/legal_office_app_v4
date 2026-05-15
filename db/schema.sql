@@ -202,6 +202,66 @@ create index if not exists timeline_items_case_source_id_idx
   on public.timeline_items (user_id, case_source_id);
 
 -- =========================================================================
+-- 8. finances  (alternate name for payments — the loader reads both and
+--               merges the rows, so the table is provided for parity with
+--               other deployments that wrote under this name)
+-- =========================================================================
+create table if not exists public.finances (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid not null,
+  source_id         text not null,
+  case_source_id    text,
+  case_id           uuid references public.cases(id) on delete set null,
+  date              date,
+  amount            numeric not null default 0,
+  type              text not null default 'payment',
+  description       text,
+  description_ar    text,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now(),
+  unique (user_id, source_id)
+);
+create index if not exists finances_case_source_id_idx
+  on public.finances (user_id, case_source_id);
+
+-- =========================================================================
+-- 9. timeline_entries  (alternate name for timeline_items — same merge
+--                       reasoning as finances/payments above)
+-- =========================================================================
+create table if not exists public.timeline_entries (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid not null,
+  source_id         text not null,
+  case_source_id    text,
+  case_id           uuid references public.cases(id) on delete set null,
+  type              text not null default 'note',
+  title             text,
+  title_ar          text,
+  date              date,
+  description       text,
+  description_ar    text,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now(),
+  unique (user_id, source_id)
+);
+create index if not exists timeline_entries_case_source_id_idx
+  on public.timeline_entries (user_id, case_source_id);
+
+-- =========================================================================
+-- 10. app_state  (whole-app JSON blob fallback — the loader reads this
+--                 when every per-table query returns zero rows, so a new
+--                 device can still hydrate from a single snapshot)
+-- =========================================================================
+create table if not exists public.app_state (
+  user_id     uuid primary key,
+  state       jsonb not null default '{}'::jsonb,
+  payload     jsonb not null default '{}'::jsonb,
+  data        jsonb not null default '{}'::jsonb,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+-- =========================================================================
 -- updated_at triggers
 -- =========================================================================
 create or replace function public.legal_office_touch_updated_at()
@@ -220,7 +280,8 @@ declare
 begin
   foreach t in array array[
     'clients', 'cases', 'tasks', 'calendar_events',
-    'documents', 'payments', 'timeline_items'
+    'documents', 'payments', 'timeline_items',
+    'finances', 'timeline_entries', 'app_state'
   ]
   loop
     execute format(
@@ -247,7 +308,8 @@ declare
 begin
   foreach t in array array[
     'clients', 'cases', 'tasks', 'calendar_events',
-    'documents', 'payments', 'timeline_items'
+    'documents', 'payments', 'timeline_items',
+    'finances', 'timeline_entries', 'app_state'
   ]
   loop
     execute format('alter table public.%I enable row level security;', t);
@@ -268,3 +330,36 @@ begin
     );
   end loop;
 end $$;
+
+-- =========================================================================
+-- 11. Supabase Storage: document file bucket
+--
+-- File bytes for the `documents` table live in this bucket. The
+-- documents.relative_path column stores the path within the bucket so the
+-- record and the file stay linked. The bucket is set to public so that
+-- opening a document is a plain GET against the public URL — switch to
+-- private + signed URLs once Supabase Auth is wired in.
+-- =========================================================================
+insert into storage.buckets (id, name, public)
+values ('legal-office-documents', 'legal-office-documents', true)
+on conflict (id) do update set public = excluded.public;
+
+drop policy if exists "legal_office_documents_select" on storage.objects;
+create policy "legal_office_documents_select" on storage.objects
+  for select to anon, authenticated
+  using (bucket_id = 'legal-office-documents');
+
+drop policy if exists "legal_office_documents_insert" on storage.objects;
+create policy "legal_office_documents_insert" on storage.objects
+  for insert to anon, authenticated
+  with check (bucket_id = 'legal-office-documents');
+
+drop policy if exists "legal_office_documents_update" on storage.objects;
+create policy "legal_office_documents_update" on storage.objects
+  for update to anon, authenticated
+  using (bucket_id = 'legal-office-documents');
+
+drop policy if exists "legal_office_documents_delete" on storage.objects;
+create policy "legal_office_documents_delete" on storage.objects
+  for delete to anon, authenticated
+  using (bucket_id = 'legal-office-documents');

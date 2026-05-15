@@ -243,44 +243,52 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
 
         <CaseLastHearingCard caseId={caseId} />
 
-        {/* Main detail grid. The grid carries all three case-main-detail-grid-vNNN
-         *  classes so the chained CSS rules from globals.css apply (v141 → v215
-         *  → v219 → v220). Inside, we render only the v220 boxed-field block —
-         *  v141 and v215 blocks are intentionally omitted (CSS hid them when
-         *  v220 was present anyway). */}
-        <div className="detail-grid case-main-detail-grid-v141 case-main-detail-grid-v215 case-main-detail-grid-v219 case-main-detail-grid-v220">
-          <div
-            className="case-detail-mobile-fields-v220 case-detail-mobile-fields-v215"
-            data-v220="1"
-          >
-            <BoxedField label={lang === 'ar' ? 'اسم الموكل' : 'שם לקוח'} value={clientLabel} />
-            <BoxedField label={lang === 'ar' ? 'نوع الدعوى' : 'מהות התביעה'} value={titleStr} />
-            <BoxedField label={lang === 'ar' ? 'رقم الملف' : 'מספר תיק'} value={c.caseNumber || ''} full />
-            <BoxedField label={lang === 'ar' ? 'المحكمة' : 'בית משפט'} value={court || ''} />
-            <BoxedField
-              label={lang === 'ar' ? 'الرصيد' : 'יתרת חוב'}
-              value={money(balance)}
-              balance
+        {/* Two-column body: fields on the right (in RTL), documents + tasks
+         *  stacked on the left. The new wrapper is laid out by the CSS rule
+         *  .case-detail-main-row in globals.css; collapses to a single
+         *  column on narrow viewports. */}
+        <div className="case-detail-main-row">
+          <div className="case-detail-fields-col">
+            {/* Main detail grid. The grid carries all three case-main-detail-grid-vNNN
+             *  classes so the chained CSS rules from globals.css apply (v141 → v215
+             *  → v219 → v220). Inside, we render only the v220 boxed-field block —
+             *  v141 and v215 blocks are intentionally omitted (CSS hid them when
+             *  v220 was present anyway). */}
+            <div className="detail-grid case-main-detail-grid-v141 case-main-detail-grid-v215 case-main-detail-grid-v219 case-main-detail-grid-v220">
+              <div
+                className="case-detail-mobile-fields-v220 case-detail-mobile-fields-v215"
+                data-v220="1"
+              >
+                <BoxedField label={lang === 'ar' ? 'اسم الموكل' : 'שם לקוח'} value={clientLabel} />
+                <BoxedField label={lang === 'ar' ? 'نوع الدعوى' : 'מהות התביעה'} value={titleStr} />
+                <BoxedField label={lang === 'ar' ? 'رقم الملف' : 'מספר תיק'} value={c.caseNumber || ''} full />
+                <BoxedField label={lang === 'ar' ? 'المحكمة' : 'בית משפט'} value={court || ''} />
+                <BoxedField
+                  label={lang === 'ar' ? 'الرصيد' : 'יתרת חוב'}
+                  value={money(balance)}
+                  balance
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="case-detail-side-col">
+            <CaseRecentDocumentsPanel
+              caseId={caseId}
+              onShowAll={onShowDocs}
+              onDelete={onDeleteDoc}
+            />
+
+            <CaseTasksPanel
+              caseId={caseId}
+              onNewTask={onNewTask}
+              onEditTask={editTask}
+              onMarkDone={markTaskDone}
+              onDeleteTask={removeTask}
+              onShowAll={openTasksScreen}
             />
           </div>
         </div>
-
-        {/* Panels — full functionality lands in 4b / 4c. Markup mirrors the
-         *  source so CSS still styles them; the bodies are placeholders. */}
-        <CaseRecentDocumentsPanel
-          caseId={caseId}
-          onShowAll={onShowDocs}
-          onDelete={onDeleteDoc}
-        />
-
-        <CaseTasksPanel
-          caseId={caseId}
-          onNewTask={onNewTask}
-          onEditTask={editTask}
-          onMarkDone={markTaskDone}
-          onDeleteTask={removeTask}
-          onShowAll={openTasksScreen}
-        />
 
 
         <CaseTimelineSection caseId={caseId} onShowDocs={onShowDocs} />

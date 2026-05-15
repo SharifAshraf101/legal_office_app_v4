@@ -35,8 +35,13 @@ function quickActionForTab(tab: string): { label: string; iconClass: string } | 
   // Source line 5192 maps each tab to a different "create" modal.
   switch (tab) {
     case 'home':
+      // Home gets the generic "new event" quick-action, rendered next to the
+      // gear button in the topbar actions group.
+      return { label: 'newEvent', iconClass: 'fa-calendar-plus' };
     case 'finance':
-      return null; // no quick-action on home / finance summary
+    case 'portal':
+      // Communication-with-client screen has no quick-create action.
+      return null;
     case 'cases':
       return { label: 'newCase', iconClass: 'fa-plus' };
     case 'contacts':
@@ -50,7 +55,7 @@ function quickActionForTab(tab: string): { label: string; iconClass: string } | 
     case 'financeDetail':
       return { label: 'newPayment', iconClass: 'fa-plus' };
     default:
-      return { label: 'newEvent', iconClass: 'fa-calendar-plus' };
+      return null;
   }
 }
 
@@ -70,7 +75,12 @@ export function Topbar() {
 
   const isHome = state.currentTab === 'home';
   const qa = quickActionForTab(state.currentTab);
-  const subtitle = isHome ? t('greeting') : t('subtitle');
+  // On home we don't show a page-title subtitle — the greeting moves to
+  // the HomeDashboard so it can sit centered between the top two cards.
+  const subtitle = isHome ? '' : t('subtitle');
+  const brandName = state.officeName || t('firmName');
+  const defaultAddress = settingsText('הסורג 2, ירושלים', 'السورج 2، القدس');
+  const brandAddress = state.officeAddress || defaultAddress;
 
   // Quick-action label localized inline since some labels aren't in `tr`.
   const qaLabel = qa
@@ -122,22 +132,43 @@ export function Topbar() {
 
   return (
     <header className={'topbar' + (isHome ? ' home-topbar' : '')} id="topbar">
-      <div className="page-title">
-        <h1>{pageTitle(state.currentTab, t, lang)}</h1>
-        <p>{subtitle}</p>
-      </div>
-
-      {/* Mobile-only office identity row (Step 89 CSS at source line 2963) */}
-      {(state.officeName || state.officeAddress) && (
-        <div className="mobile-office-identity">
-          <span className="mobile-office-name">
-            {state.officeName || t('firmName')}
-          </span>
-          <span className="mobile-office-address">
-            {state.officeAddress ||
-              settingsText('הסורג 2, ירושלים', 'السورج 2، القدس')}
-          </span>
+      {isHome ? (
+        // Home topbar: office logo + name + address replace the page title.
+        // The greeting that used to sit here ("יום טוב, אשרף") now lives
+        // inside the HomeDashboard so it can be centered between the
+        // top-row cards.
+        <div className="home-brand">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/office-logo.png"
+            alt={brandName}
+            className="home-brand-logo"
+          />
+          <div className="home-brand-text">
+            <b className="home-brand-name">{brandName}</b>
+            <span className="home-brand-address">{brandAddress}</span>
+          </div>
         </div>
+      ) : (
+        <>
+          <div className="page-title">
+            <h1>{pageTitle(state.currentTab, t, lang)}</h1>
+            <p>{subtitle}</p>
+          </div>
+
+          {/* Mobile-only office identity row (Step 89 CSS at source line 2963) */}
+          {(state.officeName || state.officeAddress) && (
+            <div className="mobile-office-identity">
+              <span className="mobile-office-name">
+                {state.officeName || t('firmName')}
+              </span>
+              <span className="mobile-office-address">
+                {state.officeAddress ||
+                  settingsText('הסורג 2, ירושלים', 'السورج 2، القدس')}
+              </span>
+            </div>
+          )}
+        </>
       )}
 
       <div className="actions">

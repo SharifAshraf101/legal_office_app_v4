@@ -42,6 +42,23 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
     lang === 'ar' ? c.notesAr || c.notes || '' : c.notes || c.notesAr || '';
   const otherNameDisplay = lang === 'ar' ? c.name || '' : c.nameAr || '';
   const clientCases = state.casesArr.filter((x) => x.clientId === clientId);
+
+  // Aggregate every document and task that belongs to this client —
+  // either directly (d.clientId === clientId / t.clientId === clientId)
+  // OR through one of their cases (d.caseId / t.caseId matches a case
+  // whose clientId is this client's). Used by the documents and tasks
+  // sections rendered below.
+  const clientCaseIds = clientCases.map((x) => x.id);
+  const clientDocuments = state.documentsArr.filter(
+    (d) =>
+      d.clientId === clientId ||
+      (d.caseId ? clientCaseIds.includes(d.caseId) : false),
+  );
+  const clientTasks = state.tasksArr.filter(
+    (t) =>
+      t.clientId === clientId ||
+      (t.caseId ? clientCaseIds.includes(t.caseId) : false),
+  );
   const emptyCases =
     lang === 'ar' ? 'لا توجد قضايا لهذا الموكل' : 'אין תיקים ללקוח זה';
   const voiceLabel = lang === 'ar' ? 'واتساب صوتي' : 'וואטסאפ קולי';
@@ -124,10 +141,13 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
     <Modal onClose={close} className={modalClassName} boxClassName={boxClassName}>
       <h2>{t('clientDetails')}</h2>
 
-      {/* Edit + delete toolbar — v229 fixed button shape via CSS in
-       *  globals.css positions edit at top-right and delete at top-left
-       *  of the same toolbar row. */}
+      {/* Edit + delete toolbar — the client avatar sits on this same row
+       *  next to the edit / delete buttons (per user request). The avatar
+       *  is sized to the toolbar row height so it stays neatly inline. */}
       <div className="case-edit-toolbar client-edit-toolbar client-edit-toolbar-v229">
+        <div className="client-detail-header-avatar">
+          <ClientAvatar client={c} editable />
+        </div>
         <button
           type="button"
           className="case-edit-btn stable-client-edit-v229"
@@ -148,20 +168,28 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         </button>
       </div>
 
-      <div className="client-profile-card client-profile-card-image-only">
-        <ClientAvatar client={c} editable />
-      </div>
-
-      <div className="detail-grid">
+      {/* Identity info row — 4 metadata boxes (name, alt name, ID,
+       *  address). The address box is double-width (CSS: grid-column: span 2). */}
+      <div className="detail-grid client-detail-info-grid">
         <DetailRow label={t('clientName')} value={name} />
         <div className="detail-row client-other-name-hint-row-v138 client-other-name-value-row-v139">
-          <span />
-          <div className="client-other-name-hint-v138 client-other-name-value-v139">
-            {otherNameDisplay}
-          </div>
+          <span>
+            {lang === 'ar' ? 'الاسم بالعبرية' : 'שם הלקוח בשפה השנייה'}
+          </span>
+          <strong className="client-other-name-hint-v138 client-other-name-value-v139">
+            {otherNameDisplay || '-'}
+          </strong>
         </div>
         <DetailRow label={t('idNumber')} value={c.idNumber || '-'} />
-        <DetailRow label={t('address')} value={address} />
+        <div className="detail-row detail-row-address">
+          <span>{t('address')}</span>
+          <strong>{address}</strong>
+        </div>
+      </div>
+
+      {/* Contact actions row — phone + WhatsApp voice + WhatsApp message
+       *  in 3 equal columns, side-by-side. */}
+      <div className="detail-grid client-detail-contact-grid">
         <div className="detail-row">
           <span>{t('phone')}</span>
           <strong>
@@ -171,25 +199,23 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
             </a>
           </strong>
         </div>
-        <div className="client-contact-actions">
-          <a
-            className="client-whatsapp-link"
-            href={whatsappAppUrl(phone, '')}
-            target="_self"
-          >
-            <i className="fas fa-phone" />
-            {voiceLabel}
-          </a>
-          <a
-            className="client-whatsapp-link"
-            href={whatsappUrl(phone, waText)}
-            target="_blank"
-            rel="noopener"
-          >
-            <i className="fas fa-message" />
-            {msgLabel}
-          </a>
-        </div>
+        <a
+          className="client-whatsapp-link client-whatsapp-link-cell"
+          href={whatsappAppUrl(phone, '')}
+          target="_self"
+        >
+          <i className="fas fa-phone" />
+          <span>{voiceLabel}</span>
+        </a>
+        <a
+          className="client-whatsapp-link client-whatsapp-link-cell"
+          href={whatsappUrl(phone, waText)}
+          target="_blank"
+          rel="noopener"
+        >
+          <i className="fas fa-message" />
+          <span>{msgLabel}</span>
+        </a>
       </div>
 
       <h3>{t('cases')}</h3>
@@ -221,6 +247,75 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
                 </span>
                 <i className="fas fa-chevron-left" />
               </button>
+            );
+          })
+        )}
+      </div>
+
+      {/* All documents that belong to this client (direct + via cases) */}
+      <h3>{lang === 'ar' ? 'المستندات' : 'מסמכים'}</h3>
+      <div className="client-documents-list">
+        {clientDocuments.length === 0 ? (
+          <div className="case-empty">
+            {lang === 'ar' ? 'لا توجد مستندات' : 'אין מסמכים'}
+          </div>
+        ) : (
+          clientDocuments.map((d) => {
+            const linkedCase = state.casesArr.find((x) => x.id === d.caseId);
+            const caseLabel = linkedCase
+              ? (lang === 'ar'
+                  ? linkedCase.titleAr || linkedCase.title
+                  : linkedCase.title || linkedCase.titleAr) || ''
+              : '';
+            return (
+              <div key={d.id} className="client-document-row">
+                <div className="client-document-main">
+                  <strong>
+                    <i className="fas fa-file-lines" /> {d.title || d.fileName || '-'}
+                  </strong>
+                  <span className="sub">
+                    {[d.fileName, caseLabel, d.date].filter(Boolean).join(' · ')}
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* All open + closed tasks that belong to this client */}
+      <h3>{lang === 'ar' ? 'مهام' : 'משימות'}</h3>
+      <div className="client-tasks-list">
+        {clientTasks.length === 0 ? (
+          <div className="case-empty">
+            {lang === 'ar' ? 'لا توجد مهام' : 'אין משימות'}
+          </div>
+        ) : (
+          clientTasks.map((t2) => {
+            const linkedCase = state.casesArr.find((x) => x.id === t2.caseId);
+            const caseLabel = linkedCase
+              ? (lang === 'ar'
+                  ? linkedCase.titleAr || linkedCase.title
+                  : linkedCase.title || linkedCase.titleAr) || ''
+              : '';
+            const statusClass =
+              t2.status === 'done' ? 'task-status-done' : 'task-status-open';
+            const statusText =
+              t2.status === 'done'
+                ? lang === 'ar' ? 'منجزة' : 'בוצעה'
+                : lang === 'ar' ? 'مفتوحة' : 'פתוחה';
+            return (
+              <div key={t2.id} className="client-task-row">
+                <div className="client-task-main">
+                  <strong>
+                    <i className="fas fa-list-check" /> {t2.title || '-'}
+                  </strong>
+                  <span className="sub">
+                    {[caseLabel, t2.dueDate].filter(Boolean).join(' · ')}
+                  </span>
+                </div>
+                <span className={'task-status-badge ' + statusClass}>{statusText}</span>
+              </div>
             );
           })
         )}

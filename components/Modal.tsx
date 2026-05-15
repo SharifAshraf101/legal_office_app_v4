@@ -56,7 +56,11 @@ export function Modal({
   );
 
   return (
-    <div className={'modal ' + className} onClick={onBackdropClick}>
+    <div
+      className={'modal ls ' + className}
+      onClick={onBackdropClick}
+      data-legal-secondary="true"
+    >
       <div className={'modal-box ' + boxClassName}>
         {!hideCloseX && (
           <button

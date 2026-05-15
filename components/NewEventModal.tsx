@@ -14,8 +14,16 @@ import {
   minuteOptions,
 } from '@/lib/dates';
 import { pad } from '@/lib/utils';
+import { saveDocumentToLegalOfficeFolder } from '@/lib/disk';
+import {
+  hasDropboxFolder,
+  isDropboxConfigured,
+  isFileSystemAccessAvailable,
+  uploadFileToDropbox,
+} from '@/lib/dropbox';
+import { DropboxConnectModal } from './DropboxConnectModal';
 import { Modal } from './Modal';
-import type { CalendarEvent, TimelineItem } from '@/types';
+import type { CalendarEvent, DocumentRecord, TimelineItem } from '@/types';
 
 /**
  * Port of showNewEventModal (source line 4492). The most flexible new-item
@@ -124,6 +132,8 @@ export function NewEventModal({ preselectedCaseId = '' }: NewEventModalProps) {
   const [taskMinute, setTaskMinute] = useState('00');
 
   const [description, setDescription] = useState('');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const close = () => modalStack.close(modalStack.topId() ?? 0);
 
@@ -206,8 +216,9 @@ export function NewEventModal({ preselectedCaseId = '' }: NewEventModalProps) {
     setShowResults(false);
   };
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (uploading) return;
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
       window.alert(lang === 'ar' ? 'أدخل العنوان' : 'יש להזין כותרת');
@@ -273,10 +284,93 @@ export function NewEventModal({ preselectedCaseId = '' }: NewEventModalProps) {
         type: 'hearingMeeting',
       };
       dispatch({ type: 'SET_EVENTS', events: [...state.eventsList, ev] });
+    } else if (type === 'document') {
+      // Document save strategy depends on the browser:
+      //   - Desktop with File System Access support (Chrome/Edge):
+      //       write to the user's local Dropbox folder. Picker runs ONCE,
+      //       Dropbox desktop app then syncs the file to the cloud.
+      //   - Mobile / browser without FS Access:
+      //       upload directly to Dropbox cloud via the Dropbox API and
+      //       store the returned shareable URL. Opening on mobile then
+      //       just navigates to the Dropbox web link.
+      let relativePath = '';
+      let fileName = trimmedTitle;
+      let fileSize = 0;
+      let fileType = '';
+      if (docFile) {
+        setUploading(true);
+        try {
+          if (isFileSystemAccessAvailable()) {
+            // Desktop path — local Dropbox folder via FS Access
+            const saved = await saveDocumentToLegalOfficeFolder(docFile, {
+              caseId,
+              clientId,
+              lang,
+            });
+            if (saved) {
+              relativePath = saved.relativePath;
+            } else {
+              window.alert(
+                lang === 'ar'
+                  ? 'تعذر حفظ الملف في مجلد Dropbox. تم حفظ السجل بدون المرفق.'
+                  : 'שמירת הקובץ לתיקיית Dropbox נכשלה. הרשומה נשמרה ללא הקובץ.',
+              );
+            }
+          } else {
+            // Mobile path — Dropbox API upload. If not connected yet OR
+            // no folder picked yet, open the one-time setup modal so the
+            // user can authorize Dropbox and choose a save folder. The
+            // upload is skipped for this save; the user re-saves after
+            // setup is done.
+            if (!isDropboxConfigured() || !hasDropboxFolder()) {
+              modalStack.open(<DropboxConnectModal />);
+              window.alert(
+                lang === 'ar'
+                  ? 'أكمل ربط Dropbox أولاً ثم أعد المحاولة.'
+                  : 'השלם תחילה את חיבור Dropbox ונסה לשמור שוב.',
+              );
+            } else {
+              const uploaded = await uploadFileToDropbox(docFile, {
+                caseId,
+                clientId,
+              });
+              if (uploaded) {
+                // Store the shareable URL as the doc's path. Open buttons
+                // detect "http*" and navigate to it directly.
+                relativePath = uploaded.url || uploaded.path;
+              } else {
+                window.alert(
+                  lang === 'ar'
+                    ? 'تعذر رفع الملف إلى Dropbox.'
+                    : 'העלאת הקובץ ל-Dropbox נכשלה.',
+                );
+              }
+            }
+          }
+        } finally {
+          setUploading(false);
+        }
+        fileName = docFile.name;
+        fileSize = docFile.size;
+        fileType = docFile.type || '';
+      }
+      const doc: DocumentRecord & { uploadedAt?: string } = {
+        id: 'DOC-' + Date.now(),
+        caseId,
+        clientId,
+        title: trimmedTitle,
+        fileName,
+        relativePath,
+        date: today,
+        type: fileType,
+        size: fileSize,
+        uploadedAt: new Date().toISOString(),
+      };
+      dispatch({ type: 'SET_DOCUMENTS', documents: [...state.documentsArr, doc] });
     } else {
       const ti: TimelineItem & { dueDateTime?: string; dueDate?: string } = {
         id:
-          (type === 'task' ? 'TASK-' : type === 'document' ? 'DOC-' : type === 'call' ? 'CALL-' : 'NOTE-') +
+          (type === 'task' ? 'TASK-' : type === 'call' ? 'CALL-' : 'NOTE-') +
           Date.now(),
         caseId,
         type,
@@ -335,7 +429,11 @@ export function NewEventModal({ preselectedCaseId = '' }: NewEventModalProps) {
           <div className="form-field" id="documentUploadWrap">
             <label>{docUploadLabel}</label>
             <div className="upload-box">
-              <input id="eventFileInput" type="file" />
+              <input
+                id="eventFileInput"
+                type="file"
+                onChange={(e) => setDocFile(e.target.files?.[0] ?? null)}
+              />
               <div className="field-hint">{docHint}</div>
               <div className="local-doc-warning">{docWarning}</div>
             </div>
@@ -483,9 +581,9 @@ export function NewEventModal({ preselectedCaseId = '' }: NewEventModalProps) {
         </div>
 
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary">
-            <i className="fas fa-check" />
-            {t('save')}
+          <button type="submit" className="btn btn-primary" disabled={uploading}>
+            <i className={uploading ? 'fas fa-spinner fa-spin' : 'fas fa-check'} />
+            {uploading ? (lang === 'ar' ? 'جارٍ الرفع...' : 'מעלה...') : t('save')}
           </button>
           <button
             type="button"

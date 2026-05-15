@@ -3,6 +3,7 @@
 import { useAppState } from '@/hooks/useAppState';
 import { useT } from '@/hooks/useT';
 import { useModalStack } from '@/hooks/useModalStack';
+import { getTimeGreeting } from '@/lib/greeting';
 import { UpcomingAgendaModal } from './UpcomingAgendaModal';
 
 /**
@@ -36,8 +37,12 @@ export function HomeDashboard() {
   const { t, lang } = useT();
   const modalStack = useModalStack();
 
+  const brandName = state.officeName || t('firmName');
+  const greetingText = getTimeGreeting(lang, brandName);
+
   return (
     <div className="home-grid-wrap">
+      <div className="home-greeting">{greetingText}</div>
       <div className="home-card-grid home-only-grid">
         {HOME_CARDS.map((card) => {
           const title = card.id === 'portal' ? portalLabel(lang) : t(card.titleKey);

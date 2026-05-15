@@ -1,7 +1,5 @@
 'use client';
 
-import { useAppState } from '@/hooks/useAppState';
-import { useT } from '@/hooks/useT';
 import { NavButtons } from './NavButtons';
 
 /**
@@ -27,25 +25,8 @@ import { NavButtons } from './NavButtons';
  * inside `@media(max-width:1050px)` — see globals.css).
  */
 export function Sidebar() {
-  const { state } = useAppState();
-  const { t, settingsText } = useT();
-
-  const brandName = state.officeName || t('firmName');
-  const defaultAddress = settingsText('הסורג 2, ירושלים', 'السورج 2، القدس');
-  const brandAddress = state.officeAddress || defaultAddress;
-
   return (
     <aside className="sidebar" id="sidebar">
-      <div className="side-brand office-side-brand">
-        <div className="mark office-logo-mark">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/office-logo.png" alt={brandName} />
-        </div>
-        <div>
-          <b className="office-brand-name">{brandName}</b>
-          <span className="office-brand-address">{brandAddress}</span>
-        </div>
-      </div>
       <div className="side-nav">
         <NavButtons />
       </div>

@@ -118,7 +118,7 @@ export function GlobalSearchScreen() {
   const docsHead = lang === 'ar' ? 'المستندات' : 'מסמכים';
 
   return (
-    <section className="panel">
+    <section className="panel global-search-panel">
       <div className="panel-head">
         <h2>{lang === 'ar' ? 'بحث شامل' : 'חיפוש כולל'}</h2>
       </div>

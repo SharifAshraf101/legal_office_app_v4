@@ -8,6 +8,7 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
   type ReactNode,
 } from 'react';
 import {
@@ -19,7 +20,10 @@ import {
   lsSet,
   persistCurrentDataToLocalStorage,
 } from '@/lib/storage';
-import { legalOfficeLoadFromSupabaseV88 } from '@/lib/supabase';
+import {
+  legalOfficeLoadFromSupabaseV88,
+  legalOfficeSaveToSupabase,
+} from '@/lib/supabase';
 import { normalizeFontFamily } from '@/lib/translations';
 import type {
   AppState,
@@ -161,6 +165,10 @@ const AppStateContext = createContext<AppStateContextValue | null>(null);
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  // Gates Supabase auto-save until the v88 loader has settled — without this
+  // a stale localStorage cache would upsert OVER newer Supabase rows during
+  // the few-hundred-ms boot window before REPLACE_ALL fires.
+  const [supaSaveReady, setSupaSaveReady] = useState(false);
 
   // -----------------------------------------------------------------------
   // Hydration: on first client-side mount, populate from localStorage. If
@@ -199,6 +207,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (result.loaded && result.state) {
         dispatch({ type: 'REPLACE_ALL', payload: result.state });
       }
+      setSupaSaveReady(true);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -227,6 +236,39 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }, 60);
     return () => window.clearTimeout(id);
   }, [
+    state.hydrated,
+    state.clients,
+    state.casesArr,
+    state.eventsList,
+    state.finances,
+    state.timelineItems,
+    state.documentsArr,
+    state.tasksArr,
+  ]);
+
+  // -----------------------------------------------------------------------
+  // Supabase auto-save. Mirrors the localStorage effect but with a longer
+  // debounce (live-typing in a form shouldn't hit the REST endpoint per
+  // keystroke). Gated on supaSaveReady so the v88 loader's REPLACE_ALL has a
+  // chance to land first — otherwise a stale localStorage cache could
+  // overwrite newer cloud rows during the boot window.
+  // -----------------------------------------------------------------------
+  useEffect(() => {
+    if (!state.hydrated || !supaSaveReady) return;
+    const id = window.setTimeout(() => {
+      void legalOfficeSaveToSupabase({
+        clients: state.clients,
+        casesArr: state.casesArr,
+        eventsList: state.eventsList,
+        finances: state.finances,
+        timelineItems: state.timelineItems,
+        documentsArr: state.documentsArr,
+        tasksArr: state.tasksArr,
+      });
+    }, 1500);
+    return () => window.clearTimeout(id);
+  }, [
+    supaSaveReady,
     state.hydrated,
     state.clients,
     state.casesArr,

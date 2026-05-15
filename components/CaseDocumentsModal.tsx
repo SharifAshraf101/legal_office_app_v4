@@ -10,6 +10,7 @@ import {
   formatDocumentDate,
   formatDocumentSize,
 } from '@/lib/documents';
+import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import { Modal } from './Modal';
 
 /**
@@ -35,27 +36,10 @@ export function CaseDocumentsModal({ caseId }: CaseDocumentsModalProps) {
   const docs = caseDocumentsForCase(caseId, state.documentsArr, state.tasksArr);
   const close = () => modalStack.close(modalStack.topId() ?? 0);
 
-  const uploadLabel = lang === 'ar' ? 'رفع مستند جديد' : 'העלאת מסמך חדש';
-  const syncLabel = lang === 'ar' ? 'مزامنة القضية' : 'סנכרון תיק';
   const title = lang === 'ar' ? 'مستندات القضية' : 'מסמכי התיק';
   const sub = [caseName(c, lang), c.caseNumber, clientName(c.clientId, state.clients, lang)]
     .filter(Boolean)
     .join(' · ');
-
-  const onUpload = () => {
-    window.alert(
-      lang === 'ar'
-        ? 'رفع المستند يتطلب اختيار مجلد Dropbox أولاً. الميزة الكاملة في Stage 5.'
-        : 'העלאת המסמך דורשת בחירת תיקיית Dropbox. הפעולה המלאה ב-Stage 5.',
-    );
-  };
-  const onSync = () => {
-    window.alert(
-      lang === 'ar'
-        ? 'سنقوم بإكمال هذه الميزة في Stage 5.'
-        : 'נשלים את הפעולה הזו ב-Stage 5.',
-    );
-  };
 
   const onDelete = (docId: string) => {
     const ok = window.confirm(
@@ -70,12 +54,29 @@ export function CaseDocumentsModal({ caseId }: CaseDocumentsModalProps) {
     });
   };
 
-  const onOpen = () => {
-    window.alert(
-      lang === 'ar'
-        ? 'فتح المستند يتطلب اختيار مجلد Dropbox أولاً.'
-        : 'פתיחת המסמך דורשת בחירת תיקיית Dropbox.',
-    );
+  const onOpen = async (relativePath: string | undefined) => {
+    if (!relativePath) {
+      window.alert(
+        lang === 'ar'
+          ? 'لم يتم حفظ ملف لهذا المستند.'
+          : 'לא נשמר קובץ עבור מסמך זה.',
+      );
+      return;
+    }
+    // Mobile docs store the Dropbox share URL — navigate directly.
+    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+      window.open(relativePath, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    // Desktop path — local Dropbox folder via FS Access
+    const ok = await openDocumentFromLegalOfficeFolder(relativePath, lang);
+    if (!ok) {
+      window.alert(
+        lang === 'ar'
+          ? 'تعذر فتح الملف من مجلد Dropbox.'
+          : 'פתיחת הקובץ מתיקיית Dropbox נכשלה.',
+      );
+    }
   };
 
   return (
@@ -90,16 +91,6 @@ export function CaseDocumentsModal({ caseId }: CaseDocumentsModalProps) {
             <br />
             {lang === 'ar' ? `عدد المستندات: ${docs.length}` : `מספר מסמכים: ${docs.length}`}
           </div>
-        </div>
-        <div className="case-docs-modal-actions">
-          <button type="button" className="btn btn-primary" onClick={onUpload}>
-            <i className="fas fa-upload" />
-            {uploadLabel}
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={onSync}>
-            <i className="fas fa-rotate" />
-            {syncLabel}
-          </button>
         </div>
       </div>
 
@@ -150,7 +141,7 @@ export function CaseDocumentsModal({ caseId }: CaseDocumentsModalProps) {
                   <button
                     type="button"
                     className="case-docs-modal-btn open"
-                    onClick={onOpen}
+                    onClick={() => onOpen(doc.relativePath)}
                   >
                     <i className="fas fa-folder-open" />
                     {lang === 'ar' ? 'فتح' : 'פתח'}

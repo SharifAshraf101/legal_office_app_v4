@@ -45,13 +45,22 @@ export function formatDocumentDate(raw: string | undefined, lang: Lang): string 
 }
 
 /**
- * Source line 3603. Returns documents for a case plus open tasks rendered as
- * pseudo-documents. Sorted newest-first.
+ * Source line 3603. Returns documents for a case, sorted newest-first.
+ *
+ * The original HTML also merged open tasks in as pseudo-documents, but the
+ * case detail screen already shows tasks in a dedicated panel, so injecting
+ * them here just renders the same task twice — once as a real task and once
+ * as a fake "file" with no real file behind it. The `tasks` parameter and
+ * the isTask/taskId/etc. extension fields are kept on the return type for
+ * backward compatibility with callers that switch on `isTask` (e.g. the
+ * "hide delete button for task-rows" guard).
  */
 export function caseDocumentsForCase(
   caseId: string,
   documents: DocumentRecord[],
-  tasks: Task[],
+  // Kept in the signature so call sites don't have to change, but no longer
+  // used — see note above.
+  _tasks?: Task[],
 ): (DocumentRecord & {
   uploadedAt?: string;
   size?: number;
@@ -76,27 +85,6 @@ export function caseDocumentsForCase(
       storedFileName?: string;
     }
   >;
-
-  const openTasks = (tasks || []).filter(
-    (t) => String(t.caseId) === String(caseId) && t.status !== 'done',
-  );
-  openTasks.forEach((task) => {
-    if (docs.some((d) => d.taskId === task.id)) return;
-    docs.push({
-      id: 'TASK-' + task.id,
-      caseId: task.caseId,
-      fileName: task.title,
-      title: task.title,
-      uploadedAt: task.dueDate || task.createdAt || '',
-      size: 0,
-      type: 'task',
-      notes: task.notes || '',
-      isTask: true,
-      taskStatus: task.status,
-      taskPriority: task.priority,
-      taskId: task.id,
-    });
-  });
 
   return docs.sort((a, b) => {
     const da = new Date(a.uploadedAt || (a as { dueDate?: string }).dueDate || '0').getTime();
