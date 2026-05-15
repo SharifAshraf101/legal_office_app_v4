@@ -13340,3 +13340,19 @@ body.dark .modal:has(#newCalendarAppointmentForm) .modal-box > h2:first-of-type{
 .modal.case-detail-desktop-v215 .case-edit-toolbar .case-edit-btn i{
   color:#be123c!important;
 }
+
+/* Client-detail toolbar: paint the edit pill in the same vibrant red
+   as the delete-client pill so both buttons share one color, scoped to
+   the client-detail modal only. The pre-existing v229 rules from
+   globals.css position the edit at top-right (74×38) and the delete at
+   top-left (96×38); we only override colors here, not geometry. */
+.modal.client-detail-stable-v229 .client-edit-toolbar .case-edit-btn{
+  background:#ef233c!important;
+  color:#fff!important;
+  border:0!important;
+  box-shadow:0 12px 22px rgba(239,35,60,.18)!important;
+}
+.modal.client-detail-stable-v229 .client-edit-toolbar .case-edit-btn i,
+.modal.client-detail-stable-v229 .client-edit-toolbar .case-edit-btn span{
+  color:#fff!important;
+}

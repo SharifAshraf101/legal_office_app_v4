@@ -28,7 +28,7 @@ export interface ClientDetailProps {
 }
 
 export function ClientDetail({ clientId }: ClientDetailProps) {
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
   const { t, lang } = useT();
   const modalStack = useModalStack();
 
@@ -73,12 +73,60 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
     close();
     modalStack.open(<CaseDetail caseId={caseId} />);
   };
+  const onDeleteClient = () => {
+    const ok = window.confirm(
+      lang === 'ar'
+        ? 'هل تريد حذف هذا الموكل وكل قضاياه نهائياً؟'
+        : 'האם למחוק את הלקוח ואת כל התיקים שלו לחלוטין?',
+    );
+    if (!ok) return;
+    const caseIds = state.casesArr
+      .filter((x) => x.clientId === clientId)
+      .map((x) => x.id);
+    dispatch({
+      type: 'SET_CLIENTS',
+      clients: state.clients.filter((x) => x.id !== clientId),
+    });
+    dispatch({
+      type: 'SET_CASES',
+      cases: state.casesArr.filter((x) => x.clientId !== clientId),
+    });
+    dispatch({
+      type: 'SET_EVENTS',
+      events: state.eventsList.filter(
+        (e) => e.clientId !== clientId && !caseIds.includes(e.caseId || ''),
+      ),
+    });
+    dispatch({
+      type: 'SET_TASKS',
+      tasks: state.tasksArr.filter(
+        (tk) => tk.clientId !== clientId && !caseIds.includes(tk.caseId || ''),
+      ),
+    });
+    dispatch({
+      type: 'SET_FINANCES',
+      finances: state.finances.filter((f) => !caseIds.includes(f.caseId)),
+    });
+    dispatch({
+      type: 'SET_DOCUMENTS',
+      documents: state.documentsArr.filter(
+        (d) => d.clientId !== clientId && !caseIds.includes(d.caseId || ''),
+      ),
+    });
+    dispatch({
+      type: 'SET_TIMELINE',
+      timeline: state.timelineItems.filter((ti) => !caseIds.includes(ti.caseId)),
+    });
+    close();
+  };
 
   return (
     <Modal onClose={close} className={modalClassName} boxClassName={boxClassName}>
       <h2>{t('clientDetails')}</h2>
 
-      {/* Edit toolbar — v229 fixed button shape via CSS in globals.css. */}
+      {/* Edit + delete toolbar — v229 fixed button shape via CSS in
+       *  globals.css positions edit at top-right and delete at top-left
+       *  of the same toolbar row. */}
       <div className="case-edit-toolbar client-edit-toolbar client-edit-toolbar-v229">
         <button
           type="button"
@@ -88,6 +136,15 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         >
           <i className="fas fa-pen" />
           <span>{lang === 'ar' ? 'تعديل' : 'עריכה'}</span>
+        </button>
+        <button
+          type="button"
+          className="delete-action-btn"
+          data-delete-client-btn="1"
+          onClick={onDeleteClient}
+        >
+          <i className="fas fa-trash" />
+          <span>{lang === 'ar' ? 'حذف الموكل' : 'מחק לקוח'}</span>
         </button>
       </div>
 
