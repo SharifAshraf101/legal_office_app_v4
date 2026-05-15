@@ -13316,3 +13316,10 @@ body.dark .modal:has(#newCalendarAppointmentForm) .modal-box > h2:first-of-type{
   .modal.client-detail-stable-v229 .client-edit-toolbar .case-edit-btn ~ .case-edit-btn,
   .modal.client-detail-stable-v229 .client-edit-toolbar .delete-action-btn[data-delete-client-btn] ~ .delete-action-btn[data-delete-client-btn]{display:none!important;}
 }
+
+/* Mobile tasks: swap the desktop table for the v135 card list at <=900px. */
+.tasks-screen-panel .tasks-mobile-list-v135{display:none;}
+@media(max-width:900px){
+  .tasks-screen-panel .tasks-scroll-list .table{display:none!important;}
+  .tasks-screen-panel .tasks-mobile-list-v135{display:block!important;}
+}

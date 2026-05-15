@@ -251,6 +251,60 @@ export function TasksScreen() {
               })}
             </tbody>
           </table>
+
+          <div className="tasks-mobile-list-v135">
+            {filtered.map((task) => {
+              const due = taskDueInfo(task, lang);
+              return (
+                <div key={task.id} className={'task-mobile-row-v135 ' + due.cls}>
+                  <div className="task-mobile-line-v135 task-mobile-title-v135">
+                    {task.title || ''}
+                  </div>
+                  {task.notes && (
+                    <div className="task-mobile-line-v135 task-mobile-notes-v135">
+                      {task.notes}
+                    </div>
+                  )}
+                  {due.text && (
+                    <div className="task-mobile-line-v135 task-mobile-due-row-v135">
+                      <span className="task-mobile-due-label-v135">
+                        {taskText('מועד אחרון: ', 'الموعد النهائي: ', lang)}
+                      </span>
+                      <span className="task-mobile-due-value-v135">{due.text}</span>
+                    </div>
+                  )}
+                  <div className="task-mobile-actions-v135">
+                    {task.status !== 'done' && (
+                      <button
+                        type="button"
+                        className="task-mini-action done"
+                        onClick={() => markDone(task.id)}
+                      >
+                        <i className="fas fa-check" />
+                        {taskText('בוצע', 'تم', lang)}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="task-mini-action edit"
+                      onClick={() => edit(task.id)}
+                    >
+                      <i className="fas fa-pen" />
+                      {t('edit')}
+                    </button>
+                    <button
+                      type="button"
+                      className="task-mini-action delete"
+                      onClick={() => remove(task.id)}
+                    >
+                      <i className="fas fa-trash" />
+                      {taskText('מחק', 'حذف', lang)}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>
