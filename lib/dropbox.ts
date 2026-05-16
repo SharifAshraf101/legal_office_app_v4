@@ -21,6 +21,15 @@
 const TOKEN_KEY = 'legal_office_dropbox_tokens';
 const VERIFIER_KEY = 'legal_office_dropbox_pkce_verifier';
 const FOLDER_KEY = 'legal_office_dropbox_folder';
+const APP_KEY_KEY = 'legal_office_dropbox_app_key';
+const REDIRECT_URI_KEY = 'legal_office_dropbox_redirect_uri';
+const DROPBOX_SCOPES = [
+  'files.content.write',
+  'files.content.read',
+  'files.metadata.read',
+  'sharing.write',
+  'sharing.read',
+] as const;
 
 interface DropboxTokens {
   access_token: string;
@@ -29,9 +38,43 @@ interface DropboxTokens {
   expires_at: number;
 }
 
-/** Pulls the Dropbox app key from NEXT_PUBLIC_DROPBOX_APP_KEY. */
+/** Pulls the Dropbox app key from env, with localStorage fallback. */
 export function getDropboxAppKey(): string {
-  return (process.env.NEXT_PUBLIC_DROPBOX_APP_KEY || '').trim();
+  const envKey = (process.env.NEXT_PUBLIC_DROPBOX_APP_KEY || '').trim();
+  if (envKey) return envKey;
+  if (typeof window === 'undefined') return '';
+  return (localStorage.getItem(APP_KEY_KEY) || '').trim();
+}
+
+/** Persist a Dropbox app key at runtime (browser localStorage fallback). */
+export function setDropboxAppKey(appKey: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(APP_KEY_KEY, (appKey || '').trim());
+}
+
+/** Persist a Dropbox redirect URI override at runtime. */
+export function setDropboxRedirectUri(redirectUri: string): void {
+  if (typeof window === 'undefined') return;
+  const clean = (redirectUri || '').trim();
+  if (!clean) {
+    localStorage.removeItem(REDIRECT_URI_KEY);
+    return;
+  }
+  localStorage.setItem(REDIRECT_URI_KEY, normalizeDropboxRedirectUri(clean));
+}
+
+function normalizeDropboxRedirectUri(uri: string): string {
+  const raw = (uri || '').trim();
+  if (!raw) return '';
+  try {
+    const u = new URL(raw);
+    // For root-path localhost redirects, Dropbox apps are often configured
+    // without a trailing slash. Keep the canonical origin-only form.
+    if (u.pathname === '/' && !u.search && !u.hash) return u.origin;
+    return `${u.origin}${u.pathname}${u.search}${u.hash}`;
+  } catch {
+    return raw;
+  }
 }
 
 function loadTokens(): DropboxTokens | null {
@@ -102,9 +145,11 @@ async function deriveChallenge(verifier: string): Promise<string> {
   return base64url(hash);
 }
 
-function getRedirectUri(): string {
+export function getDropboxRedirectUri(): string {
   if (typeof window === 'undefined') return '';
-  return window.location.origin + window.location.pathname;
+  const override = (localStorage.getItem(REDIRECT_URI_KEY) || '').trim();
+  if (override) return normalizeDropboxRedirectUri(override);
+  return normalizeDropboxRedirectUri(window.location.origin + window.location.pathname);
 }
 
 /** Kick off the Dropbox OAuth flow. Generates a verifier+challenge, saves
@@ -124,10 +169,18 @@ export async function startDropboxAuth(): Promise<void> {
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('code_challenge', challenge);
   url.searchParams.set('code_challenge_method', 'S256');
-  url.searchParams.set('redirect_uri', getRedirectUri());
+  url.searchParams.set('redirect_uri', getDropboxRedirectUri());
+  // Explicit scopes are required for scoped Dropbox apps. Without this,
+  // tokens may be issued without files.content.write and uploads will fail.
+  url.searchParams.set('scope', DROPBOX_SCOPES.join(' '));
   // `offline` → Dropbox returns a refresh_token, so future loads can mint
   // new access tokens without bouncing the user back through the consent.
   url.searchParams.set('token_access_type', 'offline');
+  // Force a fresh consent screen so newly-enabled scopes in App Console
+  // are actually attached to the issued token. Without this, Dropbox may
+  // silently return the user with a token that still reflects the OLD
+  // granted scopes (the auto-skip-consent path).
+  url.searchParams.set('force_reapprove', 'true');
   window.location.href = url.toString();
 }
 
@@ -149,7 +202,7 @@ export async function handleDropboxAuthCallback(): Promise<boolean> {
   body.set('grant_type', 'authorization_code');
   body.set('client_id', appKey);
   body.set('code_verifier', verifier);
-  body.set('redirect_uri', getRedirectUri());
+  body.set('redirect_uri', getDropboxRedirectUri());
 
   try {
     const res = await fetch('https://api.dropboxapi.com/oauth2/token', {
@@ -275,17 +328,29 @@ function safeFilename(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 200) || 'file';
 }
 
-export interface DropboxUploadResult {
-  path: string;
-  url: string;
+function toDropboxApiArgHeader(value: unknown): string {
+  // The browser enforces Latin-1 for header values. Escape non-ASCII chars
+  // so Hebrew/Arabic filenames can still be sent safely in Dropbox-API-Arg.
+  return JSON.stringify(value).replace(/[\u007f-\uffff]/g, (ch) =>
+    `\\u${ch.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
 }
+
+export type DropboxUploadResult =
+  | { ok: true; path: string; url: string }
+  | { ok: false; error: string };
 
 export async function uploadFileToDropbox(
   file: File,
   hint: { caseId?: string; clientId?: string } = {},
-): Promise<DropboxUploadResult | null> {
+): Promise<DropboxUploadResult> {
   const token = await getValidAccessToken();
-  if (!token) return null;
+  if (!token) {
+    return {
+      ok: false,
+      error: 'Dropbox token missing/expired. Please reconnect Dropbox.',
+    };
+  }
 
   // Path = <chosen folder> / Clients / <caseId|clientId|"misc"> / <ts>-<file>
   const base = getDropboxFolderPath(); // already starts with "/" or ""
@@ -302,7 +367,7 @@ export async function uploadFileToDropbox(
       headers: {
         Authorization: 'Bearer ' + token,
         'Content-Type': 'application/octet-stream',
-        'Dropbox-API-Arg': JSON.stringify({
+        'Dropbox-API-Arg': toDropboxApiArgHeader({
           path,
           mode: 'add',
           autorename: true,
@@ -312,18 +377,39 @@ export async function uploadFileToDropbox(
       body: file,
     });
     if (!res.ok) {
+      const bodyText = await res.text().catch(() => '');
       console.warn(
         '[Dropbox upload] failed',
         res.status,
-        await res.text().catch(() => ''),
+        bodyText,
       );
-      return null;
+      const scopeError =
+        /required[_ ]scope|missing_scope|not permitted to access this endpoint|insufficient_scope|files\.content\.write/i.test(bodyText);
+      if (scopeError) {
+        // Token doesn't carry the new scope. Drop it so the next reconnect
+        // is forced to mint a fresh one rather than reusing the bad token.
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(TOKEN_KEY);
+        }
+        return {
+          ok: false,
+          error:
+            'Dropbox app is missing required upload permission (files.content.write). Enable it in App Console > Permissions, then reconnect Dropbox to issue a new token.',
+        };
+      }
+      return {
+        ok: false,
+        error: `Dropbox upload failed (${res.status}): ${bodyText || 'unknown error'}`,
+      };
     }
     const json = (await res.json()) as { path_lower?: string; path_display?: string };
     finalPath = json.path_lower || json.path_display || path;
   } catch (e) {
     console.warn('[Dropbox upload] error', e);
-    return null;
+    return {
+      ok: false,
+      error: `Dropbox upload error: ${e instanceof Error ? e.message : String(e)}`,
+    };
   }
 
   let url = '';
@@ -370,7 +456,7 @@ export async function uploadFileToDropbox(
     console.warn('[Dropbox share] error', e);
   }
 
-  return { path: finalPath, url };
+  return { ok: true, path: finalPath, url };
 }
 
 /** True when running in a browser that supports the File System Access API

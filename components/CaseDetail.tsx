@@ -5,6 +5,7 @@ import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { caseName, caseStatusView, clientName, money } from '@/lib/cases';
+import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import { Modal } from './Modal';
 import { CaseLastHearingCard } from './CaseLastHearingCard';
 import { CaseEdit } from './CaseEdit';
@@ -12,12 +13,7 @@ import { CaseStatusWarning } from './CaseStatusWarning';
 import { TaskModal } from './TaskModal';
 import { NewEventModal } from './NewEventModal';
 import { CaseDocumentsModal } from './CaseDocumentsModal';
-import {
-  caseDocumentsForCase,
-  documentTypeLabel,
-  formatDocumentDate,
-  formatDocumentSize,
-} from '@/lib/documents';
+import { caseDocumentsForCase } from '@/lib/documents';
 import {
   caseTaskItems,
   taskDueInfo,
@@ -81,6 +77,38 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
   };
   const onShowDocs = () => {
     modalStack.open(<CaseDocumentsModal caseId={caseId} />);
+  };
+  const onOpenDoc = async (docId: string) => {
+    const doc = state.documentsArr.find((d) => String(d.id) === String(docId));
+    const relativePath = doc?.relativePath || '';
+    if (!relativePath) {
+      window.alert(
+        lang === 'ar'
+          ? 'لم يتم حفظ ملف لهذا المستند.'
+          : 'לא נשמר קובץ עבור מסמך זה.',
+      );
+      return;
+    }
+    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+      window.open(relativePath, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (relativePath.startsWith('/')) {
+      window.open(
+        'https://www.dropbox.com/home' + relativePath,
+        '_blank',
+        'noopener,noreferrer',
+      );
+      return;
+    }
+    const ok = await openDocumentFromLegalOfficeFolder(relativePath, lang);
+    if (!ok) {
+      window.alert(
+        lang === 'ar'
+          ? 'تعذر فتح الملف من Dropbox.'
+          : 'פתיחת הקובץ מ-Dropbox נכשלה.',
+      );
+    }
   };
   const onDeleteDoc = (docId: string) => {
     const ok = window.confirm(
@@ -167,7 +195,6 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
   const boxClass = 'case-detail-modal-box';
 
   const docsLabel = lang === 'ar' ? 'مستندات القضية' : 'מסמכי התיק';
-  const newTaskLabel = lang === 'ar' ? 'مهمة جديدة' : 'משימה חדשה';
   const deleteLabel = lang === 'ar' ? 'حذف الملف' : 'מחק תיק';
 
   const court = lang === 'ar' ? c.courtAr || c.court : c.court || c.courtAr;
@@ -203,17 +230,6 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
                 <i className="fas fa-folder-open" />
               </span>
               <span className="quick-label">{docsLabel}</span>
-            </button>
-            <button
-              type="button"
-              className="btn case-docs-btn"
-              onClick={onNewTask}
-              aria-label={newTaskLabel}
-            >
-              <span className="quick-plus">
-                <i className="fas fa-list-check" />
-              </span>
-              <span className="quick-label">{newTaskLabel}</span>
             </button>
             <button
               type="button"
@@ -291,7 +307,7 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
         </div>
 
 
-        <CaseTimelineSection caseId={caseId} onShowDocs={onShowDocs} />
+        <CaseTimelineSection caseId={caseId} onOpenDoc={onOpenDoc} />
       </div>
     </Modal>
   );
@@ -335,7 +351,7 @@ function CaseRecentDocumentsPanel({
   const { state } = useAppState();
   const { lang } = useT();
   const docs = caseDocumentsForCase(caseId, state.documentsArr, state.tasksArr);
-  const recent = docs.slice(0, 5);
+  const recent = docs.slice(0, 2);
   const title = lang === 'ar' ? 'آخر مستندات القضية' : 'מסמכים אחרונים בתיק';
   const countLabel = lang === 'ar' ? `${docs.length} مستندات` : `${docs.length} מסמכים`;
   const showAllLabel = lang === 'ar' ? 'عرض كل المستندات' : 'הצג את כל המסמכים';
@@ -387,36 +403,8 @@ function CaseRecentDocumentsPanel({
                     <i className="fas fa-file-lines" />
                     <span title={fileName}>{fileName}</span>
                   </div>
-                  <div className="case-document-meta">
-                    <span>{documentTypeLabel(doc, lang)}</span>
-                    <span>·</span>
-                    <span>
-                      {formatDocumentDate(
-                        (doc as { uploadedAt?: string }).uploadedAt || doc.date,
-                        lang,
-                      )}
-                    </span>
-                    <span>·</span>
-                    <span>
-                      {formatDocumentSize((doc as { size?: number }).size, lang)}
-                    </span>
-                  </div>
                 </div>
                 <div className="case-document-actions">
-                  <button
-                    type="button"
-                    className="case-document-btn open"
-                    onClick={() =>
-                      window.alert(
-                        lang === 'ar'
-                          ? 'فتح المستند يتطلب اختيار مجلد Dropbox أولاً.'
-                          : 'פתיחת המסמך דורשת בחירת תיקיית Dropbox.',
-                      )
-                    }
-                  >
-                    <i className="fas fa-folder-open" />
-                    {lang === 'ar' ? 'فتح' : 'פתח'}
-                  </button>
                   {!doc.isTask && (
                     <button
                       type="button"
@@ -472,17 +460,55 @@ function CaseTasksPanel({
           <i className="fas fa-list-check" />
           {taskText('משימות פתוחות בתיק', 'مهام مفتوحة في القضية', lang)}
         </h3>
-        <div className="case-documents-head-actions">
-          <span className="case-tasks-count">
+        <div
+          className="case-documents-head-actions"
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            flexWrap: 'nowrap',
+            justifyContent: 'flex-start',
+            gap: 4,
+            width: '100%',
+            minWidth: 0,
+            alignItems: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          <span
+            className="case-tasks-count"
+            style={{ whiteSpace: 'nowrap', minWidth: 0, flex: '0 0 auto' }}
+          >
             {items.length} {tasksLabel(lang)}
           </span>
-          <button type="button" className="case-document-btn" onClick={onNewTask}>
-            <i className="fas fa-plus" />
-            {taskText('משימה חדשה', 'مهمة جديدة', lang)}
-          </button>
-          <button type="button" className="case-document-btn" onClick={onShowAll}>
+          <button
+            type="button"
+            className="case-document-btn"
+            onClick={onShowAll}
+            style={{
+              minWidth: 0,
+              flex: '1 1 0',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
             <i className="fas fa-list" />
             {taskText('כל המשימות', 'كل المهام', lang)}
+          </button>
+          <button
+            type="button"
+            className="case-document-btn"
+            onClick={onNewTask}
+            style={{
+              minWidth: 0,
+              flex: '1 1 0',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            <i className="fas fa-plus" />
+            {taskText('משימה חדשה', 'مهمة جديدة', lang)}
           </button>
         </div>
       </div>
@@ -561,12 +587,22 @@ interface TimelineEntry {
   docId?: string;
 }
 
+/** Extract a millisecond timestamp from an app-generated ID like
+ *  "NOTE-1778933686481" or "DOC-1778933715086". Used as a stable sort key
+ *  so notes, calls, tasks and documents interleave correctly when they
+ *  share the same calendar date. */
+function idTimestamp(id: string | undefined): number {
+  if (!id) return 0;
+  const m = String(id).match(/(\d{10,})/);
+  return m ? Number(m[1]) : 0;
+}
+
 function caseTimelineEntries(
   caseId: string,
   state: ReturnType<typeof useAppState>['state'],
   lang: 'he' | 'ar',
-): TimelineEntry[] {
-  const items: TimelineEntry[] = [];
+): Array<TimelineEntry & { sortKey: number }> {
+  const items: Array<TimelineEntry & { sortKey: number }> = [];
 
   state.timelineItems
     .filter((t) => String(t.caseId) === String(caseId))
@@ -580,6 +616,8 @@ function caseTimelineEntries(
             : rawType === 'call'
               ? 'call'
               : 'note';
+      const idTs = idTimestamp(t.id);
+      const dateTs = t.date ? Date.parse(t.date) || 0 : 0;
       items.push({
         id: 't_' + t.id,
         type,
@@ -589,31 +627,41 @@ function caseTimelineEntries(
             ? t.descriptionAr || t.description
             : t.description || t.descriptionAr) || '',
         date: t.date || '',
+        sortKey: idTs || dateTs,
       });
     });
 
   state.documentsArr
     .filter((d) => String(d.caseId || '') === String(caseId))
     .forEach((d) => {
+      const uploadedAt = (d as { uploadedAt?: string }).uploadedAt;
+      const upTs = uploadedAt ? Date.parse(uploadedAt) || 0 : 0;
+      const idTs = idTimestamp(d.id);
+      const dateTs = d.date ? Date.parse(d.date) || 0 : 0;
       items.push({
         id: 'd_' + d.id,
         type: 'document',
-        title: d.title || d.fileName || '-',
-        description: '',
+        title: (lang === 'ar' ? d.titleAr || d.title : d.title || d.titleAr) || d.fileName || '-',
+        description:
+          (lang === 'ar'
+            ? d.descriptionAr || d.description
+            : d.description || d.descriptionAr) || '',
         date: d.date || '',
         docId: d.id,
+        sortKey: upTs || idTs || dateTs,
       });
     });
 
-  return items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  // Newest first across all types, with millisecond resolution.
+  return items.sort((a, b) => b.sortKey - a.sortKey);
 }
 
 function CaseTimelineSection({
   caseId,
-  onShowDocs,
+  onOpenDoc,
 }: {
   caseId: string;
-  onShowDocs: () => void;
+  onOpenDoc: (docId: string) => void;
 }) {
   const { state } = useAppState();
   const { lang } = useT();
@@ -647,10 +695,10 @@ function CaseTimelineSection({
       : { clear: 'ניקוי בחירה', note: 'הערה', call: 'שיחה', task: 'משימה', document: 'מסמך', open: 'פתח מסמך', empty: 'אין רשומות בציר הזמן.' };
 
   const FILTERS: { key: TimelineFilterType; cls: string; icon: string }[] = [
-    { key: 'note', cls: 'filter-note', icon: 'fa-comment' },
-    { key: 'call', cls: 'filter-call', icon: 'fa-phone' },
-    { key: 'task', cls: 'filter-task', icon: 'fa-list-check' },
-    { key: 'document', cls: 'filter-document', icon: 'fa-file-lines' },
+    { key: 'note', cls: 'filter-note', icon: 'fa-note-sticky' },
+    { key: 'call', cls: 'filter-call', icon: 'fa-phone-volume' },
+    { key: 'task', cls: 'filter-task', icon: 'fa-circle-check' },
+    { key: 'document', cls: 'filter-document', icon: 'fa-file' },
   ];
 
   return (
@@ -697,36 +745,43 @@ function CaseTimelineSection({
         ) : (
           filtered.map((e) => (
             <div key={e.id} className="detail-row">
-              <span className={'timeline-icon timeline-icon-' + e.type}>
-                <i
-                  className={
-                    'fas ' +
-                    (e.type === 'document'
-                      ? 'fa-file-lines'
-                      : e.type === 'task'
-                        ? 'fa-list-check'
-                        : e.type === 'call'
-                          ? 'fa-phone'
-                          : 'fa-comment')
-                  }
-                />
-              </span>
               <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontWeight: 850 }}>{e.title}</span>
-                {e.description && <span className="sub">{e.description}</span>}
-                {e.type === 'document' && e.docId && (
-                  <button
-                    type="button"
-                    className="case-document-btn open"
-                    onClick={onShowDocs}
-                    style={{ alignSelf: 'flex-start', marginTop: 4 }}
-                  >
-                    <i className="fas fa-folder-open" />
-                    {labels.open}
-                  </button>
-                )}
+                <span className="timeline-title-line" style={{ fontWeight: 850 }}>
+                  <span className="timeline-leading-meta">
+                    <span className={'timeline-icon timeline-icon-' + e.type}>
+                      <i
+                        className={
+                          'fas ' +
+                          (e.type === 'document'
+                            ? 'fa-file'
+                            : e.type === 'task'
+                              ? 'fa-circle-check'
+                              : e.type === 'call'
+                                ? 'fa-phone-volume'
+                                : 'fa-note-sticky')
+                        }
+                      />
+                    </span>
+                    <span className="timeline-date-small timeline-date-near-icon">{e.date || ''}</span>
+                  </span>
+                  {e.type === 'document' && e.docId ? (
+                    <span
+                      className="timeline-doc-link"
+                      onDoubleClick={() => onOpenDoc(e.docId as string)}
+                      title={labels.open}
+                      style={{
+                        cursor: 'pointer',
+                        color: 'var(--primary)',
+                      }}
+                    >
+                      {e.title}
+                    </span>
+                  ) : (
+                    <span>{e.title}</span>
+                  )}
+                  {e.description && <em className="sub timeline-inline-description">{e.description}</em>}
+                </span>
               </span>
-              <span className="timeline-date-small">{e.date || ''}</span>
             </div>
           ))
         )}

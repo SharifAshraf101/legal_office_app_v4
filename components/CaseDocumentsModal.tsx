@@ -68,6 +68,15 @@ export function CaseDocumentsModal({ caseId }: CaseDocumentsModalProps) {
       window.open(relativePath, '_blank', 'noopener,noreferrer');
       return;
     }
+    // Dropbox internal cloud path: open directly in Dropbox web UI.
+    if (relativePath.startsWith('/')) {
+      window.open(
+        'https://www.dropbox.com/home' + relativePath,
+        '_blank',
+        'noopener,noreferrer',
+      );
+      return;
+    }
     // Desktop path — local Dropbox folder via FS Access
     const ok = await openDocumentFromLegalOfficeFolder(relativePath, lang);
     if (!ok) {

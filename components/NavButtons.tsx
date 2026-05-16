@@ -100,7 +100,7 @@ export function NavButtons({ mobile = false }: { mobile?: boolean } = {}) {
                 />
               </span>
             ) : (
-              <i className={`fas ${ICONS[id] ?? 'fa-circle'} nav-icon-${id}`} />
+              <i className={'fas ' + (ICONS[id] ?? 'fa-circle')} />
             )}
             <span>{tabLabel(id, lang, t)}</span>
           </button>

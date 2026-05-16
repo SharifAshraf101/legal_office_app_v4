@@ -81,6 +81,9 @@ export interface DocumentRecord {
   caseId?: string;
   clientId?: string;
   title?: string;
+  titleAr?: string;
+  description?: string;
+  descriptionAr?: string;
   fileName?: string;
   relativePath?: string;
   date?: string; // YYYY-MM-DD

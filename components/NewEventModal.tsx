@@ -14,16 +14,14 @@ import {
   minuteOptions,
 } from '@/lib/dates';
 import { pad } from '@/lib/utils';
-import { saveDocumentToLegalOfficeFolder } from '@/lib/disk';
 import {
   hasDropboxFolder,
   isDropboxConfigured,
-  isFileSystemAccessAvailable,
   uploadFileToDropbox,
 } from '@/lib/dropbox';
 import { DropboxConnectModal } from './DropboxConnectModal';
 import { Modal } from './Modal';
-import type { CalendarEvent, DocumentRecord, TimelineItem } from '@/types';
+import type { CalendarEvent, DocumentRecord, Task, TimelineItem } from '@/types';
 
 /**
  * Port of showNewEventModal (source line 4492). The most flexible new-item
@@ -253,9 +251,16 @@ export function NewEventModal({ preselectedCaseId = '' }: NewEventModalProps) {
       );
       return;
     }
+    if (type === 'document' && !docFile) {
+      window.alert(
+        lang === 'ar'
+          ? 'يجب اختيار ملف للرفع قبل الحفظ.'
+          : 'יש לבחור קובץ להעלאה לפני השמירה.',
+      );
+      return;
+    }
 
     let desc = description.trim();
-    if (type === 'document') desc = '';
     if (type === 'task' && dueDateTimeStr) {
       const dueText =
         (lang === 'ar' ? 'موعد الانتهاء: ' : 'מועד אחרון: ') +
@@ -285,71 +290,50 @@ export function NewEventModal({ preselectedCaseId = '' }: NewEventModalProps) {
       };
       dispatch({ type: 'SET_EVENTS', events: [...state.eventsList, ev] });
     } else if (type === 'document') {
-      // Document save strategy depends on the browser:
-      //   - Desktop with File System Access support (Chrome/Edge):
-      //       write to the user's local Dropbox folder. Picker runs ONCE,
-      //       Dropbox desktop app then syncs the file to the cloud.
-      //   - Mobile / browser without FS Access:
-      //       upload directly to Dropbox cloud via the Dropbox API and
-      //       store the returned shareable URL. Opening on mobile then
-      //       just navigates to the Dropbox web link.
+      // Save strategy for all views (desktop/mobile):
+      // upload directly to Dropbox cloud into the folder chosen during
+      // the initial Dropbox setup and reuse that same saved folder path.
       let relativePath = '';
       let fileName = trimmedTitle;
       let fileSize = 0;
       let fileType = '';
+      let uploadFailed = false;
       if (docFile) {
         setUploading(true);
         try {
-          if (isFileSystemAccessAvailable()) {
-            // Desktop path — local Dropbox folder via FS Access
-            const saved = await saveDocumentToLegalOfficeFolder(docFile, {
+          // If not connected yet OR no folder picked yet, open the one-time
+          // setup modal so the user can authorize Dropbox and choose a fixed
+          // save folder. The upload is skipped for this save; user retries
+          // after setup is complete.
+          if (!isDropboxConfigured() || !hasDropboxFolder()) {
+            modalStack.open(<DropboxConnectModal />);
+            window.alert(
+              lang === 'ar'
+                ? 'أكمل ربط Dropbox ثم اختر مجلد الحفظ من النافذة المفتوحة، وبعدها أعد المحاولة.'
+                : 'השלם את חיבור Dropbox ואז בחר תיקיית שמירה בחלון שנפתח, ולאחר מכן נסה שוב.',
+            );
+            uploadFailed = true;
+          } else {
+            const uploaded = await uploadFileToDropbox(docFile, {
               caseId,
               clientId,
-              lang,
             });
-            if (saved) {
-              relativePath = saved.relativePath;
+            if (uploaded.ok) {
+              // Prefer the shareable URL for open-from-anywhere behavior.
+              relativePath = uploaded.url || uploaded.path;
             } else {
               window.alert(
                 lang === 'ar'
-                  ? 'تعذر حفظ الملف في مجلد Dropbox. تم حفظ السجل بدون المرفق.'
-                  : 'שמירת הקובץ לתיקיית Dropbox נכשלה. הרשומה נשמרה ללא הקובץ.',
+                  ? `فشل رفع الملف إلى Dropbox: ${uploaded.error}`
+                  : `העלאת הקובץ ל-Dropbox נכשלה: ${uploaded.error}`,
               );
-            }
-          } else {
-            // Mobile path — Dropbox API upload. If not connected yet OR
-            // no folder picked yet, open the one-time setup modal so the
-            // user can authorize Dropbox and choose a save folder. The
-            // upload is skipped for this save; the user re-saves after
-            // setup is done.
-            if (!isDropboxConfigured() || !hasDropboxFolder()) {
-              modalStack.open(<DropboxConnectModal />);
-              window.alert(
-                lang === 'ar'
-                  ? 'أكمل ربط Dropbox أولاً ثم أعد المحاولة.'
-                  : 'השלם תחילה את חיבור Dropbox ונסה לשמור שוב.',
-              );
-            } else {
-              const uploaded = await uploadFileToDropbox(docFile, {
-                caseId,
-                clientId,
-              });
-              if (uploaded) {
-                // Store the shareable URL as the doc's path. Open buttons
-                // detect "http*" and navigate to it directly.
-                relativePath = uploaded.url || uploaded.path;
-              } else {
-                window.alert(
-                  lang === 'ar'
-                    ? 'تعذر رفع الملف إلى Dropbox.'
-                    : 'העלאת הקובץ ל-Dropbox נכשלה.',
-                );
-              }
+              uploadFailed = true;
             }
           }
         } finally {
           setUploading(false);
         }
+        if (uploadFailed || !relativePath) return;
         fileName = docFile.name;
         fileSize = docFile.size;
         fileType = docFile.type || '';
@@ -359,6 +343,9 @@ export function NewEventModal({ preselectedCaseId = '' }: NewEventModalProps) {
         caseId,
         clientId,
         title: trimmedTitle,
+        titleAr: trimmedTitle,
+        description: desc,
+        descriptionAr: desc,
         fileName,
         relativePath,
         date: today,
@@ -385,6 +372,28 @@ export function NewEventModal({ preselectedCaseId = '' }: NewEventModalProps) {
         ti.dueDate = new Date(dueDateTimeStr).toISOString().slice(0, 10);
       }
       dispatch({ type: 'SET_TIMELINE', timeline: [...state.timelineItems, ti] });
+
+      // When the new event is a task, also create a real Task record so it
+      // shows up in the case's "open tasks" panel (which reads from
+      // state.tasksArr, not state.timelineItems).
+      if (type === 'task') {
+        const c = state.casesArr.find((x) => String(x.id) === String(caseId));
+        const newTask: Task = {
+          id: 'TASK-' + Date.now(),
+          createdAt: new Date().toISOString(),
+          title: trimmedTitle,
+          caseId,
+          clientId: c?.clientId || clientId || '',
+          dueDate: dueDateTimeStr
+            ? new Date(dueDateTimeStr).toISOString().slice(0, 10)
+            : '',
+          status: 'open',
+          priority: 'normal',
+          notes: desc,
+          doneAt: '',
+        };
+        dispatch({ type: 'SET_TASKS', tasks: [...state.tasksArr, newTask] });
+      }
     }
     close();
   };
@@ -405,7 +414,7 @@ export function NewEventModal({ preselectedCaseId = '' }: NewEventModalProps) {
       : 'עותק של הקובץ יישמר בתיקיית documents החיצונית, ולא בתוך קובץ ה-HTML.';
 
   return (
-    <Modal onClose={close}>
+    <Modal onClose={close} className="new-event-over-detail">
       <h2>{t('newEvent')}</h2>
       <form id="eventForm" className="form-grid" onSubmit={onSubmit}>
         <div className="form-field">

@@ -57,16 +57,17 @@ export function CaseLastHearingCard({ caseId }: { caseId: string }) {
   }
 
   return (
-    <div className="case-last-hearing-card">
+    <div className={'case-last-hearing-card' + (active ? ' lh-next-hearing-red' : '')}>
       <div className="lh-left">
         <div className="lh-icon">
           <i className="fas fa-calendar-check" />
         </div>
         <div>
-          <div className="lh-label">{label}</div>
+          <div className="lh-label">
+            {label}:&nbsp;<span className="lh-date">{formatCaseDateTime(h.date, lang)}</span>
+          </div>
         </div>
       </div>
-      <div className="lh-date">{formatCaseDateTime(h.date, lang)}</div>
     </div>
   );
 }
