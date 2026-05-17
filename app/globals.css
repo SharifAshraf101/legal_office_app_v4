@@ -1,4 +1,9 @@
-﻿/*
+﻿/* Tailwind utilities — scoped to .modern-portal-root via tailwind.config.ts */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
  * app/globals.css
  *
  * Auto-generated from the original single-file HTML app by
