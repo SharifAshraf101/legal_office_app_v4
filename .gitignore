@@ -8,3 +8,8 @@ out
 
 # Local Netlify folder
 .netlify
+
+# Vercel
+.vercel
+
+.vercel

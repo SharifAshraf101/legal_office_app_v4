@@ -148,7 +148,7 @@ function PortalShell() {
   };
 
   return (
-    <div className="tw-bg-[#FAF6EE] tw-text-slate-900 tw-min-h-full">
+    <div className="tw-bg-[#FDFBF5] tw-text-slate-900 tw-min-h-full">
       {screen === 'chooser' && (
         <ChooserScreen
           onPickWhatsApp={() => {
@@ -280,7 +280,7 @@ function TopBar({
   const waLabel = lang === 'ar' ? 'WhatsApp متصل' : 'WhatsApp מחובר';
   const goToTasks = () => dispatch({ type: 'SET_TAB', tab: 'tasks' });
   return (
-    <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FAF6EE]/95 tw-px-5 tw-py-4 tw-backdrop-blur lg:tw-px-10">
+    <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FDFBF5]/95 tw-px-5 tw-py-4 tw-backdrop-blur lg:tw-px-10">
       <div className="tw-flex tw-items-center tw-justify-between tw-gap-4">
         <div>
           <h1 className="tw-text-2xl tw-font-bold tw-tracking-tight lg:tw-text-3xl">
@@ -298,7 +298,7 @@ function TopBar({
             type="button"
             onClick={goToTasks}
             aria-label={lang === 'ar' ? 'تنبيهات' : 'התראות'}
-            className="tw-relative tw-grid tw-h-11 tw-w-11 tw-place-items-center tw-rounded-full tw-border tw-border-slate-200 tw-bg-white tw-shadow-sm hover:tw-bg-[#F3EDDF]"
+            className="tw-relative tw-grid tw-h-11 tw-w-11 tw-place-items-center tw-rounded-full tw-border tw-border-slate-200 tw-bg-white tw-shadow-sm hover:tw-bg-[#F8F2E4]"
           >
             <Bell className="tw-h-5 tw-w-5" />
             <span className="tw-absolute -tw-top-1 -tw-left-1 tw-grid tw-h-5 tw-w-5 tw-place-items-center tw-rounded-full tw-bg-red-500 tw-text-xs tw-font-bold tw-text-white">
@@ -369,7 +369,7 @@ function HubScreen({
         <button
           type="button"
           onClick={onBack}
-          className="tw-flex tw-items-center tw-gap-2 tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white tw-px-3 tw-py-2 tw-text-sm tw-font-semibold tw-text-slate-700 hover:tw-bg-[#F3EDDF]"
+          className="tw-flex tw-items-center tw-gap-2 tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white tw-px-3 tw-py-2 tw-text-sm tw-font-semibold tw-text-slate-700 hover:tw-bg-[#F8F2E4]"
         >
           <ChevronLeft className="tw-h-4 tw-w-4" />
           {backLabel}
@@ -397,7 +397,7 @@ function HubScreen({
             <div className="tw-mb-3 tw-text-sm tw-font-semibold tw-text-slate-500">
               {T.recent}
             </div>
-            <div className="tw-divide-y tw-divide-slate-100 tw-rounded-3xl tw-border tw-border-slate-100 tw-bg-[#FAF6EE]">
+            <div className="tw-divide-y tw-divide-slate-100 tw-rounded-3xl tw-border tw-border-slate-100 tw-bg-[#FDFBF5]">
               {clients.length === 0 && (
                 <div className="tw-p-6 tw-text-center tw-text-sm tw-text-slate-400">
                   {lang === 'ar' ? 'لا يوجد موكلون بعد' : 'אין לקוחות עדיין'}
@@ -407,7 +407,7 @@ function HubScreen({
                 <button
                   key={client.id}
                   onClick={() => onOpenChat(client)}
-                  className="tw-flex tw-w-full tw-items-center tw-gap-3 tw-p-4 tw-text-right tw-transition hover:tw-bg-[#F3EDDF]"
+                  className="tw-flex tw-w-full tw-items-center tw-gap-3 tw-p-4 tw-text-right tw-transition hover:tw-bg-[#F8F2E4]"
                 >
                   <Avatar label={client.avatar} />
                   <div className="tw-min-w-0 tw-flex-1">
@@ -462,7 +462,7 @@ function HubScreen({
           </button>
           <button
             onClick={onOpenBotAsLawyer}
-            className="tw-mt-3 tw-flex tw-w-full tw-items-center tw-justify-center tw-gap-2 tw-rounded-2xl tw-border tw-border-slate-200 tw-px-5 tw-py-3 tw-text-sm tw-font-semibold tw-text-slate-700 tw-transition hover:tw-bg-[#F3EDDF]"
+            className="tw-mt-3 tw-flex tw-w-full tw-items-center tw-justify-center tw-gap-2 tw-rounded-2xl tw-border tw-border-slate-200 tw-px-5 tw-py-3 tw-text-sm tw-font-semibold tw-text-slate-700 tw-transition hover:tw-bg-[#F8F2E4]"
           >
             <ShieldCheck className="tw-h-4 tw-w-4 tw-text-indigo-600" />
             {T.viewAsLawyer}
@@ -516,7 +516,7 @@ function ChooserScreen({
         <button
           type="button"
           onClick={onPickWhatsApp}
-          className="tw-group tw-flex tw-flex-col tw-items-center tw-gap-4 tw-rounded-[32px] tw-border tw-border-slate-200 tw-bg-[#FAF6EE] tw-p-10 tw-shadow-sm tw-transition hover:tw-border-emerald-400 hover:tw-shadow-md"
+          className="tw-group tw-flex tw-flex-col tw-items-center tw-gap-4 tw-rounded-[32px] tw-border tw-border-slate-200 tw-bg-[#FDFBF5] tw-p-10 tw-shadow-sm tw-transition hover:tw-border-emerald-400 hover:tw-shadow-md"
         >
           <div className="tw-grid tw-h-28 tw-w-28 tw-place-items-center tw-rounded-full tw-bg-emerald-500 tw-text-white tw-shadow-sm tw-transition group-hover:tw-scale-105">
             <MessageCircle className="tw-h-14 tw-w-14" />
@@ -533,7 +533,7 @@ function ChooserScreen({
         <button
           type="button"
           onClick={onPickBot}
-          className="tw-group tw-flex tw-flex-col tw-items-center tw-gap-4 tw-rounded-[32px] tw-border tw-border-slate-200 tw-bg-[#FAF6EE] tw-p-10 tw-shadow-sm tw-transition hover:tw-border-indigo-400 hover:tw-shadow-md"
+          className="tw-group tw-flex tw-flex-col tw-items-center tw-gap-4 tw-rounded-[32px] tw-border tw-border-slate-200 tw-bg-[#FDFBF5] tw-p-10 tw-shadow-sm tw-transition hover:tw-border-indigo-400 hover:tw-shadow-md"
         >
           <div className="tw-grid tw-h-28 tw-w-28 tw-place-items-center tw-rounded-full tw-bg-indigo-500 tw-text-white tw-shadow-sm tw-transition group-hover:tw-scale-105">
             <Bot className="tw-h-14 tw-w-14" />
@@ -794,8 +794,8 @@ function ClientChatScreen({
     today: lang === 'ar' ? 'اليوم' : 'היום',
   };
   return (
-    <div className="tw-flex tw-min-h-full tw-flex-col tw-bg-[#FAF6EE]">
-      <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FAF6EE]/95 tw-px-4 tw-py-3 tw-backdrop-blur">
+    <div className="tw-flex tw-min-h-full tw-flex-col tw-bg-[#FDFBF5]">
+      <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FDFBF5]/95 tw-px-4 tw-py-3 tw-backdrop-blur">
         <div className="tw-flex tw-items-center tw-justify-between tw-gap-3">
           <button
             onClick={onBack}
@@ -838,7 +838,7 @@ function ClientChatScreen({
       </header>
 
       <div className="tw-grid tw-flex-1 lg:tw-grid-cols-[280px_1fr_280px]">
-        <aside className="tw-hidden lg:tw-block tw-border-l tw-border-slate-200 tw-bg-[#FAF6EE]/70 tw-p-4">
+        <aside className="tw-hidden lg:tw-block tw-border-l tw-border-slate-200 tw-bg-[#FDFBF5]/70 tw-p-4">
           <CaseDetails lang={lang} onOpenCase={openCase} />
           <QuickActions
             lang={lang}
@@ -850,7 +850,7 @@ function ClientChatScreen({
             onOpenChat={onBack}
           />
         </aside>
-        <section className="tw-flex tw-min-h-[calc(100vh-180px)] tw-flex-col tw-bg-[#FAF6EE]">
+        <section className="tw-flex tw-min-h-[calc(100vh-180px)] tw-flex-col tw-bg-[#FDFBF5]">
           <div className="tw-flex-1 tw-space-y-4 tw-overflow-y-auto tw-p-5">
             <div className="tw-mx-auto tw-w-fit tw-rounded-full tw-bg-slate-100 tw-px-4 tw-py-1 tw-text-xs tw-font-medium tw-text-slate-500">
               {T.today}
@@ -861,7 +861,7 @@ function ClientChatScreen({
           </div>
           <ChatComposer lang={lang} />
         </section>
-        <aside className="tw-hidden lg:tw-block tw-border-r tw-border-slate-200 tw-bg-[#FAF6EE]/70 tw-p-4">
+        <aside className="tw-hidden lg:tw-block tw-border-r tw-border-slate-200 tw-bg-[#FDFBF5]/70 tw-p-4">
           <ActionPanel
             lang={lang}
             onSendCase={openCase}
@@ -1102,8 +1102,8 @@ function LawyerSearchScreen({
   };
 
   return (
-    <div className="tw-mx-auto tw-flex tw-min-h-full tw-w-full tw-max-w-4xl tw-flex-col tw-bg-[#FAF6EE]">
-      <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FAF6EE]/95 tw-px-4 tw-py-3 tw-backdrop-blur">
+    <div className="tw-mx-auto tw-flex tw-min-h-full tw-w-full tw-max-w-4xl tw-flex-col tw-bg-[#FDFBF5]">
+      <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FDFBF5]/95 tw-px-4 tw-py-3 tw-backdrop-blur">
         <div className="tw-flex tw-items-center tw-justify-between tw-gap-3">
           <button
             type="button"
@@ -1133,7 +1133,7 @@ function LawyerSearchScreen({
           onChange={setQuery}
         />
         <div className="tw-mt-3 tw-text-xs tw-text-slate-500">{T.count}</div>
-        <div className="tw-mt-5 tw-divide-y tw-divide-slate-100 tw-rounded-3xl tw-border tw-border-slate-100 tw-bg-[#FAF6EE]">
+        <div className="tw-mt-5 tw-divide-y tw-divide-slate-100 tw-rounded-3xl tw-border tw-border-slate-100 tw-bg-[#FDFBF5]">
           {matches.length === 0 ? (
             <div className="tw-p-6 tw-text-center tw-text-sm tw-text-slate-400">
               {T.empty}
@@ -1144,7 +1144,7 @@ function LawyerSearchScreen({
                 key={c.id}
                 type="button"
                 onClick={() => onPick(c)}
-                className="tw-flex tw-w-full tw-items-center tw-gap-3 tw-p-4 tw-text-right tw-transition hover:tw-bg-[#F3EDDF]"
+                className="tw-flex tw-w-full tw-items-center tw-gap-3 tw-p-4 tw-text-right tw-transition hover:tw-bg-[#F8F2E4]"
               >
                 <Avatar label={c.avatar} />
                 <div className="tw-min-w-0 tw-flex-1">
@@ -1489,7 +1489,7 @@ function BotChatScreen({
   // to a UI that hints at other clients' data through the bot.
   if (unauthorised) {
     return (
-      <div className="tw-mx-auto tw-flex tw-min-h-full tw-w-full tw-max-w-md tw-flex-col tw-items-center tw-justify-center tw-gap-4 tw-bg-[#FAF6EE] tw-p-6 tw-text-center">
+      <div className="tw-mx-auto tw-flex tw-min-h-full tw-w-full tw-max-w-md tw-flex-col tw-items-center tw-justify-center tw-gap-4 tw-bg-[#FDFBF5] tw-p-6 tw-text-center">
         <ShieldCheck className="tw-h-10 tw-w-10 tw-text-amber-600" />
         <div className="tw-text-base tw-font-semibold tw-text-slate-800">
           {lang === 'ar'
@@ -1528,8 +1528,8 @@ function BotChatScreen({
     }
   };
   return (
-    <div className="tw-mx-auto tw-flex tw-min-h-full tw-w-full tw-max-w-4xl tw-flex-col tw-bg-[#FAF6EE]">
-      <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FAF6EE]/95 tw-px-4 tw-py-3 tw-backdrop-blur">
+    <div className="tw-mx-auto tw-flex tw-min-h-full tw-w-full tw-max-w-4xl tw-flex-col tw-bg-[#FDFBF5]">
+      <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FDFBF5]/95 tw-px-4 tw-py-3 tw-backdrop-blur">
         <div className="tw-flex tw-items-center tw-justify-between">
           <button
             onClick={onBack}
@@ -1654,7 +1654,7 @@ function BotChatScreen({
               key={item}
               type="button"
               onClick={onClick}
-              className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-[#FAF6EE] tw-px-4 tw-py-4 tw-text-sm tw-font-medium tw-shadow-sm hover:tw-bg-[#F3EDDF]"
+              className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-[#FDFBF5] tw-px-4 tw-py-4 tw-text-sm tw-font-medium tw-shadow-sm hover:tw-bg-[#F8F2E4]"
             >
               {item}
             </button>
@@ -1690,7 +1690,7 @@ function AuthShell({
 }) {
   return (
     <div className="tw-grid tw-min-h-full tw-place-items-center tw-p-5">
-      <div className="tw-relative tw-w-full tw-max-w-md tw-rounded-[32px] tw-border tw-border-slate-200 tw-bg-[#FAF6EE] tw-p-7 tw-shadow-sm">
+      <div className="tw-relative tw-w-full tw-max-w-md tw-rounded-[32px] tw-border tw-border-slate-200 tw-bg-[#FDFBF5] tw-p-7 tw-shadow-sm">
         {onBack && (
           <button
             onClick={onBack}
@@ -1722,7 +1722,7 @@ function Panel({
   return (
     <section
       className={cn(
-        'tw-rounded-[32px] tw-border tw-border-slate-200 tw-bg-[#FAF6EE] tw-p-6 tw-shadow-sm',
+        'tw-rounded-[32px] tw-border tw-border-slate-200 tw-bg-[#FDFBF5] tw-p-6 tw-shadow-sm',
         className,
       )}
     >
@@ -1765,7 +1765,7 @@ function Avatar({ label }: { label: string }) {
 
 function FeatureRow({ icon, title }: { icon: ReactNode; title: string }) {
   return (
-    <div className="tw-flex tw-items-center tw-justify-between tw-rounded-2xl tw-bg-[#F3EDDF] tw-px-4 tw-py-4">
+    <div className="tw-flex tw-items-center tw-justify-between tw-rounded-2xl tw-bg-[#F8F2E4] tw-px-4 tw-py-4">
       <div className="tw-text-sm tw-font-medium">{title}</div>
       <div className="tw-text-indigo-600">{icon}</div>
     </div>
@@ -1819,7 +1819,7 @@ function CaseDetails({
       <button
         type="button"
         onClick={onOpenCase}
-        className="tw-mt-4 tw-flex tw-w-full tw-items-center tw-justify-center tw-gap-2 tw-rounded-2xl tw-border tw-border-slate-200 tw-px-4 tw-py-3 tw-text-sm tw-font-semibold hover:tw-bg-[#F3EDDF]"
+        className="tw-mt-4 tw-flex tw-w-full tw-items-center tw-justify-center tw-gap-2 tw-rounded-2xl tw-border tw-border-slate-200 tw-px-4 tw-py-3 tw-text-sm tw-font-semibold hover:tw-bg-[#F8F2E4]"
       >
         <FolderOpen className="tw-h-4 tw-w-4" />
         {T.open}
@@ -1984,8 +1984,8 @@ function ChatComposer({
     setText('');
   };
   return (
-    <div className="tw-border-t tw-border-slate-200 tw-bg-[#FAF6EE] tw-p-4">
-      <div className="tw-flex tw-items-center tw-gap-2 tw-rounded-full tw-border tw-border-slate-200 tw-bg-[#FAF6EE] tw-p-2 tw-shadow-sm">
+    <div className="tw-border-t tw-border-slate-200 tw-bg-[#FDFBF5] tw-p-4">
+      <div className="tw-flex tw-items-center tw-gap-2 tw-rounded-full tw-border tw-border-slate-200 tw-bg-[#FDFBF5] tw-p-2 tw-shadow-sm">
         {!bot && !readOnly && (
           <button className="tw-grid tw-h-11 tw-w-11 tw-place-items-center tw-rounded-full tw-bg-slate-950 tw-text-white">
             <Mic className="tw-h-5 tw-w-5" />

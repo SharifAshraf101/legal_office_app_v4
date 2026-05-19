@@ -186,7 +186,7 @@ export function NewCalendarAppointmentModal() {
           width: 'min(520px, 92vw)',
           maxHeight: 'min(88vh, 820px)',
           overflowY: 'auto',
-          background: '#FAF6EE',
+          background: '#FDFBF5',
           borderRadius: 22,
           padding: 22,
           boxShadow:

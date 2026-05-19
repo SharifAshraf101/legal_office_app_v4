@@ -18,7 +18,7 @@
  * <style>
  * ============================================================ */
 :root{
-      --bg:#FAF6EE;--bg-2:#FAF6EE;--surface:#FAF6EE;--surface-soft:#FAF6EE;--surface-2:#FAF6EE;--text:#172033;--muted:#6d7890;--line:#EDE5D2;
+      --bg:#FDFBF5;--bg-2:#FDFBF5;--surface:#FDFBF5;--surface-soft:#FDFBF5;--surface-2:#FDFBF5;--text:#172033;--muted:#6d7890;--line:#EDE5D2;
       --primary:#4f7cff;--primary-2:#e8efff;--primary-3:#dbe7ff;--accent:#20bfa9;--accent-2:#e7fbf7;--rose:#fff0f3;--peach:#fff4e8;
       --success:#16a37d;--warning:#d38b17;--danger:#d94444;--shadow:0 18px 45px rgba(45,75,130,.10);--shadow-soft:0 8px 22px rgba(45,75,130,.065);--radius:24px;--sidebar:292px;
     }
@@ -288,10 +288,10 @@
  * <style>
  * ============================================================ */
 /* SELECTED DESIGN 1: Pastel Legal Dashboard */
-:root{--bg:#FAF6EE;--bg-2:#FAF6EE;--surface:#FAF6EE;--surface-soft:#FAF6EE;--surface-2:#FAF6EE;--text:#152033;--muted:#66758d;--line:#EDE5D2;--primary:#2563eb;--primary-2:#dbeafe;--primary-3:#bfdbfe;--accent:#059669;--accent-2:#d1fae5;--warning:#ea580c;--danger:#dc2626;--shadow:0 18px 45px rgba(15,23,42,.09);--shadow-soft:0 10px 26px rgba(15,23,42,.065)}
+:root{--bg:#FDFBF5;--bg-2:#FDFBF5;--surface:#FDFBF5;--surface-soft:#FDFBF5;--surface-2:#FDFBF5;--text:#152033;--muted:#66758d;--line:#EDE5D2;--primary:#2563eb;--primary-2:#dbeafe;--primary-3:#bfdbfe;--accent:#059669;--accent-2:#d1fae5;--warning:#ea580c;--danger:#dc2626;--shadow:0 18px 45px rgba(15,23,42,.09);--shadow-soft:0 10px 26px rgba(15,23,42,.065)}
 body{background:linear-gradient(135deg,#f5f8fc 0%,#fff 48%,#eef4fb 100%)!important;color:var(--text)}
 .language-selector{background:linear-gradient(135deg,#f5f8fc 0%,#fff 58%,#eef4fb 100%)!important}.language-panel{background:rgba(255,255,255,.92)!important;border-color:#e2ebf6!important;box-shadow:var(--shadow)!important}.brand-mark,.side-brand .mark{background:#dbeafe!important;color:#2563eb!important;box-shadow:none!important}.sidebar{background:rgba(255,255,255,.84)!important;border-left:1px solid #dbe7f4!important;box-shadow:-8px 0 26px rgba(15,23,42,.035)!important;backdrop-filter:blur(18px)}.side-brand{background:#fff!important;border-color:#e2ebf6!important;box-shadow:var(--shadow-soft)!important}.nav-btn{border-radius:18px!important;color:#64748b!important}.nav-btn:hover{background:#f8fbff!important;border-color:#dbe7f4!important;color:#152033!important}.nav-btn.active{background:#dbeafe!important;color:#1d4ed8!important;border-color:#bfdbfe!important;box-shadow:none!important;font-weight:900!important}.sidebar-settings-panel{background:#fff!important;border-color:#e2ebf6!important;box-shadow:var(--shadow-soft)!important}.topbar{background:rgba(255,255,255,.84)!important;border-bottom:1px solid #dbe7f4!important;backdrop-filter:blur(18px)}.btn-primary{background:#2563eb!important;color:#fff!important;box-shadow:0 12px 22px rgba(37,99,235,.18)!important}.btn-secondary,.mini-btn{background:#fff!important;border-color:#e2ebf6!important;color:#152033!important}.mini-btn.active{background:#2563eb!important;border-color:#2563eb!important;color:white!important}
-.content.home-content{background:transparent!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:24px 30px 92px!important;overflow:hidden!important}.home-grid-wrap{position:relative!important;width:min(760px,92vw)!important;height:min(640px,calc(100vh - 155px))!important;min-height:500px!important;display:flex!important;align-items:center!important;justify-content:center!important;margin:auto!important;isolation:isolate!important}.home-card-grid{width:100%!important;height:100%!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important;gap:72px!important}.home-card{background:#fff!important;border:1px solid #e2ebf6!important;border-radius:30px!important;box-shadow:0 16px 34px rgba(15,23,42,.075)!important;min-height:165px!important;padding:22px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;text-align:center!important;gap:13px!important;overflow:hidden!important;cursor:pointer!important;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease!important}.home-card:before,.home-card:after{display:none!important;content:none!important}.home-card:hover{transform:translateY(-4px)!important;box-shadow:0 22px 44px rgba(15,23,42,.11)!important;border-color:#cfe0ff!important}.home-card .card-icon{width:68px!important;height:68px!important;border-radius:24px!important;border:0!important;display:grid!important;place-items:center!important;font-size:30px!important;margin:0 auto!important;box-shadow:none!important;background:#dbeafe!important;color:#2563eb!important}.home-card:nth-child(1) .card-icon{background:#dbeafe!important;color:#2563eb!important}.home-card:nth-child(2) .card-icon{background:#d1fae5!important;color:#059669!important}.home-card:nth-child(3) .card-icon{background:#ede9fe!important;color:#7c3aed!important}.home-card:nth-child(4) .card-icon{background:#ffedd5!important;color:#ea580c!important}.home-card h2{margin:0!important;font-size:22px!important;line-height:1.22!important;font-weight:950!important;color:#152033!important;letter-spacing:-.025em!important}.home-card p{display:none!important}.upcoming-center-btn{position:absolute!important;inset:50% auto auto 50%!important;transform:translate(-50%,-50%)!important;width:118px!important;height:118px!important;border-radius:999px!important;border:2px solid #bfdbfe!important;background:#fff!important;color:#1d4ed8!important;box-shadow:0 18px 40px rgba(37,99,235,.16)!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:7px!important;text-align:center!important;font-weight:950!important;z-index:5!important;cursor:pointer!important}.upcoming-center-btn:hover{transform:translate(-50%,-50%) scale(1.035)!important;box-shadow:0 24px 52px rgba(37,99,235,.20)!important}.upcoming-center-btn i{background:#dbeafe!important;color:#2563eb!important;width:34px!important;height:34px!important;border-radius:14px!important;display:grid!important;place-items:center!important;font-size:16px!important}.upcoming-center-btn span{font-size:12.5px!important;line-height:1.12!important;max-width:82px!important;color:#1d4ed8!important}.panel,.modal-box{background:#FAF6EE!important;border-color:#e2ebf6!important;box-shadow:var(--shadow-soft)!important}.form-field input,.form-field select,.form-field textarea{background:#FAF6EE!important;border-color:#e2ebf6!important}.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:#bfdbfe!important;background:#FAF6EE!important;box-shadow:0 0 0 4px rgba(37,99,235,.10)!important}
+.content.home-content{background:transparent!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:24px 30px 92px!important;overflow:hidden!important}.home-grid-wrap{position:relative!important;width:min(760px,92vw)!important;height:min(640px,calc(100vh - 155px))!important;min-height:500px!important;display:flex!important;align-items:center!important;justify-content:center!important;margin:auto!important;isolation:isolate!important}.home-card-grid{width:100%!important;height:100%!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important;gap:72px!important}.home-card{background:#fff!important;border:1px solid #e2ebf6!important;border-radius:30px!important;box-shadow:0 16px 34px rgba(15,23,42,.075)!important;min-height:165px!important;padding:22px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;text-align:center!important;gap:13px!important;overflow:hidden!important;cursor:pointer!important;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease!important}.home-card:before,.home-card:after{display:none!important;content:none!important}.home-card:hover{transform:translateY(-4px)!important;box-shadow:0 22px 44px rgba(15,23,42,.11)!important;border-color:#cfe0ff!important}.home-card .card-icon{width:68px!important;height:68px!important;border-radius:24px!important;border:0!important;display:grid!important;place-items:center!important;font-size:30px!important;margin:0 auto!important;box-shadow:none!important;background:#dbeafe!important;color:#2563eb!important}.home-card:nth-child(1) .card-icon{background:#dbeafe!important;color:#2563eb!important}.home-card:nth-child(2) .card-icon{background:#d1fae5!important;color:#059669!important}.home-card:nth-child(3) .card-icon{background:#ede9fe!important;color:#7c3aed!important}.home-card:nth-child(4) .card-icon{background:#ffedd5!important;color:#ea580c!important}.home-card h2{margin:0!important;font-size:22px!important;line-height:1.22!important;font-weight:950!important;color:#152033!important;letter-spacing:-.025em!important}.home-card p{display:none!important}.upcoming-center-btn{position:absolute!important;inset:50% auto auto 50%!important;transform:translate(-50%,-50%)!important;width:118px!important;height:118px!important;border-radius:999px!important;border:2px solid #bfdbfe!important;background:#fff!important;color:#1d4ed8!important;box-shadow:0 18px 40px rgba(37,99,235,.16)!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:7px!important;text-align:center!important;font-weight:950!important;z-index:5!important;cursor:pointer!important}.upcoming-center-btn:hover{transform:translate(-50%,-50%) scale(1.035)!important;box-shadow:0 24px 52px rgba(37,99,235,.20)!important}.upcoming-center-btn i{background:#dbeafe!important;color:#2563eb!important;width:34px!important;height:34px!important;border-radius:14px!important;display:grid!important;place-items:center!important;font-size:16px!important}.upcoming-center-btn span{font-size:12.5px!important;line-height:1.12!important;max-width:82px!important;color:#1d4ed8!important}.panel,.modal-box{background:#FDFBF5!important;border-color:#e2ebf6!important;box-shadow:var(--shadow-soft)!important}.form-field input,.form-field select,.form-field textarea{background:#FDFBF5!important;border-color:#e2ebf6!important}.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:#bfdbfe!important;background:#FDFBF5!important;box-shadow:0 0 0 4px rgba(37,99,235,.10)!important}
 @media(max-width:1050px){.content.home-content{padding:18px 16px 92px!important}.home-grid-wrap{width:min(620px,100%)!important;height:auto!important;min-height:0!important}.home-card-grid{height:auto!important;gap:50px!important}.home-card{min-height:158px!important;border-radius:26px!important}.upcoming-center-btn{width:104px!important;height:104px!important}.mobile-nav{background:rgba(255,255,255,.94)!important;border-top:1px solid #dbe7f4!important;backdrop-filter:blur(18px)!important}}
 @media(max-width:620px){.content.home-content{padding:16px 12px 84px!important}.home-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important;gap:32px!important}.home-card{min-height:132px!important;border-radius:22px!important;gap:10px!important;padding:12px 8px!important}.home-card .card-icon{width:50px!important;height:50px!important;border-radius:18px!important;font-size:22px!important}.home-card h2{font-size:14px!important;line-height:1.2!important}.upcoming-center-btn{width:82px!important;height:82px!important;border-width:2px!important}.upcoming-center-btn i{width:26px!important;height:26px!important;border-radius:10px!important;font-size:13px!important}.upcoming-center-btn span{font-size:9.5px!important;max-width:62px!important}}
 
@@ -1809,8 +1809,8 @@ body.font-family-calibri{--app-font-family:Calibri, Arial, sans-serif;}
     --mobile-bottom-nav-h:76px;
   }
 
-  body{background:#FAF6EE!important;}
-  .main{background:#FAF6EE!important;}
+  body{background:#FDFBF5!important;}
+  .main{background:#FDFBF5!important;}
 
   .content:has(.global-search-panel),
   .content:has(.clients-screen-panel),
@@ -1826,7 +1826,7 @@ body.font-family-calibri{--app-font-family:Calibri, Arial, sans-serif;}
     min-height:calc(100svh - var(--mobile-topbar-h))!important;
     padding:0 0 calc(var(--mobile-bottom-nav-h) + env(safe-area-inset-bottom)) 0!important;
     margin:0!important;
-    background:#FAF6EE!important;
+    background:#FDFBF5!important;
     overflow:auto!important;
   }
 
@@ -1847,7 +1847,7 @@ body.font-family-calibri{--app-font-family:Calibri, Arial, sans-serif;}
     border:0!important;
     border-radius:0!important;
     box-shadow:none!important;
-    background:#FAF6EE!important;
+    background:#FDFBF5!important;
     overflow:visible!important;
   }
 
@@ -1865,7 +1865,7 @@ body.font-family-calibri{--app-font-family:Calibri, Arial, sans-serif;}
     min-height:calc(100svh - var(--mobile-topbar-h) - var(--mobile-bottom-nav-h) - env(safe-area-inset-bottom))!important;
     padding:14px 12px 24px 12px!important;
     margin:0!important;
-    background:#FAF6EE!important;
+    background:#FDFBF5!important;
     display:flex!important;
     flex-direction:column!important;
     gap:12px!important;
@@ -1891,7 +1891,7 @@ body.font-family-calibri{--app-font-family:Calibri, Arial, sans-serif;}
   .tasks-toolbar{
     margin:0!important;
     padding:0!important;
-    background:#FAF6EE!important;
+    background:#FDFBF5!important;
     flex:0 0 auto!important;
   }
 
@@ -1911,7 +1911,7 @@ body.font-family-calibri{--app-font-family:Calibri, Arial, sans-serif;}
     min-height:0!important;
     overflow:visible!important;
     padding-inline:0!important;
-    background:#FAF6EE!important;
+    background:#FDFBF5!important;
   }
 
   .content:has(.calendar-week-grid) .calendar-week-grid,
@@ -9452,7 +9452,7 @@ body.dark .settings-section-body textarea::placeholder {
 @media (max-width:700px){
   .modal.case-detail-mobile-v140,
   .modal.case-detail-mobile-v140 .modal-box{
-    background:#FAF6EE!important;
+    background:#FDFBF5!important;
   }
   .modal.case-detail-mobile-v140 .modal-box{
     padding-top:14px!important;
@@ -11406,7 +11406,7 @@ body.dark #homeSettingsOnlyDrawer.v212-open{
     padding:14px 0 26px!important;
     overflow:auto!important;
     border-radius:0!important;
-    background:#FAF6EE!important;
+    background:#FDFBF5!important;
     border:1px solid #dbe7f4!important;
     box-shadow:0 18px 45px rgba(15,23,42,.14)!important;
   }
@@ -14566,7 +14566,7 @@ body.dark .modal:has(#newCalendarAppointmentForm) .modal-box > h2:first-of-type{
 
 /* ----- Panels (every screen wraps its content in .panel) ---------------- */
 .content.content.content.content:not(.home-content) .panel{
-  background:#FAF6EE!important;
+  background:#FDFBF5!important;
   border:1px solid transparent!important;
   border-radius:14px!important;
   box-shadow:none!important;
@@ -14582,7 +14582,7 @@ body.dark .modal:has(#newCalendarAppointmentForm) .modal-box > h2:first-of-type{
 .content.content.content.content:not(.home-content) .panel-header{
   padding:20px 24px!important;
   border-bottom:1px solid #EDE5D2!important;
-  background:#FAF6EE!important;
+  background:#FDFBF5!important;
   display:flex!important;
   align-items:center!important;
   justify-content:space-between!important;
@@ -14757,7 +14757,7 @@ body.dark .modal:has(#newCalendarAppointmentForm) .modal-box > h2:first-of-type{
 .content.content.content.content:not(.home-content) table.table,
 .content.content.content.content:not(.home-content) .table{
   width:100%!important;
-  background:#FAF6EE!important;
+  background:#FDFBF5!important;
   border:0!important;
   border-radius:0!important;
   overflow:hidden!important;
@@ -14766,7 +14766,7 @@ body.dark .modal:has(#newCalendarAppointmentForm) .modal-box > h2:first-of-type{
   border-spacing:0!important;
 }
 .content.content.content.content:not(.home-content) table.table th{
-  background:#FAF6EE!important;
+  background:#FDFBF5!important;
   color:#64748B!important;
   border-bottom:1px solid #EDE5D2!important;
   font-weight:600!important;
@@ -14798,7 +14798,7 @@ body.dark .modal:has(#newCalendarAppointmentForm) .modal-box > h2:first-of-type{
 .content.content.content.content:not(.home-content) .document-screen-row,
 .content.content.content.content:not(.home-content) .case-document-row,
 .content.content.content.content:not(.home-content) [class*="-row"]:not(thead):not(tbody):not(tr){
-  background:#FAF6EE!important;
+  background:#FDFBF5!important;
   border:0!important;
   border-bottom:1px solid #EDE5D2!important;
   border-radius:0!important;
@@ -15091,7 +15091,7 @@ body.dark .modal:has(#newCalendarAppointmentForm) .modal-box > h2:first-of-type{
 /* Sidebar — restyle (used on desktop). Doesn't affect home specifically;
    the sidebar always renders alongside any content. */
 .sidebar.sidebar.sidebar{
-  background:#FAF6EE!important;
+  background:#FDFBF5!important;
   border-inline-end:1px solid #E5DECC!important;
   box-shadow:none!important;
   backdrop-filter:none!important;
@@ -17268,7 +17268,7 @@ body.dark {
   box-shadow: 0 1px 0 var(--line) !important;
 }
 .topbar.home-topbar {
-  background: #FAF6EE !important;
+  background: #FDFBF5 !important;
   border-bottom: 1px solid #E5DECC !important;
 }
 .page-title h1 {
@@ -18452,7 +18452,7 @@ html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-new-
  * CaseDetail title-action buttons (פעיל / מסמכי התיק / אירוע חדש) —
  * cream background like the rest of the cream UI. Each currently has a
  * different bg (sky-blue / white / green-tinted); force them all to
- * #FAF6EE. Specificity (0, 15, 0) beats the .modal.ls × 12 rules at
+ * #FDFBF5. Specificity (0, 15, 0) beats the .modal.ls × 12 rules at
  * (0, 13, 0) and (0, 14, 0).
  * ===================================================================== */
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-new-event-btn,
@@ -18469,8 +18469,8 @@ html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-extr
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-extra-actions-v215 .case-new-event-btn,
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-extra-actions-v215 .case-docs-btn,
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-extra-actions-v215 .case-status-btn {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
   border: 1px solid #E5DECC !important;
   color: #0F172A !important;
 }
@@ -18505,7 +18505,7 @@ html body:not(.dark) .modal-box .edit-action-delete-btn i {
 /* ============================================================ *
  * Professional light-mode color palette (final override)
  *
- * Surfaces:  warm-cream off-white (#FAF6EE) + pure white panels.
+ * Surfaces:  warm-cream off-white (#FDFBF5) + pure white panels.
  * Primary:   clean sky-blue (#0EA5E9 family) for accents/buttons.
  * Text:      slate-navy (#1E293B) for body, slate-500 for muted.
  * Borders:   soft cream-blue hairline (#E2D9C5 / #E0E6EE).
@@ -18516,7 +18516,7 @@ html body:not(.dark) .modal-box .edit-action-delete-btn i {
 :root,
 html,
 body:not(.dark){
-  --bg:#FAF6EE !important;
+  --bg:#FDFBF5 !important;
   --bg-2:#F2ECDD !important;
   --surface:#FFFFFF !important;
   --surface-soft:#FCFAF4 !important;
@@ -18633,8 +18633,8 @@ html body:not(.dark):not(.no-cream) .finance-screen-panel,
 html body:not(.dark):not(.no-cream) .finance-screen-body,
 html body:not(.dark):not(.no-cream) .global-search-panel,
 html body:not(.dark):not(.no-cream) .global-search-body{
-  background:#FAF6EE !important;
-  background-color:#FAF6EE !important;
+  background:#FDFBF5 !important;
+  background-color:#FDFBF5 !important;
   background-image:none !important;
   border-color:transparent !important;
   box-shadow:none !important;
@@ -18670,8 +18670,8 @@ html body:not(.dark):not(.no-cream) .global-search-body{
   html body:not(.dark):not(.no-cream) .content:has(.documents-screen-panel) .documents-panel-body,
   html body:not(.dark):not(.no-cream) .content:has(.tasks-screen-panel) .tasks-panel-body,
   html body:not(.dark):not(.no-cream) .content:has(.finance-screen-panel) .finance-screen-body{
-    background:#FAF6EE !important;
-    background-color:#FAF6EE !important;
+    background:#FDFBF5 !important;
+    background-color:#FDFBF5 !important;
   }
 }
 
@@ -18783,8 +18783,8 @@ html body:not(.dark) .list-item,
 html body:not(.dark) .home-card,
 html body:not(.dark) .calendar-week-day,
 html body:not(.dark) .cal-cell {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* Modal-close-x and back-btn — keep them lighter so they pop on
@@ -18924,8 +18924,8 @@ html body:not(.dark) [style*="background-color:#fff"]:not(input):not(textarea):n
 html body:not(.dark) [style*="background-color:#ffffff"]:not(input):not(textarea):not(select):not(button),
 html body:not(.dark) [style*="background: white"]:not(input):not(textarea):not(select):not(button),
 html body:not(.dark) [style*="background:white"]:not(input):not(textarea):not(select):not(button) {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* Common class-based white surfaces — force to cream. */
@@ -18954,14 +18954,14 @@ html body:not(.dark) .finance-payment-row,
 html body:not(.dark) .finance-detail-card,
 html body:not(.dark) .home-grid-wrap,
 html body:not(.dark) .home-only-grid {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* Override CSS custom property so any element referencing
    var(--surface) inherits the cream tone. */
 html body:not(.dark) {
-  --surface: #FAF6EE !important;
+  --surface: #FDFBF5 !important;
 }
 
 /* ============================================================ *
@@ -19009,8 +19009,8 @@ html body:not(.dark) .modal-box.case-detail-modal-box,
 html body:not(.dark) .panel-close-x,
 html body:not(.dark) .modal-close-x,
 html body:not(.dark) .modal-mobile-back-btn {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* Light controls (calendar nav, date input, count pill) keep a slightly
@@ -19078,8 +19078,8 @@ html body:not(.dark) .clients-scroll-list .table tbody td,
 html body:not(.dark) .cases-scroll-list .table tbody td,
 html body:not(.dark) .clients-table tbody td,
 html body:not(.dark) .cases-table tbody td {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* ============================================================ *
@@ -19170,8 +19170,8 @@ html body:not(.dark) .topbar .actions .btn,
 html body:not(.dark) .topbar #quickAction,
 html body:not(.dark) .topbar .home-settings-only-btn,
 html body:not(.dark) .topbar .mini-btn {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
   color: #0F172A !important;
   border-color: #E5DECC !important;
 }
@@ -19204,13 +19204,13 @@ html body:not(.dark) .content:has(.global-search-panel) > .panel,
 html body:not(.dark) .content:has(.global-search-panel) > .panel > .panel-body,
 html body:not(.dark) .global-search-panel .panel,
 html body:not(.dark) .global-search-panel .panel > .panel-body {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 @media (max-width: 700px) {
   html body:not(.dark) .content:has(.global-search-panel) .global-search-body {
-    background: #FAF6EE !important;
-    background-color: #FAF6EE !important;
+    background: #FDFBF5 !important;
+    background-color: #FDFBF5 !important;
   }
 }
 
@@ -19278,8 +19278,8 @@ html body:not(.dark) .content:not(.home-content) .documents-scroll-list .table t
 html body:not(.dark) .content:not(.home-content) .tasks-scroll-list .table tbody td,
 html body:not(.dark) .content:not(.home-content) .global-result-row,
 html body:not(.dark) .content:not(.home-content) .global-search-section {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
   border-color: transparent !important;
   box-shadow: none !important;
 }
@@ -19338,8 +19338,8 @@ html body:not(.dark) .content:not(.home-content) .clients-table td,
 html body:not(.dark) .content:not(.home-content) .cases-table,
 html body:not(.dark) .content:not(.home-content) .cases-table tr,
 html body:not(.dark) .content:not(.home-content) .cases-table td {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* Hover state on table rows — slightly darker cream instead of white. */
@@ -19379,8 +19379,8 @@ html body:not(.dark) .content:not(.home-content) .global-search-body,
 html body:not(.dark) .content:not(.home-content) .panel,
 html body:not(.dark) .content:not(.home-content) .panel-body,
 html body:not(.dark) .content:not(.home-content) .panel-head {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* Document row cards inside the documents screen — kill the inner
@@ -19397,8 +19397,8 @@ html body:not(.dark) .content:not(.home-content) .finance-payment-row,
 html body:not(.dark) .content:not(.home-content) .settings-section-card,
 html body:not(.dark) .content:not(.home-content) .agenda-modal-row,
 html body:not(.dark) .content:not(.home-content) .settings-row {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* Sticky thead background inside any scroll list — line 189 sets it
@@ -19407,8 +19407,8 @@ html body:not(.dark) .content:not(.home-content) .table thead th,
 html body:not(.dark) .content:not(.home-content) thead,
 html body:not(.dark) .content:not(.home-content) thead tr,
 html body:not(.dark) .content:not(.home-content) thead th {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* Hover row on documents screen — match the cases/clients hover tone. */
@@ -19487,8 +19487,8 @@ html body:not(.dark) .content:not(.home-content) .case-task-row,
 html body:not(.dark) .content:not(.home-content) .case-document-row,
 html body:not(.dark) .content:not(.home-content) .timeline-row,
 html body:not(.dark) .content:not(.home-content) .list-item {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* Inner panel-heads inside the modals (the "מסמכים אחרונים בתיק" etc
@@ -19496,7 +19496,7 @@ html body:not(.dark) .content:not(.home-content) .list-item {
 html body:not(.dark) .modal-box .case-documents-head,
 html body:not(.dark) .modal-box .case-tasks-head,
 html body:not(.dark) .modal-box .case-detail-title-actions {
-  background: #FAF6EE !important;
+  background: #FDFBF5 !important;
 }
 
 /* Buttons inside .modal-box that are content cards (not action buttons)
@@ -19504,7 +19504,7 @@ html body:not(.dark) .modal-box .case-detail-title-actions {
 html body:not(.dark) .modal-box [class*="-card"]:not([class*="card-icon"]),
 html body:not(.dark) .modal-box [class*="-cell"],
 html body:not(.dark) .modal-box [class*="-info"]:not([class*="info-circle"]):not([class*="info-i"]) {
-  background: #FAF6EE !important;
+  background: #FDFBF5 !important;
 }
 
 /* =====================================================================
@@ -19544,16 +19544,16 @@ html body:not(.dark) .modal-box .form-field select,
 html body:not(.dark) .modal-box .form-field textarea,
 html body:not(.dark) .modal-box .case-search-wrap,
 html body:not(.dark) .modal-box .case-search-input {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* Specifically the blue-tinted next-hearing notification banner in case
  * detail — it usually has a sky-blue bg. Keep the icon/text color but
  * make the surface cream. */
 html body:not(.dark) .modal-box [class*="hearing"]:not(i):not(span):not(button) {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* =====================================================================
@@ -19646,8 +19646,8 @@ html body:not(.dark) .modal-box.case-detail-modal-box,
 html body:not(.dark) .modal-box.client-mobile-fullscreen-box,
 html body:not(.dark) .modal-box.client-detail-box-v225,
 html body:not(.dark) .modal-box.client-detail-box-stable-v228 {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
   border-color: #e2ebf6 !important;
   box-shadow: 0 28px 70px rgba(15,23,42,.55), 0 0 0 1px rgba(15,23,42,.08) !important;
 }
@@ -19657,8 +19657,8 @@ html body:not(.dark) .modal-box.client-detail-box-stable-v228 {
 html body:not(.dark) .modal.case-detail-desktop-v215 .modal-box *:not(button):not(.btn):not(.btn-primary):not(.btn-danger):not(.case-new-event-btn):not(.case-docs-btn):not(.case-status-btn):not(.case-delete-btn):not(.case-edit-btn):not(.delete-action-btn):not(.case-document-btn):not(.case-task-btn):not(.case-status-active):not(.case-status-pending):not(.case-status-inactive):not(.status):not(.status.active):not(.status.pending):not(.status.inactive):not(.finance-debt-pill):not(.client-count-badge):not(.case-timeline-filter-btn):not(input):not(select):not(textarea):not(i):not(svg):not(img):not(.fa):not([class*="fas"]):not([class*="far"]):not([class*="fa-"]):not(a),
 html body:not(.dark) .modal.case-detail-mobile-v140 .modal-box *:not(button):not(.btn):not(.btn-primary):not(.btn-danger):not(.case-new-event-btn):not(.case-docs-btn):not(.case-status-btn):not(.case-delete-btn):not(.case-edit-btn):not(.delete-action-btn):not(.case-document-btn):not(.case-task-btn):not(.status):not(.finance-debt-pill):not(.client-count-badge):not(.case-timeline-filter-btn):not(input):not(select):not(textarea):not(i):not(svg):not(img):not([class*="fa-"]):not(a),
 html body:not(.dark) .modal.client-mobile-fullscreen .modal-box *:not(button):not(.btn):not(.btn-primary):not(.btn-danger):not(.client-edit-btn):not(.delete-action-btn):not(.case-edit-btn):not(.client-count-badge):not(.status):not(input):not(select):not(textarea):not(i):not(svg):not(img):not([class*="fa-"]):not(a) {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* =====================================================================
@@ -19683,8 +19683,8 @@ html body:not(.dark) .content:not(.home-content) .calendar-grid .cal-cell.select
 html body:not(.dark) .content:not(.home-content) .calendar-grid .cal-cell.empty,
 html body:not(.dark) .content:not(.home-content) .calendar-grid .cal-cell.other-month,
 html body:not(.dark) .content:not(.home-content) .calendar-grid .cal-cell.padding {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
   border-color: #EDE5D2 !important;
   color: #0F172A !important;
 }
@@ -19778,7 +19778,7 @@ html body:not(.dark) .calendar-grid .cal-event .cal-event-details {
  * Home settings button — match the "אירוע חדש" (new-event) quickAction
  * button in dimensions, shape, and palette. The quickAction inherits
  * .btn (padding:11px 16px, border-radius:8px, font-weight:700) plus the
- * topbar cream override (#FAF6EE bg, #E5DECC border, #0F172A text). The
+ * topbar cream override (#FDFBF5 bg, #E5DECC border, #0F172A text). The
  * settings button was a smaller `.mini-btn`; force the same look.
  * ===================================================================== */
 html body:not(.dark) .topbar.home-topbar .home-only-settings-wrap #homeSettingsOnlyBtn.home-settings-only-btn,
@@ -19791,7 +19791,7 @@ html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only
   font-weight: 700 !important;
   font-family: inherit !important;
   letter-spacing: 0 !important;
-  background: #FAF6EE !important;
+  background: #FDFBF5 !important;
   color: #0F172A !important;
   border: 1px solid #E5DECC !important;
   border-radius: 8px !important;
@@ -19862,7 +19862,7 @@ html body:not(.dark) #topbar.topbar.topbar .case-docs-btn {
   font-weight: 700 !important;
   line-height: 1.15 !important;
   letter-spacing: 0 !important;
-  background: #FAF6EE !important;
+  background: #FDFBF5 !important;
   color: #0F172A !important;
   border: 1px solid #E5DECC !important;
   box-shadow: none !important;
@@ -19999,8 +19999,8 @@ html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls [class*="-
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls [class*="-empty"],
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls [class*="-banner"],
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls [class*="hearing"]:not(i):not(span):not(button):not([class*="badge"]) {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
 }
 
 /* The .modal.ls × 12 rules also paint immediate-child div elements of
@@ -20024,8 +20024,8 @@ html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-docu
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .client-case-link,
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls [class*="bot-msg"],
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls [class*="-bubble"] {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
   border-color: #EDE5D2 !important;
 }
 
@@ -20042,8 +20042,8 @@ html body:not(.dark) .content.content.content.content:not(.home-content) .detail
 html body:not(.dark) .content.content.content.content:not(.home-content) .case-detail-main-row > div,
 html body:not(.dark) .content.content.content.content:not(.home-content) [class*="bot-msg"],
 html body:not(.dark) .content.content.content.content:not(.home-content) [class*="-bubble"] {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
   border-color: #EDE5D2 !important;
 }
 
@@ -20058,8 +20058,8 @@ html body:not(.dark) .content.content.content.content:not(.home-content) .case-d
 html body:not(.dark) .content.content.content.content:not(.home-content) .calendar-empty.calendar-empty,
 html body:not(.dark) .content.content.content.content:not(.home-content) .agenda-modal-empty.agenda-modal-empty,
 html body:not(.dark) .content.content.content.content:not(.home-content) [class*="-empty"][class*="-empty"] {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
   border-color: #EDE5D2 !important;
   color: #64748B !important;
 }
@@ -20076,7 +20076,7 @@ html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .modal-box
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .modal-box.client-mobile-fullscreen-box > *,
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .modal-box.client-mobile-fullscreen-box > * > *,
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .modal-box.client-mobile-fullscreen-box > * > * > * {
-  background-color: #FAF6EE !important;
+  background-color: #FDFBF5 !important;
 }
 /* Re-allow ONLY the few elements that legitimately need a non-cream
  * fill: status pills, debt pills, delete-action-btn, active filter
@@ -20109,8 +20109,8 @@ html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls #caseTimelineList .timeline-item,
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls #caseTimelineFilters,
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls #caseTimelineFilters > *,
 html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls #caseTimelineFilters .case-timeline-filter-bar {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
   border-color: #EDE5D2 !important;
 }
 
@@ -20125,8 +20125,8 @@ html body:not(.dark) .case-detail-modal-box #caseTimelineList .timeline-item,
 html body:not(.dark) .case-detail-modal-box #caseTimelineFilters,
 html body:not(.dark) .case-detail-modal-box #caseTimelineFilters > *,
 html body:not(.dark) .case-detail-modal-box #caseTimelineFilters .case-timeline-filter-bar {
-  background: #FAF6EE !important;
-  background-color: #FAF6EE !important;
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
   border-color: #EDE5D2 !important;
 }
 
