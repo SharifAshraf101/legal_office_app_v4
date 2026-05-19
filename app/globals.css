@@ -16646,8 +16646,8 @@ body:has(.content:not(.home-content)){
 /* Shared cell styling on BOTH grids */
 .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row,
 .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .detail-row{
-  background:#FFFFFF!important;
-  border:1px solid #E5E7EB!important;
+  background:linear-gradient(145deg,#E5E7EB 0%,#BFC4CA 100%)!important;
+  border:1px solid #9CA3AF!important;
   border-radius:8px!important;
   padding:8px 10px!important;
   display:flex!important;
@@ -16687,8 +16687,8 @@ body:has(.content:not(.home-content)){
 
 /* WhatsApp links inside the contact row */
 .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell{
-  background:#FFFFFF!important;
-  border:1px solid #E5E7EB!important;
+  background:linear-gradient(145deg,#E5E7EB 0%,#BFC4CA 100%)!important;
+  border:1px solid #9CA3AF!important;
   border-radius:8px!important;
   padding:0 10px!important;
   display:inline-flex!important;
@@ -16705,8 +16705,8 @@ body:has(.content:not(.home-content)){
   min-width:0!important;
 }
 .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell:hover{
-  background:#F8FAFC!important;
-  border-color:#CBD5E1!important;
+  background:linear-gradient(145deg,#D6DADF 0%,#AEB4BB 100%)!important;
+  border-color:#7B8088!important;
 }
 .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell i{
   color:#059669!important;
@@ -20159,3 +20159,344 @@ html body:not(.dark) .case-search-wrap label {
   padding: 0 !important;
 }
 
+/* =====================================================================
+ * Arabic font scaling — total multiplier 1.495 (≈ +50% from authored).
+ * Built up as 1.15 (initial bump) × 1.3 (the latest +30% request).
+ * Applies only inside the SCREEN CONTENT (main panels, modals, topbar);
+ * the SIDEBAR is excluded and keeps its authored size.
+ * ===================================================================== */
+html[lang="ar"] .main,
+html[lang="ar"] .content,
+html[lang="ar"] .topbar,
+html[lang="ar"] .modal,
+html[lang="ar"] .modal-box {
+  font-size: 21px; /* 14px (base) × 1.5 — cascades to inheritors */
+}
+
+/* Headings inside the content/modals — explicit larger px (×1.5). */
+html[lang="ar"] .content h1,
+html[lang="ar"] .main h1,
+html[lang="ar"] .modal h1,
+html[lang="ar"] .topbar h1 { font-size: 38px; }    /* 25 × 1.5 */
+html[lang="ar"] .content h2,
+html[lang="ar"] .main h2,
+html[lang="ar"] .modal h2,
+html[lang="ar"] .topbar h2 { font-size: 29px; }    /* 19 × 1.5 */
+html[lang="ar"] .content h3,
+html[lang="ar"] .main h3,
+html[lang="ar"] .modal h3 { font-size: 24px; }    /* 16 × 1.5 */
+
+/* Text-bearing elements inside content/modal/topbar bumped to 1.5em. */
+html[lang="ar"] .content p,
+html[lang="ar"] .content label,
+html[lang="ar"] .content span,
+html[lang="ar"] .content button,
+html[lang="ar"] .content td,
+html[lang="ar"] .content th,
+html[lang="ar"] .content li,
+html[lang="ar"] .content a,
+html[lang="ar"] .content strong,
+html[lang="ar"] .content small,
+html[lang="ar"] .content input,
+html[lang="ar"] .content select,
+html[lang="ar"] .content textarea,
+html[lang="ar"] .modal p,
+html[lang="ar"] .modal label,
+html[lang="ar"] .modal span,
+html[lang="ar"] .modal button,
+html[lang="ar"] .modal td,
+html[lang="ar"] .modal th,
+html[lang="ar"] .modal li,
+html[lang="ar"] .modal a,
+html[lang="ar"] .modal strong,
+html[lang="ar"] .modal small,
+html[lang="ar"] .modal input,
+html[lang="ar"] .modal select,
+html[lang="ar"] .modal textarea,
+html[lang="ar"] .topbar h1,
+html[lang="ar"] .topbar p,
+html[lang="ar"] .topbar button,
+html[lang="ar"] .topbar span {
+  font-size: 1.5em;
+}
+
+/* Icons keep their authored size. */
+html[lang="ar"] .content i,
+html[lang="ar"] .content svg,
+html[lang="ar"] .content .fas,
+html[lang="ar"] .content .far,
+html[lang="ar"] .modal i,
+html[lang="ar"] .modal svg,
+html[lang="ar"] .modal .fas,
+html[lang="ar"] .modal .far,
+html[lang="ar"] .topbar i,
+html[lang="ar"] .topbar svg {
+  font-size: revert;
+}
+
+/* Prevent compounding on deeply-nested spans. */
+html[lang="ar"] .content span span,
+html[lang="ar"] .content button span,
+html[lang="ar"] .content label span,
+html[lang="ar"] .content td span,
+html[lang="ar"] .content th span,
+html[lang="ar"] .modal span span,
+html[lang="ar"] .modal button span,
+html[lang="ar"] .modal label span,
+html[lang="ar"] .modal td span,
+html[lang="ar"] .modal th span {
+  font-size: 1em;
+}
+
+/* Explicit reset for the SIDEBAR and the bottom mobile-nav to their
+ * authored sizes, in case any inherited rule leaked in. */
+html[lang="ar"] .sidebar,
+html[lang="ar"] .sidebar *,
+html[lang="ar"] .side-nav,
+html[lang="ar"] .side-nav *,
+html[lang="ar"] .mobile-nav,
+html[lang="ar"] .mobile-nav *,
+html[lang="ar"] .language-selector,
+html[lang="ar"] .language-selector *,
+html[lang="ar"] .language-panel,
+html[lang="ar"] .language-panel * {
+  font-size: revert;
+}
+
+/* =====================================================================
+ * Sidebar font scaling — net multiplier 0.65 of authored size (0.5
+ * reduction from earlier × 1.3 enlargement just requested). Applies
+ * in BOTH languages (Hebrew + Arabic). Targets the side navigation
+ * buttons, brand block, and any sidebar-internal text.
+ * ===================================================================== */
+html body .sidebar,
+html body .sidebar *,
+html body .side-nav,
+html body .side-nav *,
+html body .side-brand,
+html body .side-brand *,
+html body .sidebar-footer,
+html body .sidebar-footer * {
+  font-size: 0.65em !important;
+}
+
+/* Pin the sidebar root so all children scale from a fixed base
+ * (otherwise nested elements compound: .sidebar 0.65em × .nav-btn 0.65em
+ * = 0.4225em, too small). */
+html body .sidebar {
+  font-size: 9.1px !important; /* 14px (authored) × 0.65 */
+}
+html body .sidebar *,
+html body .side-nav *,
+html body .side-brand *,
+html body .sidebar-footer * {
+  font-size: 1em !important; /* inherit the pinned 7px from .sidebar */
+}
+
+/* Headings inside sidebar stay slightly larger so the brand block is
+ * still readable — scaled the same 0.65 from their authored sizes. */
+html body .sidebar h1,
+html body .sidebar h2,
+html body .sidebar .side-brand b {
+  font-size: 1.07em !important; /* ≈ 9.75px — was 15px */
+}
+
+/* Icons inside sidebar — same 0.65 scale, to stay proportional with
+ * the shrunken labels. */
+html body .sidebar i,
+html body .side-nav i,
+html body .sidebar svg {
+  font-size: 1.43em !important; /* ≈ 13px — was ~14-16px × 0.65 */
+}
+
+/* =====================================================================
+ * Arabic only — enlarge the LABEL text (under/next to icons) in the
+ * sidebar nav buttons by 30%. Icons stay their current size.
+ * Sidebar root in Arabic = 9.1px (same as Hebrew base for sidebar).
+ * +30% → 11.83px ≈ 1.3em.
+ * ===================================================================== */
+html[lang="ar"] body .sidebar .nav-btn span,
+html[lang="ar"] body .side-nav .nav-btn span,
+html[lang="ar"] body .sidebar .nav-btn > span:not(.quick-plus):not(.mobile-home-icon-wrap),
+html[lang="ar"] body .side-nav .nav-btn > span:not(.quick-plus):not(.mobile-home-icon-wrap) {
+  font-size: 1.3em !important; /* ≈ 11.83px — was 1em (≈9.1px) */
+}
+
+/* =====================================================================
+ * Settings drawer / panel — font scaled to ~72% of authored size in both
+ * Hebrew and Arabic (user originally requested -40%, then asked to bump
+ * it back up by +20%, so net = 0.6 × 1.2 = 0.72).
+ * Targets the settings modal, the inline settings panel, and the
+ * home-only settings drawer. Pinned via a fixed root font-size on the
+ * panel so nested children inherit rather than compounding smaller.
+ * ===================================================================== */
+html body .modal-box.settings-modal-box,
+html body .inline-settings-panel,
+html body .inline-settings-panel.enhanced-settings,
+html body #homeSettingsOnlyDrawer,
+html body .settings-modal-box {
+  font-size: 10.08px !important; /* 14px authored × 0.72 */
+}
+html body .modal-box.settings-modal-box *,
+html body .inline-settings-panel *,
+html body #homeSettingsOnlyDrawer *,
+html body .settings-modal-box * {
+  font-size: 1em !important; /* inherit the pinned 8.4px */
+}
+
+/* Headings inside the settings drawer stay slightly larger so section
+ * titles remain readable — same 0.6 scale from their authored sizes. */
+html body .modal-box.settings-modal-box h1,
+html body .modal-box.settings-modal-box h2,
+html body .inline-settings-panel h1,
+html body .inline-settings-panel h2,
+html body #homeSettingsOnlyDrawer h1,
+html body #homeSettingsOnlyDrawer h2,
+html body .settings-modal-box h1,
+html body .settings-modal-box h2 {
+  font-size: 1.4em !important; /* ≈ 12px — was ~20px */
+}
+html body .modal-box.settings-modal-box h3,
+html body .inline-settings-panel h3,
+html body #homeSettingsOnlyDrawer h3,
+html body .settings-modal-box h3 {
+  font-size: 1.2em !important; /* ≈ 10px — was ~16px */
+}
+
+/* Icons inside the settings drawer — same 0.6 scale. */
+html body .modal-box.settings-modal-box i,
+html body .modal-box.settings-modal-box svg,
+html body .inline-settings-panel i,
+html body .inline-settings-panel svg,
+html body #homeSettingsOnlyDrawer i,
+html body #homeSettingsOnlyDrawer svg,
+html body .settings-modal-box i,
+html body .settings-modal-box svg {
+  font-size: 1.5em !important; /* ≈ 12px — was ~16-20px */
+}
+
+/* When inside Arabic, the .modal scaling rule above would otherwise
+ * bump the settings drawer back up. Re-apply the 0.72 scale on top of
+ * the Arabic context (0.6 reduction × 1.2 enlargement). */
+html[lang="ar"] body .modal-box.settings-modal-box,
+html[lang="ar"] body .inline-settings-panel,
+html[lang="ar"] body #homeSettingsOnlyDrawer,
+html[lang="ar"] body .settings-modal-box {
+  font-size: 11.52px !important; /* 16px (ar base) × 0.72 */
+}
+html[lang="ar"] body .modal-box.settings-modal-box *,
+html[lang="ar"] body .inline-settings-panel *,
+html[lang="ar"] body #homeSettingsOnlyDrawer *,
+html[lang="ar"] body .settings-modal-box * {
+  font-size: 1em !important;
+}
+
+/* ============================================================ *
+ * ClientDetail + CaseDetail — three-element header row:
+ *   ┌──────────────────────────────────────────────────────────┐
+ *   │  [X]              פרטי לקוח/תיק          [→ חזרה]        │
+ *   └──────────────────────────────────────────────────────────┘
+ * The X close moves to the LEFT edge of the modal box (overriding
+ * the default right-anchored X for these screens only), the
+ * "חזרה"/"رجوع" button sits 0.25cm in from the RIGHT edge, and the
+ * title is centered horizontally and vertically aligned to the
+ * middle of the 38px-tall button row.
+ * ============================================================ */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-back-btn,
+.modal.case-detail-mobile-v140 .case-detail-back-btn,
+.modal.case-detail-desktop-v215 .case-detail-back-btn,
+.modal.case-detail-open-v210 .case-detail-back-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .client-detail-back-btn,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-back-btn {
+  position: absolute !important;
+  top: 14px !important;
+  right: 0.25cm !important;
+  left: auto !important;
+  z-index: 70 !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: #ffffff !important;
+  border: 1px solid #e2ebf6 !important;
+  border-radius: 0 !important;
+  color: #0f172a !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-back-btn i,
+.modal.case-detail-mobile-v140 .case-detail-back-btn i,
+.modal.case-detail-desktop-v215 .case-detail-back-btn i,
+.modal.case-detail-open-v210 .case-detail-back-btn i,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .client-detail-back-btn i,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-back-btn i {
+  color: #0f172a !important;
+  font-size: 14px !important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-back-btn:hover,
+.modal.case-detail-mobile-v140 .case-detail-back-btn:hover,
+.modal.case-detail-desktop-v215 .case-detail-back-btn:hover,
+.modal.case-detail-open-v210 .case-detail-back-btn:hover,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .client-detail-back-btn:hover,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-back-btn:hover {
+  background: #111827 !important;
+  color: #ffffff !important;
+  border-color: #111827 !important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-back-btn:hover i,
+.modal.case-detail-mobile-v140 .case-detail-back-btn:hover i,
+.modal.case-detail-desktop-v215 .case-detail-back-btn:hover i,
+.modal.case-detail-open-v210 .case-detail-back-btn:hover i,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .client-detail-back-btn:hover i,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-back-btn:hover i {
+  color: #ffffff !important;
+}
+
+/* X close button — moved to the LEFT edge for ClientDetail +
+ * CaseDetail only, so the "back" arrow can sit on the right while
+ * X sits on the left, matching the natural RTL header layout. */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .modal-close-x,
+.modal.case-detail-mobile-v140 .modal-close-x,
+.modal.case-detail-desktop-v215 .modal-close-x,
+.modal.case-detail-open-v210 .modal-close-x {
+  position: absolute !important;
+  top: 14px !important;
+  left: 0 !important;
+  right: auto !important;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
+  border-radius: 0 !important;
+  border: 1px solid #e2ebf6 !important;
+  border-left: 0 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  display: grid !important;
+  place-items: center !important;
+  z-index: 70 !important;
+  margin: 0 !important;
+  float: none !important;
+}
+
+/* Title — vertically centered with the 38px button row. */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .modal-box > h2.client-detail-title-centered,
+.modal.case-detail-mobile-v140 .case-detail-title > h2,
+.modal.case-detail-desktop-v215 .case-detail-title > h2,
+.modal.case-detail-open-v210 .case-detail-title > h2 {
+  margin: 14px 0 14px 0 !important;
+  padding: 0 60px !important;
+  line-height: 38px !important;
+  min-height: 38px !important;
+  display: block !important;
+  text-align: center !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}

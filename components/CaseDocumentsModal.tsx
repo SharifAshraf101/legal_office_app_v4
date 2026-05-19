@@ -8,6 +8,7 @@ import { caseDocumentsForCase } from '@/lib/documents';
 import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { Modal } from './Modal';
+import type { DocumentRecord } from '@/types';
 
 /**
  * Port of showCaseDocumentsModal (source line 3717) + caseDocumentsModalRows
@@ -16,12 +17,19 @@ import { Modal } from './Modal';
  * The actual upload-file-to-disk flow lands in Stage 5 with the full FS
  * Access integration. For now the upload button surfaces a friendly notice
  * and the sync button uses the same handle dance as the Documents screen.
+ *
+ * `onPickDocument` (optional) switches the modal into "attach mode": instead
+ * of double-clicking opening the file (the default), it calls back with the
+ * picked document so the parent can attach it to the current WhatsApp chat
+ * and close the modal. A header banner tells the user which mode is active
+ * so the two double-click semantics never get confused.
  */
 export interface CaseDocumentsModalProps {
   caseId: string;
+  onPickDocument?: (doc: DocumentRecord) => void;
 }
 
-export function CaseDocumentsModal({ caseId }: CaseDocumentsModalProps) {
+export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModalProps) {
   const { state, dispatch } = useAppState();
   const { lang } = useT();
   const modalStack = useModalStack();
@@ -85,6 +93,12 @@ export function CaseDocumentsModal({ caseId }: CaseDocumentsModalProps) {
     }
   };
 
+  const pickMode = !!onPickDocument;
+  const pickBanner =
+    lang === 'ar'
+      ? 'وضع الإرفاق بالمحادثة — انقر نقرة مزدوجة على المستند لإرساله إلى المحادثة مع الموكل'
+      : 'מצב צירוף לשיחה — לחיצה כפולה על מסמך תצרף אותו לשיחת WhatsApp עם הלקוח';
+
   return (
     <Modal onClose={close}>
       <div className="case-docs-modal-head">
@@ -99,6 +113,28 @@ export function CaseDocumentsModal({ caseId }: CaseDocumentsModalProps) {
           </div>
         </div>
       </div>
+
+      {pickMode && (
+        <div
+          role="alert"
+          style={{
+            margin: '0 0 12px',
+            padding: '10px 14px',
+            background: '#FFFBEB',
+            border: '1px solid #FCD34D',
+            borderRadius: 10,
+            color: '#92400E',
+            fontSize: 13,
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <i className="fas fa-paperclip" />
+          <span>{pickBanner}</span>
+        </div>
+      )}
 
       {docs.length === 0 ? (
         <div className="case-docs-modal-empty">
@@ -116,6 +152,16 @@ export function CaseDocumentsModal({ caseId }: CaseDocumentsModalProps) {
               '';
             const titleStr = doc.title || doc.fileName || '';
             const openTitle = lang === 'ar' ? 'افتح المستند' : 'פתח מסמך';
+            const pickTitle =
+              lang === 'ar'
+                ? 'إرفاق إلى المحادثة (نقرة مزدوجة)'
+                : 'צירוף לשיחה (לחיצה כפולה)';
+            // In pick mode the double-click attaches the doc to the chat
+            // instead of opening it. The two semantics never run together —
+            // one of them is bound per modal instance.
+            const onRowDoubleClick = pickMode
+              ? () => onPickDocument!(doc)
+              : () => onOpen(doc.relativePath);
             return (
               <div
                 key={doc.id}
@@ -126,14 +172,16 @@ export function CaseDocumentsModal({ caseId }: CaseDocumentsModalProps) {
                   <div className="case-docs-modal-title">
                     <i className="fas fa-file-lines" />
                     <span
-                      title={openTitle}
-                      onDoubleClick={() => onOpen(doc.relativePath)}
+                      title={pickMode ? pickTitle : openTitle}
+                      onDoubleClick={onRowDoubleClick}
                       style={{
                         cursor: 'pointer',
                         color: 'var(--primary)',
                         fontWeight: 700,
                       }}
-                      aria-label={openTitle + ' — ' + fileName}
+                      aria-label={
+                        (pickMode ? pickTitle : openTitle) + ' — ' + fileName
+                      }
                     >
                       {titleStr}
                     </span>

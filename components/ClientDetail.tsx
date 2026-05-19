@@ -146,6 +146,16 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
       boxClassName={boxClassName}
       hideBackBtn={true}
     >
+      <button
+        type="button"
+        className="client-detail-back-btn"
+        aria-label={lang === 'ar' ? 'رجوع' : 'חזרה'}
+        title={lang === 'ar' ? 'رجوع' : 'חזרה'}
+        onClick={close}
+      >
+        <i className="fas fa-arrow-right" />
+        <span>{lang === 'ar' ? 'رجوع' : 'חזרה'}</span>
+      </button>
       <h2 className="client-detail-title-centered">{t('clientDetails')}</h2>
 
       {/* Edit + delete toolbar — the client avatar sits on this same row

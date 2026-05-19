@@ -320,13 +320,15 @@ export function NewEventModal({
           // setup modal so the user can authorize Dropbox and choose a fixed
           // save folder. The upload is skipped for this save; user retries
           // after setup is complete.
+          //
+          // We deliberately don't fire a window.alert() here: alerts are
+          // synchronous and block the React render queue, so the modal
+          // wouldn't have been painted yet when the alert popped — clicking
+          // OK left users with the impression nothing happened. The
+          // DropboxConnectModal carries its own explanatory copy (connect
+          // step or pick-folder step depending on what's missing).
           if (!isDropboxConfigured() || !hasDropboxFolder()) {
             modalStack.open(<DropboxConnectModal />);
-            window.alert(
-              lang === 'ar'
-                ? 'أكمل ربط Dropbox ثم اختر مجلد الحفظ من النافذة المفتوحة، وبعدها أعد المحاولة.'
-                : 'השלם את חיבור Dropbox ואז בחר תיקיית שמירה בחלון שנפתח, ולאחר מכן נסה שוב.',
-            );
             uploadFailed = true;
           } else {
             const uploaded = await uploadFileToDropbox(docFile, {

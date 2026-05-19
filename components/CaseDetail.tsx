@@ -209,6 +209,16 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
       boxClassName={boxClass}
       hideBackBtn={true}
     >
+      <button
+        type="button"
+        className="case-detail-back-btn"
+        aria-label={lang === 'ar' ? 'رجوع' : 'חזרה'}
+        title={lang === 'ar' ? 'رجوع' : 'חזרה'}
+        onClick={close}
+      >
+        <i className="fas fa-arrow-right" />
+        <span>{lang === 'ar' ? 'رجوع' : 'חזרה'}</span>
+      </button>
       <div className="case-detail-dark-wrapper">
         {/* Title block + contextual action buttons (source showCase) */}
         <div className="case-detail-title">
