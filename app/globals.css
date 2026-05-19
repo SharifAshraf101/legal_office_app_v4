@@ -20500,3 +20500,467 @@ html[lang="ar"] body .settings-modal-box * {
   width: 100% !important;
   box-sizing: border-box !important;
 }
+
+/* ============================================================ *
+ * Bottom nav (mobile + desktop sidebar) — per-tab accent colors.
+ * Each tab gets a distinct, modern accent on its FA icon so the
+ * row reads as a colorful but consistent strip.
+ *
+ * Specificity note: an earlier mobile-nav block (~line 16935) sets
+ * `color: #64748B` with 4× .mobile-nav specificity, and an earlier
+ * sidebar block sets per-tab colors with 4× .sidebar specificity
+ * inside a desktop media query. To win over both we repeat the
+ * .mobile-nav / .sidebar selectors 4× and also override the
+ * "active icon = white text on dark square" rule so the colorful
+ * icon shows through in the active state too.
+ * ============================================================ */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-home,
+.sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-home    { color: #10B981 !important; } /* emerald */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-search,
+.sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-search  { color: #0EA5E9 !important; } /* sky */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-contacts,
+.sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-contacts{ color: #8B5CF6 !important; } /* violet */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-cases,
+.sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-cases   { color: #F59E0B !important; } /* amber */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-documents,
+.sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-documents{ color: #F43F5E !important; } /* rose */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-calendar,
+.sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-calendar{ color: #6366F1 !important; } /* indigo */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-tasks,
+.sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-tasks   { color: #14B8A6 !important; } /* teal */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-finance,
+.sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-finance { color: #EAB308 !important; } /* yellow */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-portal,
+.sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-portal  { color: #D946EF !important; } /* fuchsia */
+
+/* Active-state on mobile: existing rule paints icon white over a dark
+ * charcoal square (line ~16993). Replace that with a soft tinted halo
+ * so the colorful icon stays visible. The icon's own color is kept by
+ * the rules above (more specific than the active-state catch-all). */
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active > i,
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn[aria-current="page"] > i {
+  background: rgba(99, 102, 241, 0.10) !important;
+  border: 1px solid rgba(99, 102, 241, 0.25) !important;
+}
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active i.nav-icon-home    { color: #10B981 !important; }
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active i.nav-icon-search  { color: #0EA5E9 !important; }
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active i.nav-icon-contacts{ color: #8B5CF6 !important; }
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active i.nav-icon-cases   { color: #F59E0B !important; }
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active i.nav-icon-documents{ color: #F43F5E !important; }
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active i.nav-icon-calendar{ color: #6366F1 !important; }
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active i.nav-icon-tasks   { color: #14B8A6 !important; }
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active i.nav-icon-finance { color: #EAB308 !important; }
+.mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn.active i.nav-icon-portal  { color: #D946EF !important; }
+
+/* ============================================================ *
+ * Topbar quick-action: compound icon stack — base FA icon (matches
+ * sidebar tab icon + color) with a small blue "+" badge on the
+ * top-right indicating the "add new" semantic. Used on every tab
+ * that has a quick-create action.
+ * ============================================================ */
+.qa-icon-stack {
+  position: relative !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  line-height: 1 !important;
+  width: 22px !important;
+  height: 22px !important;
+}
+.qa-icon-stack .qa-base-icon {
+  /* Explicit pixel size so an ancestor `font-size:0` (used by the
+   * home topbar to suppress the legacy label) can't shrink us. */
+  font-size: 18px !important;
+  line-height: 1 !important;
+  width: 22px !important;
+  height: 22px !important;
+  display: grid !important;
+  place-items: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.qa-plus-badge {
+  position: absolute !important;
+  top: -6px !important;
+  right: -6px !important;
+  min-width: 14px !important;
+  min-height: 14px !important;
+  padding: 0 2px !important;
+  border-radius: 999px !important;
+  background: #0EA5E9 !important;
+  color: #FFFFFF !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  line-height: 14px !important;
+  text-align: center !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .35) !important;
+  pointer-events: none !important;
+}
+
+/* QuickAction base-icon per-tab colors — mirror the sidebar palette.
+ *
+ * There's a catch-all rule earlier in the file
+ *   `html body:not(.dark) .topbar #quickAction * { color: #0F172A !important }`
+ * that paints every descendant of #quickAction navy-black. To win,
+ * we use the same `html body:not(.dark)` prefix plus a higher
+ * specificity class chain, and add a dark-mode variant. */
+html body:not(.dark) #topbar #quickAction .qa-icon-stack i.nav-icon-home,
+html body:not(.dark) .topbar #quickAction .qa-icon-stack i.nav-icon-home    { color: #10B981 !important; }
+html body:not(.dark) #topbar #quickAction .qa-icon-stack i.nav-icon-search,
+html body:not(.dark) .topbar #quickAction .qa-icon-stack i.nav-icon-search  { color: #0EA5E9 !important; }
+html body:not(.dark) #topbar #quickAction .qa-icon-stack i.nav-icon-contacts,
+html body:not(.dark) .topbar #quickAction .qa-icon-stack i.nav-icon-contacts{ color: #8B5CF6 !important; }
+html body:not(.dark) #topbar #quickAction .qa-icon-stack i.nav-icon-cases,
+html body:not(.dark) .topbar #quickAction .qa-icon-stack i.nav-icon-cases   { color: #F59E0B !important; }
+html body:not(.dark) #topbar #quickAction .qa-icon-stack i.nav-icon-documents,
+html body:not(.dark) .topbar #quickAction .qa-icon-stack i.nav-icon-documents{ color: #F43F5E !important; }
+html body:not(.dark) #topbar #quickAction .qa-icon-stack i.nav-icon-calendar,
+html body:not(.dark) .topbar #quickAction .qa-icon-stack i.nav-icon-calendar{ color: #6366F1 !important; }
+html body:not(.dark) #topbar #quickAction .qa-icon-stack i.nav-icon-tasks,
+html body:not(.dark) .topbar #quickAction .qa-icon-stack i.nav-icon-tasks   { color: #14B8A6 !important; }
+html body:not(.dark) #topbar #quickAction .qa-icon-stack i.nav-icon-finance,
+html body:not(.dark) .topbar #quickAction .qa-icon-stack i.nav-icon-finance { color: #EAB308 !important; }
+html body:not(.dark) #topbar #quickAction .qa-icon-stack i.nav-icon-portal,
+html body:not(.dark) .topbar #quickAction .qa-icon-stack i.nav-icon-portal  { color: #D946EF !important; }
+
+html body.dark #topbar #quickAction .qa-icon-stack i.nav-icon-home,
+html body.dark .topbar #quickAction .qa-icon-stack i.nav-icon-home    { color: #34D399 !important; }
+html body.dark #topbar #quickAction .qa-icon-stack i.nav-icon-search,
+html body.dark .topbar #quickAction .qa-icon-stack i.nav-icon-search  { color: #38BDF8 !important; }
+html body.dark #topbar #quickAction .qa-icon-stack i.nav-icon-contacts,
+html body.dark .topbar #quickAction .qa-icon-stack i.nav-icon-contacts{ color: #A78BFA !important; }
+html body.dark #topbar #quickAction .qa-icon-stack i.nav-icon-cases,
+html body.dark .topbar #quickAction .qa-icon-stack i.nav-icon-cases   { color: #FBBF24 !important; }
+html body.dark #topbar #quickAction .qa-icon-stack i.nav-icon-documents,
+html body.dark .topbar #quickAction .qa-icon-stack i.nav-icon-documents{ color: #FB7185 !important; }
+html body.dark #topbar #quickAction .qa-icon-stack i.nav-icon-calendar,
+html body.dark .topbar #quickAction .qa-icon-stack i.nav-icon-calendar{ color: #818CF8 !important; }
+html body.dark #topbar #quickAction .qa-icon-stack i.nav-icon-tasks,
+html body.dark .topbar #quickAction .qa-icon-stack i.nav-icon-tasks   { color: #2DD4BF !important; }
+html body.dark #topbar #quickAction .qa-icon-stack i.nav-icon-finance,
+html body.dark .topbar #quickAction .qa-icon-stack i.nav-icon-finance { color: #FACC15 !important; }
+html body.dark #topbar #quickAction .qa-icon-stack i.nav-icon-portal,
+html body.dark .topbar #quickAction .qa-icon-stack i.nav-icon-portal  { color: #E879F9 !important; }
+
+/* Settings (gear) icon — same fight: needs to beat the topbar
+ * descendant `* { color: navy-black }` override. */
+html body:not(.dark) #topbar #homeSettingsOnlyBtn.home-settings-only-btn > i,
+html body:not(.dark) .topbar #homeSettingsOnlyBtn.home-settings-only-btn > i,
+html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn > i {
+  color: #475569 !important; /* slate-600 — neutral but visible */
+}
+
+/* ============================================================ *
+ * Home dashboard cards — frameless white icons on the gradient
+ * cards. The legacy styling wrapped each icon in a 58×58
+ * translucent-white box with a white border; the user wants the
+ * icon itself white but the surrounding box gone, so we strip
+ * background / border / shadow on the .card-icon while keeping
+ * the white text color and font size.
+ *
+ * Specificity climb mirrors the four legacy
+ * `.content.home-content .home-card-grid .home-card:nth-child(N) .card-icon`
+ * rules so we win on equal specificity by source order.
+ * ============================================================ */
+.content.home-content .home-card-grid .home-card:nth-child(1) .card-icon,
+.content.home-content .home-card-grid .home-card:nth-child(2) .card-icon,
+.content.home-content .home-card-grid .home-card:nth-child(3) .card-icon,
+.content.home-content .home-card-grid .home-card:nth-child(4) .card-icon,
+.home-content .home-card-grid .home-card .card-icon {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+}
+.content.home-content .home-card-grid .home-card:nth-child(1) .card-icon i,
+.content.home-content .home-card-grid .home-card:nth-child(2) .card-icon i,
+.content.home-content .home-card-grid .home-card:nth-child(3) .card-icon i,
+.content.home-content .home-card-grid .home-card:nth-child(4) .card-icon i,
+.home-content .home-card-grid .home-card .card-icon i {
+  color: #ffffff !important;
+}
+
+/* ============================================================ *
+ * Home dashboard titles — mobile vertical offset.
+ * Top row (clients / cases) titles shift DOWN 0.25cm; bottom row
+ * (calendar / portal) titles shift UP 0.5cm. Subtle adjustment to
+ * bring all four labels closer to the horizontal midline of the
+ * card grid on phones. transform keeps the existing flex layout
+ * intact (no extra space reserved or removed).
+ * ============================================================ */
+@media (max-width: 1050px) {
+  .content.home-content .home-card-grid .home-card:nth-child(1) h2,
+  .content.home-content .home-card-grid .home-card:nth-child(2) h2 {
+    transform: translateY(0.25cm) !important;
+  }
+  .content.home-content .home-card-grid .home-card:nth-child(3) h2,
+  .content.home-content .home-card-grid .home-card:nth-child(4) h2 {
+    transform: translateY(-0.1cm) !important;
+  }
+}
+
+/* ============================================================ *
+ * Home dashboard icons — desktop vertical offset.
+ * Top row (clients / cases) icons shift DOWN 0.2cm; bottom row
+ * (calendar / portal) icons shift UP 0.3cm. Brings the icons
+ * closer to the horizontal midline of the card grid on desktop.
+ * transform keeps the flex layout intact.
+ * ============================================================ */
+@media (min-width: 1051px) {
+  .content.home-content .home-card-grid .home-card:nth-child(1) .card-icon,
+  .content.home-content .home-card-grid .home-card:nth-child(2) .card-icon {
+    transform: translateY(0.2cm) !important;
+  }
+  .content.home-content .home-card-grid .home-card:nth-child(3) .card-icon,
+  .content.home-content .home-card-grid .home-card:nth-child(4) .card-icon {
+    transform: translateY(-0.3cm) !important;
+  }
+}
+
+/* ============================================================ *
+ * Documents screen — remove the gap between document cards on
+ * mobile. The earlier rule at line ~1785 set `gap: 10px` between
+ * tbody grid rows; override it to 0 so adjacent cards sit flush.
+ * ============================================================ */
+@media (max-width: 620px) {
+  .documents-scroll-list .table tbody {
+    gap: 0 !important;
+  }
+}
+
+/* ============================================================ *
+ * New-X modals — center the popup vertically + horizontally on
+ * mobile. Covers the family of *-popup-overlay/*-popup-box modals:
+ * new-event, new-client, new-case, new-appointment, task, payment.
+ * The JSX already sets `display: grid; place-items: center` inline
+ * on the overlay, but we re-state it here with `!important` and add
+ * safe-area-aware padding so the box doesn't slide under the notch,
+ * the bottom nav, or the browser address bar.
+ * ============================================================ */
+@media (max-width: 1050px) {
+  .new-event-popup-overlay,
+  .new-client-popup-overlay,
+  .new-case-popup-overlay,
+  .new-appointment-popup-overlay,
+  .new-task-popup-overlay,
+  .new-payment-popup-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    padding: max(12px, env(safe-area-inset-top))
+             max(12px, env(safe-area-inset-right))
+             max(calc(var(--mobile-bottom-nav-h, 72px) + 12px), env(safe-area-inset-bottom))
+             max(12px, env(safe-area-inset-left)) !important;
+    overflow: hidden !important;
+  }
+  .new-event-popup-box,
+  .new-client-popup-box,
+  .new-case-popup-box,
+  .new-appointment-popup-box,
+  .new-task-popup-box,
+  .new-payment-popup-box {
+    position: relative !important;
+    width: min(520px, calc(100vw - 24px)) !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100svh - var(--mobile-bottom-nav-h, 72px) - 24px) !important;
+    margin: 0 !important;
+    overflow-y: auto !important;
+  }
+
+  /* CaseDetail modal — same centered treatment. The modal stack
+   * uses the generic .modal class which is `display: flex; align-items:
+   * center; justify-content: center;` on desktop, but earlier mobile
+   * rules can pull the box to the top or stretch it full-screen.
+   * Force the centered layout here, with safe-area-aware padding so
+   * it stays above the mobile-nav and below the notch. */
+  .modal.case-detail-mobile-v140,
+  .modal.case-detail-desktop-v215,
+  .modal.case-detail-open-v210,
+  .modal.ls.case-detail-mobile-v140,
+  .modal.ls.case-detail-desktop-v215,
+  .modal.ls.case-detail-open-v210 {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: max(12px, env(safe-area-inset-top))
+             max(12px, env(safe-area-inset-right))
+             max(calc(var(--mobile-bottom-nav-h, 72px) + 12px), env(safe-area-inset-bottom))
+             max(12px, env(safe-area-inset-left)) !important;
+  }
+  .modal.case-detail-mobile-v140 .modal-box.case-detail-modal-box,
+  .modal.case-detail-desktop-v215 .modal-box.case-detail-modal-box,
+  .modal.case-detail-open-v210 .modal-box.case-detail-modal-box,
+  .modal.ls.case-detail-mobile-v140 .modal-box.case-detail-modal-box,
+  .modal.ls.case-detail-desktop-v215 .modal-box.case-detail-modal-box,
+  .modal.ls.case-detail-open-v210 .modal-box.case-detail-modal-box {
+    width: min(720px, calc(100vw - 24px)) !important;
+    max-width: calc(100vw - 24px) !important;
+    height: auto !important;
+    max-height: calc(100svh - var(--mobile-bottom-nav-h, 72px) - 24px) !important;
+    margin: 0 !important;
+    border-radius: 22px !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ============================================================ *
+ * Drag-and-drop drop zones — visible hint while a file is being
+ * dragged over the Case detail's documents panel or the Documents
+ * screen list. Dashed indigo outline + soft indigo tint + a small
+ * "drop here" caption overlay. Desktop only — phones rarely have
+ * filesystem drag and the hint would just confuse the UI.
+ * ============================================================ */
+@media (min-width: 1051px) {
+  .case-documents-panel.is-drop-target,
+  .documents-scroll-list.is-drop-target {
+    outline: 2px dashed #6366F1 !important;
+    outline-offset: 4px !important;
+    background-color: rgba(99, 102, 241, 0.06) !important;
+    position: relative !important;
+    transition: background-color 120ms ease, outline-color 120ms ease !important;
+  }
+  .case-documents-panel.is-drop-target::after,
+  .documents-scroll-list.is-drop-target::after {
+    content: attr(data-drop-label);
+    position: absolute !important;
+    inset: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    color: #4338CA !important;
+    font-weight: 700 !important;
+    font-size: 18px !important;
+    background: rgba(99, 102, 241, 0.06) !important;
+    pointer-events: none !important;
+    z-index: 5 !important;
+    border-radius: inherit !important;
+  }
+  .case-documents-panel.is-drop-target::after {
+    content: "שחרר את הקובץ כאן לצירוף לתיק";
+  }
+  .documents-scroll-list.is-drop-target::after {
+    content: "שחרר את הקובץ כאן להוספה למסמכים";
+  }
+  html[lang="ar"] .case-documents-panel.is-drop-target::after {
+    content: "حرّر الملف هنا لإرفاقه بالقضية";
+  }
+  html[lang="ar"] .documents-scroll-list.is-drop-target::after {
+    content: "حرّر الملف هنا لإضافته إلى المستندات";
+  }
+}
+
+
+/* ============================================================ *
+ * Mobile topbar (≤1050px) — keep the icons, drop the labels.
+ * The two action buttons in the topbar are:
+ *   1. The home-only "settings" button (.home-settings-only-btn)
+ *   2. The contextual quick-action button (#quickAction) — varies
+ *      per tab (new case / new client / new appointment / etc.)
+ *
+ * Specificity note: an earlier rule at ~line 19811
+ *   `html body:not(.dark) ... #homeSettingsOnlyBtn.home-settings-only-btn span
+ *    { display: inline !important }`
+ * forces the settings label visible regardless of screen size. We
+ * mirror its prefix here so our `display: none` wins on mobile, and
+ * since this block comes after it in the file, source-order also
+ * tilts in our favor on a specificity tie.
+ * ============================================================ */
+@media (max-width: 1050px) {
+  /* ── Step 1: HIDE LABELS — beat the legacy `display: inline` override. */
+  html body:not(.dark) .topbar .home-only-settings-wrap #homeSettingsOnlyBtn.home-settings-only-btn span,
+  html body:not(.dark) #topbar .home-only-settings-wrap #homeSettingsOnlyBtn.home-settings-only-btn span,
+  html body:not(.dark) .topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn span,
+  html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn span,
+  html body:not(.dark) .topbar #quickAction.btn.btn-primary > .quick-label,
+  html body:not(.dark) #topbar #quickAction.btn.btn-primary > .quick-label,
+  html body:not(.dark) .topbar.home-topbar #quickAction.btn.btn-primary > .quick-label,
+  html body:not(.dark) #topbar.home-topbar #quickAction.btn.btn-primary > .quick-label,
+  html body.dark .topbar .home-only-settings-wrap #homeSettingsOnlyBtn.home-settings-only-btn span,
+  html body.dark #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn span,
+  html body.dark .topbar.home-topbar #quickAction.btn.btn-primary > .quick-label,
+  html body.dark #topbar.home-topbar #quickAction.btn.btn-primary > .quick-label {
+    display: none !important;
+  }
+
+  /* ── Step 2: UNIFY BUTTON SIZE / SHAPE — both 44×44 round buttons
+   * with a clean white surface, soft border, and centered colorful
+   * icon. Overrides background/padding/border-radius from .btn-primary
+   * and the legacy 46×46-rectangle rules. */
+  html body .topbar .home-only-settings-wrap #homeSettingsOnlyBtn.home-settings-only-btn,
+  html body #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn,
+  html body .topbar #quickAction.btn.btn-primary,
+  html body #topbar #quickAction.btn.btn-primary,
+  html body .topbar.home-topbar #quickAction.btn.btn-primary,
+  html body #topbar.home-topbar #quickAction.btn.btn-primary {
+    min-width: 44px !important;
+    width: 44px !important;
+    max-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    gap: 0 !important;
+    overflow: visible !important; /* so the +badge can poke out */
+    background: #FFFFFF !important;
+    border: 1px solid #E5E7EB !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .08) !important;
+    font-size: 0 !important; /* suppress any leftover text size */
+  }
+
+  /* ── Step 3: ICON SIZING / ALIGNMENT inside both buttons. */
+  html body .topbar .home-only-settings-wrap #homeSettingsOnlyBtn.home-settings-only-btn > i,
+  html body #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn > i,
+  html body .topbar #quickAction.btn.btn-primary .qa-icon-stack > .qa-base-icon,
+  html body #topbar #quickAction.btn.btn-primary .qa-icon-stack > .qa-base-icon,
+  html body .topbar.home-topbar #quickAction.btn.btn-primary .qa-icon-stack > .qa-base-icon,
+  html body #topbar.home-topbar #quickAction.btn.btn-primary .qa-icon-stack > .qa-base-icon {
+    margin: 0 !important;
+    font-size: 18px !important;
+    width: 22px !important;
+    height: 22px !important;
+    line-height: 22px !important;
+    display: grid !important;
+    place-items: center !important;
+    text-align: center !important;
+  }
+
+  /* The legacy rule `#topbar.home-topbar #quickAction i { font-size:17px }`
+   * targets EVERY <i> inside the button — including our +badge if it
+   * were an <i>. Our badge is a <span> so it dodges that rule, but
+   * make sure the .qa-icon-stack wrapper is sized correctly and the
+   * inner icon's color isn't accidentally white. */
+  html body #topbar #quickAction.btn.btn-primary .qa-icon-stack,
+  html body #topbar.home-topbar #quickAction.btn.btn-primary .qa-icon-stack {
+    width: 22px !important;
+    height: 22px !important;
+    font-size: 18px !important; /* re-establish a base for em-based descendants */
+  }
+}
+
+/* Dark mode: keep the tint but slightly brighter for legibility. */
+body.dark .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-home,
+body.dark .sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-home    { color: #34D399 !important; }
+body.dark .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-search,
+body.dark .sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-search  { color: #38BDF8 !important; }
+body.dark .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-contacts,
+body.dark .sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-contacts{ color: #A78BFA !important; }
+body.dark .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-cases,
+body.dark .sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-cases   { color: #FBBF24 !important; }
+body.dark .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-documents,
+body.dark .sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-documents{ color: #FB7185 !important; }
+body.dark .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-calendar,
+body.dark .sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-calendar{ color: #818CF8 !important; }
+body.dark .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-tasks,
+body.dark .sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-tasks   { color: #2DD4BF !important; }
+body.dark .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-finance,
+body.dark .sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-finance { color: #FACC15 !important; }
+body.dark .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-portal,
+body.dark .sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-portal  { color: #E879F9 !important; }

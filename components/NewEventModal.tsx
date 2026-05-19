@@ -96,12 +96,24 @@ export interface NewEventModalProps {
    *  Documents screen) and pre-select the matching event type. */
   preselectedType?: 'hearingMeeting' | 'document' | 'call' | 'task' | 'note';
   titleOverride?: string;
+  /** When a file is provided (e.g. from a drag-and-drop drop in the
+   *  Case detail screen or Documents screen), the modal opens with
+   *  the file already attached and the title pre-filled to the file
+   *  name (sans extension). Always forces `preselectedType` to
+   *  'document' so the file upload UI is visible. */
+  preselectedFile?: File;
+}
+
+function fileNameWithoutExtension(name: string): string {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(0, dot) : name;
 }
 
 export function NewEventModal({
   preselectedCaseId = '',
   preselectedType,
   titleOverride,
+  preselectedFile,
 }: NewEventModalProps) {
   const { state, dispatch } = useAppState();
   const { t, lang } = useT();
@@ -115,10 +127,16 @@ export function NewEventModal({
     deadline.getDate(),
   )}`;
 
+  // If a file was dropped, force type to "document" so the upload UI
+  // is visible — the only way to attach a file in this modal.
+  const initialType: 'hearingMeeting' | 'document' | 'call' | 'task' | 'note' =
+    preselectedFile ? 'document' : preselectedType || 'hearingMeeting';
   const [type, setType] = useState<'hearingMeeting' | 'document' | 'call' | 'task' | 'note'>(
-    preselectedType || 'hearingMeeting',
+    initialType,
   );
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(() =>
+    preselectedFile ? fileNameWithoutExtension(preselectedFile.name) : '',
+  );
   const [caseQuery, setCaseQuery] = useState(() => {
     if (!preselectedCaseId) return '';
     const c = state.casesArr.find((x) => x.id === preselectedCaseId);
@@ -139,7 +157,7 @@ export function NewEventModal({
   const [taskMinute, setTaskMinute] = useState('00');
 
   const [description, setDescription] = useState('');
-  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docFile, setDocFile] = useState<File | null>(preselectedFile ?? null);
   const [uploading, setUploading] = useState(false);
 
   const close = () => modalStack.close(modalStack.topId() ?? 0);

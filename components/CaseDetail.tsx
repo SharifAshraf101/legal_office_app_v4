@@ -308,6 +308,18 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
               caseId={caseId}
               onShowAll={onShowDocs}
               onDelete={onDeleteDoc}
+              onDropFile={(file) => {
+                // Drag-and-drop into the case's documents panel: open the
+                // new-event modal pre-locked to this case + document type
+                // + the dropped file. Lawyer types description then saves.
+                modalStack.open(
+                  <NewEventModal
+                    preselectedCaseId={caseId}
+                    preselectedType="document"
+                    preselectedFile={file}
+                  />,
+                );
+              }}
             />
 
             <CaseTasksPanel
@@ -358,13 +370,41 @@ function CaseRecentDocumentsPanel({
   caseId,
   onShowAll,
   onDelete,
+  onDropFile,
 }: {
   caseId: string;
   onShowAll: () => void;
   onDelete: (id: string) => void;
+  onDropFile?: (file: File) => void;
 }) {
   const { state } = useAppState();
   const { lang } = useT();
+  const [isDragging, setIsDragging] = useState(false);
+
+  const onDragOver = (e: React.DragEvent<HTMLElement>) => {
+    if (!onDropFile) return;
+    // Only react to file drags — ignore text/element drags.
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+    setIsDragging(true);
+  };
+  const onDragLeave = (e: React.DragEvent<HTMLElement>) => {
+    if (!onDropFile) return;
+    // Only flip the visual state when we leave the section itself, not
+    // when we move between its inner children.
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setIsDragging(false);
+  };
+  const onDrop = (e: React.DragEvent<HTMLElement>) => {
+    if (!onDropFile) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) onDropFile(file);
+  };
   const docs = caseDocumentsForCase(caseId, state.documentsArr, state.tasksArr);
   const recent = docs.slice(0, 2);
   const title = lang === 'ar' ? 'آخر مستندات القضية' : 'מסמכים אחרונים בתיק';
@@ -387,7 +427,13 @@ function CaseRecentDocumentsPanel({
     <section
       id={'caseRecentDocumentsPanel_' + caseId}
       data-case-id={caseId}
-      className="case-documents-panel case-recent-documents-panel"
+      className={
+        'case-documents-panel case-recent-documents-panel' +
+        (isDragging ? ' is-drop-target' : '')
+      }
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
     >
       <div className="case-documents-head">
         <h3>

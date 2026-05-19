@@ -1,20 +1,18 @@
 'use client';
 
 import { useAppState } from '@/hooks/useAppState';
-import { useMobileGuard } from '@/hooks/useMobileGuard';
 import { useT } from '@/hooks/useT';
 
 /**
  * Shared nav-button list rendered by both the desktop sidebar and the mobile
- * bottom nav. Source: `navButtons(includeSettings)` at line 3839.
- *
- * The original source mapped some tab ids to inline base64 PNG icons on
- * mobile. We preserve the *order*, the *labels*, and the *active-state class*
- * exactly; the data-URI icons are deferred to Stage 5 (they push the bundle
- * size up by ~20 KB and are visual polish, not behavior).
+ * bottom nav. Same FA6 icon set on both surfaces — the previous mobile-only
+ * PNG icon path was uneven (some tabs PNG, some FA, with different sizes
+ * and colors), so it's been removed. Each tab now has a distinct accent
+ * color applied via `.nav-icon-<id>` CSS so the row reads as a colorful
+ * but consistent modern strip.
  */
 
-// Minimalist FA6 icons — clean line/duotone style for a modern sidebar.
+// Minimalist FA6 icons.
 const ICONS: Record<string, string> = {
   home: 'fa-house',
   cases: 'fa-folder',
@@ -25,14 +23,6 @@ const ICONS: Record<string, string> = {
   calendar: 'fa-calendar',
   portal: 'fa-comment-dots',
   search: 'fa-magnifying-glass',
-};
-
-// Source line 3841-3844: per-tab PNG icons used in the mobile bottom nav only.
-const MOBILE_PNG_ICONS: Record<string, string> = {
-  home: '/mobile-home.png',
-  contacts: '/mobile-contacts.png',
-  cases: '/mobile-cases.png',
-  calendar: '/mobile-calendar.png',
 };
 
 // Same `order` array as source line 3845.
@@ -51,10 +41,7 @@ function tabLabel(id: string, lang: 'he' | 'ar', tFn: (k: string) => string): st
 export function NavButtons({ mobile = false }: { mobile?: boolean } = {}) {
   const { state, dispatch } = useAppState();
   const { t, lang } = useT();
-  const { isMobile1050 } = useMobileGuard();
-
-  // Show PNG icons only in the mobile bottom nav (matches source line 3848).
-  const usePng = mobile || isMobile1050;
+  void mobile; // mobile vs desktop styling is fully handled by CSS now
 
   return (
     <>
@@ -62,7 +49,6 @@ export function NavButtons({ mobile = false }: { mobile?: boolean } = {}) {
         const active =
           state.currentTab === id ||
           (id === 'finance' && state.currentTab === 'financeDetail');
-        const pngSrc = usePng ? MOBILE_PNG_ICONS[id] : null;
         return (
           <button
             key={id}
@@ -71,38 +57,7 @@ export function NavButtons({ mobile = false }: { mobile?: boolean } = {}) {
             data-tab={id}
             onClick={() => dispatch({ type: 'SET_TAB', tab: id })}
           >
-            {pngSrc ? (
-              <span
-                className={
-                  'mobile-home-icon-wrap' +
-                  (id === 'cases'
-                    ? ' mobile-cases-icon-wrap'
-                    : id === 'contacts'
-                      ? ' mobile-client-icon-wrap'
-                      : id === 'calendar'
-                        ? ' mobile-calendar-icon-wrap'
-                        : '')
-                }
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  className={
-                    'mobile-home-icon-img' +
-                    (id === 'cases'
-                      ? ' mobile-cases-icon-img'
-                      : id === 'contacts'
-                        ? ' mobile-client-icon-img'
-                        : id === 'calendar'
-                          ? ' mobile-calendar-icon-img'
-                          : '')
-                  }
-                  src={pngSrc}
-                  alt={tabLabel(id, lang, t)}
-                />
-              </span>
-            ) : (
-              <i className={'fas ' + (ICONS[id] ?? 'fa-circle') + ' nav-icon-' + id} />
-            )}
+            <i className={'fas ' + (ICONS[id] ?? 'fa-circle') + ' nav-icon-' + id} />
             <span>{tabLabel(id, lang, t)}</span>
           </button>
         );

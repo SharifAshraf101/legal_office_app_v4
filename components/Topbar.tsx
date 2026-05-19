@@ -31,29 +31,39 @@ import { SettingsDrawer } from './SettingsDrawer';
  * button is rendered but its handler is a no-op TODO.
  */
 
-function quickActionForTab(tab: string): { label: string; iconClass: string } | null {
-  // Source line 5192 maps each tab to a different "create" modal.
+/**
+ * Quick-action mapping. The icon mirrors the sidebar/mobile-nav icon for the
+ * current tab (so a lawyer in "Cases" sees a folder + "+" overlay; in
+ * "Contacts" sees a user-group + "+") and inherits the same per-tab color
+ * via the .nav-icon-<key> class (see globals.css). The "+" badge is drawn
+ * separately as a small overlay so the base icon stays clean.
+ */
+function quickActionForTab(
+  tab: string,
+): { label: string; iconClass: string; navColorKey: string } | null {
   switch (tab) {
     case 'home':
-      // Home gets the generic "new event" quick-action, rendered next to the
-      // gear button in the topbar actions group.
-      return { label: 'newEvent', iconClass: 'fa-calendar-plus' };
+      // Home: "new event". Show the calendar icon + "+" badge.
+      // Color uses the emerald "home" tone to distinguish the
+      // home-page quick-create from the calendar tab's quick-create
+      // (which keeps its own indigo).
+      return { label: 'newEvent', iconClass: 'fa-calendar', navColorKey: 'home' };
     case 'finance':
     case 'portal':
-      // Communication-with-client screen has no quick-create action.
+      // Communication-with-client / finance summary have no quick-create.
       return null;
     case 'cases':
-      return { label: 'newCase', iconClass: 'fa-folder-plus' };
+      return { label: 'newCase', iconClass: 'fa-folder', navColorKey: 'cases' };
     case 'contacts':
-      return { label: 'newClient', iconClass: 'fa-user-plus' };
+      return { label: 'newClient', iconClass: 'fa-user-group', navColorKey: 'contacts' };
     case 'calendar':
-      return { label: 'newAppointment', iconClass: 'fa-calendar-plus' };
+      return { label: 'newAppointment', iconClass: 'fa-calendar', navColorKey: 'calendar' };
     case 'documents':
-      return { label: 'newDocument', iconClass: 'fa-file-circle-plus' };
+      return { label: 'newDocument', iconClass: 'fa-file-lines', navColorKey: 'documents' };
     case 'tasks':
-      return { label: 'newTask', iconClass: 'fa-square-plus' };
+      return { label: 'newTask', iconClass: 'fa-circle-check', navColorKey: 'tasks' };
     case 'financeDetail':
-      return { label: 'newPayment', iconClass: 'fa-plus' };
+      return { label: 'newPayment', iconClass: 'fa-coins', navColorKey: 'finance' };
     default:
       return null;
   }
@@ -201,50 +211,15 @@ export function Topbar() {
             className="btn btn-primary"
             onClick={onQuickAction}
           >
-            {qa.label === 'newPayment' || qa.label === 'newDocument' || qa.label === 'newTask' ? (
-              <span
-                style={{
-                  position: 'relative',
-                  display: 'inline-block',
-                  width: '1.1em',
-                  height: '1em',
-                  lineHeight: 1,
-                }}
-              >
-                <i
-                  className={
-                    'fas ' +
-                    (qa.label === 'newPayment'
-                      ? 'fa-shekel-sign'
-                      : qa.label === 'newDocument'
-                        ? 'fa-file-lines'
-                        : 'fa-list-check')
-                  }
-                />
-                <i
-                  className="fas fa-plus"
-                  style={{
-                    position: 'absolute',
-                    top: '-0.25em',
-                    right: '-0.45em',
-                    fontSize: '0.55em',
-                    background: '#0EA5E9',
-                    color: '#FFFFFF',
-                    borderRadius: '999px',
-                    padding: '2px',
-                    lineHeight: 1,
-                    width: '1.2em',
-                    height: '1.2em',
-                    display: 'inline-grid',
-                    placeItems: 'center',
-                    boxShadow: '0 1px 3px rgba(15,23,42,.3)',
-                  }}
-                />
+            <span className="qa-icon-stack">
+              <i
+                className={'fas ' + qa.iconClass + ' nav-icon-' + qa.navColorKey + ' qa-base-icon'}
+              />
+              <span aria-hidden="true" className="qa-plus-badge">
+                +
               </span>
-            ) : (
-              <i className={'fas ' + qa.iconClass} />
-            )}
-            <span>{qaLabel}</span>
+            </span>
+            <span className="quick-label">{qaLabel}</span>
           </button>
         )}
       </div>

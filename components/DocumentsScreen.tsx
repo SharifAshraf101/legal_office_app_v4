@@ -14,6 +14,7 @@ import {
 } from '@/lib/documents';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { CaseDetail } from './CaseDetail';
+import { NewEventModal } from './NewEventModal';
 import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import type { DocumentRecord } from '@/types';
 
@@ -110,6 +111,33 @@ export function DocumentsScreen() {
     });
   };
 
+  // Drag-and-drop support for desktop. Drop a file anywhere on the
+  // documents area → open the new-event modal pre-locked to type
+  // 'document' + the dropped file. Lawyer picks the case/client and
+  // fills the description, then saves.
+  const [isDragging, setIsDragging] = useState(false);
+  const onDragOver = (e: React.DragEvent<HTMLElement>) => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+    setIsDragging(true);
+  };
+  const onDragLeave = (e: React.DragEvent<HTMLElement>) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setIsDragging(false);
+  };
+  const onDrop = (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    modalStack.open(
+      <NewEventModal preselectedType="document" preselectedFile={file} />,
+    );
+  };
+
   return (
     <section className="panel documents-screen-panel">
       <div className="panel-body documents-panel-body">
@@ -130,7 +158,13 @@ export function DocumentsScreen() {
             </div>
           </div>
         </div>
-        <div id="documentsTableWrap" className="documents-scroll-list">
+        <div
+          id="documentsTableWrap"
+          className={'documents-scroll-list' + (isDragging ? ' is-drop-target' : '')}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+        >
           {filtered.length === 0 ? (
             <div className="case-empty">{emptyText}</div>
           ) : (
