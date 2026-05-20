@@ -44,10 +44,11 @@ export function ConfirmDeleteDialog({
       onClick={(e) => {
         if (e.target === e.currentTarget) onResult(false);
       }}
+      className="confirm-delete-dialog-overlay"
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 9000,
+        zIndex: 2147483600,
         display: 'grid',
         placeItems: 'center',
         padding: 18,

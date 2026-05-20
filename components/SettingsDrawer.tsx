@@ -114,6 +114,42 @@ export function SettingsDrawer() {
         </div>
       </Section>
 
+      {/* Home-screen design */}
+      <Section
+        title={settingsText('עיצוב מסך ראשי', 'تصميم الشاشة الرئيسية')}
+        icon="fa-table-cells-large"
+        pillClass="home-style"
+      >
+        <div className="settings-actions">
+          <button
+            type="button"
+            className={
+              'mini-btn' + (state.homeStyle === 'modern' ? ' active' : '')
+            }
+            data-settings-home-style="modern"
+            onClick={() => dispatch({ type: 'SET_HOME_STYLE', style: 'modern' })}
+          >
+            {settingsText('עיצוב מודרני', 'تصميم حديث')}
+          </button>
+          <button
+            type="button"
+            className={
+              'mini-btn' + (state.homeStyle === 'classic' ? ' active' : '')
+            }
+            data-settings-home-style="classic"
+            onClick={() => dispatch({ type: 'SET_HOME_STYLE', style: 'classic' })}
+          >
+            {settingsText('עיצוב קלאסי', 'تصميم كلاسيكي')}
+          </button>
+        </div>
+        <div className="settings-save-hint">
+          {settingsText(
+            'עיצוב קלאסי מציג את הכרטיסים כריבועים סימטריים שלא חופפים את "אירועים קרובים" שבמרכז.',
+            'التصميم الكلاسيكي يعرض البطاقات كمربعات متماثلة لا تتداخل مع زر "أحداث قريبة" في الوسط.',
+          )}
+        </div>
+      </Section>
+
       {/* Language */}
       <Section title={t('language')} icon="fa-globe" pillClass="lang">
         <div className="settings-actions">

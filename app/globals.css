@@ -1230,6 +1230,16 @@ body.font-family-calibri{--app-font-family:Calibri, Arial, sans-serif;}
   .clients-scroll-list .clients-table th:nth-child(2),
   .clients-scroll-list .clients-table td:nth-child(2){display:none!important;}
   .clients-scroll-list .clients-table td{height:56px!important;padding:12px 10px!important;}
+  /* The generic rule `.table th:nth-child(3) { display: none }` at the
+   * very top of the file (line ~34) hides the 3rd column on every
+   * .table at ≤620px. For the clients table that's the GREEN "active
+   * cases" badge — re-enable it here so both the active (green) and
+   * closed (red) columns show side-by-side on mobile. Higher
+   * specificity than the generic rule + !important wins. */
+  .clients-scroll-list .clients-table th:nth-child(3),
+  .clients-scroll-list .clients-table td:nth-child(3){
+    display: table-cell !important;
+  }
 }
 
 /* ============================================================ *
@@ -12487,11 +12497,22 @@ body.case-detail-scroll-lock,
   .modal.case-detail-mobile-v140:not(:has(form.case-edit-form)) .case-detail-mobile-fields-v220,
   .modal.case-detail-desktop-v215:not(:has(form.case-edit-form)) .case-detail-mobile-fields-v220{
     display:grid!important;
-    grid-template-columns:1fr 1fr!important;
+    /* Row 1 = client name (2/3) + balance (1/3). The dense auto-flow
+     * then back-fills row 2 with case type (col 1, 2fr) + court (col 2,
+     * 1fr) around the explicitly-placed balance cell. */
+    grid-template-columns:2fr 1fr!important;
+    grid-auto-flow:dense!important;
     gap:8px!important;
     width:100%!important;
     margin:8px 0 10px!important;
     padding:0!important;
+  }
+  /* Pin the balance card to row 1, column 2 so client name + balance
+   * are the very first row regardless of JSX order. */
+  .modal.case-detail-mobile-v140:not(:has(form.case-edit-form)) .case-detail-mobile-fields-v220 .case-field-balance-v220,
+  .modal.case-detail-desktop-v215:not(:has(form.case-edit-form)) .case-detail-mobile-fields-v220 .case-field-balance-v220{
+    grid-column:2/3!important;
+    grid-row:1!important;
   }
 
   .modal.case-detail-mobile-v140:not(:has(form.case-edit-form)) .case-detail-mobile-fields-v220 .case-field-v220,
@@ -16590,16 +16611,16 @@ body:has(.content:not(.home-content)){
   object-fit:cover!important;
   display:block!important;
 }
-.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-avatar.editable:after{
-  left:14px!important;
-  bottom:14px!important;
-  width:34px!important;
-  height:34px!important;
-  font-size:16px!important;
-  line-height:1!important;
-  border:2px solid #FFFFFF!important;
-  box-shadow:0 4px 10px rgba(37,99,235,.35)!important;
-  z-index:2!important;
+/* Camera badge REMOVED on desktop too — same UX as mobile:
+ * clicking the photo opens the file picker, no overlapping
+ * camera icon hiding the face. */
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-avatar.editable:after,
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-avatar.editable:before {
+  content: none !important;
+  display: none !important;
+}
+.modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-avatar.editable {
+  cursor: pointer !important;
 }
 .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-photo-actions{
   display:none!important; /* the inline save/cancel actions show inline only — keep header clean */
@@ -16628,7 +16649,10 @@ body:has(.content:not(.home-content)){
 */
 .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid{
   display:grid!important;
-  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  /* 3 columns (name + alt name + ID) on all viewports — address
+   * moved to the contact-grid below. */
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-flow:row!important;
   gap:8px!important;
   margin:0 0 10px!important;
   max-width:min(680px,calc(100% - 300px))!important;
@@ -16636,7 +16660,9 @@ body:has(.content:not(.home-content)){
 }
 .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid{
   display:grid!important;
-  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  /* 4 columns now — address moved here next to phone + WhatsApp
+   * voice + WhatsApp message per the mobile layout request. */
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
   gap:8px!important;
   margin:0 0 18px!important;
   max-width:min(680px,calc(100% - 300px))!important;
@@ -16659,14 +16685,19 @@ body:has(.content:not(.home-content)){
 }
 .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row > span,
 .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .detail-row > span{
-  font-size:9px!important;
+  /* Label (top row of each card): smaller font so longer titles
+   * like "שם בשפה שנייה" fit inside the narrow column without
+   * overflow. */
+  font-size:7.5px!important;
   font-weight:500!important;
   color:#64748B!important;
-  text-transform:uppercase!important;
-  letter-spacing:.05em!important;
+  letter-spacing:0!important;
+  text-transform:none!important;
   white-space:nowrap!important;
   overflow:hidden!important;
   text-overflow:ellipsis!important;
+  max-width:100%!important;
+  display:block!important;
 }
 .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row > strong,
 .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .detail-row > strong{
@@ -16745,68 +16776,307 @@ body:has(.content:not(.home-content)){
     max-width:100%!important;
   }
 }
-@media(max-width:640px){
+@media(max-width:700px){
+  /* Avatar on mobile — 72×72, absolutely positioned to the
+   * RIGHT edge of the toolbar (in RTL `right: 0` is the visual
+   * right side of the screen). Use absolute positioning so the
+   * edit + delete buttons on the LEFT (also absolute) and the
+   * avatar on the RIGHT don't fight for the same flow position. */
   .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar{
-    position:static!important;
+    position:absolute!important;
     inset-inline-end:auto!important;
     inset-inline-start:auto!important;
-    right:auto!important;
-    top:auto!important;
-    margin-inline-end:auto!important;
-    width:32px!important;
-    height:32px!important;
+    right:0!important;
+    left:auto!important;
+    top:0!important;
+    margin:0!important;
+    width:72px!important;
+    height:72px!important;
+    flex:0 0 72px!important;
   }
+  /* Identity grid: 3 SYMMETRIC columns on mobile so name + alt
+   * name + ID share one row. Address moved to the contact-grid
+   * row below per the user's request. All three cells share the
+   * SAME width (1fr), padding, min-height + flex layout. */
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid{
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    grid-auto-rows:minmax(50px,auto)!important;
+    gap:6px!important;
+    align-items:stretch!important;
+  }
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row,
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row.client-other-name-hint-row-v138,
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row.client-other-name-value-row-v139 {
+    grid-column:span 1!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    min-height:50px!important;
+    height:auto!important;
+    padding:6px 8px!important;
+    margin:0!important;
+    box-sizing:border-box!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    justify-content:flex-end!important;
+    gap:2px!important;
+    background:linear-gradient(145deg,#E5E7EB 0%,#BFC4CA 100%)!important;
+    border:1px solid #9CA3AF!important;
+    border-radius:8px!important;
+    box-shadow:none!important;
+    overflow:hidden!important;
   }
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row-address{
-    grid-column:span 2!important;
+    grid-column:span 3!important;
   }
-  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid{
-    grid-template-columns:1fr!important;
+  /* Contact grid on mobile: 4 SYMMETRIC columns —
+   *   address | phone | WhatsApp voice | WhatsApp message */
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px !important;
   }
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .detail-row,
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell {
+    grid-column: span 1 !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    min-height: 50px !important;
+    padding: 6px 8px !important;
+    box-sizing: border-box !important;
+  }
+  /* WhatsApp boxes (voice + message) on mobile — ICON ONLY.
+   * Text label hidden, icon centered and slightly larger so the
+   * tap target stays comfortable in the narrow ~12.5% column. */
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell {
+    padding: 0 !important;
+    min-height: 50px !important;
+    font-size: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0 !important;
+  }
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell i {
+    font-size: 16px !important;
+    flex: 0 0 auto !important;
+  }
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell span {
+    display: none !important;
+  }
+  /* Phone box on mobile — stack the phone icon ABOVE the number
+   * so both fit comfortably in the 2fr-wide cell without the
+   * number bleeding past the edge. The cell already has the
+   * label "טלפון" above as a tiny span; the .client-phone-link
+   * <a> takes the value slot and lays out as a column. */
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid .client-phone-link {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    font-size: 11px !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    text-align: center !important;
+  }
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid .client-phone-link i {
+    font-size: 13px !important;
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+  }
+  /* Center the phone cell content + reduce padding so the
+   * stacked icon+number fits nicely. */
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .detail-row {
+    padding: 4px 6px !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .detail-row > strong {
+    width: 100% !important;
+    text-align: center !important;
+  }
+  /* Span label on mobile — even smaller (7px) so all three
+   * labels fit comfortably in their narrow ~33% columns. */
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row > span {
+    font-size:7px!important;
+    line-height:1.2!important;
+    margin:0!important;
+    padding:0!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    max-width:100%!important;
+    display:block!important;
+  }
+  /* Strong value — same font + alignment across all 3 cells. */
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row > strong,
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row .client-other-name-value-v139,
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row .client-other-name-hint-v138 {
+    font-size:10.5px!important;
+    font-weight:600!important;
+    color:#0F172A!important;
+    line-height:1.25!important;
+    margin:0!important;
+    padding:0!important;
+    width:100%!important;
+    text-align:start!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  /* Strip the inner gray "chip" around the alt-name value
+   * (`.client-other-name-value-v139` / `.client-other-name-hint-v138`).
+   * Those classes set `background:#f3f4f6; border:1px solid; padding`
+   * at line ~5232, which renders a second box inside the outer
+   * detail-row cell. Make them flat so only the outer cell box
+   * shows, matching the name + ID cells. */
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid .client-other-name-value-v139,
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid .client-other-name-hint-v138 {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-color: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    border-radius: 0 !important;
+    width: auto !important;
+    font-size: 10.5px !important;
+    font-weight: 600 !important;
+    color: #0F172A !important;
+  }
+  /* The alt-name cell hides its label `<span>` on mobile
+   * (line 5161 / 12059), so its `<strong>` value sits at the
+   * TOP of the cell while the name + ID cells have their values
+   * at the BOTTOM (under their visible labels). Push the alt-name
+   * value down with `justify-content: flex-end` so all three
+   * values line up on the same baseline. */
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row.client-other-name-value-row-v139,
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row.client-other-name-hint-row-v138 {
+    justify-content: flex-end !important;
+  }
+  /* Legacy `contact-grid { grid-template-columns: 1fr }` removed —
+   * contact-grid is now 4 columns on mobile (address + phone +
+   * voice + message) per the earlier rule at line ~16809. */
+  /* Avatar size on mobile: bumped 32→72 so the photo is visible. */
   .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar,
   .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-avatar{
-    width:32px!important;
-    height:32px!important;
-    flex:0 0 32px!important;
-    min-width:32px!important;
-    min-height:32px!important;
-    font-size:12px!important;
+    width:72px!important;
+    height:72px!important;
+    flex:0 0 72px!important;
+    min-width:72px!important;
+    min-height:72px!important;
+    font-size:22px!important;
+  }
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-avatar img{
+    width:100%!important;
+    height:100%!important;
+    object-fit:cover!important;
+    border-radius:50%!important;
+  }
+  /* Camera badge REMOVED per user request — clicking the photo
+   * itself still opens the file picker (the React onClick handler
+   * on `.client-avatar` stays untouched). Just hide the `:after`
+   * pseudo-element that draws the small camera circle. */
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-avatar.editable:after,
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-avatar.editable:before {
+    content: none !important;
+    display: none !important;
+  }
+  /* Hint the avatar is clickable — pointer cursor + subtle scale
+   * on hover so the user knows it opens a file picker. */
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-avatar.editable {
+    cursor: pointer !important;
+  }
+  /* Placeholder text "תמונה" / "صورة" shown inside the avatar
+   * circle when there's no photo yet. Centered, slightly muted
+   * so the user reads it as a hint to click and pick an image.
+   * Disappears automatically when an <img> is rendered instead. */
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar .client-avatar .client-avatar-placeholder {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    color: #64748B !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    letter-spacing: 0.02em !important;
+    text-align: center !important;
+    user-select: none !important;
+  }
+  /* Toolbar — give it enough height for the larger avatar and
+   * align children so edit + delete on the LEFT and avatar on
+   * the RIGHT all sit on one row at the same baseline. */
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .client-edit-toolbar.client-edit-toolbar-v229 {
+    min-height: 78px !important;
+    align-items: center !important;
+    padding: 4px 0 !important;
   }
 }
 
-/* Force one-line identity row on regular view, even against legacy
-   ultra-specific .modal.ls... .detail-grid rules. */
-@media(min-width:641px){
+/* Force one-line identity row on regular/tablet view, even against
+ * legacy ultra-specific .modal.ls... .detail-grid rules.
+ * Breakpoint min-width:701px so phones up to 700px stay in the
+ * mobile layout (3-col info + 4-col contact). */
+@media(min-width:701px){
   .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .detail-grid.client-detail-info-grid,
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid{
-    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
     margin-inline:auto!important;
   }
   .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .detail-grid.client-detail-contact-grid,
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid{
-    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    /* 4 columns to fit address + phone + voice + message */
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
     margin-inline:auto!important;
-  }
-  .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .detail-grid.client-detail-info-grid > .detail-row-address,
-  .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row-address{
-    grid-column:span 1!important;
   }
 }
 
-/* Desktop (regular view): center avatar + boxes as one visual group */
+/* Desktop (regular view): grids span most of the modal width.
+ * The legacy `translateX(-76px)` + `left: calc(50% + 288px)`
+ * combo was calibrated for the OLD 4-col info-grid that
+ * included the address; with the new 3-col info-grid + 4-col
+ * contact-grid the offsets pushed grids off the visible area
+ * and the absolute avatar overlapped the name box. Reset both:
+ * no transform on the grids, no absolute repositioning on the
+ * avatar (it sits naturally inline in the toolbar). */
 @media(min-width:1051px){
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid,
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid{
-    max-width:680px!important;
+    max-width:min(1100px, calc(100% - 32px))!important;
     margin-inline:auto!important;
-    transform:translateX(-76px)!important;
+    transform:none!important;
   }
 
   .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar{
-    left:calc(50% + 288px)!important;
-    right:auto!important;
+    /* Place the avatar at the visual RIGHT of the toolbar (in
+     * RTL `right: 0` is the right edge of the screen) — matches
+     * the mobile layout. Absolute positioning keeps it out of
+     * the flow so the edit + delete buttons (also absolute) on
+     * the LEFT don't shift around it. */
+    position:absolute!important;
+    right:0!important;
+    left:auto!important;
+    top:0!important;
+    margin:0!important;
+  }
+  /* CRITICAL: give the toolbar enough min-height to CONTAIN the
+   * 128px-tall absolute avatar. Without this, the toolbar
+   * collapses to 0 height (all 3 children — avatar + edit +
+   * delete — are position:absolute, so they don't contribute
+   * to flow height), and the avatar extends DOWN into the info
+   * grid row, overlapping the "שם לקוח" box. */
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .client-edit-toolbar.client-edit-toolbar-v229,
+  .modal.client-detail-stable-v229.client-detail-stable-v229 .client-edit-toolbar {
+    min-height: 140px !important;
+    margin-bottom: 12px !important;
   }
 }
 
@@ -19934,6 +20204,37 @@ html body:not(.dark) #topbar.topbar.topbar .documents-top-btn .quick-label {
   white-space: nowrap !important;
 }
 
+/* Dark-mode mirror of the rule above. Without this, the Arabic
+ * scaling block (html[lang="ar"] .topbar span → font-size:1.5em)
+ * makes the home topbar's "حدث جديد" label balloon to ~21px while
+ * the settings button next to it stays at the authored 14px — see
+ * the user's screenshot. Pinning both spans to 14px in dark mode
+ * gives uniform Arabic button-label sizing across the whole topbar.
+ *
+ * Color uses dark-mode-appropriate ink (#F8FAFC) so the label
+ * stays legible against the dark topbar surface; the light-mode
+ * rule above pins #0F172A for the same reason. */
+html body.dark #topbar.topbar.topbar .quick-label,
+html body.dark #topbar.topbar.topbar .actions .btn span:not(.quick-plus),
+html body.dark #topbar.topbar.topbar #quickAction span,
+html body.dark #topbar.topbar.topbar .documents-top-btn .quick-label,
+html body.dark #topbar.topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn span,
+html body.dark #topbar.topbar.topbar .mini-btn span {
+  display: inline !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+  white-space: nowrap !important;
+}
+
+/* Same uniform sizing for the nested qa-icon-stack +badge so it
+ * doesn't compete with the now-14px label and look out of scale. */
+html body.dark #topbar.topbar.topbar #quickAction .qa-icon-stack .qa-plus-badge {
+  font-size: 10px !important;
+}
+
 /* Hover state */
 html body:not(.dark) #topbar.topbar.topbar #quickAction:hover,
 html body:not(.dark) #topbar.topbar.topbar .documents-top-btn:hover,
@@ -20698,9 +20999,70 @@ html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only
   .content.home-content .home-card-grid .home-card:nth-child(2) h2 {
     transform: translateY(0.25cm) !important;
   }
-  .content.home-content .home-card-grid .home-card:nth-child(3) h2,
-  .content.home-content .home-card-grid .home-card:nth-child(4) h2 {
+  .content.home-content .home-card-grid .home-card:nth-child(3) h2 {
     transform: translateY(-0.1cm) !important;
+  }
+  /* Card 4 (portal) title — additional 0.4cm lift on mobile so the
+   * longer "שער תקשורת עם לקוחות" label sits clearly above the
+   * bottom edge of the square. Total offset: -0.5cm. */
+  .content.home-content .home-card-grid .home-card:nth-child(4) h2 {
+    transform: translateY(-0.5cm) !important;
+  }
+
+  /* Mobile classic mode — remove the translucent frame around each
+   * card's icon. Desktop classic keeps the frame; only the small
+   * mobile cards drop it (they're tight on space and the framed
+   * icon looks heavy against the card's gradient). */
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(1) .card-icon,
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(2) .card-icon,
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(3) .card-icon,
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(4) .card-icon,
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(1) .card-icon,
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(2) .card-icon,
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(3) .card-icon,
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(4) .card-icon {
+    background: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* Mobile-only: lift the max-width cap completely so each square
+   * fills its grid cell. The real constraint is the cell width —
+   * we shrink the gap + the central "Upcoming events" button so
+   * the cells get bigger and the squares grow with them. */
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(1),
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(2),
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(3),
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(4),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(1),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(2),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(3),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(4) {
+    max-width: none !important;
+    max-height: none !important;
+  }
+  /* Shrink the gap so the four squares get bigger. Was clamp(116, 10vmin, 124).
+   * Now 60px — the center button is shrunk below to keep clearance. */
+  .home-grid-wrap.home-style-classic .home-card-grid,
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid {
+    gap: 56px !important;
+    width: 100% !important;
+  }
+  /* Center "Upcoming events" badge — shrink to ~50px in classic
+   * mobile so it fits inside the smaller 56px gap without overlap.
+   * Existing rule sets it to 104px on mobile; we override here. */
+  .home-grid-wrap.home-style-classic .upcoming-center-btn,
+  .home-grid-wrap[data-home-style="classic"] .upcoming-center-btn {
+    width: 50px !important;
+    height: 50px !important;
+    font-size: 9px !important;
+    border-radius: 14px !important;
+  }
+  .home-grid-wrap.home-style-classic .upcoming-center-btn i,
+  .home-grid-wrap[data-home-style="classic"] .upcoming-center-btn i {
+    font-size: 16px !important;
   }
 }
 
@@ -20719,6 +21081,28 @@ html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only
   .content.home-content .home-card-grid .home-card:nth-child(3) .card-icon,
   .content.home-content .home-card-grid .home-card:nth-child(4) .card-icon {
     transform: translateY(-0.3cm) !important;
+  }
+
+  /* Card 4 ("שער תקשורת עם לקוחות" / portal) title — lift the
+   * text by 0.5cm on desktop so the long Hebrew label has more
+   * room before the bottom edge of the card. */
+  .content.home-content .home-card-grid .home-card:nth-child(4) h2 {
+    transform: translateY(-0.5cm) !important;
+  }
+
+  /* Desktop only — shift the entire home dashboard (4 cards + the
+   * centered "Upcoming events" badge) DOWN 1.5cm so it sits lower
+   * on the page, leaving more breathing room under the "Good morning"
+   * greeting. Both the grid and the absolute-positioned center button
+   * get the same 1.5cm offset so the layout stays perfectly symmetric. */
+  .content.home-content .home-grid-wrap .home-card-grid {
+    transform: translateY(1.5cm) !important;
+  }
+  .content.home-content .home-grid-wrap .upcoming-center-btn {
+    transform: translate(-50%, calc(-50% + 1.5cm)) !important;
+  }
+  .content.home-content .home-grid-wrap .upcoming-center-btn:hover {
+    transform: translate(-50%, calc(-50% + 1.5cm)) scale(1.035) !important;
   }
 }
 
@@ -20742,6 +21126,27 @@ html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only
  * safe-area-aware padding so the box doesn't slide under the notch,
  * the bottom nav, or the browser address bar.
  * ============================================================ */
+/* Stacking guard: keep the "new-X" popup family always above any
+ * underlying modal (e.g. CaseDetail's full-bleed mobile modal, which
+ * uses the generic .modal class — z-index: 600 from the base rule).
+ * Without this, the case-detail's modal-box fully covers the new-event
+ * popup on mobile (because both share the root stacking context and
+ * the base .modal z-index wins via specificity over inline styles).
+ *
+ * Use a very high z-index so it also beats any future modal classes.
+ * The confirm-delete dialog (used by useDeleteConfirm) gets the same
+ * treatment — same symptom: invisible on mobile when opened from inside
+ * the case-detail modal. */
+.new-event-popup-overlay,
+.new-client-popup-overlay,
+.new-case-popup-overlay,
+.new-appointment-popup-overlay,
+.new-task-popup-overlay,
+.new-payment-popup-overlay,
+.confirm-delete-dialog-overlay {
+  z-index: 2147483600 !important;
+}
+
 @media (max-width: 1050px) {
   .new-event-popup-overlay,
   .new-client-popup-overlay,
@@ -20758,6 +21163,7 @@ html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only
              max(calc(var(--mobile-bottom-nav-h, 72px) + 12px), env(safe-area-inset-bottom))
              max(12px, env(safe-area-inset-left)) !important;
     overflow: hidden !important;
+    z-index: 2147483600 !important;
   }
   .new-event-popup-box,
   .new-client-popup-box,
@@ -20806,6 +21212,268 @@ html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only
     margin: 0 !important;
     border-radius: 22px !important;
     overflow-y: auto !important;
+  }
+}
+
+/* ============================================================ *
+ * Home dashboard — "classic" style variant. Matches the user's
+ * mock: rectangular cards (NOT forced 1:1), each card keeps its
+ * own gradient color and bottom label, and the icon sits inside a
+ * translucent rounded-square FRAME at the top-center of the card
+ * (with the existing horizontal divider line beneath it).
+ *
+ * The "modern" style (default) keeps the bare frameless white
+ * icons we set earlier. Classic restores the icon frame only when
+ * this style is active, with higher selector specificity than the
+ * "remove icon frame" override.
+ *
+ * The center "Upcoming events" button also softens from a circle
+ * to a rounded square so the visual rhythm reads as 4 cards
+ * around 1 small badge, all square-ish.
+ * ============================================================ */
+
+/* 0. Wrap size — the parent .home-grid-wrap defaults to
+ *    width: min(760px, 92vw) / height: min(760px, calc(100vh - 160px))
+ *    from the base style at line 46. For classic mode we ONLY widen
+ *    the wrap on desktop (height + min-height stay at the defaults),
+ *    so the bigger 3:2 rectangles have horizontal room to grow.
+ *
+ *    Important: do NOT inflate height here. The "Good morning"
+ *    greeting is `position: absolute; top: -24px` on the wrap; if
+ *    we make the wrap fill the whole content area, the greeting
+ *    lands behind the topbar and disappears. The width widening
+ *    alone is what fixes the binding card-cell constraint. */
+@media (min-width: 1051px) {
+  .home-grid-wrap.home-style-classic,
+  .home-grid-wrap[data-home-style="classic"] {
+    width: min(1280px, 96vw) !important;
+  }
+}
+
+/* 1. Card shape: each card is a clean rounded RECTANGLE (3:2,
+ *    wider than tall — matches the user's reference mock).
+ *    `justify-self/align-self: center` centers each card inside
+ *    its grid cell.
+ *
+ *    Specificity climb: the existing `.content.home-content
+ *    .home-card-grid .home-card:nth-child(N)` rule sets
+ *    border-radius: 30px with 5 classes of specificity. We list
+ *    nth-child explicitly + the .home-grid-wrap prefix to hit
+ *    5 classes too, then come later in the file → source order
+ *    breaks the tie in our favor. */
+.home-grid-wrap.home-style-classic .home-card-grid,
+.home-grid-wrap[data-home-style="classic"] .home-card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+  /* Row gap 1cm (vertical distance between top + bottom rows).
+   * Column gap 150px so the centered 74px "Upcoming events" badge
+   * sits in a 150px channel — leaving exactly 1cm (38px) of clear
+   * space on each side between the button and the inner edge of
+   * the cards. This is paired with `justify-self: end / start` on
+   * the cards below so they pin to the inner edges of their cells
+   * rather than centering. */
+  row-gap: 1cm !important;
+  column-gap: 150px !important;
+  gap: 1cm 150px !important;
+  /* Widened so the 3:2 rectangles (max-width 563px each, another
+   * +25% over the previous 450) have room — needs at least
+   * 2×563 + gap. min(1280, …) lets the grid shrink on narrower
+   * desktops. */
+  width: min(1280px, calc(100% - 24px)) !important;
+  margin-inline: auto !important;
+}
+.home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(1),
+.home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(2),
+.home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(3),
+.home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(4),
+.home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(1),
+.home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(2),
+.home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(3),
+.home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(4) {
+  /* 3:2 rectangle. Size history: 240 → 360 → 450 → 563 → 478 → 406
+   * (current, another -15% per the user). Mobile lifts these caps
+   * entirely via the later @media (max-width: 1050px) block. */
+  aspect-ratio: 3 / 2 !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 406px !important;
+  max-height: 271px !important;
+  min-height: 0 !important;
+  justify-self: center !important;
+  align-self: center !important;
+  border-radius: 22px !important;
+}
+
+/* Per-card position offset.
+ * Vertical: top row (clients / cases) shifts DOWN 0.5cm, bottom row
+ * (calendar / portal) shifts UP 0.5cm.
+ * Horizontal (RTL): right-column cards (clients / calendar) shift
+ * LEFT 0.5cm, left-column cards (cases / portal) shift RIGHT 0.5cm.
+ * Net effect: all four cards converge toward the center, around
+ * the "Upcoming events" badge. */
+.home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(1),
+.home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(1) {
+  /* clients — top-right in RTL → down + left */
+  transform: translate(-0.5cm, 0.5cm) !important;
+}
+.home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(2),
+.home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(2) {
+  /* cases — top-left in RTL → down + right */
+  transform: translate(0.5cm, 0.5cm) !important;
+}
+.home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(3),
+.home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(3) {
+  /* calendar — bottom-right in RTL → up + left */
+  transform: translate(-0.5cm, -0.5cm) !important;
+}
+.home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(4),
+.home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(4) {
+  /* portal — bottom-left in RTL → up + right */
+  transform: translate(0.5cm, -0.5cm) !important;
+}
+
+/* Desktop-only — pin cards to the INNER edge of their grid cells
+ * (toward the center "Upcoming events" badge) and zero out the
+ * horizontal half of each per-card translate. Combined with the
+ * 150px column-gap above, this puts the inner edge of every card
+ * exactly 1cm away from the centered 74px badge:
+ *   gap=150, button=74 → 38px (= 1cm) of clear space on each side.
+ *
+ * In RTL grid, `justify-self: end` aligns to the LEFT edge of the
+ * cell (end of the inline axis), so right-column cards (1, 3 — which
+ * in RTL sit in the right column of the viewport) pin to their LEFT
+ * (inner) edge. `justify-self: start` aligns to the RIGHT edge of the
+ * cell in RTL, so left-column cards (2, 4) pin to their RIGHT (inner)
+ * edge. Mobile is unaffected — the @media (max-width: 1050px) block
+ * earlier in the file overrides max-width/transforms for the mobile
+ * scaled-up rectangles. */
+@media (min-width: 1051px) {
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(1),
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(3),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(1),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(3) {
+    justify-self: end !important;
+  }
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(2),
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(4),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(2),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(4) {
+    justify-self: start !important;
+  }
+  /* Drop the horizontal half of each per-card translate (keep the
+   * vertical 0.5cm so the rows still converge a touch vertically).
+   * Cards now sit exactly at their cells' inner edges. */
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(1),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(1) {
+    transform: translate(0, 0.5cm) !important;
+  }
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(2),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(2) {
+    transform: translate(0, 0.5cm) !important;
+  }
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(3),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(3) {
+    transform: translate(0, -0.5cm) !important;
+  }
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(4),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(4) {
+    transform: translate(0, -0.5cm) !important;
+  }
+}
+
+/* 2. Restore the icon frame (translucent square) in classic mode —
+ *    DESKTOP ONLY. On mobile (≤1050px) the icon stays frameless
+ *    per the user's preference; see the @media block above. */
+@media (min-width: 1051px) {
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(1) .card-icon,
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(2) .card-icon,
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(3) .card-icon,
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(4) .card-icon,
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(1) .card-icon,
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(2) .card-icon,
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(3) .card-icon,
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(4) .card-icon {
+    background: rgba(255, 255, 255, 0.20) !important;
+    background-image: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.34) !important;
+    border-color: rgba(255, 255, 255, 0.34) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+  }
+}
+/* Icon color stays white (matches what's already there). */
+.home-grid-wrap.home-style-classic .home-card-grid .home-card .card-icon i,
+.home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card .card-icon i {
+  color: #ffffff !important;
+}
+
+/* 3. Center "Upcoming events" badge — square in classic mode. */
+.home-grid-wrap.home-style-classic .upcoming-center-btn,
+.home-grid-wrap[data-home-style="classic"] .upcoming-center-btn {
+  border-radius: 18px !important;
+}
+
+/* 4. Mobile classic — the squares need to be as big as the grid
+ *    cells allow. The base classic rules above set max-width: 240px,
+ *    gap: clamp(116, 10vmin, 124), width: min(680, 100% - 24). On a
+ *    phone (~360-420px), those caps make each cell ~110-130px wide —
+ *    way smaller than 240. The actual constraint is gap. So on mobile
+ *    we drop the gap dramatically, lift max-width entirely, and shrink
+ *    the centered "Upcoming events" badge so it still fits inside the
+ *    smaller gap without overlap.
+ *
+ *    These rules MUST come AFTER the base classic block above so they
+ *    win on source order at equal specificity. */
+@media (max-width: 1050px) {
+  .home-grid-wrap.home-style-classic .home-card-grid,
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid {
+    /* gap bumped 56 → 64 → 80px (+25% over previous 64) so the
+     * rectangles sit farther from the center "Upcoming events"
+     * badge — especially needed now that the cards are scale(1.2). */
+    gap: 80px !important;
+    width: 100% !important;
+  }
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(1),
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(2),
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(3),
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(4),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(1),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(2),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(3),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(4) {
+    max-width: none !important;
+    max-height: none !important;
+  }
+  /* Mobile rectangles +20%. Each card keeps its existing
+   * translate(±0.5cm) convergence offset but gets scale(1.2)
+   * appended — CSS honors only the last `transform`, so the
+   * scale and translate must be set together. */
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(1),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(1) {
+    transform: translate(-0.5cm, 0.5cm) scale(1.2) !important;
+  }
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(2),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(2) {
+    transform: translate(0.5cm, 0.5cm) scale(1.2) !important;
+  }
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(3),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(3) {
+    transform: translate(-0.5cm, -0.5cm) scale(1.2) !important;
+  }
+  .home-grid-wrap.home-style-classic .home-card-grid .home-card:nth-child(4),
+  .home-grid-wrap[data-home-style="classic"] .home-card-grid .home-card:nth-child(4) {
+    transform: translate(0.5cm, -0.5cm) scale(1.2) !important;
+  }
+  .home-grid-wrap.home-style-classic .upcoming-center-btn,
+  .home-grid-wrap[data-home-style="classic"] .upcoming-center-btn {
+    width: 50px !important;
+    height: 50px !important;
+    min-width: 50px !important;
+    font-size: 9px !important;
+    border-radius: 14px !important;
+  }
+  .home-grid-wrap.home-style-classic .upcoming-center-btn i,
+  .home-grid-wrap[data-home-style="classic"] .upcoming-center-btn i {
+    font-size: 16px !important;
   }
 }
 
@@ -20964,3 +21632,1560 @@ body.dark .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-finan
 body.dark .sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-finance { color: #FACC15 !important; }
 body.dark .mobile-nav.mobile-nav.mobile-nav.mobile-nav .nav-btn i.nav-icon-portal,
 body.dark .sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-portal  { color: #E879F9 !important; }
+
+/* ============================================================ *
+ * Portal-modern search box (LawyerSearchScreen) — force the
+ * <input type="search"> body to LIGHT GREEN.
+ *
+ * Why a CSS override is needed: line 14702 has
+ *   `.content.content.content.content:not(.home-content)
+ *    input[type="search"] { background: #FFFFFF !important }`
+ * (specificity 0,6,1) which paints every search input in the
+ * content area pure white. Tailwind utilities and inline styles
+ * both lose because that rule uses `!important`.
+ *
+ * We climb to 0,7,1 by adding a 5th `.content` repetition + the
+ * `.modern-portal-root` Tailwind scope class, then re-apply with
+ * `!important` so the input's interior matches the emerald-100
+ * outer container. Mobile variant mirrors the rule for ≤1050px
+ * since there's a separate mobile copy of the white-bg rule. */
+.content.content.content.content.content .modern-portal-root input[type="search"],
+.content.content.content.content.content:not(.home-content) .modern-portal-root input[type="search"] {
+  background: #D1FAE5 !important;
+  background-color: #D1FAE5 !important;
+  border-color: #6EE7B7 !important;
+  color: #064E3B !important;
+}
+.content.content.content.content.content .modern-portal-root input[type="search"]:focus,
+.content.content.content.content.content:not(.home-content) .modern-portal-root input[type="search"]:focus {
+  background: #BBF7D0 !important;
+  background-color: #BBF7D0 !important;
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.18) !important;
+}
+@media (max-width: 1050px) {
+  .content.content.content.content.content .modern-portal-root input[type="search"],
+  .content.content.content.content.content:not(.home-content) .modern-portal-root input[type="search"] {
+    background: #D1FAE5 !important;
+    background-color: #D1FAE5 !important;
+    border-color: #6EE7B7 !important;
+    color: #064E3B !important;
+  }
+}
+
+/* ============================================================ *
+ * Mobile topbar (≤1050px), HOME tab — fix the legacy "Step 82"
+ * rule at ~line 3629 which forces `#topbar.topbar.home-topbar`
+ * to `display: flex; flex-direction: column`, stacking the
+ * home-brand (logo + 2-line text) above the actions buttons —
+ * which is why the user sees the + and gear buttons BELOW the
+ * office name/address instead of next to them on the same row.
+ *
+ * Override: put the home topbar back into a flex ROW. Use `order`
+ * to swap children so .actions appears FIRST (= RIGHT side in
+ * RTL = "right side of the screen" per the user request), and
+ * .home-brand appears SECOND (= LEFT side in RTL). Both share
+ * row 1; the name + address inside .home-brand stay stacked via
+ * the existing column-flex on .home-brand-text.
+ *
+ * Specificity: `html body #topbar.topbar.home-topbar` =
+ * 2 elements + 1 ID + 2 classes — beats the legacy rule's
+ * `#topbar.topbar.home-topbar` (1 ID + 2 classes) on element
+ * count, and comes later in source order on top of that. */
+@media (max-width: 1050px) {
+  html body #topbar.topbar.home-topbar,
+  html body.dark #topbar.topbar.home-topbar {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    column-gap: 12px !important;
+    row-gap: 0 !important;
+    padding: 10px 12px !important;
+    min-height: 78px !important;
+    height: auto !important;
+  }
+  /* Natural DOM order: .home-brand first → RIGHT in RTL.
+   * .actions last → LEFT in RTL (which is what the user wants). */
+  html body #topbar.topbar.home-topbar .actions {
+    flex: 0 0 auto !important;
+    align-self: center !important;
+    margin: 0 !important;
+  }
+  html body #topbar.topbar.home-topbar .home-brand {
+    flex: 1 1 auto !important;
+    max-width: calc(100% - 120px) !important;
+    align-self: center !important;
+    margin: 0 !important;
+  }
+
+  /* Match the home topbar's #quickAction to the non-home one:
+   *   44×44 rounded SQUARE, white surface, overflow visible so
+   *   the +badge can poke out at top:-6/right:-6.
+   * The legacy rule at line 3726 wins on specificity (2 IDs:
+   * #topbar + #quickAction) with width/height 46px, border-radius
+   * 999px (circle), and overflow:hidden — which clips the +badge
+   * and makes the home button visually distinct from the
+   * (square, 44×44) contacts/non-home button. We climb to
+   * (2 IDs + 3 classes + 2 elements) here to beat that rule. */
+  html body #topbar.topbar.home-topbar #quickAction.btn.btn-primary,
+  html body.dark #topbar.topbar.home-topbar #quickAction.btn.btn-primary {
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    flex: 0 0 44px !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+    overflow: visible !important;
+    background: #FFFFFF !important;
+    border: 1px solid #E5E7EB !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .08) !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    gap: 0 !important;
+    font-size: 0 !important;
+  }
+  /* Settings gear (#homeSettingsOnlyBtn) — same square shape so
+   * the two home-topbar buttons match each other visually. */
+  html body #topbar.topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn,
+  html body.dark #topbar.topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn {
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    flex: 0 0 44px !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+    overflow: visible !important;
+    background: #FFFFFF !important;
+    border: 1px solid #E5E7EB !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .08) !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    gap: 0 !important;
+    font-size: 0 !important;
+  }
+}
+
+/* ============================================================ *
+ * Mobile topbar (≤1050px), non-home tabs — explicit 2×2 CSS Grid
+ * to match the home topbar pattern: office name on row 1 (with
+ * action buttons next to it on the inline-end side), office
+ * address on row 2 (alone).
+ *
+ * Previous JSX (now fixed) gated `.mobile-office-identity` behind
+ * `officeName || officeAddress`, so with the defaults still in
+ * state it never rendered. Now it always renders.
+ *
+ * Layout approach: switch `.topbar` to `display: grid` on mobile
+ * non-home, define two named template areas:
+ *     "identity actions"
+ *     "address   ."
+ * The `.page-title` is hidden. The `.mobile-office-identity` is
+ * split — its two child <span>s each take their own grid area
+ * (name → identity, address → address) so the address spans the
+ * full row alone, exactly like `.home-brand` does on the home
+ * topbar. Specificity climbed with `html body.topbar.topbar.topbar`
+ * to beat the 3-class repetitions already in the file. */
+@media (max-width: 1050px) {
+  /* Hide page-title h1 + subtitle on mobile non-home. */
+  html body .topbar.topbar.topbar:not(.home-topbar) .page-title,
+  html body.dark .topbar.topbar.topbar:not(.home-topbar) .page-title {
+    display: none !important;
+  }
+
+  /* Topbar → 2×2 grid. Column 1 expands; column 2 holds the
+   * actions; row 1 holds the office name + actions; row 2
+   * holds the office address. */
+  html body .topbar.topbar.topbar:not(.home-topbar),
+  html body.dark .topbar.topbar.topbar:not(.home-topbar) {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    grid-template-rows: auto auto !important;
+    grid-template-areas:
+      "identity actions"
+      "address  actions" !important;
+    column-gap: 10px !important;
+    row-gap: 2px !important;
+    align-items: center !important;
+    padding: 10px 16px !important;
+    min-height: 78px !important;
+  }
+
+  /* Identity wrapper: contents-display so its <span> children
+   * participate directly in the topbar grid, allowing the name and
+   * address to land on different rows. */
+  html body .topbar.topbar.topbar:not(.home-topbar) .mobile-office-identity {
+    display: contents !important;
+  }
+  /* Office name → row 1, column 1 (next to the actions). */
+  html body .topbar.topbar.topbar:not(.home-topbar) .mobile-office-identity .mobile-office-name {
+    grid-area: identity !important;
+    display: block !important;
+    text-align: start !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    align-self: end !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  /* Office address → row 2, column 1 (alone — column 2 is empty
+   * for the address row because actions spans both rows). */
+  html body .topbar.topbar.topbar:not(.home-topbar) .mobile-office-identity .mobile-office-address {
+    grid-area: address !important;
+    display: block !important;
+    text-align: start !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    align-self: start !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  /* Actions span the full vertical height of both rows, sitting
+   * on the inline-end side (LEFT in RTL, RIGHT in LTR). This is
+   * the same side they already occupied with the legacy flex
+   * layout, so the buttons don't visually move. */
+  html body .topbar.topbar.topbar:not(.home-topbar) .actions {
+    grid-area: actions !important;
+    align-self: center !important;
+    justify-self: end !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin: 0 !important;
+  }
+}
+
+/* ============================================================ *
+ * Tasks mobile cards (v135) — meta strip + red task title.
+ *
+ * At ≤900px the desktop <table> is hidden and a dedicated card list
+ * (`.tasks-mobile-list-v135`) takes over. Each card now shows a meta
+ * strip above the title with the client name (line 1) and case
+ * number + case name (line 2), and the title is recolored red so it
+ * stands out against the meta. These rules ONLY apply inside the
+ * mobile card list — desktop is untouched. */
+/* Meta line wraps if long; otherwise both pieces sit on one row. */
+.tasks-screen-panel .tasks-mobile-list-v135 .task-mobile-meta-v135 {
+  margin-bottom: 6px;
+  line-height: 1.35;
+  display: block;
+}
+.tasks-screen-panel .tasks-mobile-list-v135 .task-mobile-meta-num-v135 {
+  color: #0F172A;
+  font-weight: 900;
+  font-size: 13px;
+  margin-inline-end: 6px;
+}
+.tasks-screen-panel .tasks-mobile-list-v135 .task-mobile-meta-client-v135 {
+  color: #0F172A;
+  font-weight: 800;
+  font-size: 13px;
+}
+.tasks-screen-panel .tasks-mobile-list-v135 .task-mobile-meta-case-v135 {
+  color: #475569;
+  font-weight: 600;
+  font-size: 12px;
+}
+.tasks-screen-panel .tasks-mobile-list-v135 .task-mobile-title-v135 {
+  color: #DC2626 !important; /* tailwind red-600 */
+  font-weight: 900 !important;
+}
+
+/* ============================================================ *
+ * Delete buttons everywhere — DISABLE hover state changes.
+ *
+ * Per the user's request, every delete button must look identical
+ * on hover as it does at rest — no color shift, no brightness
+ * change, no translateY lift, no shadow change. We target every
+ * known delete-button class chain in the app, kill the transition
+ * + transform + filter, and pin each button's hover colors to
+ * its rest colors via the most-specific selectors used elsewhere
+ * in the file. */
+
+/* Generic: cancel motion/filter for every delete-y button. */
+html body .delete-action-btn:hover,
+html body .delete-action-btn-force-red:hover,
+html body .case-delete-btn-v143:hover,
+html body .case-delete-btn-v215:hover,
+html body .finance-payment-delete-btn:hover,
+html body .task-mini-action.delete:hover,
+html body .document-mini-action.delete:hover,
+html body .edit-action-delete-btn:hover {
+  transform: none !important;
+  filter: none !important;
+  transition: none !important;
+}
+
+/* DESKTOP client-detail delete (solid red / white) — pin hover to
+ * the same colors as rest. Same specificity (0,9,2) as the original
+ * desktop paint rule. */
+html body .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red:hover {
+  background: #DC2626 !important;
+  background-color: #DC2626 !important;
+  color: #FFFFFF !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.25) !important;
+}
+
+/* MOBILE client-detail delete (light pink / red text) — pin hover
+ * to rest colors. */
+@media (max-width: 700px) {
+  html body .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red:hover {
+    background: #fff1f2 !important;
+    background-color: #fff1f2 !important;
+    color: #be123c !important;
+    border: 1px solid #fecdd3 !important;
+    border-color: #fecdd3 !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Case-detail mobile + desktop delete buttons (v143 / v215) — pin
+ * hover to their default light-pink-with-red-text look. The
+ * existing `.modal.ls × 12` chain (specificity 0,13,0) at line
+ * 15365 turns them solid red on hover; we use `.modal.ls × 13`
+ * (0,14,0) to override. */
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-delete-btn-v143:hover,
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-delete-btn-v215:hover,
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .delete-action-btn:hover {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+  color: #DC2626 !important;
+  border: 1px solid #DC2626 !important;
+  border-color: #DC2626 !important;
+  box-shadow: none !important;
+}
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-delete-btn-v143:hover *,
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-delete-btn-v215:hover *,
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .delete-action-btn:hover * {
+  color: #DC2626 !important;
+}
+
+/* Base `.delete-action-btn:hover` rule at line ~3960 sets
+ * filter:brightness(.98) + transform:translateY(-1px). Kill both
+ * universally. */
+html body .delete-action-btn:hover,
+html body .finance-payment-delete-btn:hover {
+  filter: none !important;
+  transform: none !important;
+}
+
+/* ============================================================ *
+ * Client detail — MOBILE delete button (≤700px).
+ *
+ * The button must look IDENTICAL in structure + color to the
+ * case-detail mobile delete button (`.case-delete-btn-v143`):
+ *   bg #fff1f2 · text/icon #be123c · 1px border #fecdd3 ·
+ *   height 36px · width 96px · square corners · font 12/900.
+ *
+ * The pre-existing v229 client-detail rule at line ~13346 sets
+ * the button to `position: absolute; top:0; left:0; width:96px;
+ * height:38px; background:#ef233c; color:#fff; border:0;
+ * border-radius:999px; box-shadow:0 12px 22px rgba(239,35,60,.18)`
+ * with !important and specificity (0,4,1). Our previous attempt
+ * paints colors but inherited the wrong border-radius and
+ * box-shadow from v229. This block overrides EVERY size +
+ * shape + color property explicitly, using selector specificity
+ * (0,9,2) that beats every existing rule. */
+@media (max-width: 700px) {
+  html body .client-edit-toolbar .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red[data-delete-client-btn],
+  html body .modal.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229 .client-edit-toolbar .delete-action-btn[data-delete-client-btn] {
+    /* No visible "box" at all per the user's latest screenshot —
+     * transparent fill AND no border. The button reads as plain
+     * red text + trash icon, no rectangular surround that picks
+     * up the cream toolbar tint behind it. */
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    color: #be123c !important;
+    border: 0 !important;
+    border-color: transparent !important;
+    /* Shape — square corners (NOT 999px pill from v229), no shadow */
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    /* Size — matches case-delete-btn-v143 */
+    width: 96px !important;
+    min-width: 96px !important;
+    max-width: 96px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    padding: 0 12px !important;
+    /* Typography */
+    font-size: 12px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    /* Layout */
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+  }
+  /* Icon + label colors — ALSO force background transparent on
+   * inner span/i so any inherited modal-cream painting rule that
+   * tints `.modal-box *` doesn't leave a visible chip around the
+   * "מחק לקוח" text inside the pink button. */
+  html body .client-edit-toolbar .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red[data-delete-client-btn] *,
+  html body .client-edit-toolbar .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red[data-delete-client-btn] i,
+  html body .client-edit-toolbar .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red[data-delete-client-btn] span,
+  html body .modal.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229 .client-edit-toolbar .delete-action-btn[data-delete-client-btn] *,
+  html body .modal.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229 .client-edit-toolbar .delete-action-btn[data-delete-client-btn] i,
+  html body .modal.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229 .client-edit-toolbar .delete-action-btn[data-delete-client-btn] span {
+    color: #be123c !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  /* MAXIMUM-specificity override for the cream painter at line
+   * 19669 (`html body:not(.dark) .modal.client-mobile-fullscreen
+   * .modal-box *:not(...) { background: #FDFBF5 !important }` —
+   * specificity ≈ (0, 13, 10)). That rule's `*` matches the span
+   * inside the delete button because `span` isn't in its `:not()`
+   * list, leaving a cream chip behind the "מחק לקוח" text.
+   *
+   * Our selector: html body :not(.dark) × 2 + .modal + .ls × 14 +
+   * .client-mobile-fullscreen + .client-edit-toolbar + .delete-
+   * action-btn + .delete-action-btn-force-red × 6 + [data-...] +
+   * span → specificity (0, 28, 3) — beats (0, 13, 10) with
+   * room to spare. */
+  html body:not(.dark):not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.client-mobile-fullscreen .client-edit-toolbar .delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red[data-delete-client-btn] span,
+  html body:not(.dark):not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.client-mobile-fullscreen .client-edit-toolbar .delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red[data-delete-client-btn] i,
+  html body:not(.dark):not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.client-mobile-fullscreen .client-edit-toolbar .delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red[data-delete-client-btn] * {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    color: #be123c !important;
+  }
+  /* Hover — same transparent / no-border look, no motion. */
+  html body .client-edit-toolbar .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red[data-delete-client-btn]:hover,
+  html body .modal.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229 .client-edit-toolbar .delete-action-btn[data-delete-client-btn]:hover {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #be123c !important;
+    border: 0 !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+    filter: none !important;
+    transition: none !important;
+  }
+}
+
+/* ============================================================ *
+ * Case detail modal — DESKTOP: enlarge to match the cases-search
+ * screen width.
+ *
+ * Multiple existing rules (line 911 `.modal-box {width:min(1100px,
+ * 98vw)}`, line 11412 `.modal.case-detail-desktop-v215 .modal-box
+ * {width:min(560px,...)}`, line 11790 `max-height:92vh`) constrain
+ * the case-detail modal. To beat all of them we chain ALL three
+ * marker classes (they sit on the same .modal element) AND repeat
+ * `.case-detail-modal-box` three times on the box selector.
+ * Specificity: html + body + .modal + 3 marker classes on outer
+ * + .modal-box + 3 box classes = (0, 9, 2) — beats any existing
+ * rule. Also explicitly override `min-width` in case any parent
+ * is constraining via flex shrink. */
+@media (min-width: 1051px) {
+  html body .modal.case-detail-mobile-v140.case-detail-desktop-v215.case-detail-open-v210 .modal-box.case-detail-modal-box.case-detail-modal-box.case-detail-modal-box,
+  html body .modal.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215 .modal-box.case-detail-modal-box.case-detail-modal-box.case-detail-modal-box,
+  html body .modal.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140 .modal-box.case-detail-modal-box.case-detail-modal-box.case-detail-modal-box {
+    width: min(1500px, 96vw) !important;
+    min-width: min(1500px, 96vw) !important;
+    max-width: 96vw !important;
+    height: min(94vh, 1000px) !important;
+    min-height: 600px !important;
+    max-height: 96vh !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* ============================================================ *
+ * Documents screen — mobile: COMPACT list rows that match the
+ * cases-list pattern in ClientDetail (icon + bold title + small
+ * sub-line + thin divider).
+ *
+ * Previous attempt left rows tall + nearly empty (just a file
+ * name and lots of vertical space). The cases list has TIGHT
+ * rows with a folder icon, bold title, and a small sub-line.
+ * To get the same density we:
+ *   1. Strip outer <tr> styling, keep just a 1px bottom divider.
+ *   2. HIDE the legacy `mobile-document-card` block entirely —
+ *      it was the cause of the empty-tall-row look (and held the
+ *      Dropbox/תיק/מחק buttons that were also unwanted).
+ *   3. SHOW the desktop-only `.document-desktop-title` and
+ *      `.document-desktop-meta` on mobile. They already render
+ *      "<file icon> Title" + "filename · type · size", which IS
+ *      the cases-list pattern. Tighten their padding/size for
+ *      mobile.
+ *   4. Tighten cell padding so rows are ~52-58px tall, not 90+. */
+@media (max-width: 620px) {
+  /* No gap between rows — just the divider line. */
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tbody {
+    gap: 0 !important;
+    row-gap: 0 !important;
+  }
+  /* Flat tr: no card chrome, single bottom divider. */
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tbody tr,
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tr.document-screen-row {
+    border: 0 !important;
+    border-top: 0 !important;
+    border-bottom: 1px solid #E5DECC !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tbody tr:last-child,
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tr.document-screen-row:last-child {
+    border-bottom: 0 !important;
+  }
+  /* First <td> holds the row's visible content. Per the user's
+   * request the divider line must be ATTACHED directly below the
+   * file name (no bottom padding) and the next file must be
+   * ATTACHED directly below the line (no top padding). So we
+   * zero out vertical padding entirely — the only space between
+   * one row's text and the next is the 1px divider itself. */
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tr.document-screen-row td:first-child {
+    padding: 0 4px !important;
+    display: block !important;
+    width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+  /* HIDE the legacy mobile-document-card entirely — it was the
+   * source of the empty-tall-row look. We render via the
+   * desktop-title + desktop-meta blocks below instead. */
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tr.document-screen-row .mobile-document-card,
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tr.document-screen-row .mobile-document-top,
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tr.document-screen-row .mobile-document-actions,
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tr.document-screen-row .mobile-document-file-name {
+    display: none !important;
+  }
+  /* SHOW the structured title (file icon + name). line-height set
+   * to 1 (instead of 1.35) so the text glyph is the row's full
+   * height with no extra space above/below — the divider line
+   * sits flush against the bottom of the text. */
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tr.document-screen-row .document-desktop-title {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #0F172A !important;
+    text-align: start !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: 1 !important;
+  }
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tr.document-screen-row .document-desktop-title i {
+    flex: 0 0 auto !important;
+    color: #64748B !important;
+    font-size: 14px !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+  }
+  /* Meta sub-line: margin 0 so it sits flush under the title with
+   * NO gap. line-height 1 likewise so the divider attaches tight
+   * to its bottom. */
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tr.document-screen-row .document-desktop-meta {
+    display: block !important;
+    font-size: 11px !important;
+    color: #64748B !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  /* Hide the long Dropbox path hint on mobile — too noisy. */
+  .documents-scroll-list.documents-scroll-list.documents-scroll-list .table tr.document-screen-row .document-desktop-path {
+    display: none !important;
+  }
+}
+
+/* ============================================================ *
+ * Cases screen — mobile: force the client-name column onto a
+ * single line.
+ *
+ * The cases table is `.table` with 4 columns: caseType | clientName
+ * | court | status. On mobile (≤620px) the cell width shrinks and
+ * multi-word client names ("אשרף שריף", "אחמד חטיב") wrap to two
+ * or three lines, making the table read awkwardly. We just turn
+ * off wrapping on that column — the table auto-expands the column
+ * to fit the full name. (We previously tried `max-width: 0` to get
+ * ellipsis but in a <td> that collapses the cell to zero width and
+ * the text vanishes — don't repeat that.) */
+@media (max-width: 620px) {
+  .cases-scroll-list .table td:nth-child(2),
+  body:has(.cases-screen-panel) .cases-scroll-list .table td:nth-child(2) {
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+}
+
+/* ============================================================ *
+ * Home topbar — DESKTOP only: enlarge the settings button to match
+ * the "New Event" quick-action button's size.
+ *
+ * The home settings button uses `.mini-btn` (smaller padding +
+ * font-size) by default, so on desktop it renders noticeably
+ * smaller than the `.btn.btn-primary` quick-action sitting next
+ * to it. Match padding, font-size, gap, min-height + border-radius
+ * so the two buttons look like a balanced pair on the home topbar.
+ * Mobile (≤1050px) keeps its 44×44 square treatment from the rule
+ * at line ~21243. */
+@media (min-width: 1051px) {
+  html body #topbar.topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn,
+  html body .topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn {
+    padding: 11px 16px !important;
+    font-size: 14px !important;
+    font-weight: 780 !important;
+    gap: 8px !important;
+    min-height: 44px !important;
+    height: auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    /* Rounded rectangle (not pill) per user request. */
+    border-radius: 12px !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  html body #topbar.topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn i,
+  html body .topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn i {
+    font-size: 18px !important;
+    width: 22px !important;
+    height: 22px !important;
+    line-height: 1 !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    margin: 0 !important;
+  }
+  html body #topbar.topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn span,
+  html body .topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn span {
+    display: inline !important;
+    font-size: 14px !important;
+    font-weight: 780 !important;
+    line-height: 1 !important;
+  }
+}
+
+/* ============================================================ *
+ * Client detail — delete button: SOLID RED with WHITE text + icon.
+ *
+ * The button now carries an extra class `.delete-action-btn-force-red`
+ * in the JSX so we can target it WITHOUT having to out-specificity
+ * the whole .modal.ls × 12 chain. We chain the custom class
+ * 5 times (`.delete-action-btn-force-red`×5 = 5 classes) PLUS the
+ * existing `.delete-action-btn` to clear the (0,15,0) bar set by
+ * line 15348 with room to spare. */
+html body .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red {
+  background: #DC2626 !important;
+  background-color: #DC2626 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.25) !important;
+}
+
+/* Strip the cream chip behind the "מחק לקוח" text — applies on
+ * ALL viewports (the previous fix was wrapped in @media max-width:
+ * 700px so desktop kept the cream-painted span). The painter at
+ * line 19669 has specificity ~ (0, 13, 10); we exceed it with
+ * html body :not(.dark) × 2 + .modal + .ls × 14 +
+ * .client-mobile-fullscreen + .client-edit-toolbar + .delete-
+ * action-btn + .delete-action-btn-force-red × 6 + [data-...]
+ * + span/i/* — specificity (0, 28, 3). */
+html body:not(.dark):not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.client-mobile-fullscreen .client-edit-toolbar .delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red[data-delete-client-btn] span,
+html body:not(.dark):not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.client-mobile-fullscreen .client-edit-toolbar .delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red[data-delete-client-btn] i,
+html body:not(.dark):not(.dark) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.client-mobile-fullscreen .client-edit-toolbar .delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red[data-delete-client-btn] * {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+html body .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red *,
+html body .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red i,
+html body .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red span {
+  color: #FFFFFF !important;
+}
+html body .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red.delete-action-btn-force-red:hover {
+  background: #B91C1C !important;
+  background-color: #B91C1C !important;
+  color: #FFFFFF !important;
+}
+
+/* ============================================================ *
+ * Global search panel — all avatars (clients + cases + docs + tasks
+ * + events).
+ *
+ * The non-home content tokens override `--primary-2` to `#0F172A`
+ * at line ~14552, so every `.avatar` in the search results renders
+ * as a dark navy/black circle. The user wants the dark fill removed
+ * so the photo / initial / icon INSIDE the avatar is visible.
+ *
+ * Fix: paint every avatar in the panel with a light cream surface
+ * + soft border + dark text/icon color, scoped via the actual DOM
+ * class chain (`.panel.global-search-panel .list-item .avatar`).
+ * Triple-class `.panel.panel.panel.global-search-panel` to outrank
+ * any other `.panel .avatar`-style overrides further down the file. */
+.content .panel.panel.panel.global-search-panel .list-item .avatar,
+.content .global-search-panel.global-search-panel.global-search-panel .list-item .avatar {
+  background: #FDFBF5 !important;
+  background-color: #FDFBF5 !important;
+  color: #0F172A !important;
+  border: 1px solid #E5DECC !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+.content .panel.panel.panel.global-search-panel .list-item .avatar > i {
+  color: #0F172A !important;
+}
+.content .panel.panel.panel.global-search-panel .list-item .avatar .avatar-photo {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  border-radius: inherit !important;
+}
+
+/* ============================================================ *
+ * Client detail — MOBILE: move EDIT button next to DELETE on the
+ * LEFT side. The base v229 rule (line ~13310) positions the edit
+ * button at `top:0; right:0` (right edge). The delete button is
+ * at `top:0; left:0; width:96px`. To park the edit button
+ * IMMEDIATELY next to the delete on the LEFT, move it to
+ * `left: 100px` (96px delete + 4px gap) and clear `right`.
+ * High-specificity selector chain to beat the (0,5,0) base rule. */
+@media (max-width: 700px) {
+  html body .modal.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229 .client-edit-toolbar .case-edit-btn,
+  html body .modal.client-detail-stable-v229.client-detail-desktop-v217.client-detail-stable-v229 .client-edit-toolbar .case-edit-btn,
+  html body .modal.client-mobile-fullscreen.client-details-existing-v137.client-detail-desktop-v217.client-detail-stable-v229 .client-edit-toolbar .case-edit-btn {
+    position: absolute !important;
+    left: 100px !important;
+    right: auto !important;
+    top: 0 !important;
+  }
+}
+
+/* ============================================================ *
+ * Client detail — FINAL grid layout override (max-priority).
+ *
+ * Placed at the END of the file so source-order guarantees these
+ * rules win over any earlier definition. Uses element + class
+ * combo (`div.detail-grid.client-detail-info-grid`) to bump
+ * specificity beyond every earlier selector that fights this
+ * grid. Explicitly re-states `display: grid`, `grid-auto-flow:
+ * row`, and the column counts so nothing — not even a
+ * `display: block` accidentally inherited from a parent rule —
+ * can flatten the layout. */
+
+/* ALL viewports up to 700px (mobile) */
+@media (max-width: 700px) {
+  html body div.detail-grid.client-detail-info-grid,
+  html body div.client-detail-info-grid.detail-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: auto !important;
+    grid-auto-flow: row !important;
+    gap: 6px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-inline: auto !important;
+  }
+  html body div.detail-grid.client-detail-contact-grid,
+  html body div.client-detail-contact-grid.detail-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-rows: auto !important;
+    grid-auto-flow: row !important;
+    gap: 6px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-inline: auto !important;
+  }
+}
+
+/* Tablet/desktop (701px+) — same layout, just bigger spacing */
+@media (min-width: 701px) {
+  html body div.detail-grid.client-detail-info-grid,
+  html body div.client-detail-info-grid.detail-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-auto-flow: row !important;
+    gap: 8px !important;
+  }
+  html body div.detail-grid.client-detail-contact-grid,
+  html body div.client-detail-contact-grid.detail-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-auto-flow: row !important;
+    gap: 8px !important;
+  }
+}
+
+/* ============================================================ *
+ * Case detail — MOBILE: 5 action buttons in ONE equal-width row.
+ * Case detail — DESKTOP: 5 action buttons on the SAME HORIZONTAL
+ * LINE (title-actions + edit-toolbar share one flex row).
+ *
+ * Strategy: the JSX renders TWO independent button blocks —
+ *   `.case-detail-actions-desktop-only` (original 2 toolbars)
+ *   `.case-detail-actions-mobile-only`  (flat 5-button row)
+ * Each is hidden on the OPPOSITE viewport via display: none,
+ * so neither version has to fight the other's CSS specificity. */
+.case-detail-actions-mobile-only {
+  display: none;
+}
+/* DESKTOP: both toolbars become siblings in a flex row so the
+ * delete + edit buttons sit on the SAME horizontal line as new
+ * event + docs + status (per the user's "lift the buttons"
+ * request). Title-actions on the right (3 buttons in RTL flow),
+ * edit-toolbar on the left (2 buttons). */
+.case-detail-actions-desktop-only {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: nowrap !important;
+  gap: 12px !important;
+  width: 100% !important;
+  margin: 12px 0 !important;
+}
+/* RTL swap on desktop: edit-toolbar (edit + delete) → RIGHT side
+ * of the screen, title-actions (new event + docs + status) → LEFT
+ * side. Achieved with flex `order` — edit-toolbar gets order:-1
+ * so it becomes the FIRST flex item, which in RTL flow renders
+ * on the RIGHT. The 3-button group goes second → renders on LEFT. */
+.case-detail-actions-desktop-only > .case-edit-toolbar {
+  order: -1 !important;
+  flex: 0 1 auto !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+.case-detail-actions-desktop-only > .case-detail-title-actions {
+  order: 1 !important;
+  flex: 0 1 auto !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+/* DESKTOP: inside the 3-button group, swap visual positions of
+ * "אירוע חדש" (new event) and "פעיל" (status) per user request.
+ * The DOM order is (new-event, docs, status). With CSS `order`,
+ * status moves to the FRONT of the group (rightmost in RTL),
+ * new-event moves to the END (leftmost). */
+.case-detail-actions-desktop-only > .case-detail-title-actions > .case-status-btn {
+  order: -1 !important;
+}
+.case-detail-actions-desktop-only > .case-detail-title-actions > .case-docs-btn {
+  order: 0 !important;
+}
+.case-detail-actions-desktop-only > .case-detail-title-actions > .case-new-event-btn {
+  order: 1 !important;
+}
+@media (max-width: 700px) {
+  /* Hide the desktop block; show the mobile flat row. */
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-desktop-only {
+    display: none !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    justify-content: space-between !important;
+    gap: 4px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 8px 0 12px !important;
+    box-sizing: border-box !important;
+  }
+  /* Each of the 5 mobile cells is a direct flex child of the
+   * row — they all share the row width equally (1fr each = 20%).
+   * Class `.case-action-mobile-cell` is unique to the mobile
+   * block so no legacy CSS interferes. */
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell {
+    flex: 1 1 0 !important;
+    flex-basis: 0 !important;
+    flex-grow: 1 !important;
+    flex-shrink: 1 !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 10px !important;
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box !important;
+    cursor: pointer !important;
+    position: static !important;
+    box-shadow: none !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell > i {
+    font-size: 14px !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+  }
+  /* Per-button accent colors on mobile cells — keep them visually
+   * distinct from each other. */
+  /* New-event button on mobile: mirror the home-screen "newEvent"
+   * quick-action (btn-primary). Blue button frame, emerald calendar
+   * icon, small sky-blue "+" badge in the corner. The icon now uses
+   * the .qa-icon-stack > .qa-base-icon + .qa-plus-badge structure
+   * from the topbar quick-action. */
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-new-event-btn {
+    background: #2563eb !important;
+    color: #FFFFFF !important;
+    border-color: #2563eb !important;
+    overflow: visible !important; /* let the corner +badge bleed past the rounded frame */
+  }
+  /* Emerald calendar — matches the home-screen nav-icon-home color
+   * (#10B981 from .topbar #quickAction .qa-icon-stack i.nav-icon-home).
+   * Specificity chain (.ls × 13) added so this beats any inherited
+   * color from the white button text. */
+  html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-new-event-btn .qa-icon-stack i,
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-new-event-btn .qa-icon-stack .qa-base-icon,
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-new-event-btn .qa-icon-stack i.nav-icon-home,
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-new-event-btn > .qa-icon-stack > i {
+    color: #10B981 !important;
+  }
+  /* Plus badge — sky-blue background with white "+". Re-stated here
+   * with the same case-detail-scoped specificity so the calendar
+   * cell can't accidentally repaint it. */
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-new-event-btn .qa-icon-stack .qa-plus-badge {
+    background: #0EA5E9 !important;
+    color: #FFFFFF !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-docs-btn {
+    background: #059669 !important;
+    color: #FFFFFF !important;
+    border-color: #059669 !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-docs-btn > i {
+    color: #FFFFFF !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-status-btn.active {
+    background: #16a34a !important;
+    color: #FFFFFF !important;
+    border-color: #16a34a !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-status-btn.inactive {
+    background: #dc2626 !important;
+    color: #FFFFFF !important;
+    border-color: #dc2626 !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-edit-btn {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    border-color: #CBD5E1 !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-delete-btn-v143 {
+    background: #FFFFFF !important;
+    color: #DC2626 !important;
+    border-color: #FECDD3 !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-delete-btn-v143 > i {
+    color: #DC2626 !important;
+  }
+  /* Reorder via flex `order` so in RTL flow the buttons appear:
+   *   RIGHT side: delete (1) → edit (2)
+   *   LEFT  side: new-event (3) → docs (4) → status (5)
+   * (Swap of "אירוע חדש" and "פעיל" per user request: new-event
+   * is now the FIRST of the left group, status is the LAST.)
+   * `margin-inline-start: auto` on the third visual button
+   * (new-event) eats up any remaining row space, pushing the
+   * 3-button group all the way to the inline-end (LEFT in RTL),
+   * leaving delete + edit cleanly on the right edge. */
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-delete-btn-v143 {
+    order: 1 !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-edit-btn {
+    order: 2 !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-new-event-btn {
+    order: 3 !important;
+    margin-inline-start: auto !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-docs-btn {
+    order: 4 !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-status-btn {
+    order: 5 !important;
+  }
+}
+
+/* ============================================================ *
+ * Case detail — MOBILE: vertically CENTER the modal between the
+ * top and bottom edges of the screen (was full-bleed on phones).
+ *
+ * Legacy rule at line ~11799 sets the case-detail modal-box to
+ * `width: 100vw; height: 100dvh; border-radius: 0` on phones
+ * (≤700px), making it fill the entire viewport. Per the user's
+ * request, override these so the box becomes a centered card with
+ * 16px margins on top + bottom + sides, with content scrollable
+ * inside.
+ *
+ * Specificity: html body + .modal + 3 case-detail marker classes
+ * + .modal-box + .case-detail-modal-box = (0, 7, 2) — beats the
+ * (0, 2, 0) base rule, with !important + later source order as
+ * an extra safety net. */
+@media (max-width: 700px) {
+  /* Overlay padding minimized (only 8px top/bottom for vertical
+   * centering breathing room) so the modal-box takes the FULL
+   * width of the viewport per the user's "widen to maximum"
+   * request. */
+  html body .modal.case-detail-mobile-v140.case-detail-desktop-v215.case-detail-open-v210,
+  html body .modal.case-detail-mobile-v140,
+  html body .modal.case-detail-desktop-v215,
+  html body .modal.case-detail-open-v210 {
+    inset: 0 !important;
+    padding: 8px 0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    display: flex !important;
+  }
+  /* Modal-box: edge-to-edge full viewport width, centered
+   * vertically with 8px top/bottom from the overlay padding. */
+  html body .modal.case-detail-mobile-v140.case-detail-desktop-v215.case-detail-open-v210 .modal-box.case-detail-modal-box,
+  html body .modal.case-detail-mobile-v140 .modal-box.case-detail-modal-box,
+  html body .modal.case-detail-desktop-v215 .modal-box.case-detail-modal-box,
+  html body .modal.case-detail-open-v210 .modal-box.case-detail-modal-box {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: calc(100svh - 16px) !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12) !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ============================================================ *
+ * Client detail — MOBILE: vertically CENTER the modal between
+ * the top and bottom edges of the screen (was full-bleed).
+ *
+ * The legacy rules at line ~1358 set:
+ *   .modal.client-mobile-fullscreen   { inset: 0; align-items: stretch }
+ *   .modal-box.client-mobile-fullscreen-box { height: 100svh; ... }
+ * which makes the modal fill the entire viewport. Per the user's
+ * request, we override these to center the box vertically with a
+ * margin on top + bottom, keeping the content scrollable inside.
+ *
+ * Specificity: html body + .modal + 3 marker classes + .modal-box
+ * + 2 box classes = (0, 8, 2) — beats the original (0, 3, 0) rule
+ * with the !important + later source order safety net. */
+@media (max-width: 700px) {
+  html body .modal.client-mobile-fullscreen.client-details-existing-v137.client-detail-stable-v229,
+  html body .modal.client-mobile-fullscreen.client-details-existing-v137 {
+    inset: 0 !important;
+    padding: 8px 0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    display: flex !important;
+  }
+  html body .modal.client-mobile-fullscreen.client-details-existing-v137.client-detail-stable-v229 .modal-box.client-mobile-fullscreen-box,
+  html body .modal.client-mobile-fullscreen.client-details-existing-v137 .modal-box.client-mobile-fullscreen-box {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: calc(100svh - 16px) !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12) !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ============================================================ *
+ * Case detail — MOBILE only: two-row boxed layout.
+ *   Row 1 — client name (2/3) + balance (1/3)
+ *   Row 2 — case type (1/3) + case number (1/3) + court (1/3)
+ *
+ * The grid uses 3 equal `1fr` columns so row 2 splits evenly into
+ * thirds. Row 1 reuses those tracks: client name spans cols 1-2
+ * (2/3 of the screen) and balance pins to col 3 (1/3).
+ *
+ * Case number used to carry `case-field-full-v220` for a full-row
+ * span — on mobile we drop that override so it falls back to a
+ * single 1/3 cell. grid-auto-flow:dense + the explicit balance pin
+ * back-fills case type / case number / court into row 2 in JSX
+ * order (case type → row 2 col 1, case number → row 2 col 2,
+ * court → row 2 col 3).
+ *
+ * Specificity climb: `.modal.ls × 13` + `.case-detail-mobile-fields-v220`
+ * = (0, 14, 0), which beats the earlier blocks at .ls × 6 and
+ * .ls × 12 that lock the grid to `1fr 1fr` (or single col <640px). */
+@media (max-width: 700px) {
+  /* Drop the white card wrapper around the boxed fields. The legacy
+   * rule at line ~16544 paints `.case-detail-fields-col > .detail-grid`
+   * with #FFFFFF + 1px border + 12px radius + 18px padding — that's the
+   * outer "box around the box" the user wants gone on mobile. The
+   * desktop transparent override at line ~18181 is gated behind
+   * @media (min-width: 1051px) so it doesn't fire on phones. */
+  html body .modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-fields-col > .detail-grid,
+  html body .modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-fields-col > .detail-grid {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
+    grid-auto-flow: dense !important;
+    gap: 8px !important;
+    width: 100% !important;
+    /* Pull the documents/tasks panels up toward the boxed fields row.
+     * Three earlier rules push them down (margin-bottom 18px at
+     * .ls × 6, margin 0 0 18px at .ls × 12, and margin 8px 0 10px
+     * inside the v220 boxed-fields block at line ~12498). Override
+     * all of them here. */
+    margin: 0 !important;
+  }
+  /* Also collapse the gap between the fields-col card and the
+   * side-col (documents + tasks) on mobile so everything tightens up. */
+  html body .modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-main-row,
+  html body .modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-main-row {
+    gap: 0 !important;
+  }
+  html body .modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-fields-col,
+  html body .modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-fields-col {
+    gap: 0 !important;
+  }
+  html body .modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-side-col,
+  html body .modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-side-col {
+    gap: 6px !important;
+  }
+  /* Zero the legacy margin-top on the panels (.case-recent-documents-panel
+   * + .case-tasks-panel both default to margin-top:14px at line 201/222),
+   * which were the remaining gap between the boxed fields row and the
+   * "documents" + "tasks" boxes below it. */
+  html body .modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-recent-documents-panel,
+  html body .modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-recent-documents-panel,
+  html body .modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-tasks-panel,
+  html body .modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-tasks-panel {
+    margin-top: 0 !important;
+    margin-bottom: 6px !important;
+  }
+  /* Row 1, col 1-2 — client name takes 2/3 of the screen. The
+   * field has no marker class, so we target the first .case-field-v220
+   * inside the grid. */
+  html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 > .case-field-v220:first-child {
+    grid-column: 1 / 3 !important;
+    grid-row: 1 !important;
+  }
+  /* Row 1, col 3 — balance pinned to the right third. */
+  html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 .case-field-balance-v220 {
+    grid-column: 3 / 4 !important;
+    grid-row: 1 !important;
+  }
+  /* Drop the full-row span on case number so it occupies a single
+   * 1/3 cell on row 2 alongside case type + court. */
+  html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 .case-field-full-v220 {
+    grid-column: auto !important;
+  }
+}
+
+/* ============================================================ *
+ * Dark-mode coverage patch — every screen.
+ *
+ * The codebase has many surfaces whose LIGHT styling was authored
+ * directly (e.g. `background:#FFFFFF`, `color:#0F172A`) without a
+ * matching `body.dark` override, OR whose light rule is scoped to
+ * `:not(.dark)` while the dark equivalent was never written. The
+ * result was a "partly-dark / partly-light" UI in dark mode: page
+ * background goes dark, but cards / inputs / badges / topbar
+ * elements stay paper-white.
+ *
+ * This block consolidates the missing overrides for the major
+ * surfaces (home dashboard, topbar, sidebar/mobile-nav, modals,
+ * detail rows, form inputs, case-status warnings, badges, etc.)
+ * so every screen — desktop and mobile — renders fully dark when
+ * `body.dark` is active.
+ *
+ * Tokens come from the dark-mode :root block at line 3249:
+ *   --bg #0f172a / --surface #1e293b / --surface-soft #243247
+ *   --text #f8fafc / --muted #cbd5e1 / --line #475569
+ *
+ * Each block is grouped by the screen / component it covers,
+ * with a comment naming the original light-mode rule it counters.
+ * ============================================================ */
+
+/* — Home dashboard (HomeDashboard.tsx) ——————————————— */
+/* `.home-card` base at line ~48 paints a near-white surface; the
+ * earlier dark override exists for background but the border was
+ * left at the light navy `#111827`. Pin the border to --line so
+ * cards don't outline brightly on the dark page. */
+body.dark .home-card,
+body.dark .home-grid-wrap .home-card-grid .home-card {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35) !important;
+}
+body.dark .home-card h2,
+body.dark .home-card p {
+  color: #f8fafc !important;
+}
+/* Upcoming-events center button + its pink/red mini card. The base
+ * pink gradient at line ~59 (`linear-gradient(180deg,#fff5f5,#ffe4e6)`)
+ * has no dark counterpart — replace with a slate-soft surface. */
+body.dark .upcoming-center-btn,
+body.dark .upcoming-center-btn .upcoming-mini-card {
+  background: #1e293b !important;
+  background-image: linear-gradient(180deg, #243247 0%, #1e293b 100%) !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.40) !important;
+}
+body.dark .upcoming-center-btn .upcoming-mini-icon {
+  background: #334155 !important;
+  color: #f87171 !important;
+}
+body.dark .upcoming-center-btn .upcoming-mini-label,
+body.dark .upcoming-center-btn span {
+  color: #f8fafc !important;
+}
+/* Agenda conflict badge (line ~41) — white-on-rose. */
+body.dark .agenda-conflict-badge {
+  background: #1e293b !important;
+  border-color: #f87171 !important;
+  color: #f87171 !important;
+}
+
+/* — Topbar / brand / quick-action ——————————————— */
+/* Office logo + title-logo wrappers had no dark variant — they
+ * stayed bright white in dark mode. */
+body.dark .office-logo-mark,
+body.dark .office-title-logo,
+body.dark .home-brand,
+body.dark .home-brand-text,
+body.dark .mobile-office-identity {
+  background: transparent !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+body.dark .home-brand-name,
+body.dark .home-brand-address,
+body.dark .mobile-office-name,
+body.dark .mobile-office-address {
+  color: #f8fafc !important;
+}
+body.dark .mobile-office-address {
+  color: #cbd5e1 !important;
+}
+/* Topbar action buttons — light mode forces a cream surface with
+ * dark ink at lines 20099/20117. The `:not(.dark)` scope leaves
+ * dark mode to fall back to whatever .btn / .btn-primary paints,
+ * which can mismatch the topbar surface. Pin them to surface-2 so
+ * they read as buttons on the dark topbar. */
+body.dark #topbar.topbar.topbar #quickAction,
+body.dark #topbar.topbar.topbar .documents-top-btn,
+body.dark #topbar.topbar.topbar .actions .btn:not(.btn-primary),
+body.dark #topbar.topbar.topbar .case-docs-btn {
+  background: #334155 !important;
+  color: #f8fafc !important;
+  border-color: #64748b !important;
+}
+body.dark #topbar.topbar.topbar #quickAction .quick-label,
+body.dark #topbar.topbar.topbar .documents-top-btn .quick-label,
+body.dark #topbar.topbar.topbar .actions .btn span:not(.quick-plus),
+body.dark #topbar.topbar.topbar #quickAction span {
+  color: #f8fafc !important;
+}
+
+/* — Page panels / lists / list-items ——————————————— */
+/* `.panel`, `.list-item`, `.detail-row`, `.cal-cell`, `.cal-head`
+ * — light cream/white backgrounds. */
+body.dark .panel,
+body.dark .panel-head,
+body.dark .panel-body,
+body.dark .list-item,
+body.dark .detail-row,
+body.dark .cal-cell,
+body.dark .cal-head,
+body.dark .calendar-agenda-row,
+body.dark .calendar-week-day,
+body.dark .calendar-day-header,
+body.dark .calendar-week-header,
+body.dark .calendar-empty,
+body.dark .case-task-row,
+body.dark .case-document-row,
+body.dark .case-docs-modal-row {
+  background: #243247 !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+body.dark .list-item:hover {
+  background: #334155 !important;
+}
+body.dark .detail-row span:first-child,
+body.dark .cal-head,
+body.dark .calendar-week-date,
+body.dark .calendar-agenda-meta,
+body.dark .calendar-range-title {
+  color: #cbd5e1 !important;
+}
+
+/* — Modal-box surface + cream painter at line ~19027 ——————— */
+/* The big "cream replaces white" rule at line 19027 paints
+ * `.modal-box`, `.new-event-popup-box`, `.panel`, `.list-item`,
+ * `.detail-row`, `.cal-cell`, `.home-card`, etc. with `#FDFBF5`,
+ * but is correctly scoped to `:not(.dark)`. Mirror with a dark
+ * equivalent so the same surfaces get the dark slate tone instead
+ * of falling back to anything earlier in the cascade. */
+html body.dark .modal-box,
+html body.dark .case-detail-modal-box,
+html body.dark .client-mobile-fullscreen-box,
+html body.dark .new-event-popup-box,
+html body.dark .new-client-popup-box,
+html body.dark .new-case-popup-box,
+html body.dark .new-appointment-popup-box,
+html body.dark .new-task-popup-box,
+html body.dark .new-payment-popup-box,
+html body.dark .case-recent-documents-panel,
+html body.dark .case-tasks-panel,
+html body.dark .case-documents-panel,
+html body.dark .case-timeline-panel,
+html body.dark .case-last-hearing-card,
+html body.dark .case-detail-fields-col > .detail-grid {
+  background: #1e293b !important;
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+
+/* — Form inputs (case-edit-form / calendar-detail-form base
+ *   hardcodes at lines 546/559) ——————————————— */
+body.dark .case-edit-form input,
+body.dark .case-edit-form select,
+body.dark .case-edit-form textarea,
+body.dark .calendar-detail-form input,
+body.dark .calendar-detail-form select,
+body.dark .calendar-detail-form textarea,
+body.dark .clean-office-input,
+body.dark input[data-office-address],
+body.dark .settings-field input,
+body.dark .settings-field select,
+body.dark .settings-field textarea {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+/* — Modal-close-x + back-button bases (lines 64/19051) — */
+body.dark .modal-close-x,
+body.dark .modal-mobile-back-btn,
+body.dark .panel-close-x {
+  background: #334155 !important;
+  background-color: #334155 !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+/* — Case-status warning (lines 323/328) — */
+body.dark .case-status-warning-icon {
+  background: #243247 !important;
+  color: #fbbf24 !important;
+}
+body.dark .case-status-warning-actions .cancel,
+body.dark .case-status-warning-actions .confirm,
+body.dark .case-status-warning-actions button {
+  background: #334155 !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+/* — Task/status priority badges ——————————————— */
+body.dark .task-priority-normal,
+body.dark .task-priority-medium {
+  background: #1e3a8a !important;
+  color: #bfdbfe !important;
+}
+body.dark .task-priority-critical,
+body.dark .task-priority-high {
+  background: #7f1d1d !important;
+  color: #fecaca !important;
+}
+body.dark .task-status-open {
+  background: #422006 !important;
+  color: #fde68a !important;
+}
+body.dark .task-status-done {
+  background: #064e3b !important;
+  color: #a7f3d0 !important;
+}
+body.dark .doc-category-badge,
+body.dark .client-count-badge {
+  background: #334155 !important;
+  color: #f8fafc !important;
+  border-color: #64748b !important;
+}
+body.dark .client-count-badge.active-count {
+  background: #064e3b !important;
+  color: #a7f3d0 !important;
+  border-color: #047857 !important;
+}
+body.dark .client-count-badge.closed-count {
+  background: #7f1d1d !important;
+  color: #fecaca !important;
+  border-color: #b91c1c !important;
+}
+
+/* — Documents / Tasks / Finance / Portal screen surfaces ——— */
+body.dark .documents-screen-panel,
+body.dark .tasks-screen-panel,
+body.dark .finance-screen,
+body.dark .portal-modern-root,
+body.dark .cases-screen,
+body.dark .clients-screen,
+body.dark .calendar-screen,
+body.dark .content {
+  background: transparent !important;
+  color: #f8fafc !important;
+}
+body.dark .documents-toolbar select,
+body.dark .documents-toolbar input,
+body.dark .documents-filter-row select,
+body.dark .case-doc-category-select {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+/* — Tables (cases-table, clients-table, etc.) ——————————— */
+body.dark .table,
+body.dark .table thead,
+body.dark .table tbody,
+body.dark .table tr,
+body.dark .table td,
+body.dark .table th {
+  background: transparent !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+body.dark .table thead th {
+  background: #243247 !important;
+  color: #cbd5e1 !important;
+}
+body.dark .table tbody tr:hover {
+  background: #334155 !important;
+}
+
+/* — Mobile-nav bottom bar — base at line ~295 paints near-white
+ *   `rgba(255,255,255,.94)`. Dark mirror so the bar matches the
+ *   page background. */
+body.dark .mobile-nav {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border-top: 1px solid #475569 !important;
+  backdrop-filter: blur(18px) !important;
+}
+body.dark .mobile-nav .nav-btn {
+  color: #cbd5e1 !important;
+  background: transparent !important;
+}
+body.dark .mobile-nav .nav-btn.active {
+  color: #60a5fa !important;
+}
+
+/* — Avatars / brand-mark — keep accent color readable. */
+body.dark .avatar,
+body.dark .side-brand .mark,
+body.dark .brand-mark {
+  background: #1e3a8a !important;
+  color: #f8fafc !important;
+}
+
+/* — Calendar event chip (light blue) — */
+body.dark .cal-event {
+  background: #1e3a8a !important;
+  color: #bfdbfe !important;
+}
+body.dark .calendar-today-pill {
+  background: #1e3a8a !important;
+  color: #bfdbfe !important;
+  border-color: #3b82f6 !important;
+}
+body.dark .calendar-nav-btn,
+body.dark .calendar-view-btn,
+body.dark .calendar-date-input {
+  background: #334155 !important;
+  color: #f8fafc !important;
+  border-color: #64748b !important;
+}
+body.dark .calendar-view-btn.active {
+  background: #2563eb !important;
+  color: #f8fafc !important;
+  border-color: #3b82f6 !important;
+}
+
+/* — Mobile case-detail action cells (5-button row) — */
+body.dark .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell {
+  background: #334155 !important;
+  color: #f8fafc !important;
+  border-color: #64748b !important;
+}
+body.dark .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-delete-btn-v143 {
+  background: #334155 !important;
+  color: #fecaca !important;
+  border-color: #b91c1c !important;
+}
+body.dark .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-delete-btn-v143 > i {
+  color: #fecaca !important;
+}
+

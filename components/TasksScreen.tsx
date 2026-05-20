@@ -253,24 +253,47 @@ export function TasksScreen() {
           </table>
 
           <div className="tasks-mobile-list-v135">
-            {filtered.map((task) => {
+            {filtered.map((task, idx) => {
               const due = taskDueInfo(task, lang);
+              const c = taskCase(task, state.casesArr);
+              const cl = taskClient(task, state.casesArr, state.clients);
               return (
                 <div key={task.id} className={'task-mobile-row-v135 ' + due.cls}>
+                  {/* Meta line above the title: sequential task number
+                   *  (1, 2, 3, …) → client name → case number → case
+                   *  name, all on the SAME line separated by middots. */}
+                  <div className="task-mobile-meta-v135">
+                    <span className="task-mobile-meta-num-v135">
+                      {idx + 1}.
+                    </span>
+                    <span className="task-mobile-meta-client-v135">
+                      {clientDisplayName(cl, lang) || '-'}
+                    </span>
+                    {(c.caseNumber || caseName(c, lang)) && (
+                      <span className="task-mobile-meta-case-v135">
+                        {' · '}
+                        {c.caseNumber || '-'}
+                        {caseName(c, lang) ? ' · ' + caseName(c, lang) : ''}
+                      </span>
+                    )}
+                  </div>
                   <div className="task-mobile-line-v135 task-mobile-title-v135">
                     {task.title || ''}
                   </div>
-                  {task.notes && (
-                    <div className="task-mobile-line-v135 task-mobile-notes-v135">
-                      {task.notes}
-                    </div>
-                  )}
+                  {/* Due date moved UP one row — now sits directly under
+                   *  the title and ABOVE the notes (was previously below
+                   *  the notes). */}
                   {due.text && (
                     <div className="task-mobile-line-v135 task-mobile-due-row-v135">
                       <span className="task-mobile-due-label-v135">
                         {taskText('מועד אחרון: ', 'الموعد النهائي: ', lang)}
                       </span>
                       <span className="task-mobile-due-value-v135">{due.text}</span>
+                    </div>
+                  )}
+                  {task.notes && (
+                    <div className="task-mobile-line-v135 task-mobile-notes-v135">
+                      {task.notes}
                     </div>
                   )}
                   <div className="task-mobile-actions-v135">

@@ -40,6 +40,7 @@ export const LS = {
   SHOW_UPCOMING: 'law_show_upcoming',
   OFFICE_NAME: 'law_office_name',
   OFFICE_ADDRESS: 'law_office_address',
+  HOME_STYLE: 'law_home_style',
 
   // Domain data
   CLIENTS: 'law_clients',
@@ -51,6 +52,7 @@ export const LS = {
   TASKS: 'law_tasks',
   DATA_VERSION: 'law_data_version',
   PORTAL_BOT_HISTORY: 'law_portal_bot_history',
+  PORTAL_BOT_DOWNLOADS: 'law_portal_bot_downloads',
   LAST_TASK_DROPBOX_PATH: 'law_last_task_dropbox_path_v1',
 
   // Supabase sync bookkeeping
@@ -179,6 +181,7 @@ export interface LoadedSettings {
   showUpcomingHome: boolean;
   officeName: string;
   officeAddress: string;
+  homeStyle: 'modern' | 'classic';
 }
 
 export function loadUserSettings(): LoadedSettings {
@@ -203,6 +206,13 @@ export function loadUserSettings(): LoadedSettings {
   if (savedUpcoming === '0') showUpcomingHome = false;
   if (savedUpcoming === '1') showUpcomingHome = true;
 
+  // Default to "classic" for new installs (matches the look the user
+  // designed for the home screen). "modern" is opt-in via Settings.
+  let homeStyle: 'modern' | 'classic' = 'classic';
+  const savedHomeStyle = lsGet(LS.HOME_STYLE);
+  if (savedHomeStyle === 'classic') homeStyle = 'classic';
+  if (savedHomeStyle === 'modern') homeStyle = 'modern';
+
   return {
     currentLang,
     currentTheme,
@@ -211,6 +221,7 @@ export function loadUserSettings(): LoadedSettings {
     showUpcomingHome,
     officeName: lsGet(LS.OFFICE_NAME) ?? '',
     officeAddress: lsGet(LS.OFFICE_ADDRESS) ?? '',
+    homeStyle,
   };
 }
 

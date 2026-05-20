@@ -67,6 +67,8 @@ const initialState: AppState = {
   showUpcomingHome: true,
   officeName: '',
   officeAddress: '',
+  // Classic is the default look for new installs (modern is opt-in).
+  homeStyle: 'classic',
 };
 
 // ---------------------------------------------------------------------------
@@ -89,6 +91,7 @@ export type Action =
   | { type: 'SET_SHOW_UPCOMING'; show: boolean }
   | { type: 'SET_OFFICE_NAME'; name: string }
   | { type: 'SET_OFFICE_ADDRESS'; address: string }
+  | { type: 'SET_HOME_STYLE'; style: 'modern' | 'classic' }
   | { type: 'SET_CLIENTS'; clients: Client[] }
   | { type: 'SET_CASES'; cases: Case[] }
   | { type: 'SET_EVENTS'; events: CalendarEvent[] }
@@ -129,6 +132,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, officeName: action.name };
     case 'SET_OFFICE_ADDRESS':
       return { ...state, officeAddress: action.address };
+    case 'SET_HOME_STYLE':
+      return { ...state, homeStyle: action.style };
     case 'SET_CLIENTS':
       return { ...state, clients: action.clients };
     case 'SET_CASES':
@@ -199,6 +204,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         showUpcomingHome: settings.showUpcomingHome,
         officeName: settings.officeName,
         officeAddress: settings.officeAddress,
+        homeStyle: settings.homeStyle,
       },
     });
 
@@ -310,6 +316,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     if (!state.hydrated) return;
     lsSet(LS.OFFICE_ADDRESS, state.officeAddress);
   }, [state.hydrated, state.officeAddress]);
+  useEffect(() => {
+    if (!state.hydrated) return;
+    lsSet(LS.HOME_STYLE, state.homeStyle);
+  }, [state.hydrated, state.homeStyle]);
 
   // -----------------------------------------------------------------------
   // Public API

@@ -202,6 +202,34 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
   const clientLabel = clientName(c.clientId, state.clients, lang);
   const balance = computeBalance(c, state);
 
+  /**
+   * Wrapper-level drag-and-drop: catch file drops ANYWHERE inside the
+   * case detail modal (not just on the recent-documents panel) so the
+   * browser never gets to navigate-to-file as its default drop action.
+   * The inner CaseRecentDocumentsPanel keeps its own onDrop handler
+   * (with stopPropagation) so its hover-highlight still works when
+   * the user aims at the documents area; drops outside that panel
+   * fall through to the wrapper-level handler below.
+   */
+  const onWrapperDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+  const onWrapperDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    modalStack.open(
+      <NewEventModal
+        preselectedCaseId={caseId}
+        preselectedType="document"
+        preselectedFile={file}
+      />,
+    );
+  };
+
   return (
     <Modal
       onClose={close}
@@ -219,10 +247,21 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
         <i className="fas fa-arrow-right" />
         <span>{lang === 'ar' ? 'رجوع' : 'חזרה'}</span>
       </button>
-      <div className="case-detail-dark-wrapper">
-        {/* Title block + contextual action buttons (source showCase) */}
+      <div
+        className="case-detail-dark-wrapper"
+        onDragOver={onWrapperDragOver}
+        onDrop={onWrapperDrop}
+      >
+        {/* Title h2 — visible on both viewports. */}
         <div className="case-detail-title">
           <h2>{t('caseDetails')}</h2>
+        </div>
+
+        {/* DESKTOP-ONLY block (`display: none` on mobile via CSS).
+         *  Original two-toolbar structure: title-actions (3 btns)
+         *  + edit-toolbar (2 btns). Preserves all legacy CSS that
+         *  depends on these parent class names. */}
+        <div className="case-detail-actions-desktop-only">
           <div className="case-detail-title-actions case-extra-actions-v140 case-extra-actions-v215">
             <button
               type="button"
@@ -254,21 +293,77 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
               {status.label}
             </button>
           </div>
+
+          <div className="case-edit-toolbar">
+            <button type="button" className="case-edit-btn" onClick={openEdit}>
+              <i className="fas fa-pen" />
+              <span>{t('edit')}</span>
+            </button>
+            <button
+              type="button"
+              className="case-delete-btn-v143 case-delete-btn-v215"
+              data-case-delete-v143="1"
+              onClick={onDeleteCase}
+            >
+              <i className="fas fa-trash" />
+              <span>{deleteLabel}</span>
+            </button>
+          </div>
         </div>
 
-        <div className="case-edit-toolbar">
-          <button type="button" className="case-edit-btn" onClick={openEdit}>
-            <i className="fas fa-pen" />
-            <span>{t('edit')}</span>
+        {/* MOBILE-ONLY block (`display: none` on desktop via CSS).
+         *  Flat row of 5 equal-width buttons — no nested toolbars,
+         *  no legacy parent-class CSS interference. Each <button>
+         *  here uses `.case-action-mobile-cell` to receive the
+         *  flex-grow + flat-styling rules. The legacy button
+         *  classes (.case-new-event-btn, .case-edit-btn, etc.)
+         *  stay on each button so handlers stay the same. */}
+        <div className="case-detail-actions-mobile-only">
+          <button
+            type="button"
+            className="case-action-mobile-cell case-new-event-btn"
+            onClick={onNewEvent}
+            aria-label={t('newEvent')}
+          >
+            {/* Mirror the home-screen quick-action icon stack
+             *  (see components/Topbar.tsx) — emerald calendar with a
+             *  small blue "+" badge in the corner. */}
+            <span className="qa-icon-stack">
+              <i className="fas fa-calendar nav-icon-home qa-base-icon" />
+              <span aria-hidden="true" className="qa-plus-badge">+</span>
+            </span>
           </button>
           <button
             type="button"
-            className="case-delete-btn-v143 case-delete-btn-v215"
+            className="case-action-mobile-cell case-docs-btn"
+            onClick={onShowDocs}
+            aria-label={docsLabel}
+          >
+            <i className="fas fa-folder-open" />
+          </button>
+          <button
+            type="button"
+            className={'case-action-mobile-cell case-status-btn ' + status.cls}
+            onClick={openStatusWarning}
+          >
+            {status.label}
+          </button>
+          <button
+            type="button"
+            className="case-action-mobile-cell case-edit-btn"
+            onClick={openEdit}
+            aria-label={t('edit')}
+          >
+            <i className="fas fa-pen" />
+          </button>
+          <button
+            type="button"
+            className="case-action-mobile-cell case-delete-btn-v143"
             data-case-delete-v143="1"
             onClick={onDeleteCase}
+            aria-label={deleteLabel}
           >
             <i className="fas fa-trash" />
-            <span>{deleteLabel}</span>
           </button>
         </div>
 

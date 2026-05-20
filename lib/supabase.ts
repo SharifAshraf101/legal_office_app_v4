@@ -668,6 +668,44 @@ export async function uploadDocumentToStorage(
   }
 }
 
+/**
+ * Upload a client profile photo to Supabase Storage and return the
+ * public URL. Stored under `client-photos/<USER_ID>/<clientId>/...`.
+ * Returns null on failure (callers should fall back to a data URL
+ * preview if needed).
+ */
+export async function uploadClientPhotoToStorage(
+  file: File,
+  clientId: string,
+): Promise<string | null> {
+  const path = `${USER_ID}/client-photos/${clientId}/${Date.now()}-${safeStorageName(file.name)}`;
+  const url = `${STORAGE_API}/object/${STORAGE_BUCKET}/${path}`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: 'Bearer ' + SUPABASE_KEY,
+        'x-upsert': 'true',
+        'Content-Type': file.type || 'image/jpeg',
+      },
+      body: file,
+    });
+    if (!res.ok) {
+      console.warn(
+        '[LegalOffice Supabase storage] client-photo upload failed',
+        res.status,
+        await res.text(),
+      );
+      return null;
+    }
+    return documentPublicUrl(path);
+  } catch (e) {
+    console.warn('[LegalOffice Supabase storage] client-photo upload error', e);
+    return null;
+  }
+}
+
 // ---- Delete RPCs (source line 9775+) --------------------------------------
 
 export async function supabaseDeleteBySource(

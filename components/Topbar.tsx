@@ -173,18 +173,22 @@ export function Topbar() {
             <p>{subtitle}</p>
           </div>
 
-          {/* Mobile-only office identity row (Step 89 CSS at source line 2963) */}
-          {(state.officeName || state.officeAddress) && (
-            <div className="mobile-office-identity">
-              <span className="mobile-office-name">
-                {state.officeName || t('firmName')}
-              </span>
-              <span className="mobile-office-address">
-                {state.officeAddress ||
-                  settingsText('הסורג 2, ירושלים', 'السورج 2، القدس')}
-              </span>
-            </div>
-          )}
+          {/* Mobile office identity — ALWAYS renders with fallback values
+           * so the mobile-non-home topbar can show office name (row 1)
+           * + address (row 2) like the home topbar, even when the user
+           * hasn't entered office details in Settings yet. Previously
+           * the JSX gated the whole block on `officeName || officeAddress`
+           * being truthy, which left mobile users with empty defaults
+           * seeing no office identity at all. */}
+          <div className="mobile-office-identity">
+            <span className="mobile-office-name">
+              {state.officeName || t('firmName')}
+            </span>
+            <span className="mobile-office-address">
+              {state.officeAddress ||
+                settingsText('הסורג 2, ירושלים', 'السورج 2، القدس')}
+            </span>
+          </div>
         </>
       )}
 

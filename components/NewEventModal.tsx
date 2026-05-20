@@ -324,51 +324,48 @@ export function NewEventModal({
       dispatch({ type: 'SET_EVENTS', events: [...state.eventsList, ev] });
     } else if (type === 'document') {
       // Save strategy for all views (desktop/mobile):
-      // upload directly to Dropbox cloud into the folder chosen during
-      // the initial Dropbox setup and reuse that same saved folder path.
+      // upload to Dropbox as a best-effort, then ALWAYS persist the
+      // document record so it shows up in the case's documents list +
+      // gets autosaved to Supabase. If Dropbox isn't configured (or
+      // the upload fails), we keep the row with an empty relativePath
+      // so the lawyer at least has a logged record + description; they
+      // can re-upload the binary later from the documents screen.
+      //
+      // Previously this block early-returned on any upload failure,
+      // which meant clicking "save" silently did nothing when Dropbox
+      // wasn't set up — the description + filing step was lost.
       let relativePath = '';
       let fileName = trimmedTitle;
       let fileSize = 0;
       let fileType = '';
-      let uploadFailed = false;
       if (docFile) {
         setUploading(true);
         try {
-          // If not connected yet OR no folder picked yet, open the one-time
-          // setup modal so the user can authorize Dropbox and choose a fixed
-          // save folder. The upload is skipped for this save; user retries
-          // after setup is complete.
-          //
-          // We deliberately don't fire a window.alert() here: alerts are
-          // synchronous and block the React render queue, so the modal
-          // wouldn't have been painted yet when the alert popped — clicking
-          // OK left users with the impression nothing happened. The
-          // DropboxConnectModal carries its own explanatory copy (connect
-          // step or pick-folder step depending on what's missing).
           if (!isDropboxConfigured() || !hasDropboxFolder()) {
+            // Open the one-time setup modal in the background so the
+            // user can authorize Dropbox + pick a folder. We still
+            // save the doc record below so this save click isn't lost.
             modalStack.open(<DropboxConnectModal />);
-            uploadFailed = true;
           } else {
             const uploaded = await uploadFileToDropbox(docFile, {
               caseId,
               clientId,
             });
             if (uploaded.ok) {
-              // Prefer the shareable URL for open-from-anywhere behavior.
               relativePath = uploaded.url || uploaded.path;
             } else {
+              // Warn but don't abort — the metadata still gets saved
+              // so the document at least appears in the case file.
               window.alert(
                 lang === 'ar'
-                  ? `فشل رفع الملف إلى Dropbox: ${uploaded.error}`
-                  : `העלאת הקובץ ל-Dropbox נכשלה: ${uploaded.error}`,
+                  ? `فشل رفع الملف إلى Dropbox، لكن تم حفظ سجل المستند. السبب: ${uploaded.error}`
+                  : `העלאת הקובץ ל-Dropbox נכשלה אבל רשומת המסמך נשמרה. סיבה: ${uploaded.error}`,
               );
-              uploadFailed = true;
             }
           }
         } finally {
           setUploading(false);
         }
-        if (uploadFailed || !relativePath) return;
         fileName = docFile.name;
         fileSize = docFile.size;
         fileType = docFile.type || '';

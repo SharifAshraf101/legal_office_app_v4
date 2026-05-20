@@ -149,7 +149,25 @@ export function GlobalSearchScreen() {
                 onClick={() => modalStack.open(<ClientDetail clientId={c.id} />)}
               >
                 <div className="item-main">
-                  <div className="avatar">{clientDisplayName(c, lang).slice(0, 1)}</div>
+                  {/* Client photo if uploaded; otherwise the initial. The
+                   * .avatar styling is overridden in globals.css for the
+                   * search-results context so the surrounding circle is
+                   * a light cream tint (not the dark navy --primary-2
+                   * inherited from non-home content tokens), and when an
+                   * <img> is inside it fills the circle edge-to-edge so
+                   * the photo is fully visible. */}
+                  <div className="avatar">
+                    {c.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={c.photoUrl}
+                        alt={clientDisplayName(c, lang)}
+                        className="avatar-photo"
+                      />
+                    ) : (
+                      clientDisplayName(c, lang).slice(0, 1)
+                    )}
+                  </div>
                   <div>
                     <div className="row-title">{clientDisplayName(c, lang)}</div>
                     <div className="sub">

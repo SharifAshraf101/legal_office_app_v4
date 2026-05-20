@@ -347,6 +347,278 @@ function eventTypeLabelLocal(type: string | undefined, lang: Lang): string {
   return (lang === 'ar' ? map[k]?.ar : map[k]?.he) || k;
 }
 
+/**
+ * Returns true when the client's question looks like a document request —
+ * either with the generic trigger words ("מסמך", "קובץ", "מסטند", etc.)
+ * OR with one of the specific Hebrew/Arabic legal-document type names
+ * ("כתב התביעה", "פסק דין", "عقد", "وكالة", …). Exported so client code
+ * can detect document questions and route them straight to the local
+ * portalBotAnswer (which can emit reliable [[DOC:id|fileName]] markers
+ * with exact ids from state) instead of asking the LLM, which sometimes
+ * paraphrases away the marker syntax or guesses ids.
+ */
+export function isDocumentQuestion(question: string): boolean {
+  const q = String(question || '').toLowerCase();
+  // Generic document trigger words.
+  if (
+    /מסמך|מסמכים|קובץ|קבצים|נספח|אחרון|אחרונה|مستند|مستندات|ملف|ملفات|مرفق|آخر|اخير|الأخير/.test(
+      q,
+    )
+  ) {
+    return true;
+  }
+  // Specific document type names — same dictionary used inside
+  // portalBotAnswer's document branch so detection stays in sync with
+  // matching. Includes both Hebrew and Arabic synonyms.
+  const docTypeNames = [
+    'כתב תביעה',
+    'כתב התביעה',
+    'תביעה',
+    'لائحة الدعوى',
+    'لائحة دعوى',
+    'دعوى',
+    'الدعوى',
+    'כתב הגנה',
+    'כתב ההגנה',
+    'הגנה',
+    'لائحة الدفاع',
+    'الدفاع',
+    'دفاع',
+    'פסק דין',
+    'פסק-דין',
+    'حكم',
+    'الحكم',
+    'חוזה',
+    'הסכם',
+    'عقد',
+    'اتفاقية',
+    'الاتفاق',
+    'الاتفاقية',
+    'חשבונית',
+    'קבלה',
+    'فاتورة',
+    'إيصال',
+    'الإيصال',
+    'الفاتورة',
+    'תצהיר',
+    'إفادة',
+    'تصريح',
+    'الإفادة',
+    'בקשה',
+    'בקשת',
+    'طلب',
+    'الطلب',
+    'צו',
+    'أمر',
+    'الأمر',
+    'ערעור',
+    'استئناف',
+    'الاستئناف',
+    'פרוטוקול',
+    'محضر',
+    'المحضر',
+    'ייפוי כוח',
+    'ייפוי-כוח',
+    'יפוי כוח',
+    'وكالة',
+    'الوكالة',
+    'توكيل',
+    'תעודה',
+    'אישור',
+    'شهادة',
+    'الشهادة',
+  ];
+  return docTypeNames.some((name) => q.includes(name.toLowerCase()));
+}
+
+/**
+ * Returns true when the question looks like a CASE STATUS / SUMMARY
+ * request — "מה מצב התיק שלי?", "ما حالة قضيتي؟", "תן לי סיכום תיקים",
+ * "ملخص الملفات", etc. Exported so client code can route these straight
+ * to the local portalBotAnswer, which can emit clickable [[CASE:id|name]]
+ * markers (asking which case when there are multiple) and then a
+ * formatted single-case summary built from the same data the
+ * Case Detail screen renders. Excludes more specific question kinds
+ * (documents, hearings, fees) so they keep going to their own handlers.
+ */
+export function isCaseStatusQuestion(question: string): boolean {
+  const q = String(question || '').toLowerCase();
+  // More specific question types take precedence.
+  if (isDocumentQuestion(q)) return false;
+  if (
+    /דיון|جلس|מועד|مواعيد|פגישה|اجتماع/.test(q) ||
+    /שכר|כסף|תשלום|תשלומים|שולם|חוב|יתרה|أتعاب|دفع|مدفوعات|دين|رصيد/.test(q)
+  ) {
+    return false;
+  }
+  return /סטטוס|מצב|حالة|status|סיכום|ملخص|summary|תיק|תיקים|ملف|ملفات|قضي|قضاي|case/.test(
+    q,
+  );
+}
+
+/**
+ * Build a multi-line summary of a single case from the same sources the
+ * Case Detail screen reads — title + number + status + court + agreed
+ * fee + amount paid + outstanding balance + next upcoming hearing +
+ * stored-document count. Used by the bot when the client picks a case
+ * after being asked "which case?". Falls back gracefully when a field
+ * is missing (the source data has lots of optional fields).
+ */
+export function caseStatusSummary(
+  caseId: string,
+  ctx: {
+    lang: Lang;
+    cases: Case[];
+    events: CalendarEvent[];
+    finances: Finance[];
+    documents: DocumentRecord[];
+    tasks: Task[];
+    /** Optional — passed through to `latestDocumentForCase` so a
+     *  case with no DocumentRecord row but a timeline-tracked file
+     *  still surfaces in the "latest document" line. */
+    timeline?: TimelineItem[];
+    t: (k: string) => string;
+  },
+): string {
+  const { lang, cases, events, finances, documents, tasks, timeline = [], t } = ctx;
+  const c = cases.find((x) => String(x.id) === String(caseId));
+  if (!c) {
+    return lang === 'ar'
+      ? 'لم أعثر على هذه القضية في ملفك.'
+      : 'לא נמצא תיק כזה בקובץ שלך.';
+  }
+  const court = (lang === 'ar' ? c.courtAr || c.court : c.court || c.courtAr) || '-';
+  const statusLabel = portalCaseStatusLabel(c.status, t);
+
+  // Next hearing: earliest upcoming event tied to this case.
+  const now = new Date();
+  const nextEvent = events
+    .filter((e) => String(e.caseId) === String(c.id))
+    .map((e) => ({ event: e, date: new Date(e.dateTime || (e as { date?: string }).date || '') }))
+    .filter((x) => x.date && !isNaN(x.date.getTime()) && x.date >= now)
+    .sort((a, b) => a.date.getTime() - b.date.getTime())[0];
+  const nextHearingText = nextEvent
+    ? portalFormatDate(nextEvent.date, lang) +
+      (nextEvent.event.title || nextEvent.event.titleAr
+        ? ' — ' + (lang === 'ar'
+            ? nextEvent.event.titleAr || nextEvent.event.title
+            : nextEvent.event.title || nextEvent.event.titleAr)
+        : '')
+    : lang === 'ar'
+      ? 'لا توجد مواعيد قادمة.'
+      : 'אין מועדים קרובים.';
+
+  // Financial summary.
+  const paidItems = financePaidItemsForCase(c.id, finances);
+  const paidTotal = paidItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const debt = financeCaseBalance(c, finances);
+
+  // Document count from the same source caseDocumentsForCase / Case Detail screen uses.
+  const docCount = caseDocumentsForCase(c.id, documents, tasks).length;
+
+  // Latest document in the case — used in place of the case's own
+  // description per user request: show the most recently uploaded
+  // document's title + description + a download link, instead of the
+  // case's `description` field.
+  const latestDocInfo = latestDocumentForCase(c.id, documents, tasks, timeline);
+
+  const lines = [
+    '📁 ' + (caseName(c, lang) || '-') + ' (' + (c.caseNumber || '-') + ')',
+    '🏛 ' + (lang === 'ar' ? 'المحكمة' : 'בית משפט') + ': ' + court,
+    '📌 ' + (lang === 'ar' ? 'الحالة' : 'סטטוס') + ': ' + statusLabel,
+  ];
+  if (latestDocInfo) {
+    const item = latestDocInfo.item as DocumentRecord & {
+      titleAr?: string;
+      descriptionAr?: string;
+      uploadedAt?: string;
+    };
+    const docTitle =
+      (lang === 'ar'
+        ? item.titleAr || item.title || item.fileName
+        : item.title || item.titleAr || item.fileName) || '-';
+    const docDescription =
+      lang === 'ar'
+        ? item.descriptionAr || item.description
+        : item.description || item.descriptionAr;
+    const docFileName =
+      item.fileName ||
+      (item as { storedFileName?: string }).storedFileName ||
+      item.title ||
+      item.titleAr ||
+      '-';
+    const docDate = formatDocumentDate(item.uploadedAt || item.date || '', lang);
+
+    lines.push(
+      '📝 ' +
+        (lang === 'ar' ? 'آخر مستند في الملف' : 'מסמך אחרון בתיק') +
+        ':',
+    );
+    lines.push('   • ' + (lang === 'ar' ? 'العنوان' : 'כותרת') + ': ' + docTitle);
+    if (docDescription && String(docDescription).trim()) {
+      lines.push(
+        '   • ' +
+          (lang === 'ar' ? 'الوصف' : 'תיאור') +
+          ': ' +
+          String(docDescription).trim(),
+      );
+    }
+    lines.push('   • ' + (lang === 'ar' ? 'التاريخ' : 'תאריך') + ': ' + docDate);
+    // Only embed a download marker for real DocumentRecord rows
+    // (timeline-sourced items have no resolvable id/relativePath).
+    if (latestDocInfo.source === 'documents' && item.id) {
+      lines.push(
+        '   • ' +
+          (lang === 'ar' ? 'اسم الملف' : 'שם הקובץ') +
+          ': [[DOC:' +
+          String(item.id) +
+          '|' +
+          docFileName +
+          ']]',
+      );
+    } else {
+      lines.push(
+        '   • ' + (lang === 'ar' ? 'اسم الملف' : 'שם הקובץ') + ': ' + docFileName,
+      );
+    }
+  }
+  lines.push('📅 ' + (lang === 'ar' ? 'الجلسة القادمة' : 'דיון קרוב') + ': ' + nextHearingText);
+  lines.push(
+    '💰 ' +
+      (lang === 'ar' ? 'الأتعاب المتفق عليها' : 'שכר טרחה מוסכם') +
+      ': ' +
+      money(c.agreedFee || 0) +
+      ' · ' +
+      (lang === 'ar' ? 'المدفوع' : 'שולם') +
+      ': ' +
+      money(paidTotal) +
+      ' · ' +
+      (lang === 'ar' ? 'الرصيد' : 'יתרה') +
+      ': ' +
+      money(debt),
+  );
+  lines.push(
+    '📄 ' +
+      (lang === 'ar' ? 'عدد المستندات المحفوظة' : 'מספר מסמכים שמורים') +
+      ': ' +
+      String(docCount),
+  );
+  // Download hint when there's an actual document link embedded.
+  if (
+    latestDocInfo &&
+    latestDocInfo.source === 'documents' &&
+    (latestDocInfo.item as DocumentRecord).id
+  ) {
+    lines.push(
+      '',
+      lang === 'ar'
+        ? 'لتنزيل المستند: انقر مرتين على اسم الملف الأزرق.'
+        : 'להורדת המסמך: לחץ פעמיים על שם הקובץ הכחול.',
+    );
+  }
+  return lines.join('\n');
+}
+
 /** Source line 4827. Pattern-matches the question against domain regex banks. */
 export function portalBotAnswer(
   clientId: string,
@@ -372,8 +644,7 @@ export function portalBotAnswer(
   const asksHearing = /דיון|جلس|موعد|תאריך|מועד|event|אירוע|حدث/.test(q);
   const asksFee =
     /שכר|כסף|תשלום|תשלומים|שולם|שולמו|חוב|יתרה|יתרת|أتعاب|اتعاب|مال|دفع|دفعة|دفعات|مدفوعات|دَيْن|دين|رصيد|المتبقي|باقي/.test(q);
-  const asksDocument =
-    /מסמך|מסמכים|קובץ|קבצים|נספח|אחרון|אחרונה|مستند|مستندات|ملف|ملفات|مرفق|آخر|اخير|الأخير/.test(q);
+  const asksDocument = isDocumentQuestion(q);
   const asksNotes = /הער|מلاحظ|ملاحظة|note|משימה|مهمة|שיחה|مكالمة/.test(q);
   const asksStatus = /סטטוס|מצב|حالة|status|פעיל|نشط|סגור|مغلق/.test(q);
   const asksCourt = /בית משפט|محكمة|court/.test(q);
@@ -428,6 +699,155 @@ export function portalBotAnswer(
     return header + clientCases.map((c) => portalCaseFeeSummary(c, finances, lang)).join('\n');
   }
   if (asksDocument) {
+    // Tier 1 — detect SPECIFIC document type in the question (claim
+    // brief, defense, judgment, contract, etc.). When the client says
+    // "show me the כתב התביעה / لائحة الدعوى", search ALL of their
+    // cases' documents for titles / file names / types that match the
+    // requested type, and return them with download links. Falls back
+    // to the per-case latest-document behavior below when no specific
+    // type is detected. Keys cover the common Hebrew and Arabic legal
+    // document terms; matching is substring-based so variants like
+    // "כתב-התביעה" / "תביעה" all hit the same entry.
+    const DOC_TYPE_SYNONYMS: Array<{
+      keys: string[];
+      label: { he: string; ar: string };
+    }> = [
+      {
+        keys: ['כתב תביעה', 'כתב התביעה', 'תביעה', 'לאיחת תביעה', 'لائحة الدعوى', 'لائحة دعوى', 'دعوى', 'الدعوى'],
+        label: { he: 'כתב תביעה', ar: 'لائحة الدعوى' },
+      },
+      {
+        keys: ['כתב הגנה', 'כתב ההגנה', 'הגנה', 'לאיחת הגנה', 'لائحة الدفاع', 'الدفاع', 'دفاع'],
+        label: { he: 'כתב הגנה', ar: 'لائحة الدفاع' },
+      },
+      {
+        keys: ['פסק דין', 'פסק-דין', 'פסק', 'حكم', 'الحكم'],
+        label: { he: 'פסק דין', ar: 'الحكم' },
+      },
+      {
+        keys: ['חוזה', 'הסכם', 'عقد', 'اتفاقية', 'الاتفاق', 'الاتفاقية'],
+        label: { he: 'חוזה / הסכם', ar: 'عقد / اتفاقية' },
+      },
+      {
+        keys: ['חשבונית', 'קבלה', 'فاتورة', 'إيصال', 'الإيصال', 'الفاتورة'],
+        label: { he: 'חשבונית', ar: 'فاتورة' },
+      },
+      {
+        keys: ['תצהיר', 'إفادة', 'تصريح', 'الإفادة'],
+        label: { he: 'תצהיר', ar: 'إفادة' },
+      },
+      {
+        keys: ['בקשה', 'בקשת', 'طلب', 'الطلب'],
+        label: { he: 'בקשה', ar: 'طلب' },
+      },
+      {
+        keys: ['צו', 'أمر', 'الأمر'],
+        label: { he: 'צו', ar: 'أمر' },
+      },
+      {
+        keys: ['ערעור', 'استئناف', 'الاستئناف'],
+        label: { he: 'ערעור', ar: 'استئناف' },
+      },
+      {
+        keys: ['פרוטוקול', 'محضر', 'المحضر'],
+        label: { he: 'פרוטוקול', ar: 'محضر' },
+      },
+      {
+        keys: ['ייפוי כוח', 'ייפוי-כוח', 'יפוי כוח', 'وكالة', 'الوكالة', 'توكيل'],
+        label: { he: 'ייפוי כוח', ar: 'وكالة' },
+      },
+      {
+        keys: ['תעודה', 'אישור', 'شهادة', 'الشهادة'],
+        label: { he: 'תעודה / אישור', ar: 'شهادة' },
+      },
+    ];
+
+    type MatchedDoc = {
+      doc: DocumentRecord & { titleAr?: string; uploadedAt?: string };
+      case: typeof clientCases[number];
+    };
+    const allClientDocs: MatchedDoc[] = clientCases.flatMap((c) =>
+      caseDocumentsForCase(c.id, documents, tasks).map((d) => ({
+        doc: d as DocumentRecord & { titleAr?: string; uploadedAt?: string },
+        case: c,
+      })),
+    );
+    const qLower = q.toLowerCase();
+    let matchedSynSet: (typeof DOC_TYPE_SYNONYMS)[number] | null = null;
+    for (const synSet of DOC_TYPE_SYNONYMS) {
+      if (synSet.keys.some((key) => qLower.includes(key.toLowerCase()))) {
+        matchedSynSet = synSet;
+        break;
+      }
+    }
+    if (matchedSynSet) {
+      const synKeys = matchedSynSet.keys.map((k) => k.toLowerCase());
+      const matched = allClientDocs.filter(({ doc }) => {
+        const haystack = [
+          doc.title,
+          doc.titleAr,
+          doc.fileName,
+          (doc as { storedFileName?: string }).storedFileName,
+          doc.type,
+          doc.description,
+          doc.descriptionAr,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return synKeys.some((key) => haystack.includes(key));
+      });
+      if (matched.length === 0) {
+        // We understood the request but the file isn't in the system.
+        return lang === 'ar'
+          ? `لم أعثر على مستند من نوع "${matchedSynSet.label.ar}" في ملفك. للحصول على هذا المستند يرجى التواصل مع المكتب.`
+          : `לא נמצא מסמך מסוג "${matchedSynSet.label.he}" בתיק שלך. להשגת המסמך נא לפנות למשרד.`;
+      }
+      const lines = matched.map(({ doc, case: c }) => {
+        const title = lang === 'ar'
+          ? doc.titleAr || doc.title || doc.fileName || '-'
+          : doc.title || doc.titleAr || doc.fileName || '-';
+        const fileName =
+          doc.fileName ||
+          (doc as { storedFileName?: string }).storedFileName ||
+          doc.title ||
+          doc.titleAr ||
+          '-';
+        const date = formatDocumentDate(doc.uploadedAt || doc.date || '', lang);
+        return (
+          '• ' +
+          (caseName(c, lang) || '-') +
+          ' (' +
+          (c.caseNumber || '-') +
+          ')\n  ' +
+          (lang === 'ar' ? 'عنوان المستند: ' : 'כותרת המסמך: ') +
+          title +
+          '\n  ' +
+          (lang === 'ar' ? 'اسم الملف: ' : 'שם הקובץ: ') +
+          '[[DOC:' +
+          String(doc.id) +
+          '|' +
+          fileName +
+          ']]' +
+          '\n  ' +
+          (lang === 'ar' ? 'تاريخ الإضافة: ' : 'תאריך הוספה: ') +
+          date
+        );
+      });
+      const header = lang === 'ar'
+        ? `وجدت ${matched.length} مستند${matched.length > 1 ? 'ات' : ''} من نوع "${matchedSynSet.label.ar}":\n`
+        : `נמצאו ${matched.length} מסמכ${matched.length > 1 ? 'ים' : ''} מסוג "${matchedSynSet.label.he}":\n`;
+      const tail =
+        '\n\n' +
+        (lang === 'ar'
+          ? 'لتنزيل المستند: انقر مرتين على اسم الملف الأزرق.'
+          : 'להורדת המסמך: לחץ פעמיים על שם הקובץ הכחול.');
+      return header + lines.join('\n') + tail;
+    }
+
+    // Tier 2 — no specific type recognized. Fall back to the existing
+    // "latest document per case" behavior below.
+    let anyDownloadable = false;
     const lines = clientCases.map((c) => {
       const info = latestDocumentForCase(c.id, documents, tasks, timeline);
       if (!info) {
@@ -459,6 +879,20 @@ export function portalBotAnswer(
         item.titleAr ||
         '-';
       const date = formatDocumentDate(item.uploadedAt || item.date || '', lang);
+      // Encode the file name as a clickable download link using a marker
+      // syntax `[[DOC:<id>|<displayText>]]`. The chat renderer in
+      // portal-modern splits on this regex and turns each match into a
+      // blue underlined button that triggers download on double-click.
+      // Only emit the marker when the source IS a real documents-table
+      // record (it has a stable .id we can resolve back). Timeline-based
+      // results have no downloadable file behind them.
+      let fileNamePart: string;
+      if (info.source === 'documents' && item.id) {
+        anyDownloadable = true;
+        fileNamePart = '[[DOC:' + String(item.id) + '|' + fileName + ']]';
+      } else {
+        fileNamePart = fileName;
+      }
       return (
         '• ' +
         (caseName(c, lang) || '-') +
@@ -469,15 +903,24 @@ export function portalBotAnswer(
         title +
         '\n  ' +
         (lang === 'ar' ? 'اسم الملف: ' : 'שם הקובץ: ') +
-        fileName +
+        fileNamePart +
         '\n  ' +
         (lang === 'ar' ? 'تاريخ الإضافة: ' : 'תאריך הוספה: ') +
         date
       );
     });
+    // Tail hint that tells the client how to download a document.
+    // Only shown when at least one line carried a [[DOC:…]] marker.
+    const downloadHint = anyDownloadable
+      ? '\n\n' +
+        (lang === 'ar'
+          ? 'لتنزيل المستند: انقر مرتين على اسم الملف الأزرق.'
+          : 'להורדת המסמך: לחץ פעמיים על שם הקובץ הכחול.')
+      : '';
     return (
       (lang === 'ar' ? 'آخر مستند في كل قضية:\n' : 'המסמך האחרון בכל תיק:\n') +
-      lines.join('\n')
+      lines.join('\n') +
+      downloadHint
     );
   }
   if (asksNotes) {
@@ -510,8 +953,37 @@ export function portalBotAnswer(
         .join('\n')
     );
   }
-  if (asksStatus || asksCourt || asksNumber) {
-    return clientCases.map((c) => portalCaseLine(c, lang, t)).join('\n');
+  if (asksStatus || asksCourt || asksNumber || isCaseStatusQuestion(question)) {
+    // ONE case → return its full summary directly (no need to ask).
+    if (clientCases.length === 1) {
+      return caseStatusSummary(clientCases[0].id, {
+        lang,
+        cases,
+        events,
+        finances,
+        documents,
+        tasks,
+        timeline,
+        t,
+      });
+    }
+    // MULTIPLE cases → list them as clickable [[CASE:id|name]] markers.
+    // The UI renders each as a blue button; clicking it pushes a new
+    // Q+A into the chat with `caseStatusSummary` for that specific case.
+    const header =
+      lang === 'ar'
+        ? `لديك ${clientCases.length} قضايا. اختر القضية لعرض ملخصها:`
+        : `יש לך ${clientCases.length} תיקים. בחר את התיק כדי להציג את הסיכום שלו:`;
+    const tail =
+      '\n\n' +
+      (lang === 'ar'
+        ? 'انقر على اسم القضية الأزرق لعرض تفاصيلها.'
+        : 'לחץ על שם התיק הכחול כדי להציג את פרטיו.');
+    const lines = clientCases.map((c) => {
+      const display = (caseName(c, lang) || '-') + ' (' + (c.caseNumber || '-') + ')';
+      return '• [[CASE:' + String(c.id) + '|' + display + ']]';
+    });
+    return header + '\n' + lines.join('\n') + tail;
   }
   return (
     (lang === 'ar' ? 'ملخص ملفات الموكل:\n' : 'סיכום תיקי הלקוח:\n') +
@@ -579,6 +1051,59 @@ export function clearPortalBotHistory(clientId: string): void {
     (x) => String(x.clientId) !== String(clientId),
   );
   savePortalBotHistory(rest);
+}
+
+// ---- Bot download events (localStorage) ----------------------------------
+// Each time a client successfully opens / downloads a document via a
+// [[DOC:<id>|<name>]] bot-answer link, we append an event here. The
+// lawyer-view bot screen reads this log to badge the same DOC link with a
+// red "file downloaded" indicator, so the lawyer can see which suggestions
+// the client actually acted on.
+
+export interface PortalBotDownloadEvent {
+  id: string;
+  clientId: string;
+  docId: string;
+  fileName: string;
+  time: string;
+}
+
+export function loadPortalBotDownloads(): PortalBotDownloadEvent[] {
+  try {
+    return JSON.parse(lsGet(LS.PORTAL_BOT_DOWNLOADS) || '[]') || [];
+  } catch {
+    return [];
+  }
+}
+
+export function recordPortalBotDownload(
+  clientId: string,
+  docId: string,
+  fileName: string,
+): void {
+  if (!clientId || !docId) return;
+  const items = loadPortalBotDownloads();
+  items.unshift({
+    id: 'DL-' + Date.now(),
+    clientId: String(clientId),
+    docId: String(docId),
+    fileName: String(fileName || ''),
+    time: new Date().toISOString(),
+  });
+  // Cap at 1000 to keep the localStorage payload bounded.
+  lsSet(LS.PORTAL_BOT_DOWNLOADS, JSON.stringify(items.slice(0, 1000)));
+}
+
+/**
+ * Returns the set of docIds this client has downloaded at least once
+ * via a bot-answer link, for the lawyer-view rendering pass.
+ */
+export function downloadedDocIdsForClient(clientId: string): Set<string> {
+  return new Set(
+    loadPortalBotDownloads()
+      .filter((d) => String(d.clientId) === String(clientId))
+      .map((d) => String(d.docId)),
+  );
 }
 
 /**

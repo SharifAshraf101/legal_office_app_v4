@@ -26,17 +26,25 @@ import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { clientDisplayName } from '@/lib/clients';
+import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import {
   addPortalBotHistory,
+  caseStatusSummary,
+  downloadedDocIdsForClient,
+  isCaseStatusQuestion,
+  isDocumentQuestion,
+  loadPortalBotHistory,
   portalAccessText,
   portalBotAnswer,
   portalBotQuickQuestion,
   portalBotText,
   portalClientMatchesCredentials,
   portalHistoryForClient,
+  recordPortalBotDownload,
   seedPortalBotHistoryDemo,
   type PortalBotHistoryItem,
 } from '@/lib/portal';
+import { caseName } from '@/lib/cases';
 import type { Case, Client } from '@/types';
 import { CaseDetail } from '../CaseDetail';
 import { CaseDocumentsModal } from '../CaseDocumentsModal';
@@ -243,14 +251,17 @@ function PortalShell() {
           lawyerView={lawyerView}
           client={selectedClient}
           onOpenClientChat={
-            // In lawyer view, "open chat" jumps to that client's chat
-            // screen. In regular client view we intentionally do NOT
-            // pass this handler — the chat screen's sidebars dispatch
-            // SET_TAB into global tabs (cases/documents/finance/tasks)
-            // that show every client's data, so an authenticated client
-            // must never reach it. BotChatScreen falls back to a bot
-            // Q+A for the "contact lawyer" buttons when this is absent.
-            lawyerView && selectedClient
+            // "Open chat" jumps to the in-app WhatsApp screen
+            // (ClientChatScreen) for the selected client — wired for
+            // BOTH lawyer view AND authenticated client view per the
+            // user's contact-office flow request. The authenticated
+            // client clicking [[WHATSAPP:...]] should land in their
+            // own WhatsApp chat with their name pre-selected.
+            // Note: ClientChatScreen has handlers that dispatch
+            // SET_TAB into global tabs — fine in lawyer view, but a
+            // leak vector for an authenticated client. Keep an eye on
+            // those handlers as the chat screen grows.
+            selectedClient
               ? () => {
                   setLawyerView(false);
                   setScreen('chat');
@@ -1074,6 +1085,34 @@ function LawyerSearchScreen({
     );
   }, [clients, q]);
 
+  // Clients who chatted with the bot in the last 7 days, sorted by most
+  // recent activity first. We compute this from the same portal-bot-history
+  // store that powers the per-client transcript view. Each unique clientId
+  // maps to its most recent message timestamp + the message count.
+  const recentClients = useMemo(() => {
+    const history = loadPortalBotHistory();
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const byClient = new Map<string, { lastTime: number; count: number }>();
+    for (const h of history) {
+      const t = new Date(h.time).getTime();
+      if (!Number.isFinite(t) || t < cutoff) continue;
+      const prev = byClient.get(String(h.clientId));
+      if (!prev) byClient.set(String(h.clientId), { lastTime: t, count: 1 });
+      else {
+        prev.count += 1;
+        if (t > prev.lastTime) prev.lastTime = t;
+      }
+    }
+    const rows: Array<ClientRow & { lastTime: number; msgCount: number }> = [];
+    for (const c of clients) {
+      const meta = byClient.get(String(c.id));
+      if (!meta) continue;
+      rows.push({ ...c, lastTime: meta.lastTime, msgCount: meta.count });
+    }
+    rows.sort((a, b) => b.lastTime - a.lastTime);
+    return rows;
+  }, [clients]);
+
   const T = {
     title:
       lang === 'ar'
@@ -1099,10 +1138,44 @@ function LawyerSearchScreen({
       lang === 'ar'
         ? 'وضع العرض — محامي: قراءة محادثات الموكلين مع البوت'
         : 'מצב צפייה — עורך דין: קריאת שיחות הלקוחות עם הבוט',
+    allClientsTitle:
+      lang === 'ar' ? 'كل الموكلين' : 'כל הלקוחות',
+    recentTitle:
+      lang === 'ar'
+        ? 'موكلون تحدثوا مع البوت خلال الأسبوع الماضي'
+        : 'לקוחות ששוחחו עם הבוט בשבוע האחרון',
+    recentEmpty:
+      lang === 'ar'
+        ? 'لا يوجد موكلون تواصلوا مع البوت خلال الأسبوع الماضي.'
+        : 'אין לקוחות ששוחחו עם הבוט בשבוע האחרון.',
+    recentCount: (n: number) =>
+      lang === 'ar' ? `${n} موكلون` : `${n} לקוחות`,
+    msgsLabel: (n: number) =>
+      lang === 'ar' ? `${n} رسائل` : `${n} הודעות`,
+  };
+
+  // Format an absolute ms timestamp as a short, locale-aware "X days
+  // ago / X hours ago" label for the recent-activity list. Falls back
+  // to a date string if older than 7 days (shouldn't happen here since
+  // we filter by 7-day cutoff, but defensive). Uses the same logic for
+  // Hebrew + Arabic — both render RTL.
+  const formatRelative = (ms: number): string => {
+    const diff = Date.now() - ms;
+    const hours = Math.floor(diff / (60 * 60 * 1000));
+    if (hours < 1) {
+      return lang === 'ar' ? 'الآن' : 'עכשיו';
+    }
+    if (hours < 24) {
+      return lang === 'ar'
+        ? `قبل ${hours} ساعة`
+        : `לפני ${hours} שעות`;
+    }
+    const days = Math.floor(hours / 24);
+    return lang === 'ar' ? `قبل ${days} يوم` : `לפני ${days} ימים`;
   };
 
   return (
-    <div className="tw-mx-auto tw-flex tw-min-h-full tw-w-full tw-max-w-4xl tw-flex-col tw-bg-[#FDFBF5]">
+    <div className="tw-mx-auto tw-flex tw-min-h-full tw-w-full tw-max-w-6xl tw-flex-col tw-bg-[#FDFBF5]">
       <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FDFBF5]/95 tw-px-4 tw-py-3 tw-backdrop-blur">
         <div className="tw-flex tw-items-center tw-justify-between tw-gap-3">
           <button
@@ -1127,41 +1200,135 @@ function LawyerSearchScreen({
         {T.lawyerBanner}
       </div>
       <div className="tw-p-5">
-        <SearchBox
-          placeholder={T.placeholder}
-          value={query}
-          onChange={setQuery}
-        />
-        <div className="tw-mt-3 tw-text-xs tw-text-slate-500">{T.count}</div>
-        <div className="tw-mt-5 tw-divide-y tw-divide-slate-100 tw-rounded-3xl tw-border tw-border-slate-100 tw-bg-[#FDFBF5]">
-          {matches.length === 0 ? (
-            <div className="tw-p-6 tw-text-center tw-text-sm tw-text-slate-400">
-              {T.empty}
+        {/* Search box: on desktop, constrained to the SAME width as the
+         * right-hand clients list (column 1 of the dual-list grid below)
+         * so it doesn't visually cross the vertical divider into the
+         * recent-activity column. Mobile keeps it full width. The skin
+         * here is light green per the user's request — emerald-50 surface
+         * with emerald-300 border + emerald-500 focus ring. */}
+        <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 lg:tw-gap-[2cm]">
+          <SearchBox
+            placeholder={T.placeholder}
+            value={query}
+            onChange={setQuery}
+            className="tw-border-emerald-300 tw-bg-emerald-100 focus-within:tw-border-emerald-500 focus-within:tw-ring-emerald-100"
+            inputClassName="tw-appearance-none tw-text-emerald-900 placeholder:tw-text-emerald-700/70 [&::-webkit-search-cancel-button]:tw-hidden [&::-webkit-search-decoration]:tw-hidden"
+            // Inline style ALWAYS beats CSS — guarantees the input body
+            // (where the "search by..." placeholder shows) is light green,
+            // even if a browser UA stylesheet or autofill paints it white.
+            inputStyle={{
+              backgroundColor: '#D1FAE5', // tailwind emerald-100
+              color: '#064E3B',            // tailwind emerald-900 for typed text
+            }}
+          />
+        </div>
+        {/* Two-column layout with a 2cm gap between the lists on desktop.
+         * Centered vertical divider line lives inside the gap (absolutely
+         * positioned at left:50%) so the visible distance between the
+         * lists is exactly 1cm + line + 1cm = 2cm. Mobile collapses to
+         * one column and the divider disappears. Every ROW now carries
+         * its own outer border + rounded corners + small gap between
+         * rows — no more divide-y stripes (which made some rows look
+         * bordered and others not). */}
+        <div className="tw-relative tw-mt-5 tw-grid tw-grid-cols-1 tw-gap-5 lg:tw-grid-cols-2 lg:tw-gap-[2cm]">
+          {/* Vertical divider — only on desktop, dead center of the
+           * 2cm column-gap. `pointer-events-none` so it never blocks
+           * clicks on the rows. */}
+          <div
+            aria-hidden="true"
+            className="tw-pointer-events-none tw-absolute tw-inset-y-0 tw-left-1/2 tw-hidden tw-w-px -tw-translate-x-1/2 tw-bg-slate-300 lg:tw-block"
+          />
+
+          {/* Column 1 (DOM-first → RIGHT in RTL on desktop): all matching
+           * clients from the search box. */}
+          <section className="tw-flex tw-flex-col">
+            <div className="tw-mb-3 tw-flex tw-items-center tw-justify-between tw-px-1">
+              <h2 className="tw-text-sm tw-font-bold tw-text-indigo-900">
+                {T.allClientsTitle}
+              </h2>
+              <span className="tw-text-xs tw-text-slate-500">{T.count}</span>
             </div>
-          ) : (
-            matches.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => onPick(c)}
-                className="tw-flex tw-w-full tw-items-center tw-gap-3 tw-p-4 tw-text-right tw-transition hover:tw-bg-[#F8F2E4]"
-              >
-                <Avatar label={c.avatar} />
-                <div className="tw-min-w-0 tw-flex-1">
-                  <div className="tw-flex tw-items-center tw-gap-2">
-                    <div className="tw-truncate tw-font-semibold">{c.name}</div>
-                    {c.status === 'online' && (
-                      <span className="tw-h-2 tw-w-2 tw-rounded-full tw-bg-emerald-500" />
-                    )}
-                  </div>
-                  <div className="tw-truncate tw-text-xs tw-text-slate-500">
-                    {T.caseLabel} {c.caseNo} · {c.caseType}
-                  </div>
+            <div className="tw-flex tw-flex-col tw-gap-2">
+              {matches.length === 0 ? (
+                <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-[#FDFBF5] tw-p-6 tw-text-center tw-text-sm tw-text-slate-400">
+                  {T.empty}
                 </div>
-                <MessageCircle className="tw-h-5 tw-w-5 tw-text-indigo-600" />
-              </button>
-            ))
-          )}
+              ) : (
+                matches.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => onPick(c)}
+                    className="tw-flex tw-w-full tw-items-center tw-gap-3 tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-[#FDFBF5] tw-p-4 tw-text-right tw-transition hover:tw-bg-[#F8F2E4]"
+                  >
+                    <Avatar label={c.avatar} />
+                    <div className="tw-min-w-0 tw-flex-1">
+                      <div className="tw-flex tw-items-center tw-gap-2">
+                        <div className="tw-truncate tw-font-semibold">{c.name}</div>
+                        {c.status === 'online' && (
+                          <span className="tw-h-2 tw-w-2 tw-rounded-full tw-bg-emerald-500" />
+                        )}
+                      </div>
+                      <div className="tw-truncate tw-text-xs tw-text-slate-500">
+                        {T.caseLabel} {c.caseNo} · {c.caseType}
+                      </div>
+                    </div>
+                    <MessageCircle className="tw-h-5 tw-w-5 tw-text-indigo-600" />
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
+
+          {/* Column 2 (DOM-second → LEFT in RTL on desktop): clients who
+           * chatted with the bot in the last 7 days. Each row has its
+           * own indigo-tinted bordered card to match the right list's
+           * box pattern while staying visually distinct. */}
+          <section className="tw-flex tw-flex-col">
+            <div className="tw-mb-3 tw-flex tw-items-center tw-justify-between tw-px-1">
+              <h2 className="tw-text-sm tw-font-bold tw-text-indigo-900">
+                {T.recentTitle}
+              </h2>
+              <span className="tw-text-xs tw-text-slate-500">
+                {T.recentCount(recentClients.length)}
+              </span>
+            </div>
+            <div className="tw-flex tw-flex-col tw-gap-2">
+              {recentClients.length === 0 ? (
+                <div className="tw-rounded-2xl tw-border tw-border-indigo-200 tw-bg-indigo-50/40 tw-p-6 tw-text-center tw-text-sm tw-text-slate-400">
+                  {T.recentEmpty}
+                </div>
+              ) : (
+                recentClients.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => onPick(c)}
+                    className="tw-flex tw-w-full tw-items-center tw-gap-3 tw-rounded-2xl tw-border tw-border-indigo-200 tw-bg-indigo-50/40 tw-p-4 tw-text-right tw-transition hover:tw-bg-indigo-100/60"
+                  >
+                    <Avatar label={c.avatar} />
+                    <div className="tw-min-w-0 tw-flex-1">
+                      <div className="tw-flex tw-items-center tw-gap-2">
+                        <div className="tw-truncate tw-font-semibold">{c.name}</div>
+                        {c.status === 'online' && (
+                          <span className="tw-h-2 tw-w-2 tw-rounded-full tw-bg-emerald-500" />
+                        )}
+                      </div>
+                      <div className="tw-truncate tw-text-xs tw-text-slate-500">
+                        {T.caseLabel} {c.caseNo} · {c.caseType}
+                      </div>
+                      <div className="tw-mt-1 tw-flex tw-items-center tw-gap-2 tw-text-[11px] tw-text-indigo-700">
+                        <span>{formatRelative(c.lastTime)}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{T.msgsLabel(c.msgCount)}</span>
+                      </div>
+                    </div>
+                    <MessageCircle className="tw-h-5 tw-w-5 tw-text-indigo-600" />
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -1200,8 +1367,18 @@ function BotChatScreen({
     client ? portalHistoryForClient(client.id) : [],
   );
   const [pending, setPending] = useState(false);
+  // Set of docIds this client has already downloaded via [[DOC:..]]
+  // bot links. Read from localStorage on mount + after each successful
+  // open. Lawyer view consults this to badge previously-downloaded
+  // links with a red "file downloaded" indicator next to the file name.
+  const [downloadedDocIds, setDownloadedDocIds] = useState<Set<string>>(() =>
+    client ? downloadedDocIdsForClient(client.id) : new Set(),
+  );
   useEffect(() => {
     setHistory(client ? portalHistoryForClient(client.id) : []);
+    setDownloadedDocIds(
+      client ? downloadedDocIdsForClient(client.id) : new Set(),
+    );
   }, [client?.id]);
 
   // Ask the bot a question on behalf of the current client.
@@ -1286,26 +1463,52 @@ function BotChatScreen({
 
     setPending(true);
     let answer = '';
-    try {
-      const resp = await fetch('/api/bot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientId: client.id,
-          question: text,
-          history: portalHistoryForClient(client.id).map((h) => ({
-            question: h.question,
-            answer: h.answer,
-            time: h.time,
-          })),
-          scopedContext,
-          lang,
-        }),
+
+    // SHORT-CIRCUIT for questions that need deterministic marker output
+    // (document download links, case-selection buttons) — route them to
+    // the local portalBotAnswer instead of the LLM. The local handler
+    // has direct access to state with exact ids, and emits reliable
+    // [[DOC:<id>|<fileName>]] / [[CASE:<id>|<name>]] markers the UI
+    // turns into clickable blue links. Claude tends to paraphrase or
+    // skip the marker syntax even with explicit prompt instructions,
+    // so we don't round-trip these question kinds through the LLM.
+    if (isDocumentQuestion(text) || isCaseStatusQuestion(text)) {
+      answer = portalBotAnswer(client.id, text, {
+        lang,
+        clients: state.clients,
+        cases: state.casesArr,
+        events: state.eventsList,
+        timeline: state.timelineItems,
+        finances: state.finances,
+        documents: state.documentsArr,
+        tasks: state.tasksArr,
+        t,
       });
-      if (!resp.ok) throw new Error('api_unavailable');
-      const data = (await resp.json()) as { answer?: string };
-      answer = (data.answer || '').trim();
-      if (!answer) throw new Error('empty_answer');
+    }
+
+    try {
+      // Only call the LLM if the local handler didn't already answer.
+      if (!answer) {
+        const resp = await fetch('/api/bot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId: client.id,
+            question: text,
+            history: portalHistoryForClient(client.id).map((h) => ({
+              question: h.question,
+              answer: h.answer,
+              time: h.time,
+            })),
+            scopedContext,
+            lang,
+          }),
+        });
+        if (!resp.ok) throw new Error('api_unavailable');
+        const data = (await resp.json()) as { answer?: string };
+        answer = (data.answer || '').trim();
+        if (!answer) throw new Error('empty_answer');
+      }
     } catch {
       // Fallback to the local pattern-matched answer so the chat keeps
       // working when the API isn't reachable.
@@ -1368,20 +1571,34 @@ function BotChatScreen({
    * "open chat / contact lawyer" button in the bot UI. We deliberately
    * don't navigate to the lawyer-facing ClientChatScreen (its sidebars
    * dispatch SET_TAB into global tabs that expose other clients' data).
-   * Instead we append a synthetic Q+A directly to the bot transcript so
-   * the client gets a helpful response inside the walled-garden bot view.
+   * Instead we append a synthetic Q+A directly to the bot transcript with
+   * clickable contact info — WhatsApp jumps into the client's chat in the
+   * WhatsApp center (lawyer view) or opens wa.me/<office> (client view),
+   * the phone is a tel: link, and the email is a mailto: link.
    */
   const askContactOffice = () => {
     if (!client) return;
     const question = lang === 'ar'
       ? 'كيف يمكنني التواصل مع المحامي؟'
       : 'איך אפשר ליצור קשר עם המשרד?';
-    const officePieces = [state.officeName, state.officeAddress]
-      .filter((x) => x && String(x).trim())
-      .join(' · ');
-    const answer = lang === 'ar'
-      ? `للتواصل مع المكتب يمكن استخدام WhatsApp أو الاتصال هاتفياً.${officePieces ? `\n${officePieces}` : ''}`
-      : `ליצירת קשר עם המשרד ניתן להשתמש ב-WhatsApp או להתקשר טלפונית.${officePieces ? `\n${officePieces}` : ''}`;
+    const lines = lang === 'ar'
+      ? [
+          'للتواصل مع المكتب:',
+          '',
+          '• واتساب: [[WHATSAPP:' + client.id + '|WhatsApp]]',
+          '• هاتف: [[TEL:02-6288479]]',
+          '• بريد إلكتروني: [[MAIL:sharifashraf@gmail.com]]',
+          "• العنوان: شارع هاسوريغ 2، الطابق الرابع، القدس",
+        ]
+      : [
+          'ליצירת קשר עם המשרד:',
+          '',
+          '• ווצאפ: [[WHATSAPP:' + client.id + '|WhatsApp]]',
+          '• טלפון: [[TEL:02-6288479]]',
+          '• אימייל: [[MAIL:sharifashraf@gmail.com]]',
+          "• כתובת: רח' הסורג 2, קומה ד', ירושלים",
+        ];
+    const answer = lines.join('\n');
     addPortalBotHistory(client.id, question, answer, state.clients, lang);
     setHistory(portalHistoryForClient(client.id));
   };
@@ -1409,7 +1626,7 @@ function BotChatScreen({
       ? ([
           [lang === 'ar' ? 'ما حالة ملفي؟' : 'מה מצב התיק שלי?', openClientCase],
           [lang === 'ar' ? 'متى الجلسة القادمة؟' : 'מתי הדיון הבא?', openClientCase],
-          [lang === 'ar' ? 'رفع مستند' : 'העלאת מסמך', openClientDetail],
+          [lang === 'ar' ? 'تنزيل آخر مستند في الملف' : 'הורדת מסמך אחרון בתיק', openClientDetail],
           [lang === 'ar' ? 'تواصل مع المحامي' : 'צור קשר עם המשרד', openClientChat],
         ] as const)
       : isBotInteractive
@@ -1423,7 +1640,7 @@ function BotChatScreen({
               () => runQuery(portalBotQuickQuestion('hearings', lang)),
             ],
             [
-              lang === 'ar' ? 'رفع مستند' : 'העלאת מסמך',
+              lang === 'ar' ? 'تنزيل آخر مستند في الملف' : 'הורדת מסמך אחרון בתיק',
               () => runQuery(portalBotQuickQuestion('documents', lang)),
             ],
             [
@@ -1434,7 +1651,7 @@ function BotChatScreen({
         : ([
             [lang === 'ar' ? 'ما حالة ملفي؟' : 'מה מצב התיק שלי?', () => goToTab('cases')],
             [lang === 'ar' ? 'متى الجلسة القادمة؟' : 'מתי הדיון הבא?', () => goToTab('calendar')],
-            [lang === 'ar' ? 'رفع مستند' : 'העלאת מסמך', () => goToTab('documents')],
+            [lang === 'ar' ? 'تنزيل آخر مستند في الملف' : 'הורדת מסמך אחרון בתיק', () => goToTab('documents')],
             [lang === 'ar' ? 'تواصل مع المحامي' : 'צור קשר עם המשרד', onBack],
           ] as const),
     actions: scopedClient
@@ -1527,6 +1744,230 @@ function BotChatScreen({
       return '';
     }
   };
+
+  // Open a document by id — same path the rest of the app uses
+  // (Documents screen, Case detail). Looks up the DocumentRecord in
+  // global state, then either opens the saved URL or asks the user
+  // to grant the local Dropbox folder via FS Access. Used when the
+  // client double-clicks a blue file-name link in a bot answer.
+  const openDocById = async (docId: string) => {
+    const doc = state.documentsArr.find((d) => String(d.id) === String(docId));
+    if (!doc) {
+      window.alert(
+        lang === 'ar'
+          ? 'لم يعد هذا المستند متاحاً.'
+          : 'מסמך זה אינו זמין יותר.',
+      );
+      return;
+    }
+    const rp = doc.relativePath;
+    if (!rp) {
+      window.alert(
+        lang === 'ar'
+          ? 'لم يتم حفظ ملف لهذا المستند.'
+          : 'לא נשמר קובץ עבור מסמך זה.',
+      );
+      return;
+    }
+    // Mobile docs store the Dropbox share URL directly in relativePath —
+    // navigate to it so the browser (or Dropbox app) handles download.
+    // We optimistically record the download here (we can't observe the
+    // remote tab to confirm success, but the user explicitly clicked).
+    if (rp.startsWith('http://') || rp.startsWith('https://')) {
+      window.open(rp, '_blank', 'noopener,noreferrer');
+      if (client) {
+        recordPortalBotDownload(String(client.id), docId, doc.fileName || '');
+        setDownloadedDocIds(downloadedDocIdsForClient(String(client.id)));
+      }
+      return;
+    }
+    // Desktop path — read the file from the local Dropbox folder via FS Access.
+    const ok = await openDocumentFromLegalOfficeFolder(rp, lang);
+    if (!ok) {
+      window.alert(
+        lang === 'ar'
+          ? 'تعذر فتح الملف من مجلد Dropbox.'
+          : 'פתיחת הקובץ מתיקיית Dropbox נכשלה.',
+      );
+      return;
+    }
+    // Record the successful download so the lawyer-view bot screen
+    // can badge the same [[DOC:id|name]] link in this client's
+    // transcript with a red "file downloaded" indicator.
+    if (client) {
+      recordPortalBotDownload(String(client.id), docId, doc.fileName || '');
+      // Bump local state so the badge appears immediately in this
+      // session too (otherwise it'd only show after the next reload).
+      setDownloadedDocIds(downloadedDocIdsForClient(String(client.id)));
+    }
+  };
+
+  // Append a per-case status summary as a fresh Q+A to the chat
+  // history when the client clicks a [[CASE:<id>|...]] button in
+  // a previous bot answer. The summary is built locally from
+  // `caseStatusSummary` (same data the Case Detail screen reads)
+  // and stays consistent with what the bot would say if the client
+  // typed the case-status question directly.
+  const showCaseStatus = (caseId: string) => {
+    if (!client) return;
+    const c = state.casesArr.find((x) => String(x.id) === String(caseId));
+    if (!c) return;
+    const niceName = (caseName(c, lang) || '-') + ' (' + (c.caseNumber || '-') + ')';
+    const question =
+      lang === 'ar'
+        ? `حالة القضية ${niceName}`
+        : `מצב התיק ${niceName}`;
+    const answer = caseStatusSummary(caseId, {
+      lang,
+      cases: state.casesArr,
+      events: state.eventsList,
+      finances: state.finances,
+      documents: state.documentsArr,
+      tasks: state.tasksArr,
+      timeline: state.timelineItems,
+      t,
+    });
+    addPortalBotHistory(client.id, question, answer, state.clients, lang);
+    setHistory(portalHistoryForClient(client.id));
+  };
+
+  // Open the WhatsApp chat for the given client. Whenever the parent
+  // wired `onOpenClientChat` (now wired for BOTH lawyer view AND the
+  // authenticated client view per the user's contact-office flow), we
+  // navigate INSIDE the app to ClientChatScreen with that client
+  // pre-selected — so the client lands on their own WhatsApp thread
+  // with the office instead of a generic external wa.me page.
+  // Fallback (no onOpenClientChat wired): open wa.me with the office
+  // phone number so the client can still reach the office.
+  const openWhatsAppFor = (whatsappClientId: string) => {
+    if (onOpenClientChat) {
+      onOpenClientChat();
+      return;
+    }
+    // Office number `02-6288479` → international `+972 2 628 8479`
+    // → wa.me path `97226288479` (strip leading 0, prepend country code).
+    void whatsappClientId; // reserved for future per-client targeting
+    window.open(
+      'https://wa.me/97226288479',
+      '_blank',
+      'noopener,noreferrer',
+    );
+  };
+
+  // Parse a bot answer body for marker syntax and render each marker
+  // as a clickable blue link. Supported markers:
+  //   [[DOC:<id>|<displayText>]]      — downloadable document (dbl-click)
+  //   [[CASE:<id>|<displayText>]]     — single-case summary follow-up
+  //   [[WHATSAPP:<clientId>|<text>]]  — opens that client's WhatsApp chat
+  //   [[TEL:<phone>]]                 — tel: link with the phone as text
+  //   [[MAIL:<email>]]                — mailto: link with the email as text
+  // Everything outside markers is rendered as plain text, so
+  // `tw-whitespace-pre-line` on the parent preserves newlines.
+  const renderAnswerBody = (text: string): ReactNode[] => {
+    const re = /\[\[(DOC|CASE|WHATSAPP|TEL|MAIL):([^|\]]+)(?:\|([^\]]+))?\]\]/g;
+    const linkClass =
+      'tw-inline tw-cursor-pointer tw-bg-transparent tw-p-0 tw-font-semibold tw-text-blue-600 tw-underline tw-decoration-blue-600 hover:tw-text-blue-800 hover:tw-decoration-blue-800';
+    const out: ReactNode[] = [];
+    let last = 0;
+    let key = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) out.push(text.slice(last, m.index));
+      const type = m[1];
+      const arg = m[2];
+      const displayText = m[3] || arg;
+      if (type === 'DOC') {
+        out.push(
+          <button
+            key={`doc-${key++}-${arg}`}
+            type="button"
+            onDoubleClick={() => openDocById(arg)}
+            title={
+              lang === 'ar' ? 'انقر مرتين للتنزيل' : 'לחץ פעמיים להורדה'
+            }
+            className={linkClass}
+          >
+            {displayText}
+          </button>,
+        );
+        // LAWYER VIEW ONLY — if this client already downloaded the
+        // doc, append a red "file downloaded" indicator inline with
+        // the file name so the lawyer can see at a glance which
+        // suggestions the client acted on. Hidden in client view
+        // (the client doesn't need to be told they downloaded their
+        // own file).
+        if (lawyerView && downloadedDocIds.has(String(arg))) {
+          out.push(
+            <span
+              key={`dlbadge-${key++}-${arg}`}
+              className="tw-mx-1 tw-text-xs tw-font-bold tw-text-red-600"
+            >
+              ✓ {lang === 'ar' ? 'تم تنزيل الملف' : 'הקובץ הורד'}
+            </span>,
+          );
+        }
+      } else if (type === 'CASE') {
+        out.push(
+          <button
+            key={`case-${key++}-${arg}`}
+            type="button"
+            onClick={() => showCaseStatus(arg)}
+            title={
+              lang === 'ar'
+                ? 'انقر لعرض ملخص هذه القضية'
+                : 'לחץ להצגת סיכום התיק'
+            }
+            className={linkClass}
+          >
+            {displayText}
+          </button>,
+        );
+      } else if (type === 'WHATSAPP') {
+        out.push(
+          <button
+            key={`wa-${key++}-${arg}`}
+            type="button"
+            onClick={() => openWhatsAppFor(arg)}
+            title={
+              lang === 'ar'
+                ? 'فتح محادثة واتساب'
+                : 'פתיחת שיחת ווצאפ'
+            }
+            className={linkClass}
+          >
+            {displayText}
+          </button>,
+        );
+      } else if (type === 'TEL') {
+        out.push(
+          <a
+            key={`tel-${key++}-${arg}`}
+            href={`tel:${arg.replace(/\s+/g, '')}`}
+            className={linkClass}
+            // Force LTR rendering on the phone number itself so the
+            // dashes/digits read left-to-right even inside an RTL line.
+            dir="ltr"
+          >
+            {displayText}
+          </a>,
+        );
+      } else if (type === 'MAIL') {
+        out.push(
+          <a
+            key={`mail-${key++}-${arg}`}
+            href={`mailto:${arg}`}
+            className={linkClass}
+            dir="ltr"
+          >
+            {displayText}
+          </a>,
+        );
+      }
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) out.push(text.slice(last));
+    return out;
+  };
   return (
     <div className="tw-mx-auto tw-flex tw-min-h-full tw-w-full tw-max-w-4xl tw-flex-col tw-bg-[#FDFBF5]">
       <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FDFBF5]/95 tw-px-4 tw-py-3 tw-backdrop-blur">
@@ -1614,20 +2055,23 @@ function BotChatScreen({
         </div>
 
         {/* Saved conversation: oldest-first. Each entry is a client
-            question (blue, end-aligned) followed by the bot's answer. */}
+            question (saturated blue with matching border, end-aligned)
+            followed by the bot's answer (neutral slate). The two bubbles
+            now use clearly different hues + borders so the dialogue
+            scans as two voices, not one. */}
         {orderedHistory.map((h) => (
           <div key={h.id} className="tw-space-y-3">
             <div className="tw-flex tw-justify-end">
-              <div className="tw-max-w-[78%] tw-whitespace-pre-line tw-rounded-3xl tw-rounded-tl-md tw-bg-blue-50 tw-p-4 tw-text-sm tw-leading-7 tw-text-slate-800 tw-shadow-sm">
+              <div className="tw-max-w-[78%] tw-whitespace-pre-line tw-rounded-3xl tw-rounded-tl-md tw-border tw-border-blue-300 tw-bg-blue-200 tw-p-4 tw-text-sm tw-leading-7 tw-text-blue-950 tw-shadow-sm">
                 {h.question}
-                <div className="tw-mt-1 tw-text-xs tw-text-slate-400">
+                <div className="tw-mt-1 tw-text-xs tw-text-blue-700/70">
                   {formatBubbleTime(h.time)}
                 </div>
               </div>
             </div>
             <div className="tw-flex tw-justify-start">
-              <div className="tw-max-w-[78%] tw-whitespace-pre-line tw-rounded-3xl tw-rounded-tr-md tw-bg-slate-100 tw-p-4 tw-text-sm tw-leading-7 tw-text-slate-700 tw-shadow-sm">
-                {h.answer}
+              <div className="tw-max-w-[78%] tw-whitespace-pre-line tw-rounded-3xl tw-rounded-tr-md tw-border tw-border-slate-200 tw-bg-slate-100 tw-p-4 tw-text-sm tw-leading-7 tw-text-slate-700 tw-shadow-sm">
+                {renderAnswerBody(h.answer)}
               </div>
             </div>
           </div>
@@ -1738,13 +2182,38 @@ function SearchBox({
   placeholder,
   value,
   onChange,
+  className,
+  inputClassName,
+  inputStyle,
 }: {
   placeholder: string;
   value?: string;
   onChange?: (v: string) => void;
+  /** Extra Tailwind classes on the outer container — used to recolor
+   *  the box per-screen (e.g. light green for the lawyer-search). */
+  className?: string;
+  /** Extra Tailwind classes on the inner <input>. By default the input
+   *  is `bg-transparent` and inherits the outer container's color, but
+   *  some browser UAs (notably WebKit on type="search") still paint a
+   *  white background inside the input — pass an explicit bg color here
+   *  to override that. */
+  inputClassName?: string;
+  /** Inline style on the inner <input>. Use this when you need an
+   *  iron-clad background-color override that beats UA styles on
+   *  type="search" (inline styles always win over external CSS). */
+  inputStyle?: React.CSSProperties;
 }) {
+  const baseClass =
+    'tw-flex tw-items-center tw-gap-3 tw-rounded-2xl tw-border tw-px-4 tw-shadow-sm focus-within:tw-ring-4';
+  // Default neutral skin (white surface, slate border, indigo focus ring).
+  const defaultSkin =
+    'tw-border-slate-200 tw-bg-white focus-within:tw-border-indigo-500 focus-within:tw-ring-indigo-100';
+  const inputBase =
+    'tw-h-12 tw-flex-1 tw-text-sm tw-outline-none placeholder:tw-text-slate-400';
   return (
-    <div className="tw-flex tw-items-center tw-gap-3 tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white tw-px-4 tw-shadow-sm focus-within:tw-border-indigo-500 focus-within:tw-ring-4 focus-within:tw-ring-indigo-100">
+    <div
+      className={`${baseClass} ${className ? className : defaultSkin}`}
+    >
       <Search className="tw-h-5 tw-w-5 tw-text-slate-400" />
       <input
         type="search"
@@ -1752,7 +2221,8 @@ function SearchBox({
         value={value}
         onChange={onChange ? (e) => onChange(e.target.value) : undefined}
         autoComplete="off"
-        className="tw-h-12 tw-flex-1 tw-bg-transparent tw-text-sm tw-outline-none placeholder:tw-text-slate-400"
+        className={`${inputBase} ${inputClassName ? inputClassName : 'tw-bg-transparent'}`}
+        style={inputStyle}
       />
     </div>
   );

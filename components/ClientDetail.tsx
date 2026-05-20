@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -33,6 +34,59 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   const { t, lang } = useT();
   const modalStack = useModalStack();
   const confirmDelete = useDeleteConfirm();
+
+  // Refs for the two detail-grids. After mount we use
+  // setProperty(..., 'important') to apply the grid layout — that
+  // beats every other CSS rule in globals.css (including ones
+  // marked `!important`), which is the only reliable way to
+  // get the exact column template on mobile after fighting many
+  // legacy rules that try to force single-column.
+  const infoGridRef = useRef<HTMLDivElement | null>(null);
+  const contactGridRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const applyGrid = (
+      el: HTMLDivElement | null,
+      template: string,
+    ) => {
+      if (!el) return;
+      el.style.setProperty('display', 'grid', 'important');
+      el.style.setProperty('grid-template-columns', template, 'important');
+      el.style.setProperty('grid-auto-flow', 'row', 'important');
+      el.style.setProperty('gap', '6px', 'important');
+      el.style.setProperty('width', '100%', 'important');
+      el.style.setProperty('max-width', '100%', 'important');
+      el.style.setProperty('margin-inline', 'auto', 'important');
+    };
+    const refresh = () => {
+      // Identity row: 3 equal symmetric columns (name | alt | ID).
+      applyGrid(infoGridRef.current, 'repeat(3, minmax(0, 1fr))');
+      // Contact row template depends on viewport:
+      //  - DESKTOP (>700px) — UNCHANGED: address half, phone + 2
+      //    WA boxes IDENTICAL (each 1fr = 16.67%).
+      //    Total 3fr + 1fr + 1fr + 1fr = 6fr.
+      //  - MOBILE (≤700px) — PHONE GROWS so the stacked icon +
+      //    number doesn't overflow, WA boxes SHRINK to icon-only.
+      //    Address 4fr (44%), phone 3fr (33%), each WA 1fr (11%).
+      //    Total 4fr + 3fr + 1fr + 1fr = 9fr.
+      const isMobile =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(max-width: 700px)').matches;
+      applyGrid(
+        contactGridRef.current,
+        isMobile
+          ? 'minmax(0, 4fr) minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1fr)'
+          : 'minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)',
+      );
+    };
+    refresh();
+    // Re-apply on window resize so crossing the 700px breakpoint
+    // (e.g. rotating phone, resizing browser) immediately swaps
+    // between the mobile and desktop templates.
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', refresh);
+      return () => window.removeEventListener('resize', refresh);
+    }
+  });
 
   const c = state.clients.find((x) => x.id === clientId);
   if (!c) return null;
@@ -176,7 +230,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         </button>
         <button
           type="button"
-          className="delete-action-btn"
+          className="delete-action-btn delete-action-btn-force-red"
           data-delete-client-btn="1"
           onClick={onDeleteClient}
         >
@@ -185,28 +239,33 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         </button>
       </div>
 
-      {/* Identity info row — 4 metadata boxes (name, alt name, ID,
-       *  address). The address box is double-width (CSS: grid-column: span 2). */}
-      <div className="detail-grid client-detail-info-grid">
+      {/* Identity info row — 3 metadata boxes side-by-side
+       *  (name | alt name | ID). Inline `display: grid` +
+       *  `grid-template-columns` is set directly so we don't
+       *  fight any of the legacy `.detail-grid` rules that paint
+       *  conflicting templates per viewport. */}
+      <div
+        ref={infoGridRef}
+        className="detail-grid client-detail-info-grid"
+      >
         <DetailRow label={t('clientName')} value={name} />
-        <div className="detail-row client-other-name-hint-row-v138 client-other-name-value-row-v139">
-          <span>
-            {lang === 'ar' ? 'الاسم بالعبرية' : 'שם הלקוח בשפה השנייה'}
-          </span>
-          <strong className="client-other-name-hint-v138 client-other-name-value-v139">
-            {otherNameDisplay || '-'}
-          </strong>
-        </div>
+        <DetailRow
+          label={lang === 'ar' ? 'الاسم بالعبرية' : 'שם בשפה שנייה'}
+          value={otherNameDisplay || '-'}
+        />
         <DetailRow label={t('idNumber')} value={c.idNumber || '-'} />
+      </div>
+
+      {/* Contact row — 4 boxes side-by-side
+       *  (address | phone | WhatsApp voice | WhatsApp message). */}
+      <div
+        ref={contactGridRef}
+        className="detail-grid client-detail-contact-grid"
+      >
         <div className="detail-row detail-row-address">
           <span>{t('address')}</span>
           <strong>{address}</strong>
         </div>
-      </div>
-
-      {/* Contact actions row — phone + WhatsApp voice + WhatsApp message
-       *  in 3 equal columns, side-by-side. */}
-      <div className="detail-grid client-detail-contact-grid">
         <div className="detail-row">
           <span>{t('phone')}</span>
           <strong>
@@ -269,38 +328,10 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         )}
       </div>
 
-      {/* All documents that belong to this client (direct + via cases) */}
-      <h3>{lang === 'ar' ? 'المستندات' : 'מסמכים'}</h3>
-      <div className="client-documents-list">
-        {clientDocuments.length === 0 ? (
-          <div className="case-empty">
-            {lang === 'ar' ? 'لا توجد مستندات' : 'אין מסמכים'}
-          </div>
-        ) : (
-          clientDocuments.map((d) => {
-            const linkedCase = state.casesArr.find((x) => x.id === d.caseId);
-            const caseLabel = linkedCase
-              ? (lang === 'ar'
-                  ? linkedCase.titleAr || linkedCase.title
-                  : linkedCase.title || linkedCase.titleAr) || ''
-              : '';
-            return (
-              <div key={d.id} className="client-document-row">
-                <div className="client-document-main">
-                  <strong>
-                    <i className="fas fa-file-lines" /> {d.title || d.fileName || '-'}
-                  </strong>
-                  <span className="sub">
-                    {[d.fileName, caseLabel, d.date].filter(Boolean).join(' · ')}
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {/* All open + closed tasks that belong to this client */}
+      {/* All open + closed tasks that belong to this client.
+       *  Order per user request: Tasks + Notes sit RIGHT under Cases,
+       *  ABOVE Documents (so the action items are seen first when the
+       *  user scrolls the client detail screen). */}
       <h3>{lang === 'ar' ? 'مهام' : 'משימות'}</h3>
       <div className="client-tasks-list">
         {clientTasks.length === 0 ? (
@@ -342,6 +373,38 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         <strong>{notesLabel}:</strong>
         <br />
         {notes || '—'}
+      </div>
+
+      {/* All documents that belong to this client (direct + via cases).
+       *  Moved BELOW Tasks + Notes per user request. */}
+      <h3>{lang === 'ar' ? 'المستندات' : 'מסמכים'}</h3>
+      <div className="client-documents-list">
+        {clientDocuments.length === 0 ? (
+          <div className="case-empty">
+            {lang === 'ar' ? 'لا توجد مستندات' : 'אין מסמכים'}
+          </div>
+        ) : (
+          clientDocuments.map((d) => {
+            const linkedCase = state.casesArr.find((x) => x.id === d.caseId);
+            const caseLabel = linkedCase
+              ? (lang === 'ar'
+                  ? linkedCase.titleAr || linkedCase.title
+                  : linkedCase.title || linkedCase.titleAr) || ''
+              : '';
+            return (
+              <div key={d.id} className="client-document-row">
+                <div className="client-document-main">
+                  <strong>
+                    <i className="fas fa-file-lines" /> {d.title || d.fileName || '-'}
+                  </strong>
+                  <span className="sub">
+                    {[d.fileName, caseLabel, d.date].filter(Boolean).join(' · ')}
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </Modal>
   );

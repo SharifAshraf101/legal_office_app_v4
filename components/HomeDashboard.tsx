@@ -42,7 +42,10 @@ export function HomeDashboard() {
   const greetingText = getTimeGreeting(lang, brandName);
 
   return (
-    <div className="home-grid-wrap">
+    <div
+      className={'home-grid-wrap home-style-' + state.homeStyle}
+      data-home-style={state.homeStyle}
+    >
       <div className="home-greeting">{greetingText}</div>
       <div className="home-card-grid home-only-grid">
         {HOME_CARDS.map((card) => {

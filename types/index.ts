@@ -7,6 +7,7 @@ export type Lang = 'he' | 'ar';
 export type Theme = 'light' | 'dark';
 export type FontSize = 'small' | 'normal' | 'large';
 export type ShowUpcoming = '0' | '1';
+export type HomeStyle = 'modern' | 'classic';
 
 export interface Client {
   id: string;
@@ -177,4 +178,5 @@ export interface AppState {
   showUpcomingHome: boolean;
   officeName: string;
   officeAddress: string;
+  homeStyle: HomeStyle;
 }
