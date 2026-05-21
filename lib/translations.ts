@@ -179,14 +179,22 @@ export function availableFontsForLang(
 ): { id: string; label: string; css: string }[] {
   return lang === 'ar'
     ? [
-        { id: 'arabic-typesetting', label: 'Arabic Typesetting', css: '"Arabic Typesetting", Arial, sans-serif' },
+        // Cairo is loaded via <link> in app/layout.tsx + applied as the
+        // canonical Arabic font via html[lang="ar"] in globals.css.
+        // Listed first so it's the default for new users.
+        { id: 'cairo', label: 'Cairo', css: '"Cairo", "Tajawal", "Noto Sans Arabic", Arial, sans-serif' },
+        { id: 'tajawal', label: 'Tajawal', css: '"Tajawal", "Cairo", "Noto Sans Arabic", Arial, sans-serif' },
+        { id: 'arabic-typesetting', label: 'Arabic Typesetting', css: '"Arabic Typesetting", "Cairo", Arial, sans-serif' },
         { id: 'arial', label: 'Arial', css: 'Arial, sans-serif' },
-        { id: 'calibri', label: 'Calibri', css: 'Calibri, Arial, sans-serif' },
       ]
     : [
-        { id: 'david', label: 'David', css: 'David, Arial, sans-serif' },
+        // Heebo + Assistant loaded via <link> in app/layout.tsx,
+        // applied as the canonical Hebrew font via html[lang="he"]
+        // in globals.css. Listed first so it's the default.
+        { id: 'heebo', label: 'Heebo', css: '"Heebo", "Assistant", "Noto Sans Hebrew", "Rubik", Arial, sans-serif' },
+        { id: 'assistant', label: 'Assistant', css: '"Assistant", "Heebo", "Noto Sans Hebrew", Arial, sans-serif' },
+        { id: 'david', label: 'David', css: 'David, "Heebo", Arial, sans-serif' },
         { id: 'arial', label: 'Arial', css: 'Arial, sans-serif' },
-        { id: 'narkisim', label: 'Narkisim', css: 'Narkisim, David, Arial, sans-serif' },
       ];
 }
 

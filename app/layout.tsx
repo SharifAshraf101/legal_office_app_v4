@@ -86,6 +86,17 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
         />
+        {/* Google Fonts — unified Hebrew + Arabic typography.
+           Hebrew: Heebo (primary, modern UI font) + Assistant (fallback).
+           Arabic: Cairo (primary) + Tajawal (fallback).
+           Applied via the `html[lang="he"]` and `html[lang="ar"]`
+           typography blocks in globals.css. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&family=Assistant:wght@400;500;600;700;800&family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap"
+        />
       </head>
       <body>{children}</body>
     </html>

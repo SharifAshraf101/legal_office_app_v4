@@ -19,10 +19,14 @@ import { selectedFontCss } from '@/lib/translations';
 export function useThemeAndFont(): void {
   const { state } = useAppState();
 
-  // Body class for dark mode
+  // Body class for theme. We set BOTH `dark` and `light` explicit
+  // classes (not just `dark`) so the CSS prefers-color-scheme block
+  // in globals.css knows when the user has made an explicit choice
+  // vs when it should fall back to the OS preference.
   useEffect(() => {
     if (typeof document === 'undefined') return;
     document.body.classList.toggle('dark', state.currentTheme === 'dark');
+    document.body.classList.toggle('light', state.currentTheme === 'light');
   }, [state.currentTheme]);
 
   // <html lang>

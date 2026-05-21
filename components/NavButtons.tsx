@@ -28,11 +28,34 @@ const ICONS: Record<string, string> = {
 // Same `order` array as source line 3845.
 const ORDER = ['home', 'search', 'contacts', 'cases', 'documents', 'calendar', 'tasks', 'finance', 'portal'];
 
-/** Hebrew/Arabic labels per tab id. */
-function tabLabel(id: string, lang: 'he' | 'ar', tFn: (k: string) => string): string {
+/** Hebrew/Arabic labels per tab id. Returns a ReactNode so that
+ *  long labels (e.g. portal) can carry an explicit `<br>` for a
+ *  controlled two-line wrap inside the narrow sidebar button. */
+function tabLabel(
+  id: string,
+  lang: 'he' | 'ar',
+  tFn: (k: string) => string,
+): React.ReactNode {
   if (id === 'search') return lang === 'ar' ? 'بحث شامل' : 'חיפוש כולל';
   if (id === 'financeDetail') return lang === 'ar' ? 'الأتعاب' : 'שכר טרחה';
-  if (id === 'portal') return lang === 'ar' ? 'بوابة تواصل الموكلون' : 'שער תקשורת עם לקוחות';
+  if (id === 'portal') {
+    // Two-line render: "שער תקשורת" / "עם לקוחות" (Hebrew),
+    // "بوابة تواصل" / "الموكلون" (Arabic) — fits the narrow sidebar
+    // button cleanly without overflow.
+    return lang === 'ar' ? (
+      <>
+        بوابة تواصل
+        <br />
+        الموكلون
+      </>
+    ) : (
+      <>
+        שער תקשורת
+        <br />
+        עם לקוחות
+      </>
+    );
+  }
   if (id === 'documents') return lang === 'ar' ? 'المستندات' : 'מסמכים';
   if (id === 'tasks') return lang === 'ar' ? 'مهام' : 'משימות';
   return tFn(id);
