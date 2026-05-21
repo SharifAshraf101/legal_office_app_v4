@@ -39,18 +39,27 @@ export function CasesScreen() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return state.casesArr;
-    return state.casesArr.filter((c) =>
-      caseSearchText(c, state.clients).toLowerCase().includes(q),
-    );
-  }, [state.casesArr, state.clients, query]);
+    const matches = q
+      ? state.casesArr.filter((c) =>
+          caseSearchText(c, state.clients).toLowerCase().includes(q),
+        )
+      : state.casesArr;
+    // Sort alphabetically by client name (locale-aware for Hebrew + Arabic).
+    return [...matches].sort((a, b) => {
+      const nameA = clientName(a.clientId, state.clients, lang) || '';
+      const nameB = clientName(b.clientId, state.clients, lang) || '';
+      return nameA.localeCompare(nameB, lang === 'ar' ? 'ar' : 'he', {
+        sensitivity: 'base',
+      });
+    });
+  }, [state.casesArr, state.clients, query, lang]);
 
   const openCase = (id: string) => {
     modalStack.open(<CaseDetail caseId={id} />);
   };
 
   return (
-    <section className="panel cases-screen-panel">
+    <section className="panel cases-screen-panel cases-v2-fluid">
       <div className="panel-body cases-panel-body">
         <div className="case-search-wrap">
           <label>{searchLabel}</label>
@@ -86,6 +95,7 @@ export function CasesScreen() {
                     : c.status === 'pending'
                       ? 'pending'
                       : 'inactive';
+                const clientLabel = clientName(c.clientId, state.clients, lang);
                 return (
                   <tr
                     key={c.id}
@@ -93,15 +103,15 @@ export function CasesScreen() {
                     data-id={c.id}
                     onClick={() => openCase(c.id)}
                   >
-                    <td>
+                    <td data-col="case">
                       <div className="row-title">{caseName(c, lang)}</div>
                       <div className="sub">
                         {t('caseNumber')}: {c.caseNumber}
                       </div>
                     </td>
-                    <td>{clientName(c.clientId, state.clients, lang)}</td>
-                    <td>{court}</td>
-                    <td>
+                    <td data-col="client" data-label={t('clientName')}>{clientLabel}</td>
+                    <td data-col="court" data-label={t('court')}>{court}</td>
+                    <td data-col="status" data-label={t('status')}>
                       <span className={'status ' + statusKey}>{t(statusKey)}</span>
                     </td>
                   </tr>

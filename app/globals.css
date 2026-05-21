@@ -1,4 +1,4 @@
-﻿/* Tailwind utilities — scoped to .modern-portal-root via tailwind.config.ts */
+/* Tailwind utilities — scoped to .modern-portal-root via tailwind.config.ts */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -16777,11 +16777,10 @@ body:has(.content:not(.home-content)){
   }
 }
 @media(max-width:700px){
-  /* Avatar on mobile — 72×72, absolutely positioned to the
-   * RIGHT edge of the toolbar (in RTL `right: 0` is the visual
-   * right side of the screen). Use absolute positioning so the
-   * edit + delete buttons on the LEFT (also absolute) and the
-   * avatar on the RIGHT don't fight for the same flow position. */
+  /* Avatar on mobile — fluid square. NOTE: the toolbar-fluid block
+   * (line ~23020) overrides this with a centered avatar between
+   * the edit + delete buttons. This rule remains as a fallback for
+   * cases where the toolbar marker class isn't present. */
   .modal.client-detail-stable-v229.client-detail-stable-v229 .client-detail-header-avatar{
     position:absolute!important;
     inset-inline-end:auto!important;
@@ -16790,18 +16789,16 @@ body:has(.content:not(.home-content)){
     left:auto!important;
     top:0!important;
     margin:0!important;
-    width:72px!important;
-    height:72px!important;
-    flex:0 0 72px!important;
+    width:clamp(3rem, 14vw, 4.5rem)!important;
+    height:clamp(3rem, 14vw, 4.5rem)!important;
+    flex:0 0 clamp(3rem, 14vw, 4.5rem)!important;
   }
   /* Identity grid: 3 SYMMETRIC columns on mobile so name + alt
-   * name + ID share one row. Address moved to the contact-grid
-   * row below per the user's request. All three cells share the
-   * SAME width (1fr), padding, min-height + flex layout. */
+   * name + ID share one row. */
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid{
     grid-template-columns:repeat(3,minmax(0,1fr))!important;
-    grid-auto-rows:minmax(50px,auto)!important;
-    gap:6px!important;
+    grid-auto-rows:minmax(clamp(2.75rem, 13vw, 3.5rem), auto)!important;
+    gap:clamp(0.25rem, 1.2vw, 0.4rem)!important;
     align-items:stretch!important;
   }
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row,
@@ -16811,19 +16808,19 @@ body:has(.content:not(.home-content)){
     width:100%!important;
     min-width:0!important;
     max-width:none!important;
-    min-height:50px!important;
+    min-height:clamp(2.75rem, 13vw, 3.5rem)!important;
     height:auto!important;
-    padding:6px 8px!important;
+    padding:clamp(0.35rem, 1.5vw, 0.5rem) clamp(0.4rem, 1.8vw, 0.65rem)!important;
     margin:0!important;
     box-sizing:border-box!important;
     display:flex!important;
     flex-direction:column!important;
     align-items:stretch!important;
     justify-content:flex-end!important;
-    gap:2px!important;
+    gap:clamp(0.1rem, 0.4vw, 0.15rem)!important;
     background:linear-gradient(145deg,#E5E7EB 0%,#BFC4CA 100%)!important;
     border:1px solid #9CA3AF!important;
-    border-radius:8px!important;
+    border-radius:clamp(0.4rem, 1.5vw, 0.6rem)!important;
     box-shadow:none!important;
     overflow:hidden!important;
   }
@@ -16834,7 +16831,7 @@ body:has(.content:not(.home-content)){
    *   address | phone | WhatsApp voice | WhatsApp message */
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 6px !important;
+    gap: clamp(0.25rem, 1.2vw, 0.4rem) !important;
   }
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .detail-row,
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell {
@@ -16842,8 +16839,8 @@ body:has(.content:not(.home-content)){
     min-width: 0 !important;
     max-width: none !important;
     width: 100% !important;
-    min-height: 50px !important;
-    padding: 6px 8px !important;
+    min-height: clamp(2.75rem, 13vw, 3.5rem) !important;
+    padding: clamp(0.35rem, 1.5vw, 0.5rem) clamp(0.4rem, 1.8vw, 0.65rem) !important;
     box-sizing: border-box !important;
   }
   /* WhatsApp boxes (voice + message) on mobile — ICON ONLY.
@@ -16851,7 +16848,7 @@ body:has(.content:not(.home-content)){
    * tap target stays comfortable in the narrow ~12.5% column. */
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell {
     padding: 0 !important;
-    min-height: 50px !important;
+    min-height: clamp(2.75rem, 13vw, 3.5rem) !important;
     font-size: 0 !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -16859,26 +16856,22 @@ body:has(.content:not(.home-content)){
     gap: 0 !important;
   }
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell i {
-    font-size: 16px !important;
+    font-size: clamp(0.9rem, 3.8vw, 1.15rem) !important;
     flex: 0 0 auto !important;
   }
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .client-whatsapp-link-cell span {
     display: none !important;
   }
-  /* Phone box on mobile — stack the phone icon ABOVE the number
-   * so both fit comfortably in the 2fr-wide cell without the
-   * number bleeding past the edge. The cell already has the
-   * label "טלפון" above as a tiny span; the .client-phone-link
-   * <a> takes the value slot and lays out as a column. */
+  /* Phone box on mobile — stack the phone icon ABOVE the number. */
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid .client-phone-link {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 2px !important;
+    gap: clamp(0.1rem, 0.4vw, 0.15rem) !important;
     width: 100% !important;
     max-width: 100% !important;
-    font-size: 11px !important;
+    font-size: clamp(0.6rem, 2.6vw, 0.8rem) !important;
     line-height: 1.1 !important;
     white-space: nowrap !important;
     overflow: hidden !important;
@@ -16886,14 +16879,14 @@ body:has(.content:not(.home-content)){
     text-align: center !important;
   }
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid .client-phone-link i {
-    font-size: 13px !important;
+    font-size: clamp(0.7rem, 2.8vw, 0.9rem) !important;
     margin: 0 !important;
     flex: 0 0 auto !important;
   }
   /* Center the phone cell content + reduce padding so the
    * stacked icon+number fits nicely. */
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-contact-grid > .detail-row {
-    padding: 4px 6px !important;
+    padding: clamp(0.2rem, 1vw, 0.35rem) clamp(0.3rem, 1.4vw, 0.5rem) !important;
     align-items: center !important;
     justify-content: center !important;
   }
@@ -16901,10 +16894,10 @@ body:has(.content:not(.home-content)){
     width: 100% !important;
     text-align: center !important;
   }
-  /* Span label on mobile — even smaller (7px) so all three
-   * labels fit comfortably in their narrow ~33% columns. */
+  /* Span label on mobile — fluid font so labels fit comfortably
+   * in the narrow ~33% columns at all viewport widths. */
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row > span {
-    font-size:7px!important;
+    font-size:clamp(0.45rem, 1.8vw, 0.6rem)!important;
     line-height:1.2!important;
     margin:0!important;
     padding:0!important;
@@ -16918,7 +16911,7 @@ body:has(.content:not(.home-content)){
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row > strong,
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row .client-other-name-value-v139,
   .modal.client-detail-stable-v229.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row .client-other-name-hint-v138 {
-    font-size:10.5px!important;
+    font-size:clamp(0.6rem, 2.6vw, 0.75rem)!important;
     font-weight:600!important;
     color:#0F172A!important;
     line-height:1.25!important;
@@ -16947,7 +16940,7 @@ body:has(.content:not(.home-content)){
     min-height: 0 !important;
     border-radius: 0 !important;
     width: auto !important;
-    font-size: 10.5px !important;
+    font-size: clamp(0.6rem, 2.6vw, 0.75rem) !important;
     font-weight: 600 !important;
     color: #0F172A !important;
   }
@@ -22523,11 +22516,11 @@ html body .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delet
     flex-wrap: nowrap !important;
     align-items: stretch !important;
     justify-content: space-between !important;
-    gap: 4px !important;
+    gap: clamp(0.2rem, 1vw, 0.4rem) !important;
     width: 100% !important;
     max-width: 100% !important;
     padding: 0 !important;
-    margin: 8px 0 12px !important;
+    margin: clamp(0.5rem, 2vw, 0.75rem) 0 clamp(0.75rem, 2.5vw, 1rem) !important;
     box-sizing: border-box !important;
   }
   /* Each of the 5 mobile cells is a direct flex child of the
@@ -22542,22 +22535,22 @@ html body .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delet
     width: 0 !important;
     min-width: 0 !important;
     max-width: none !important;
-    height: 40px !important;
-    min-height: 40px !important;
-    max-height: 40px !important;
+    height: clamp(2.25rem, 9vw, 2.75rem) !important;
+    min-height: clamp(2.25rem, 9vw, 2.75rem) !important;
+    max-height: clamp(2.25rem, 9vw, 2.75rem) !important;
     padding: 0 !important;
     margin: 0 !important;
     border: 1px solid #E5E7EB !important;
-    border-radius: 10px !important;
+    border-radius: clamp(0.5rem, 1.8vw, 0.75rem) !important;
     background: #FFFFFF !important;
     color: #0F172A !important;
-    font-size: 11px !important;
+    font-size: clamp(0.625rem, 2.4vw, 0.75rem) !important;
     font-weight: 700 !important;
     line-height: 1 !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 4px !important;
+    gap: clamp(0.2rem, 0.8vw, 0.35rem) !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
@@ -22567,7 +22560,7 @@ html body .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delet
     box-shadow: none !important;
   }
   html body .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell > i {
-    font-size: 14px !important;
+    font-size: clamp(0.85rem, 3.2vw, 1rem) !important;
     line-height: 1 !important;
     margin: 0 !important;
     flex: 0 0 auto !important;
@@ -22788,7 +22781,7 @@ html body .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delet
     display: grid !important;
     grid-template-columns: 1fr 1fr 1fr !important;
     grid-auto-flow: dense !important;
-    gap: 8px !important;
+    gap: clamp(0.4rem, 1.8vw, 0.6rem) !important;
     width: 100% !important;
     /* Pull the documents/tasks panels up toward the boxed fields row.
      * Three earlier rules push them down (margin-bottom 18px at
@@ -22796,6 +22789,28 @@ html body .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delet
      * inside the v220 boxed-fields block at line ~12498). Override
      * all of them here. */
     margin: 0 !important;
+  }
+  /* Each boxed field (label + value): fluid padding + radius so they
+   * scale with the viewport from small phones (~360px) up to large
+   * mobiles (~480px). Overrides the .modal.ls × 6 base rule at
+   * line ~14020 (padding: 12px 14px, border-radius: 10px). */
+  html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 > div {
+    padding: clamp(0.5rem, 2.2vw, 0.85rem) clamp(0.6rem, 2.5vw, 0.95rem) !important;
+    border-radius: clamp(0.5rem, 1.8vw, 0.75rem) !important;
+    min-width: 0 !important;
+  }
+  html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 > div > label,
+  html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 .case-field-label-v220 {
+    font-size: clamp(0.6rem, 2.4vw, 0.75rem) !important;
+    margin-bottom: clamp(0.15rem, 0.6vw, 0.3rem) !important;
+  }
+  html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 .case-field-value-v220,
+  html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 > div > div {
+    font-size: clamp(0.8rem, 3.2vw, 1rem) !important;
+    line-height: 1.25 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
   }
   /* Also collapse the gap between the fields-col card and the
    * side-col (documents + tasks) on mobile so everything tightens up. */
@@ -22839,8 +22854,331 @@ html body .delete-action-btn.delete-action-btn.delete-action-btn-force-red.delet
   html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-detail-mobile-fields-v220 .case-field-full-v220 {
     grid-column: auto !important;
   }
+
+  /* ========================================================== *
+   * Case Detail — MOBILE: Documents + Tasks side panels.
+   * All hardcoded px from base rules (lines ~201, 222, 767+)
+   * overridden with fluid clamp() units so the panels scale
+   * smoothly from small phones (~360px) to large mobiles (~480px).
+   * Scope: only inside .case-detail-mobile-v140 modal — other
+   * screens (Tasks list, Documents list) keep their own styles.
+   * ========================================================== */
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-documents-panel,
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-tasks-panel {
+    border-radius: clamp(0.75rem, 3vw, 1.25rem) !important;
+    margin: 0 0 clamp(0.4rem, 1.5vw, 0.6rem) !important;
+  }
+  /* Panel header rows: title + count + action buttons */
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-documents-head,
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-tasks-head {
+    gap: clamp(0.4rem, 1.5vw, 0.6rem) !important;
+    padding: clamp(0.5rem, 2.2vw, 0.85rem) clamp(0.6rem, 2.5vw, 1rem) !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-documents-head h3,
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-tasks-head h3 {
+    font-size: clamp(0.85rem, 3.2vw, 1rem) !important;
+    gap: clamp(0.3rem, 1.2vw, 0.5rem) !important;
+  }
+  /* Document/task action buttons in panel head + body */
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-document-btn,
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .tasks-head-cell-btn {
+    padding: clamp(0.35rem, 1.6vw, 0.55rem) clamp(0.5rem, 2vw, 0.75rem) !important;
+    font-size: clamp(0.65rem, 2.5vw, 0.8rem) !important;
+    gap: clamp(0.25rem, 1vw, 0.4rem) !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .tasks-head-cell-count {
+    font-size: clamp(0.65rem, 2.5vw, 0.8rem) !important;
+  }
+  /* Document row + Task row: list items */
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-document-row,
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-task-row {
+    padding: clamp(0.5rem, 2vw, 0.75rem) clamp(0.6rem, 2.4vw, 0.9rem) !important;
+    border-radius: clamp(0.5rem, 1.8vw, 0.75rem) !important;
+    gap: clamp(0.5rem, 2vw, 0.75rem) !important;
+    margin-bottom: clamp(0.3rem, 1.2vw, 0.5rem) !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-document-title {
+    font-size: clamp(0.75rem, 2.8vw, 0.9rem) !important;
+    gap: clamp(0.3rem, 1.2vw, 0.5rem) !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-task-title {
+    font-size: clamp(0.78rem, 3vw, 0.95rem) !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-task-meta {
+    font-size: clamp(0.6rem, 2.4vw, 0.75rem) !important;
+    gap: clamp(0.3rem, 1.2vw, 0.5rem) !important;
+    margin-top: clamp(0.2rem, 0.8vw, 0.35rem) !important;
+  }
+  /* Task-row inline mini-action buttons */
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .task-mini-action {
+    padding: clamp(0.25rem, 1.2vw, 0.4rem) clamp(0.4rem, 1.8vw, 0.6rem) !important;
+    font-size: clamp(0.6rem, 2.4vw, 0.75rem) !important;
+    gap: clamp(0.2rem, 0.8vw, 0.35rem) !important;
+  }
+  /* Empty-state placeholders */
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-documents-empty,
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-tasks-empty {
+    padding: clamp(0.75rem, 3vw, 1.1rem) !important;
+    margin: clamp(0.5rem, 2vw, 0.75rem) clamp(0.6rem, 2.5vw, 1rem) !important;
+    font-size: clamp(0.7rem, 2.7vw, 0.85rem) !important;
+    border-radius: clamp(0.6rem, 2.2vw, 1rem) !important;
+  }
+  /* "Show all" overflow row at bottom of documents list */
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-documents-more {
+    padding: clamp(0.2rem, 1vw, 0.4rem) 0 0 !important;
+  }
+  /* Status + priority pill badges next to task title */
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .task-status-badge,
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .task-priority-badge {
+    padding: clamp(0.1rem, 0.6vw, 0.2rem) clamp(0.35rem, 1.4vw, 0.5rem) !important;
+    font-size: clamp(0.55rem, 2.2vw, 0.7rem) !important;
+  }
+  /* Tasks list container */
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-tasks-list,
+  html body .modal.case-detail-mobile-v140 .case-detail-side-col .case-documents-list {
+    padding: clamp(0.4rem, 1.6vw, 0.65rem) clamp(0.6rem, 2.5vw, 1rem) !important;
+    gap: clamp(0.3rem, 1.2vw, 0.5rem) !important;
+  }
+
+  /* ========================================================== *
+   * Case Detail — MOBILE: Timeline section.
+   * Search input + filter pill bar + timeline rows.
+   * Overrides hardcoded px from base rule (line ~320) +
+   * the legacy 620px breakpoint.
+   * Scope: only inside .case-detail-mobile-v140 so the
+   * timeline on other screens (if any) stays unaffected.
+   * ========================================================== */
+  html body .modal.case-detail-mobile-v140 .case-timeline-search-row {
+    margin: clamp(0.6rem, 2.5vw, 1rem) 0 clamp(0.35rem, 1.5vw, 0.6rem) !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-timeline-search {
+    height: clamp(2.25rem, 9vw, 2.75rem) !important;
+    padding: 0 clamp(0.75rem, 3vw, 1.1rem) !important;
+    font-size: clamp(0.75rem, 2.8vw, 0.9rem) !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-timeline-filter-bar {
+    gap: clamp(0.3rem, 1.2vw, 0.5rem) !important;
+    padding: clamp(0.4rem, 1.5vw, 0.6rem) !important;
+    margin: clamp(0.35rem, 1.5vw, 0.6rem) 0 clamp(0.6rem, 2.5vw, 1rem) !important;
+    border-radius: clamp(0.6rem, 2.2vw, 1rem) !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-timeline-filter-btn {
+    padding: clamp(0.35rem, 1.5vw, 0.55rem) clamp(0.5rem, 2vw, 0.75rem) !important;
+    font-size: clamp(0.6rem, 2.4vw, 0.75rem) !important;
+    gap: clamp(0.25rem, 1vw, 0.4rem) !important;
+  }
+  html body .modal.case-detail-mobile-v140 .case-timeline-filter-btn i {
+    font-size: clamp(0.7rem, 2.6vw, 0.85rem) !important;
+  }
+  /* Timeline row content tweaks: icon + date + title gap */
+  html body .modal.case-detail-mobile-v140 .timeline-icon {
+    width: clamp(0.95rem, 3.5vw, 1.15rem) !important;
+    min-width: clamp(0.95rem, 3.5vw, 1.15rem) !important;
+    font-size: clamp(0.8rem, 3vw, 0.95rem) !important;
+  }
+  html body .modal.case-detail-mobile-v140 .timeline-leading-meta,
+  html body .modal.case-detail-mobile-v140 .timeline-title-line {
+    gap: clamp(0.3rem, 1.2vw, 0.5rem) !important;
+  }
+  html body .modal.case-detail-mobile-v140 .timeline-inline-description {
+    padding-inline-start: clamp(0.35rem, 1.5vw, 0.55rem) !important;
+    margin-inline-start: clamp(0.1rem, 0.4vw, 0.15rem) !important;
+  }
+  /* Empty-state placeholder under the filter bar */
+  html body .modal.case-detail-mobile-v140 .case-timeline-empty {
+    padding: clamp(0.75rem, 3vw, 1.1rem) !important;
+    font-size: clamp(0.7rem, 2.7vw, 0.85rem) !important;
+    border-radius: clamp(0.6rem, 2.2vw, 1rem) !important;
+  }
+  /* Individual timeline entry row (.detail-row inside #caseTimelineList) */
+  html body .modal.case-detail-mobile-v140 #caseTimelineList .detail-row {
+    padding: clamp(0.5rem, 2vw, 0.75rem) clamp(0.65rem, 2.5vw, 1rem) !important;
+    border-radius: clamp(0.6rem, 2.2vw, 1rem) !important;
+    gap: clamp(0.5rem, 2vw, 0.75rem) !important;
+    font-size: clamp(0.75rem, 2.8vw, 0.9rem) !important;
+  }
 }
 
+/* ============================================================ *
+ * Client Detail — MOBILE: fluid-units refactor.
+ *
+ * Overrides the legacy hardcoded-px blocks at lines 5027+,
+ * 13071+, 13167+ (all under @media max-width:700px). Uses the
+ * client-edit-toolbar-v229 marker + chained .client-detail-stable-v229
+ * for specificity (>= 0,4,0) so the source-order-later fluid rules
+ * win cleanly without resorting to extra-long .ls chains.
+ *
+ * Sections covered:
+ *   1. Title (h2.client-detail-title-centered)
+ *   2. Top toolbar (avatar + edit + delete) — keeps the absolute
+ *      positioning strategy but scales heights / paddings / radius
+ *   3. Identity info grid (3 boxes: name | alt name | ID)
+ *   4. Contact grid (4 boxes: address | phone | WA voice | WA msg)
+ *   5. Cases list + Tasks list + Notes box + Documents list
+ * ========================================================== */
+@media (max-width: 700px) {
+  /* ---- Title ---- */
+  html body .modal.client-detail-stable-v229 .client-detail-title-centered {
+    font-size: clamp(1rem, 4vw, 1.25rem) !important;
+    margin: clamp(0.5rem, 2vw, 0.75rem) 0 clamp(0.4rem, 1.5vw, 0.6rem) !important;
+  }
+
+  /* ---- Top toolbar wrapper ---- */
+  html body .modal.client-detail-stable-v229 .client-edit-toolbar.client-edit-toolbar-v229 {
+    height: clamp(2.5rem, 11vw, 3rem) !important;
+    min-height: clamp(2.5rem, 11vw, 3rem) !important;
+    max-height: clamp(2.5rem, 11vw, 3rem) !important;
+    margin: 0 0 clamp(0.4rem, 1.5vw, 0.65rem) !important;
+    flex: 0 0 clamp(2.5rem, 11vw, 3rem) !important;
+  }
+  /* Edit button (right side in RTL) */
+  html body .modal.client-detail-stable-v229 .client-edit-toolbar.client-edit-toolbar-v229 .case-edit-btn {
+    height: clamp(2.25rem, 9.5vw, 2.6rem) !important;
+    min-height: clamp(2.25rem, 9.5vw, 2.6rem) !important;
+    max-height: clamp(2.25rem, 9.5vw, 2.6rem) !important;
+    min-width: clamp(3.75rem, 18vw, 5rem) !important;
+    padding: 0 clamp(0.6rem, 2.5vw, 0.9rem) !important;
+    gap: clamp(0.25rem, 1vw, 0.4rem) !important;
+    font-size: clamp(0.75rem, 2.8vw, 0.9rem) !important;
+    border-radius: 999px !important;
+  }
+  /* Delete client button (left side in RTL) */
+  html body .modal.client-detail-stable-v229 .client-edit-toolbar.client-edit-toolbar-v229 .delete-action-btn[data-delete-client-btn] {
+    height: clamp(2.25rem, 9.5vw, 2.6rem) !important;
+    min-height: clamp(2.25rem, 9.5vw, 2.6rem) !important;
+    max-height: clamp(2.25rem, 9.5vw, 2.6rem) !important;
+    min-width: clamp(5rem, 22vw, 6rem) !important;
+    padding: 0 clamp(0.6rem, 2.5vw, 0.9rem) !important;
+    gap: clamp(0.25rem, 1vw, 0.4rem) !important;
+    font-size: clamp(0.75rem, 2.8vw, 0.9rem) !important;
+    border-radius: 999px !important;
+  }
+  /* Avatar wrapper in the toolbar — sits in flow between the two
+   * absolutely positioned buttons. Center it horizontally so the
+   * camera icon lands between the edit + delete buttons. */
+  html body .modal.client-detail-stable-v229 .client-edit-toolbar.client-edit-toolbar-v229 .client-detail-header-avatar {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-edit-toolbar.client-edit-toolbar-v229 .client-detail-header-avatar .client-avatar {
+    width: clamp(2.25rem, 9.5vw, 2.75rem) !important;
+    height: clamp(2.25rem, 9.5vw, 2.75rem) !important;
+    min-width: clamp(2.25rem, 9.5vw, 2.75rem) !important;
+    min-height: clamp(2.25rem, 9.5vw, 2.75rem) !important;
+    border-radius: clamp(0.5rem, 2vw, 0.75rem) !important;
+    font-size: clamp(1rem, 4vw, 1.25rem) !important;
+  }
+
+  /* ---- Cases list ---- */
+  html body .modal.client-detail-stable-v229 .client-case-list {
+    gap: clamp(0.35rem, 1.5vw, 0.6rem) !important;
+    margin: clamp(0.5rem, 2vw, 0.8rem) 0 clamp(0.75rem, 2.5vw, 1.1rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-case-list .client-case-link {
+    padding: clamp(0.55rem, 2.2vw, 0.85rem) clamp(0.65rem, 2.5vw, 1rem) !important;
+    gap: clamp(0.5rem, 2vw, 0.75rem) !important;
+    border-radius: clamp(0.6rem, 2.2vw, 1rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-case-list .client-case-link strong {
+    font-size: clamp(0.78rem, 3vw, 0.95rem) !important;
+    margin-bottom: clamp(0.15rem, 0.6vw, 0.3rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-case-list .client-case-link span {
+    font-size: clamp(0.65rem, 2.5vw, 0.8rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-case-list .client-case-link i {
+    font-size: clamp(0.7rem, 2.7vw, 0.85rem) !important;
+  }
+  /* Status pill (active / closed) on the case row */
+  html body .modal.client-detail-stable-v229 .client-case-list .client-case-link .client-case-status-btn {
+    padding: clamp(0.3rem, 1.3vw, 0.45rem) clamp(0.55rem, 2.2vw, 0.85rem) !important;
+    font-size: clamp(0.65rem, 2.5vw, 0.8rem) !important;
+  }
+  /* "No cases" empty placeholder */
+  html body .modal.client-detail-stable-v229 .client-case-list .case-empty {
+    padding: clamp(0.85rem, 3.5vw, 1.35rem) !important;
+    border-radius: clamp(0.7rem, 2.5vw, 1.1rem) !important;
+    font-size: clamp(0.7rem, 2.7vw, 0.85rem) !important;
+  }
+  /* Section headings (Cases / משימות / מסמכים) */
+  html body .modal.client-detail-stable-v229 > h3 {
+    font-size: clamp(0.9rem, 3.5vw, 1.1rem) !important;
+    margin: clamp(0.5rem, 2vw, 0.8rem) 0 clamp(0.35rem, 1.5vw, 0.55rem) !important;
+  }
+
+  /* ---- Tasks list ---- */
+  html body .modal.client-detail-stable-v229 .client-tasks-list {
+    gap: clamp(0.3rem, 1.3vw, 0.5rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-tasks-list .client-task-row {
+    padding: clamp(0.55rem, 2.2vw, 0.85rem) clamp(0.65rem, 2.5vw, 1rem) !important;
+    border-radius: clamp(0.5rem, 1.8vw, 0.75rem) !important;
+    gap: clamp(0.4rem, 1.8vw, 0.65rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-tasks-list .client-task-main {
+    gap: clamp(0.1rem, 0.4vw, 0.15rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-tasks-list .client-task-main strong {
+    font-size: clamp(0.78rem, 3vw, 0.95rem) !important;
+    gap: clamp(0.3rem, 1.2vw, 0.5rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-tasks-list .client-task-main .sub {
+    font-size: clamp(0.65rem, 2.5vw, 0.8rem) !important;
+  }
+  /* Status pill (done / open) on a task row */
+  html body .modal.client-detail-stable-v229 .client-tasks-list .client-task-row .task-status-badge {
+    height: clamp(1.15rem, 4.5vw, 1.4rem) !important;
+    padding: 0 clamp(0.4rem, 1.8vw, 0.6rem) !important;
+    font-size: clamp(0.6rem, 2.4vw, 0.75rem) !important;
+  }
+
+  /* ---- Notes box ---- */
+  html body .modal.client-detail-stable-v229 .client-notes-box {
+    padding: clamp(0.65rem, 2.6vw, 1rem) clamp(0.75rem, 3vw, 1.15rem) !important;
+    border-radius: clamp(0.5rem, 1.8vw, 0.75rem) !important;
+    font-size: clamp(0.78rem, 3vw, 0.95rem) !important;
+    margin-top: clamp(0.35rem, 1.5vw, 0.55rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-notes-box strong {
+    font-size: clamp(0.6rem, 2.4vw, 0.75rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-notes-after-cases {
+    margin-top: clamp(0.5rem, 2vw, 0.75rem) !important;
+    margin-bottom: clamp(0.15rem, 0.6vw, 0.3rem) !important;
+  }
+
+  /* ---- Documents list ---- */
+  html body .modal.client-detail-stable-v229 .client-documents-list {
+    gap: clamp(0.3rem, 1.3vw, 0.5rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-documents-list .client-document-row {
+    padding: clamp(0.55rem, 2.2vw, 0.85rem) clamp(0.65rem, 2.5vw, 1rem) !important;
+    border-radius: clamp(0.5rem, 1.8vw, 0.75rem) !important;
+    gap: clamp(0.4rem, 1.8vw, 0.65rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-documents-list .client-document-main {
+    gap: clamp(0.1rem, 0.4vw, 0.15rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-documents-list .client-document-main strong {
+    font-size: clamp(0.78rem, 3vw, 0.95rem) !important;
+    gap: clamp(0.3rem, 1.2vw, 0.5rem) !important;
+  }
+  html body .modal.client-detail-stable-v229 .client-documents-list .client-document-main .sub {
+    font-size: clamp(0.65rem, 2.5vw, 0.8rem) !important;
+  }
+
+  /* Empty placeholders inside Tasks + Documents (Cases already handled above) */
+  html body .modal.client-detail-stable-v229 .client-tasks-list .case-empty,
+  html body .modal.client-detail-stable-v229 .client-documents-list .case-empty {
+    padding: clamp(0.85rem, 3.5vw, 1.4rem) clamp(0.75rem, 3vw, 1.15rem) !important;
+    border-radius: clamp(0.6rem, 2.2vw, 1rem) !important;
+    font-size: clamp(0.7rem, 2.7vw, 0.85rem) !important;
+  }
+}
 /* ============================================================ *
  * Dark-mode coverage patch — every screen.
  *
@@ -23187,5 +23525,1485 @@ body.dark .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .cas
 }
 body.dark .modal.case-detail-mobile-v140 .case-detail-actions-mobile-only > .case-action-mobile-cell.case-delete-btn-v143 > i {
   color: #fecaca !important;
+}
+
+/* ============================================================ *
+ * HOME DASHBOARD — fluid v2 (option B refactor, screen 1/4).
+ *
+ * Rewrite #3 after layout bugs in v1/v2:
+ *   - Button drifted right of center in RTL (absolute positioning
+ *     hit the wrong ancestor / fought the legacy !important inset).
+ *   - Spanning grid-area trick placed the button before cards in
+ *     auto-flow, forcing cards into implicit extra rows.
+ *
+ * This version puts card-grid + badge as SIBLINGS inside a
+ * `.home-stage` wrapper (positioning context). The badge uses
+ * the bulletproof `inset:0; margin:auto; width:X; height:X` trick
+ * to center inside the stage — works in LTR + RTL, in any
+ * parent layout, with no percentage-offset arithmetic to drift.
+ *
+ * Cards live in a plain 2×2 grid (one column under 28rem
+ * container width), with a 1.5cm row-gap per user spec.
+ *
+ * Design principles (memory: responsive-adaptive-ui):
+ *   - All sizes via clamp() / rem / vw / dvh — no fixed `px`.
+ *   - Mobile-first; layout collapses to 1-col via @container.
+ *   - Same visual hierarchy on every viewport.
+ * ============================================================ */
+.home-v2-fluid {
+  container-type: inline-size;
+  container-name: home-wrap;
+
+  --home-pad-x:    clamp(0.75rem, 3vw, 2rem);
+  --home-pad-y:    clamp(0.75rem, 3dvh, 2rem);
+  --home-gap:      clamp(0.5rem, 2.5vw, 1.75rem);
+  /* Single gap value used for BOTH row-gap AND column-gap — per
+   * user request, the horizontal distance between left/right
+   * columns must equal the vertical distance between top/bottom
+   * rows. Width-based clamp with a meaningful MINIMUM gap so the
+   * cards never look like they're touching, even on iPads/tablets.
+   *   - min 0.75cm (~28px) — always a clear gap, even on phones
+   *   - scales with 4vw on medium screens
+   *   - capped at 1.5cm on big screens */
+  --home-row-gap:  clamp(0.75cm, 4vw, 1.5cm);
+  --home-radius:   clamp(0.875rem, 1.5vw, 1.5rem);
+  --home-card-pad: clamp(0.75rem, 2.5vw, 1.5rem);
+  --home-icon:     clamp(2.25rem, 6vw, 4rem);
+  --home-icon-fs:  clamp(1.125rem, 2.5vw, 1.875rem);
+  --home-title-fs: clamp(0.95rem, 1.8vw, 1.5rem);
+  --home-greet-fs: clamp(1rem, 2.2vw, 1.5rem);
+  --home-badge:    clamp(4.5rem, 12vw, 7.5rem);
+  --home-badge-fs: clamp(0.6875rem, 1.1vw, 0.875rem);
+
+  position: relative !important;
+  width: 100% !important;
+  max-width: min(72rem, 100%) !important;
+  margin-inline: auto !important;
+  height: clamp(28rem, calc(100dvh - 10rem), 56rem) !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: var(--home-gap) !important;
+  padding:
+    var(--home-pad-y)
+    max(var(--home-pad-x), env(safe-area-inset-right))
+    max(var(--home-pad-y), calc(env(safe-area-inset-bottom) + var(--mobile-bottom-nav-h, 0px)))
+    max(var(--home-pad-x), env(safe-area-inset-left)) !important;
+  box-sizing: border-box !important;
+  isolation: isolate;
+}
+
+/* Greeting line above the cards. */
+.home-v2-fluid .home-greeting {
+  flex: 0 0 auto !important;
+  font-size: var(--home-greet-fs) !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  text-align: center !important;
+  color: inherit !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* `.home-grid` — ONE flat CSS Grid with explicit template-areas.
+ *
+ * The grid has 4 cells (one per card) PLUS an overlay area that
+ * spans all 4 cells (named `center`). The badge is placed in
+ * `grid-area: center`, then `place-self: center` centers it
+ * within that area. Because `center` exactly matches the cards'
+ * 2×2 rectangle, the badge lands at the cards' true geometric
+ * midpoint — provably, by grid spec, in any writing direction.
+ *
+ * The `!important` chains beat the legacy `.home-card-grid` and
+ * `.upcoming-center-btn` rules at lines ~294, which had been
+ * fighting every previous approach. */
+html body .home-grid-wrap.home-v2-fluid .home-card-grid {
+  position: relative !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: grid !important;
+  /* ALWAYS 2×2 — phones, tablets, desktops, TVs. Per user request,
+   * the home dashboard must look identical across every viewport
+   * (just at different scales). No single-column fallback on
+   * small phones. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) !important;
+  grid-template-areas:
+    "c1 c2"
+    "c3 c4" !important;
+  /* Per user request: column-gap = row-gap. Inline the clamp so
+   * the value can't be lost via a stripped CSS variable on a
+   * cached/older stylesheet. */
+  gap: clamp(0.75cm, 4vw, 1.5cm) !important;
+  row-gap: clamp(0.75cm, 4vw, 1.5cm) !important;
+  column-gap: clamp(0.75cm, 4vw, 1.5cm) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Each card gets its own grid area. */
+.home-grid-wrap.home-v2-fluid .home-card-grid > .home-card-1 { grid-area: c1 !important; }
+.home-grid-wrap.home-v2-fluid .home-card-grid > .home-card-2 { grid-area: c2 !important; }
+.home-grid-wrap.home-v2-fluid .home-card-grid > .home-card-3 { grid-area: c3 !important; }
+.home-grid-wrap.home-v2-fluid .home-card-grid > .home-card-4 { grid-area: c4 !important; }
+
+/* Cards fill their grid cells. No aspect-ratio (would fight rows). */
+.home-grid-wrap.home-v2-fluid .home-card-grid .home-card {
+  /* SIZE + LAYOUT only — let the legacy color rules
+   * (`.content.home-content .home-card-grid .home-card:nth-child(N) { background: linear-gradient(...) }`)
+   * paint the colorful gradient backgrounds the user expects. */
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: clamp(0.375rem, 1vw, 0.875rem) !important;
+  padding: var(--home-card-pad) !important;
+  border-radius: var(--home-radius) !important;
+  cursor: pointer !important;
+  text-align: center !important;
+  overflow: hidden !important;
+  /* Override the legacy 44px-blur colored shadows
+   * (`.home-card:nth-child(N) { box-shadow: 0 22px 44px ... !important }`).
+   * Those shadows bleed up to ~30px into the gap area, making
+   * the cards LOOK touching even when the actual gap is 28px+.
+   * Use a tight 1rem-blur shadow that stays within the card. */
+  box-shadow: 0 0.25rem 0.75rem rgba(15, 23, 42, 0.08) !important;
+}
+/* Disable the legacy "home-style-classic" rules that were
+ * COLLAPSING THE VISIBLE GAP between cards:
+ *
+ *   1. `transform: translate(±0.5cm, ±0.5cm)` (lines 21314-21333)
+ *      pulled each card 0.5cm toward the center, eating ~1cm
+ *      out of each direction's gap.
+ *   2. `aspect-ratio: 3/2; max-width: 406px; justify-self: center`
+ *      (lines 21285-21305) made cards smaller than their cells
+ *      and centered them, so the cards didn't reach the cell
+ *      edges and the grid `gap` was hidden behind extra cell
+ *      space that got eaten by the transforms.
+ *
+ * Result of those two combined: visible gap was effectively
+ * NEGATIVE — cards looked like they touched (or overlapped).
+ *
+ * Override both so cards fill their cells exactly, with the
+ * grid `gap` showing through as a visible 28-56px corridor.
+ *
+ * Specificity climb to (0, 5, 2) beats classic's (0, 5, 0). */
+html body .home-grid-wrap.home-v2-fluid .home-card-grid .home-card:nth-child(1),
+html body .home-grid-wrap.home-v2-fluid .home-card-grid .home-card:nth-child(2),
+html body .home-grid-wrap.home-v2-fluid .home-card-grid .home-card:nth-child(3),
+html body .home-grid-wrap.home-v2-fluid .home-card-grid .home-card:nth-child(4) {
+  /* Kill the classic translate that pulled cards toward center. */
+  transform: none !important;
+  translate: none !important;
+  /* Let cards FILL their grid cells. */
+  aspect-ratio: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  /* Stretch in cell, not center — so the cell's edges match the
+   * card's edges and the grid `gap` becomes the visible gap. */
+  justify-self: stretch !important;
+  align-self: stretch !important;
+  /* Tight shadow that doesn't bleed into the gap. */
+  box-shadow: 0 0.25rem 0.75rem rgba(15, 23, 42, 0.10) !important;
+}
+/* Restore the hover lift after killing the classic transform. */
+html body .home-grid-wrap.home-v2-fluid .home-card-grid .home-card:nth-child(1):hover,
+html body .home-grid-wrap.home-v2-fluid .home-card-grid .home-card:nth-child(2):hover,
+html body .home-grid-wrap.home-v2-fluid .home-card-grid .home-card:nth-child(3):hover,
+html body .home-grid-wrap.home-v2-fluid .home-card-grid .home-card:nth-child(4):hover {
+  transform: translateY(-0.25rem) !important;
+}
+
+/* Card icon. */
+.home-grid-wrap.home-v2-fluid .home-card-grid .home-card .card-icon {
+  width: var(--home-icon) !important;
+  height: var(--home-icon) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 50% !important;
+  background: rgba(37, 99, 235, 0.12) !important;
+  color: #2563eb !important;
+  font-size: var(--home-icon-fs) !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  flex: 0 0 auto !important;
+}
+.home-grid-wrap.home-v2-fluid .home-card-grid .home-card .card-icon i {
+  font-size: var(--home-icon-fs) !important;
+  line-height: 1 !important;
+}
+.home-grid-wrap.home-v2-fluid .home-card-grid .home-card:nth-child(1) .card-icon { background: rgba(16, 185, 129, 0.14) !important; color: #059669 !important; }
+.home-grid-wrap.home-v2-fluid .home-card-grid .home-card:nth-child(2) .card-icon { background: rgba(245, 158, 11, 0.14) !important; color: #d97706 !important; }
+.home-grid-wrap.home-v2-fluid .home-card-grid .home-card:nth-child(3) .card-icon { background: rgba(99, 102, 241, 0.14) !important; color: #4f46e5 !important; }
+.home-grid-wrap.home-v2-fluid .home-card-grid .home-card:nth-child(4) .card-icon { background: rgba(217, 70, 239, 0.14) !important; color: #c026d3 !important; }
+
+/* Card title. */
+.home-grid-wrap.home-v2-fluid .home-card-grid .home-card h2 {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: var(--home-title-fs) !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.01em !important;
+  color: inherit !important;
+  max-width: 100% !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  text-align: center !important;
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * "Upcoming events" floating badge — centered with the classic
+ * `position: absolute; inset: 0; margin: auto; width: X; height: X`
+ * pattern. The parent `.home-card-grid` is `position: relative`
+ * (set above). With absolute positioning + all four insets at 0 +
+ * fixed width/height + margin: auto on all sides, the browser
+ * distributes the leftover space evenly on all four sides —
+ * mathematically placing the element at the geometric center of
+ * the parent's content box.
+ *
+ * Why this version after multiple grid-area attempts:
+ *   - `place-self: center` on a grid item gave inconsistent
+ *     results in RTL — sometimes drifted off-center.
+ *   - `position: absolute` removes the badge from grid auto-flow,
+ *     so it doesn't push cards into implicit rows.
+ *   - `inset:0 + margin:auto` works in EVERY writing-mode + RTL.
+ *   - We DON'T span a grid-area, so it doesn't compete with
+ *     the cards for cell occupancy.
+ *
+ * Specificity bumped to .home-grid-wrap.home-v2-fluid (3 classes)
+ * + .home-card-grid + .upcoming-center-btn = (0, 5, 0) to beat
+ * the legacy `.upcoming-center-btn.upcoming-center-icon-btn`
+ * (0, 2, 0) rule at line 57. */
+.home-grid-wrap.home-v2-fluid .home-card-grid > .upcoming-center-btn.upcoming-center-icon-btn,
+.home-grid-wrap.home-v2-fluid .home-card-grid > .upcoming-center-btn {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  inset: 0 !important;
+  inset-inline-start: 0 !important;
+  inset-inline-end: 0 !important;
+  inset-block-start: 0 !important;
+  inset-block-end: 0 !important;
+  margin: auto !important;
+  margin-block: auto !important;
+  margin-inline: auto !important;
+  /* Not a grid item — absolute removes from flow. Clear any grid
+   * placement so it can't accidentally take a cell or anchor to
+   * a column line. */
+  grid-row: auto !important;
+  grid-column: auto !important;
+  grid-area: auto !important;
+  place-self: auto !important;
+  justify-self: auto !important;
+  align-self: auto !important;
+  width: var(--home-badge) !important;
+  height: var(--home-badge) !important;
+  min-width: var(--home-badge) !important;
+  min-height: var(--home-badge) !important;
+  max-width: var(--home-badge) !important;
+  max-height: var(--home-badge) !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  border: 2px solid rgba(59, 130, 246, 0.4) !important;
+  background: #ffffff !important;
+  color: #1d4ed8 !important;
+  box-shadow: 0 0.75rem 2rem rgba(37, 99, 235, 0.18) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: clamp(0.125rem, 0.5vw, 0.5rem) !important;
+  transform: none !important;
+  translate: none !important;
+  cursor: pointer !important;
+  z-index: 5 !important;
+}
+.home-grid-wrap.home-v2-fluid .home-card-grid > .upcoming-center-btn:hover {
+  transform: scale(1.04) !important;
+}
+.home-grid-wrap.home-v2-fluid .home-card-grid > .upcoming-center-btn .upcoming-mini-card {
+  display: contents !important;
+  background: transparent !important;
+}
+.home-grid-wrap.home-v2-fluid .home-card-grid > .upcoming-center-btn .upcoming-mini-icon {
+  width: clamp(1.25rem, 3vw, 2rem) !important;
+  height: clamp(1.25rem, 3vw, 2rem) !important;
+  border-radius: 50% !important;
+  background: rgba(37, 99, 235, 0.14) !important;
+  color: #2563eb !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: clamp(0.75rem, 1.4vw, 1.125rem) !important;
+}
+.home-grid-wrap.home-v2-fluid .home-card-grid > .upcoming-center-btn .upcoming-mini-label {
+  font-size: var(--home-badge-fs) !important;
+  font-weight: 800 !important;
+  line-height: 1.1 !important;
+  text-align: center !important;
+  color: #1d4ed8 !important;
+  max-width: 100% !important;
+  padding: 0 0.25rem !important;
+}
+/* Hide badge when grid is single-column (no room). */
+@container home-wrap (max-width: 28rem) {
+  .home-grid-wrap.home-v2-fluid .home-card-grid > .upcoming-center-btn { display: none !important; }
+}
+
+/* Dark-mode. */
+body.dark .home-grid-wrap.home-v2-fluid .home-card-grid .home-card {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+  box-shadow: 0 0.75rem 1.75rem rgba(0, 0, 0, 0.40) !important;
+}
+body.dark .home-grid-wrap.home-v2-fluid .home-card-grid .home-card:hover {
+  border-color: #60a5fa !important;
+}
+body.dark .home-grid-wrap.home-v2-fluid .home-card-grid > .upcoming-center-btn {
+  background: #1e293b !important;
+  color: #93c5fd !important;
+  border-color: #475569 !important;
+}
+body.dark .home-grid-wrap.home-v2-fluid .home-card-grid > .upcoming-center-btn .upcoming-mini-label {
+  color: #93c5fd !important;
+}
+body.dark .home-grid-wrap.home-v2-fluid .home-card-grid > .upcoming-center-btn .upcoming-mini-icon {
+  background: rgba(96, 165, 250, 0.18) !important;
+  color: #93c5fd !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-grid-wrap.home-v2-fluid .home-card-grid .home-card,
+  .home-grid-wrap.home-v2-fluid .home-card-grid .home-card:hover,
+  .home-grid-wrap.home-v2-fluid .home-card-grid > .upcoming-center-btn:hover {
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* ============================================================ *
+ * CASES SCREEN — fluid v2 (option B refactor, screen 2/4).
+ *
+ * Scoped to `.cases-v2-fluid` (marker class added to the
+ * <section> in components/CasesScreen.tsx). The CasesScreen
+ * renders a search bar + a table of cases. On a narrow viewport
+ * (phone/iPad portrait) the table reflows into a stack of "cards"
+ * where each row becomes a vertical card with labeled values —
+ * the same data, rearranged so it stays readable without
+ * horizontal scroll.
+ *
+ * Container query (`@container cases-screen`) drives the
+ * table→card switch based on the SECTION's own width, not the
+ * viewport. Same component works correctly in a sidebar split or
+ * an embed.
+ *
+ * Design principles (memory: responsive-adaptive-ui):
+ *   - All sizes via clamp / rem / vw / dvh — no fixed px
+ *   - Mobile-first authoring; desktop is the @container override
+ *   - No horizontal scroll, no clipped text (`min-width: 0` on
+ *     flex/grid children + `text-overflow: ellipsis` on cells)
+ *   - Dark mode covered via `body.dark` tones
+ * ============================================================ */
+.cases-v2-fluid {
+  container-type: inline-size;
+  container-name: cases-screen;
+
+  /* Fluid sizing tokens. */
+  --cases-pad-x:       clamp(0.5rem, 2vw, 1.5rem);
+  --cases-pad-y:       clamp(0.5rem, 2dvh, 1.25rem);
+  --cases-gap:         clamp(0.5rem, 1.5vw, 1rem);
+  --cases-radius:      clamp(0.75rem, 1.2vw, 1.25rem);
+  --cases-label-fs:    clamp(0.8125rem, 1vw, 1rem);
+  --cases-input-fs:    clamp(0.875rem, 1.05vw, 1.0625rem);
+  --cases-input-pad-y: clamp(0.5rem, 1.2dvh, 0.875rem);
+  --cases-input-pad-x: clamp(0.75rem, 1.4vw, 1.125rem);
+  --cases-meta-fs:     clamp(0.6875rem, 0.85vw, 0.875rem);
+  --cases-row-pad-y:   clamp(0.625rem, 1.5dvh, 1rem);
+  --cases-row-pad-x:   clamp(0.625rem, 1.5vw, 1.125rem);
+  --cases-row-gap:     clamp(0.375rem, 1vw, 0.75rem);
+  --cases-title-fs:    clamp(0.95rem, 1.15vw, 1.125rem);
+  --cases-cell-fs:     clamp(0.8125rem, 1vw, 1rem);
+  --cases-sub-fs:      clamp(0.75rem, 0.9vw, 0.875rem);
+  --cases-status-fs:   clamp(0.6875rem, 0.9vw, 0.875rem);
+  --cases-status-pad:  clamp(0.25rem, 0.7vw, 0.5rem);
+}
+
+/* Panel wrapper — fills its container's content area, scrolls
+ * internally so it never causes page-level horizontal scroll. */
+html body .cases-v2-fluid.cases-screen-panel {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  border-radius: var(--cases-radius) !important;
+  box-sizing: border-box !important;
+}
+html body .cases-v2-fluid .cases-panel-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--cases-gap) !important;
+  padding:
+    var(--cases-pad-y)
+    max(var(--cases-pad-x), env(safe-area-inset-right))
+    max(var(--cases-pad-y), env(safe-area-inset-bottom))
+    max(var(--cases-pad-x), env(safe-area-inset-left)) !important;
+  box-sizing: border-box !important;
+}
+
+/* Search bar — fluid, full-width, never overflows. */
+html body .cases-v2-fluid .case-search-wrap {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: clamp(0.25rem, 0.6vw, 0.5rem) !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+}
+html body .cases-v2-fluid .case-search-wrap > label {
+  font-size: var(--cases-label-fs) !important;
+  font-weight: 700 !important;
+  color: inherit !important;
+  margin: 0 !important;
+}
+html body .cases-v2-fluid .case-search-wrap > .case-search-input {
+  width: 100% !important;
+  min-width: 0 !important;
+  font-size: var(--cases-input-fs) !important;
+  padding: var(--cases-input-pad-y) var(--cases-input-pad-x) !important;
+  border-radius: 999px !important;
+  border: 1px solid #dbe7f4 !important;
+  background: #ffffff !important;
+  color: inherit !important;
+  box-sizing: border-box !important;
+}
+html body .cases-v2-fluid .case-search-wrap > .case-search-meta {
+  font-size: var(--cases-meta-fs) !important;
+  color: #64748b !important;
+  margin: 0 !important;
+}
+
+/* Scroll container — scrolls vertically only; horizontal scroll
+ * never appears because the table reflows to cards on narrow. */
+html body .cases-v2-fluid .cases-scroll-list {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-y: auto !important;
+  /* Was `overflow-x: hidden` — switching to `clip` lets the
+   * status pill's negative-margin extension reach the screen
+   * edge without being clipped at the wrap. `clip` is like
+   * hidden but doesn't establish a scroll container. */
+  overflow-x: clip !important;
+  border-radius: var(--cases-radius) !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile-first: table reflows to a stack of cards.
+ * Each <tr> becomes a card; each <td> becomes a labeled row.
+ * <thead> is hidden because its labels are merged into each
+ * cell via the data-label attribute.
+ *
+ * The desktop layout (real table) is restored inside the
+ * @container query below. */
+html body .cases-v2-fluid .cases-scroll-list .table {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 0 !important; /* no visible space between cards — no line in the gap */
+  row-gap: 0 !important;
+  column-gap: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  table-layout: fixed !important;
+}
+/* WILDCARD border + background killer on every descendant of the
+ * table. Belt-and-braces with `@media` ALSO to ensure mobile
+ * coverage even if container queries don't fire as expected. */
+html body .cases-v2-fluid .cases-scroll-list .table * {
+  border: 0 none transparent !important;
+  border-top: 0 none transparent !important;
+  border-right: 0 none transparent !important;
+  border-bottom: 0 none transparent !important;
+  border-left: 0 none transparent !important;
+  border-block: 0 none transparent !important;
+  border-inline: 0 none transparent !important;
+  border-block-start: 0 none transparent !important;
+  border-block-end: 0 none transparent !important;
+  border-inline-start: 0 none transparent !important;
+  border-inline-end: 0 none transparent !important;
+  border-style: none !important;
+  border-width: 0 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  outline-color: transparent !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-block: 0 !important;
+}
+/* Exception: status pill keeps its background and shape — that's
+ * the visible "פעיל" chip the user wants to see. The wildcard
+ * above would otherwise make it transparent. */
+html body .cases-v2-fluid .cases-scroll-list .table .status,
+html body .cases-v2-fluid .cases-scroll-list .table .status.active,
+html body .cases-v2-fluid .cases-scroll-list .table .status.pending,
+html body .cases-v2-fluid .cases-scroll-list .table .status.inactive {
+  /* Status pill — tight vertical padding so the pill height matches
+   * the text line-height and doesn't inflate the row height. */
+  padding: 0 clamp(0.4rem, 1vw, 0.6rem) !important;
+  font-size: clamp(0.625rem, 0.8vw, 0.75rem) !important;
+  line-height: 1.4 !important;
+}
+html body .cases-v2-fluid .cases-scroll-list .table .status.active {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+}
+html body .cases-v2-fluid .cases-scroll-list .table .status.pending {
+  background: #fefce8 !important;
+  color: #a16207 !important;
+}
+html body .cases-v2-fluid .cases-scroll-list .table .status.inactive {
+  background: #fff1f2 !important;
+  color: #be123c !important;
+}
+/* Force tight line-height across all cells so the row is exactly
+ * one line of text tall — no implicit vertical breathing room. */
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td,
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td > .row-title {
+  line-height: 1.4 !important;
+}
+/* Nuke any pseudo-element on table descendants that might draw
+ * a horizontal line (::before / ::after with content + border or
+ * background-image of a 1px gradient stripe). */
+html body .cases-v2-fluid .cases-scroll-list .table *::before,
+html body .cases-v2-fluid .cases-scroll-list .table *::after {
+  border: 0 none transparent !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+html body .cases-v2-fluid .cases-scroll-list .table > thead {
+  display: none !important;
+}
+html body .cases-v2-fluid .cases-scroll-list .table > tbody {
+  display: contents !important;
+}
+/* MOBILE-ONLY case row layout (per user's professional spec):
+ *
+ * Each case = ONE horizontal row, just like iPad/Desktop view.
+ * Same conceptual structure as iPad — header + rows of columns,
+ * just denser. NO 2-row stacking, NO field drops to new line.
+ *
+ * Columns (RTL right-to-left visual order):
+ *   1. client name        (flex 1.6)
+ *   2. case-type          (flex 1.4)
+ *   3. court              (flex 1.4)
+ *   4. case-number        (flex 1.1)
+ *   5. status pill        (flex 0 0 auto — chip/badge)
+ *
+ * Every column uses `min-width: 0; overflow: hidden;
+ * text-overflow: ellipsis; white-space: nowrap` so long text
+ * truncates with "…" instead of wrapping. Font sizes use
+ * clamp() to scale down on tight screens. Uniform row height
+ * comes from `align-items: center` and matched line-heights.
+ *
+ * The case <td> uses `display: contents` to flatten its
+ * row-title + sub children into the row's flex flow, then
+ * `order` reorders all five visible items into the user's
+ * specified sequence.
+ *
+ * Wrapped in `@container cases-screen (max-width: 37.99rem)` so
+ * the desktop layout (>= 38rem) is untouched. */
+@container cases-screen (max-width: 37.99rem) {
+/* ─────────────────────────────────────────────────────────────
+ * 3-COLUMN GRID — clean mobile layout per user spec.
+ *
+ * Each case row = ONE horizontal line with exactly 3 cells:
+ *   Col 1 (RTL right):  client name
+ *   Col 2 (RTL middle): case type
+ *   Col 3 (RTL left):   status pill
+ *
+ * Court + case-number tds are hidden. Borders + backgrounds on
+ * inner cells are zeroed so no divider lines show inside the row.
+ * Layout is symmetric: same column widths on every case row.
+ * ───────────────────────────────────────────────────────────── */
+
+/* The card itself — a 3-column × 1-row grid.
+ * NO bottom border / shadow — only the outer card outline. */
+/* Specificity chain: .case-row.case-row.case-row.case-row.case-row
+ * gives (0, 9, 5) which beats the legacy
+ * `.content.content.content.content:not(.home-content) .case-row`
+ * at (0, 6, 0). */
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row.case-row.case-row.case-row.case-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr auto !important;
+  grid-template-rows: auto !important;
+  grid-auto-rows: 0 !important;
+  grid-auto-flow: row !important;
+  align-items: center !important;
+  gap: clamp(0.5rem, 2vw, 1rem) !important;
+  /* Per user spec: zero vertical padding — cases should look like
+   * a continuous list (like the desktop table view). Vertical
+   * padding 5px per user request — small breathing room without
+   * making rows feel disconnected. */
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+  padding-block: 5px !important;
+  padding-block-start: 5px !important;
+  padding-block-end: 5px !important;
+  padding-inline: var(--cases-row-pad-x) !important;
+  padding: 5px var(--cases-row-pad-x) !important;
+  margin: 0 !important;
+  /* Per user spec: each row has ONLY a bottom border that touches
+   * the top of the next row — no gap between rows, no extra
+   * borders, just a clean 1px divider between adjacent cases. */
+  border: 0 none transparent !important;
+  border-top: 0 none transparent !important;
+  border-right: 0 none transparent !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12) !important;
+  border-left: 0 none transparent !important;
+  border-block-start: 0 none transparent !important;
+  border-inline-start: 0 none transparent !important;
+  border-inline-end: 0 none transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  transition: background-color 0.16s ease, border-color 0.16s ease !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-height: 2.5rem !important;
+}
+/* Nuke any pseudo-element that legacy CSS might use to draw a
+ * line below the row. */
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row::after,
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row::before {
+  content: none !important;
+  display: none !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row:hover {
+  background: #f8fbff !important;
+  border-color: rgba(37, 99, 235, 0.4) !important;
+}
+
+/* Every <td> in the row: zero out legacy borders + backgrounds.
+ * `tr.case-row × 5` chain bumps specificity to (0, 8, 5), beating
+ * any legacy rule with up to ~6 classes that tries to add a
+ * border-top/bottom to cells. */
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row.case-row.case-row.case-row.case-row > td {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  align-self: stretch !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+  text-align: right !important;
+  color: inherit !important;
+}
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-label]::before {
+  content: none !important;
+}
+
+/* Col 1 (RTL right): CLIENT NAME — bold. */
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="client"] {
+  grid-row: 1 !important;
+  grid-column: 1 !important;
+  font-size: var(--cases-cell-fs) !important;
+  font-weight: 700 !important;
+}
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="client"]::before {
+  content: none !important;
+}
+
+/* Col 2 (RTL middle): CASE TYPE — bold, content lives in .row-title.
+ * Hide the inner .sub (case-number) so only the case name shows. */
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] {
+  grid-row: 1 !important;
+  grid-column: 2 !important;
+  font-size: var(--cases-cell-fs) !important;
+  font-weight: 700 !important;
+}
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] > .row-title {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-weight: 700 !important;
+  font-size: inherit !important;
+  color: inherit !important;
+  line-height: inherit !important;
+  text-align: right !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] > .row-title::before {
+  content: none !important;
+}
+/* FULLY HIDE .sub (case-number) so the case <td> only renders
+ * the .row-title line. Multiple hiding properties used as
+ * belt-and-braces in case `display: none` is being overridden
+ * by a more specific rule elsewhere. */
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] > .sub,
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] .sub {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Col 3 (RTL left): STATUS PILL — fixed compact width, doesn't
+ * influence the 1fr columns. Pinned to the END of the row. */
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="status"] {
+  grid-row: 1 !important;
+  grid-column: 3 !important;
+  justify-self: end !important;
+  text-align: center !important;
+}
+
+/* FULLY HIDE court — also belt-and-braces. */
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="court"] {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+/* Status pill — fluid sizing. */
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row .status {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: var(--cases-status-pad) clamp(0.5rem, 1vw, 0.75rem) !important;
+  border-radius: 999px !important;
+  font-size: var(--cases-status-fs) !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+}
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row .status.active {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+}
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row .status.pending {
+  background: #fefce8 !important;
+  color: #a16207 !important;
+}
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row .status.inactive {
+  background: #fff1f2 !important;
+  color: #be123c !important;
+}
+} /* /end @container cases-screen (max-width: 37.99rem) — mobile block */
+
+/* ============================================================ *
+ * @MEDIA fallback for mobile — duplicates the tight-list layout
+ * via viewport-based query in case the container query above
+ * doesn't fire (browser support edge cases, container-type not
+ * computed, etc.). Strips ALL spacing between case rows so the
+ * cases render as a continuous flat list, no boxes/gaps/lines.
+ * ============================================================ */
+@media (max-width: 700px) {
+  html body .cases-v2-fluid .cases-scroll-list .table {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+    row-gap: 0 !important;
+    column-gap: 0 !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > thead {
+    display: none !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody {
+    display: contents !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row.case-row.case-row.case-row.case-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr auto !important;
+    grid-template-rows: auto !important;
+    grid-auto-rows: 0 !important;
+    align-items: center !important;
+    gap: clamp(0.5rem, 2vw, 1rem) !important;
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+    padding-block: 5px !important;
+    padding-inline: var(--cases-row-pad-x, 0.625rem) !important;
+    padding: 5px var(--cases-row-pad-x, 0.625rem) !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.12) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    cursor: pointer !important;
+    box-sizing: border-box !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    line-height: 1.4 !important;
+    text-align: right !important;
+    color: inherit !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-label]::before {
+    content: none !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="client"] {
+    grid-row: 1 !important;
+    grid-column: 1 !important;
+    font-weight: 700 !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] {
+    grid-row: 1 !important;
+    grid-column: 2 !important;
+    font-weight: 700 !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] > .row-title {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-weight: 700 !important;
+    text-align: right !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    line-height: 1.4 !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] > .sub {
+    display: none !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="court"] {
+    display: none !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="status"] {
+    grid-row: 1 !important;
+    grid-column: 3 !important;
+    justify-self: end !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table .status {
+    padding: 0 clamp(0.4rem, 1vw, 0.6rem) !important;
+    line-height: 1.4 !important;
+  }
+}
+
+/* Container query: when the cases panel has enough horizontal
+ * room (~38rem ≈ 608px — comfortably fits 4 columns of readable
+ * text), restore the real table layout. */
+@container cases-screen (min-width: 38rem) {
+  html body .cases-v2-fluid .cases-scroll-list .table {
+    display: table !important;
+    grid-template-columns: none !important;
+    table-layout: auto !important;
+    background: #ffffff !important;
+    border-radius: var(--cases-radius) !important;
+    overflow: hidden !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > thead {
+    display: table-header-group !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > thead > tr > th {
+    padding: var(--cases-row-pad-y) var(--cases-row-pad-x) !important;
+    font-size: var(--cases-sub-fs) !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    text-align: start !important;
+    background: #f8fafc !important;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+    white-space: nowrap !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody {
+    display: table-row-group !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row {
+    display: table-row !important;
+    grid-template-columns: none !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row:hover {
+    background: #f8fbff !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td {
+    display: table-cell !important;
+    vertical-align: middle !important;
+    padding: var(--cases-row-pad-y) var(--cases-row-pad-x) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 0 !important; /* lets table-layout: auto distribute */
+    /* Reset the mobile grid placement so cells return to natural
+     * table cell flow. */
+    grid-row: auto !important;
+    grid-column: auto !important;
+    grid-area: auto !important;
+    margin: 0 !important;
+    align-self: auto !important;
+    justify-self: auto !important;
+  }
+  /* Hide the data-label prefix when we're in table mode. */
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-label]::before {
+    content: none !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] {
+    display: table-cell !important;
+    flex-direction: row !important;
+    white-space: nowrap !important;
+    grid-row: auto !important;
+    grid-column: auto !important;
+    grid-area: auto !important;
+  }
+  /* Reset case-number / court / status mobile placement too. */
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="client"],
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="court"],
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="status"] {
+    grid-row: auto !important;
+    grid-column: auto !important;
+    grid-area: auto !important;
+    margin: 0 !important;
+    align-self: auto !important;
+    justify-self: auto !important;
+    font-size: var(--cases-cell-fs) !important;
+    color: inherit !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] .row-title {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+}
+
+/* Dark-mode. */
+body.dark .cases-v2-fluid .case-search-wrap > .case-search-input {
+  background: #0f172a !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+body.dark .cases-v2-fluid .case-search-wrap > .case-search-meta {
+  color: #cbd5e1 !important;
+}
+body.dark .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+body.dark .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row:hover {
+  background: #334155 !important;
+  border-color: #60a5fa !important;
+}
+body.dark .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-label]::before {
+  color: #cbd5e1 !important;
+}
+body.dark .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] .sub {
+  color: #cbd5e1 !important;
+}
+body.dark .cases-v2-fluid .cases-scroll-list .table > thead > tr > th {
+  background: #243247 !important;
+  color: #cbd5e1 !important;
+  border-bottom-color: #475569 !important;
+}
+body.dark .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row .status.active {
+  background: #064e3b !important;
+  color: #a7f3d0 !important;
+}
+body.dark .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row .status.pending {
+  background: #422006 !important;
+  color: #fde68a !important;
+}
+body.dark .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row .status.inactive {
+  background: #7f1d1d !important;
+  color: #fecaca !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row {
+    transition: none !important;
+  }
+}
+
+/* ============================================================ *
+ * CLIENTS SCREEN — fluid v2 (option B refactor, screen 3/4).
+ *
+ * Same shape as Cases (search bar + table reflowing to cards on
+ * narrow containers). Scoped to `.clients-v2-fluid`. The CSS
+ * variables are shared with cases to keep visual sizing
+ * consistent — same row padding, same input height, same
+ * status pill — but selectors are clients-specific so this
+ * screen can be tuned independently if needed.
+ * ============================================================ */
+.clients-v2-fluid {
+  container-type: inline-size;
+  container-name: clients-screen;
+
+  --clients-pad-x:       clamp(0.5rem, 2vw, 1.5rem);
+  --clients-pad-y:       clamp(0.5rem, 2dvh, 1.25rem);
+  --clients-gap:         clamp(0.5rem, 1.5vw, 1rem);
+  --clients-radius:      clamp(0.75rem, 1.2vw, 1.25rem);
+  --clients-label-fs:    clamp(0.8125rem, 1vw, 1rem);
+  --clients-input-fs:    clamp(0.875rem, 1.05vw, 1.0625rem);
+  --clients-input-pad-y: clamp(0.5rem, 1.2dvh, 0.875rem);
+  --clients-input-pad-x: clamp(0.75rem, 1.4vw, 1.125rem);
+  --clients-meta-fs:     clamp(0.6875rem, 0.85vw, 0.875rem);
+  --clients-row-pad-y:   clamp(0.625rem, 1.5dvh, 1rem);
+  --clients-row-pad-x:   clamp(0.625rem, 1.5vw, 1.125rem);
+  --clients-row-gap:     clamp(0.375rem, 1vw, 0.75rem);
+  --clients-title-fs:    clamp(0.95rem, 1.15vw, 1.125rem);
+  --clients-cell-fs:     clamp(0.8125rem, 1vw, 1rem);
+  --clients-sub-fs:      clamp(0.75rem, 0.9vw, 0.875rem);
+  --clients-status-fs:   clamp(0.6875rem, 0.9vw, 0.875rem);
+  --clients-status-pad:  clamp(0.25rem, 0.7vw, 0.5rem);
+}
+
+html body .clients-v2-fluid.clients-screen-panel {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  border-radius: var(--clients-radius) !important;
+  box-sizing: border-box !important;
+}
+html body .clients-v2-fluid .clients-panel-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--clients-gap) !important;
+  padding:
+    var(--clients-pad-y)
+    max(var(--clients-pad-x), env(safe-area-inset-right))
+    max(var(--clients-pad-y), env(safe-area-inset-bottom))
+    max(var(--clients-pad-x), env(safe-area-inset-left)) !important;
+  box-sizing: border-box !important;
+}
+
+/* Reuse the search-wrap styling (same as cases). */
+html body .clients-v2-fluid .case-search-wrap {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: clamp(0.25rem, 0.6vw, 0.5rem) !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+}
+html body .clients-v2-fluid .case-search-wrap > label {
+  font-size: var(--clients-label-fs) !important;
+  font-weight: 700 !important;
+  color: inherit !important;
+  margin: 0 !important;
+}
+html body .clients-v2-fluid .case-search-wrap > .case-search-input {
+  width: 100% !important;
+  min-width: 0 !important;
+  font-size: var(--clients-input-fs) !important;
+  padding: var(--clients-input-pad-y) var(--clients-input-pad-x) !important;
+  border-radius: 999px !important;
+  border: 1px solid #dbe7f4 !important;
+  background: #ffffff !important;
+  color: inherit !important;
+  box-sizing: border-box !important;
+}
+html body .clients-v2-fluid .case-search-wrap > .case-search-meta {
+  font-size: var(--clients-meta-fs) !important;
+  color: #64748b !important;
+  margin: 0 !important;
+}
+
+html body .clients-v2-fluid .clients-scroll-list {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  border-radius: var(--clients-radius) !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Mobile clients layout — tight single-row list (same shape as
+ * cases). Each row = 3 cells: client name | phone | active count.
+ * Rows are flush against each other with a thin border-bottom
+ * acting as the divider — looks like a continuous table.
+ *
+ * Wrapped in @container max-width so the desktop @container
+ * (min-width: 38rem) below can restore the natural table layout
+ * without competing with these mobile-only overrides. */
+@container clients-screen (max-width: 37.99rem) {
+html body .clients-v2-fluid .clients-scroll-list .table {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 0 !important;
+  row-gap: 0 !important;
+  column-gap: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  table-layout: fixed !important;
+}
+html body .clients-v2-fluid .clients-scroll-list .table > thead {
+  display: none !important;
+}
+html body .clients-v2-fluid .clients-scroll-list .table > tbody {
+  display: contents !important;
+}
+
+/* Wildcard border + background killer to neutralize legacy table
+ * cell borders and surface-soft backgrounds. */
+html body .clients-v2-fluid .clients-scroll-list .table * {
+  border: 0 none transparent !important;
+  border-top: 0 none transparent !important;
+  border-right: 0 none transparent !important;
+  border-bottom: 0 none transparent !important;
+  border-left: 0 none transparent !important;
+  border-block-start: 0 none transparent !important;
+  border-block-end: 0 none transparent !important;
+  border-inline-start: 0 none transparent !important;
+  border-inline-end: 0 none transparent !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-block: 0 !important;
+}
+
+/* Client row — 4-column tight grid: client | phone | active | closed.
+ * Both status pills sit side-by-side at the END of the row.
+ * Specificity chain `.client-row × 5` to beat the legacy
+ * `.content × 4 :not(.home-content) .client-row` (0, 6, 0). */
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row.client-row.client-row.client-row.client-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr auto auto !important;
+  grid-template-rows: auto !important;
+  grid-auto-rows: 0 !important;
+  align-items: center !important;
+  gap: clamp(0.5rem, 2vw, 1rem) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-block: 0 !important;
+  padding-inline: var(--clients-row-pad-x) !important;
+  padding: 0 var(--clients-row-pad-x) !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  min-height: 2.5rem !important;
+  width: 100% !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+}
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row:hover {
+  background: #f8fbff !important;
+}
+
+/* Every <td> in the row: block-level, ellipsis truncation.
+ * Specificity chain `.client-row × 5` bumps to (0, 8, 5) so the
+ * legacy `.table td { border-top + border-bottom }` (line 31) and
+ * any other table-cell border rule loses, and the cells render
+ * with NO horizontal borders — only the single bottom border on
+ * the row itself shows. */
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row.client-row.client-row.client-row.client-row > td {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  align-self: stretch !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 none transparent !important;
+  border-top: 0 none transparent !important;
+  border-right: 0 none transparent !important;
+  border-bottom: 0 none transparent !important;
+  border-left: 0 none transparent !important;
+  border-block-start: 0 none transparent !important;
+  border-block-end: 0 none transparent !important;
+  border-inline-start: 0 none transparent !important;
+  border-inline-end: 0 none transparent !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+  text-align: right !important;
+  color: inherit !important;
+}
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-label]::before {
+  content: none !important;
+}
+
+/* Col 1 (RTL right): CLIENT NAME (bold). Hide the inline .sub
+ * (ID number) — only the name shows on mobile. `display: block`
+ * overrides any legacy `display: none` from nth-child hiding rules. */
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="client"] {
+  display: block !important;
+  grid-row: 1 !important;
+  grid-column: 1 !important;
+  font-size: var(--clients-cell-fs) !important;
+  font-weight: 700 !important;
+}
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="client"] > .row-title {
+  display: block !important;
+  font-weight: 700 !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  text-align: right !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="client"] > .sub {
+  display: none !important;
+}
+
+/* Col 2 (RTL middle): PHONE.
+ *
+ * `display: block !important` is REQUIRED to override the legacy
+ * `@media (max-width: 620px) .clients-scroll-list .clients-table
+ * td:nth-child(2) { display: none !important }` at line ~1231,
+ * which would otherwise hide the phone column on mobile. */
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="phone"] {
+  display: block !important;
+  grid-row: 1 !important;
+  grid-column: 2 !important;
+  font-size: var(--clients-cell-fs) !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+}
+
+/* Col 3 + 4 (RTL left side): ACTIVE pill then CLOSED pill, side-by-side. */
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="active"] {
+  display: block !important;
+  grid-row: 1 !important;
+  grid-column: 3 !important;
+  justify-self: end !important;
+  text-align: center !important;
+}
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="closed"] {
+  display: block !important;
+  grid-row: 1 !important;
+  grid-column: 4 !important;
+  justify-self: end !important;
+  text-align: center !important;
+}
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row .status {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 0 clamp(0.4rem, 1vw, 0.6rem) !important;
+  border-radius: 999px !important;
+  font-size: clamp(0.625rem, 0.8vw, 0.75rem) !important;
+  line-height: 1.4 !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+}
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row .status.active {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+}
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row .status.inactive {
+  background: #fff1f2 !important;
+  color: #be123c !important;
+}
+} /* /end @container clients-screen (max-width: 37.99rem) — mobile block */
+
+/* Container query: restore table layout when wide enough. */
+@container clients-screen (min-width: 38rem) {
+  html body .clients-v2-fluid .clients-scroll-list .table {
+    display: table !important;
+    grid-template-columns: none !important;
+    table-layout: auto !important;
+    background: #ffffff !important;
+    border-radius: var(--clients-radius) !important;
+    overflow: hidden !important;
+  }
+  html body .clients-v2-fluid .clients-scroll-list .table > thead {
+    display: table-header-group !important;
+  }
+  html body .clients-v2-fluid .clients-scroll-list .table > thead > tr > th {
+    padding: var(--clients-row-pad-y) var(--clients-row-pad-x) !important;
+    font-size: var(--clients-sub-fs) !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    text-align: start !important;
+    background: #f8fafc !important;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+    white-space: nowrap !important;
+  }
+  html body .clients-v2-fluid .clients-scroll-list .table > tbody {
+    display: table-row-group !important;
+  }
+  html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row {
+    display: table-row !important;
+    grid-template-columns: none !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+  html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row:hover {
+    background: #f8fbff !important;
+  }
+  html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td {
+    display: table-cell !important;
+    vertical-align: middle !important;
+    padding: var(--clients-row-pad-y) var(--clients-row-pad-x) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 0 !important;
+  }
+  html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-label]::before {
+    content: none !important;
+  }
+  html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="client"] {
+    display: table-cell !important;
+    flex-direction: row !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* Dark-mode. */
+body.dark .clients-v2-fluid .case-search-wrap > .case-search-input {
+  background: #0f172a !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+body.dark .clients-v2-fluid .case-search-wrap > .case-search-meta {
+  color: #cbd5e1 !important;
+}
+body.dark .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+body.dark .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row:hover {
+  background: #334155 !important;
+  border-color: #60a5fa !important;
+}
+body.dark .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-label]::before {
+  color: #cbd5e1 !important;
+}
+body.dark .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="client"] .sub {
+  color: #cbd5e1 !important;
+}
+body.dark .clients-v2-fluid .clients-scroll-list .table > thead > tr > th {
+  background: #243247 !important;
+  color: #cbd5e1 !important;
+  border-bottom-color: #475569 !important;
+}
+body.dark .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row .status.active {
+  background: #064e3b !important;
+  color: #a7f3d0 !important;
+}
+body.dark .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row .status.inactive {
+  background: #7f1d1d !important;
+  color: #fecaca !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row {
+    transition: none !important;
+  }
 }
 

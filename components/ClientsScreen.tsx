@@ -62,7 +62,7 @@ export function ClientsScreen() {
   };
 
   return (
-    <section className="panel clients-screen-panel">
+    <section className="panel clients-screen-panel clients-v2-fluid">
       <div className="panel-body clients-panel-body">
         <div className="case-search-wrap">
           <label>{searchLabel}</label>
@@ -101,17 +101,17 @@ export function ClientsScreen() {
                     data-id={c.id}
                     onClick={() => openClient(c.id)}
                   >
-                    <td>
+                    <td data-col="client">
                       <div className="row-title">{displayName}</div>
                       <div className="sub">
                         {idLabel}: {c.idNumber || '-'}
                       </div>
                     </td>
-                    <td>{c.phone || '-'}</td>
-                    <td>
+                    <td data-col="phone" data-label={phoneHead}>{c.phone || '-'}</td>
+                    <td data-col="active" data-label={activeHead}>
                       <span className="status active">{counts.active}</span>
                     </td>
-                    <td>
+                    <td data-col="closed" data-label={closedHead}>
                       <span className="status inactive">{counts.closed}</span>
                     </td>
                   </tr>

@@ -43,18 +43,24 @@ export function HomeDashboard() {
 
   return (
     <div
-      className={'home-grid-wrap home-style-' + state.homeStyle}
+      className={'home-grid-wrap home-v2-fluid home-style-' + state.homeStyle}
       data-home-style={state.homeStyle}
     >
       <div className="home-greeting">{greetingText}</div>
+      {/* The 4 cards + the floating badge are ALL direct children
+       *  of `.home-grid` — a single CSS Grid with explicit
+       *  template-areas. The badge spans the entire 4-card
+       *  rectangle (grid-area: cards) and self-centers within
+       *  that area. This places it at the exact geometric center
+       *  of the four cards in any direction or viewport. */}
       <div className="home-card-grid home-only-grid">
-        {HOME_CARDS.map((card) => {
+        {HOME_CARDS.map((card, idx) => {
           const title = card.id === 'portal' ? portalLabel(lang) : t(card.titleKey);
           return (
             <button
               key={card.id}
               type="button"
-              className="home-card"
+              className={'home-card home-card-' + (idx + 1)}
               data-go={card.id}
               onClick={() => dispatch({ type: 'SET_TAB', tab: card.id })}
             >
@@ -65,26 +71,26 @@ export function HomeDashboard() {
             </button>
           );
         })}
-      </div>
 
-      {state.showUpcomingHome && (
-        <button
-          type="button"
-          id="upcomingAgendaBtn"
-          className="upcoming-center-btn upcoming-center-icon-btn"
-          aria-label={lang === 'ar' ? 'أحداث قريبة' : 'אירועים קרובים'}
-          onClick={() => modalStack.open(<UpcomingAgendaModal />)}
-        >
-          <span className="upcoming-mini-card">
-            <span className="upcoming-mini-icon">
-              <i className="far fa-clock" />
+        {state.showUpcomingHome && (
+          <button
+            type="button"
+            id="upcomingAgendaBtn"
+            className="upcoming-center-btn upcoming-center-icon-btn"
+            aria-label={lang === 'ar' ? 'أحداث قريبة' : 'אירועים קרובים'}
+            onClick={() => modalStack.open(<UpcomingAgendaModal />)}
+          >
+            <span className="upcoming-mini-card">
+              <span className="upcoming-mini-icon">
+                <i className="far fa-clock" />
+              </span>
+              <span className="upcoming-mini-label">
+                {lang === 'ar' ? 'أحداث قريبة' : 'אירועים קרובים'}
+              </span>
             </span>
-            <span className="upcoming-mini-label">
-              {lang === 'ar' ? 'أحداث قريبة' : 'אירועים קרובים'}
-            </span>
-          </span>
-        </button>
-      )}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
