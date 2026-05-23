@@ -27166,6 +27166,72 @@ body.dark .modern-portal-root button.tw-bg-slate-900 * {
   color: #FFFFFF !important;
 }
 
+/* ================================================================ *
+ * Dark Mode — Mobile-only WhatsApp portal elements
+ *
+ * These rules cover every UI piece that appears ONLY on the mobile
+ * breakpoint (`lg:tw-hidden`), so dark theming reaches them too:
+ *   • the floating "פעולות מהירות" toggle button at the top of the
+ *     mobile chat
+ *   • the collapsible quick-actions panel that opens beneath it
+ *   • the stacked chooser cards
+ *   • Tailwind `ring` colors (box-shadow based, not covered by the
+ *     earlier border-color overrides)
+ *
+ * No @media queries here on purpose — the rules also fire on a
+ * desktop window resized to < lg, which is exactly the breakpoint
+ * the mobile JSX uses. One source of truth.
+ * ================================================================ */
+
+/* Tailwind ring colors → dark equivalents */
+body.dark .modern-portal-root .tw-ring-slate-200,
+body.dark .modern-portal-root .tw-ring-slate-100 {
+  --tw-ring-color: var(--line) !important;
+}
+body.dark .modern-portal-root .focus\:tw-ring-indigo-100:focus,
+body.dark .modern-portal-root .focus-within\:tw-ring-indigo-100:focus-within {
+  --tw-ring-color: rgba(99, 102, 241, 0.35) !important;
+}
+body.dark .modern-portal-root .focus-within\:tw-ring-emerald-100:focus-within {
+  --tw-ring-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+/* Mobile-only collapsible panel surface — wrapped in `tw-bg-[#FDFBF5]`
+ * which the generic rule already covers, but the ring around it needs
+ * the dark-line color and the shadow stays as-is (rgba-based shadows
+ * read fine on dark surfaces). */
+body.dark .modern-portal-root .tw-shadow-2xl {
+  /* Soften the desktop drop shadow on dark surfaces so it doesn't
+   * read as a bright halo — tone it to a deeper inset-feel shadow. */
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.6),
+    0 0 0 1px var(--line) !important;
+}
+
+/* Mobile floating button — emerald brand color, already covered by
+ * the brand rule above, but re-state for `hover:tw-bg-emerald-600`
+ * specifically so the pressed/open state reads as a deeper green. */
+body.dark .modern-portal-root .hover\:tw-bg-emerald-600:hover {
+  background-color: #047857 !important;
+}
+
+/* Mobile chooser cards (stacked layout): they reuse the same
+ * `tw-bg-[#FDFBF5]` + emerald/indigo icon circles, so the existing
+ * sweep covers them. This rule just guards against the focus
+ * indicator on the chooser buttons being invisible on dark. */
+body.dark .modern-portal-root button:focus-visible {
+  outline: 2px solid var(--primary, #2563EB);
+  outline-offset: 2px;
+}
+
+/* Sample-message "today" pill at the top of the chat — uses
+ * tw-bg-slate-100 (covered) but text is plain inheritance. Re-assert
+ * the pill text reads cleanly on the dark surface. */
+body.dark .modern-portal-root .tw-text-slate-500.tw-bg-slate-100,
+body.dark .modern-portal-root .tw-bg-slate-100.tw-text-slate-500 {
+  color: var(--text-secondary, #94A3B8) !important;
+}
+
 /* Catch any remaining hardcoded cream/light hover bg via attribute selectors */
 body.dark.dark [class*="hover"]:hover[style*="background-color:#F2ECDD"],
 body.dark.dark [class*="hover"]:hover[style*="background-color: #F2ECDD"],
