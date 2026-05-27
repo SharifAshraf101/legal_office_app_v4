@@ -6,7 +6,7 @@
 // (v90/v91) is intentionally left for Stage 4 — it depends on screen-level
 // triggers that don't exist yet.
 
-import { applyLegalOfficeData, LS, lsGet, lsSet, persistCurrentDataToLocalStorage } from './storage';
+import { applyLegalOfficeData, LS, lsSet, persistCurrentDataToLocalStorage } from './storage';
 import { firstNonEmpty, isNonEmpty } from './utils';
 import type {
   AppState,
@@ -23,21 +23,6 @@ const SUPABASE_URL = 'https://mtrsrfisfaxmtpujeddh.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_XF-KIsQzJKokfdNCze3k6g_3WiG2CuU';
 const USER_ID = 'c0307382-5fd2-4a2b-88df-40b22bb9ad26';
 const API = SUPABASE_URL.replace(/\/$/, '') + '/rest/v1';
-
-// The "loaded once" flag is keyed by the project subdomain so that swapping
-// SUPABASE_URL (e.g. moving to a new project) automatically forces a re-fetch
-// on devices that had already booted against the old project — otherwise the
-// guard in legalOfficeLoadFromSupabaseV88 below would skip the new project
-// forever and the user would keep seeing whatever localStorage cached from
-// the old one.
-const PROJECT_ID = (() => {
-  try {
-    return new URL(SUPABASE_URL).hostname.split('.')[0] || 'default';
-  } catch {
-    return 'default';
-  }
-})();
-const SUPA_LOADED_KEY = 'legal_office_supabase_loaded_' + PROJECT_ID;
 
 const headers = {
   apikey: SUPABASE_KEY,
@@ -295,15 +280,11 @@ export async function legalOfficeLoadFromSupabaseV88(
   options: LoadOptions = {},
 ): Promise<SupabaseLoadResult> {
   if (loading) return { loaded: true };
+  // In-memory guard: skip if we've already loaded within this page session
+  // (avoids re-fetching on every React re-render). The cross-session
+  // localStorage guard was intentionally removed — Supabase is the source
+  // of truth, so every fresh page load pulls the latest rows from there.
   if (!options.force && loadedOnce) return { loaded: true };
-  // Once a device has loaded from Supabase, local edits become the source of
-  // truth — re-running the loader on subsequent reloads would REPLACE_ALL the
-  // state and wipe any client/case edits made since the last boot. Skip unless
-  // the caller passed force:true (the manual "refresh from cloud" button).
-  if (!options.force && lsGet(SUPA_LOADED_KEY) === '1') {
-    loadedOnce = true;
-    return { loaded: true };
-  }
   loading = true;
   try {
     const [
@@ -402,7 +383,6 @@ export async function legalOfficeLoadFromSupabaseV88(
         ) {
           const applied = applyLegalOfficeData(candidate as never);
           if (options.currentState) persistCurrentDataToLocalStorage({ ...options.currentState, ...applied.state });
-          lsSet(SUPA_LOADED_KEY, '1');
           loadedOnce = true;
           return { loaded: true, state: applied.state };
         }
@@ -423,7 +403,6 @@ export async function legalOfficeLoadFromSupabaseV88(
     if (options.currentState) {
       persistCurrentDataToLocalStorage({ ...options.currentState, ...applied.state });
     }
-    lsSet(SUPA_LOADED_KEY, '1');
     loadedOnce = true;
     console.log('[LegalOffice Supabase load v88] loaded rows', {
       clients: loadedClients.length,

@@ -43,8 +43,19 @@ export function UpcomingAgendaModal() {
       ? 'لا توجد مواعيد أو مهام قريبة للعرض'
       : 'אין מועדים או משימות קרובים להצגה';
 
+  const backLabel = lang === 'ar' ? 'رجوع' : 'חזרה';
   return (
-    <Modal onClose={close}>
+    <Modal onClose={close} className="upcoming-agenda-modal" hideBackBtn={true}>
+      <button
+        type="button"
+        className="case-detail-back-btn"
+        aria-label={backLabel}
+        title={backLabel}
+        onClick={close}
+      >
+        <i className="fas fa-arrow-left" />
+        <span>{backLabel}</span>
+      </button>
       <h2>{title}</h2>
       <p className="sub">{subtitle}</p>
       <div className="agenda-modal-list">

@@ -106,17 +106,21 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   // OR through one of their cases (d.caseId / t.caseId matches a case
   // whose clientId is this client's). Used by the documents and tasks
   // sections rendered below.
-  const clientCaseIds = clientCases.map((x) => x.id);
+  const clientIdStr = String(clientId);
+  const clientCaseIds = new Set(clientCases.map((x) => String(x.id)));
   const clientDocuments = state.documentsArr.filter(
     (d) =>
-      d.clientId === clientId ||
-      (d.caseId ? clientCaseIds.includes(d.caseId) : false),
+      String(d.clientId || '') === clientIdStr ||
+      (d.caseId ? clientCaseIds.has(String(d.caseId)) : false),
   );
   const clientTasks = state.tasksArr.filter(
     (t) =>
-      t.clientId === clientId ||
-      (t.caseId ? clientCaseIds.includes(t.caseId) : false),
+      String(t.clientId || '') === clientIdStr ||
+      (t.caseId ? clientCaseIds.has(String(t.caseId)) : false),
   );
+  const clientOpenTaskCount = clientTasks.filter(
+    (t) => t.status !== 'done',
+  ).length;
   const emptyCases =
     lang === 'ar' ? 'لا توجد قضايا لهذا الموكل' : 'אין תיקים ללקוח זה';
   const voiceLabel = lang === 'ar' ? 'واتساب صوتي' : 'וואטסאפ קולי';
@@ -355,7 +359,19 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
        *  Order per user request: Tasks + Notes sit RIGHT under Cases,
        *  ABOVE Documents (so the action items are seen first when the
        *  user scrolls the client detail screen). */}
-      <h3>{lang === 'ar' ? 'مهام' : 'משימות'}</h3>
+      <h3>
+        {lang === 'ar' ? 'مهام' : 'משימות'}
+        {clientOpenTaskCount > 0 && (
+          <span className="client-tasks-open-count">
+            {' '}
+            (
+            {lang === 'ar'
+              ? `${clientOpenTaskCount} مفتوحة`
+              : `${clientOpenTaskCount} פתוחות`}
+            )
+          </span>
+        )}
+      </h3>
       <div className="client-tasks-list">
         {clientTasks.length === 0 ? (
           <div className="case-empty">

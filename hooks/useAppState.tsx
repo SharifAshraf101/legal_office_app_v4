@@ -220,6 +220,94 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // -----------------------------------------------------------------------
+  // Re-pull from Supabase whenever the tab becomes visible / window
+  // regains focus / page is restored from bfcache, plus a periodic
+  // poll while visible. Without this, edits made on another device
+  // only show up after a hard page refresh.
+  //
+  // Mobile coverage matters here:
+  //   - iOS Safari + Android Chrome restore pages from bfcache without
+  //     firing `visibilitychange` or `focus` — only `pageshow`.
+  //   - Phones may keep the tab open and visible for long stretches
+  //     without any focus toggle, so a 30s polling loop guarantees
+  //     freshness even with zero user interaction.
+  //
+  // CRITICAL: we FLUSH local state to Supabase BEFORE pulling. Otherwise
+  // a refresh racing the 1500ms auto-save debounce would pull stale
+  // rows, REPLACE_ALL would wipe an un-pushed edit, and the rescheduled
+  // auto-save would push the now-overwritten data back — losing the
+  // edit on both ends. Any new refresh trigger must use this same path.
+  //
+  // Cooldown prevents rapid bounces (focus+visibility+pageshow firing
+  // back-to-back) from hammering the endpoint.
+  // -----------------------------------------------------------------------
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+  const lastRefreshAt = useRef(0);
+  useEffect(() => {
+    if (!state.hydrated) return;
+    if (typeof document === 'undefined') return;
+
+    const COOLDOWN_MS = 3000;
+    const POLL_INTERVAL_MS = 30000;
+
+    const refresh = async () => {
+      if (document.hidden) return;
+      const now = Date.now();
+      if (now - lastRefreshAt.current < COOLDOWN_MS) return;
+      lastRefreshAt.current = now;
+
+      // Flush latest local state to Supabase first so an un-pushed edit
+      // isn't clobbered by the pull that follows.
+      if (supaSaveReady) {
+        const s = stateRef.current;
+        try {
+          await legalOfficeSaveToSupabase({
+            clients: s.clients,
+            casesArr: s.casesArr,
+            eventsList: s.eventsList,
+            finances: s.finances,
+            timelineItems: s.timelineItems,
+            documentsArr: s.documentsArr,
+            tasksArr: s.tasksArr,
+          });
+        } catch (e) {
+          console.warn('[useAppState] flush before pull failed', e);
+        }
+      }
+
+      const result = await legalOfficeLoadFromSupabaseV88({ force: true });
+      if (result.loaded && result.state) {
+        dispatch({ type: 'REPLACE_ALL', payload: result.state });
+      }
+    };
+
+    const onVisibility = () => void refresh();
+    const onFocus = () => void refresh();
+    // pageshow fires on initial load AND on bfcache restore (mobile).
+    // Only refresh on the bfcache case (event.persisted === true) so
+    // we don't double-fire alongside the boot loader on a fresh load.
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) void refresh();
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('pageshow', onPageShow);
+
+    const pollId = window.setInterval(() => void refresh(), POLL_INTERVAL_MS);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('pageshow', onPageShow);
+      window.clearInterval(pollId);
+    };
+  }, [state.hydrated, supaSaveReady]);
+
+  // -----------------------------------------------------------------------
   // Auto-persist: any change to the domain arrays writes to localStorage.
   // This replaces the dozens of saveData() calls scattered through the source.
   // We guard with `hydrated` so the first server→client transition doesn't

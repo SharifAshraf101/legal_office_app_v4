@@ -21304,6 +21304,11 @@ html[lang="ar"] body .settings-modal-box * {
  * viewport. Each of the seven host panels already uses `.panel`
  * which is relative by default.
  * ============================================================ */
+/* Visual style mirrors the client-detail back button
+ * (`.client-detail-back-btn`) per user request — same height,
+ * padding, colors, but square corners (border-radius: 0) and
+ * no shadow. Positioning is overridden per-screen in the
+ * mobile media block further down. */
 .main-screen-back-btn {
   position: absolute !important;
   top: 12px !important;
@@ -21318,13 +21323,13 @@ html[lang="ar"] body .settings-modal-box * {
   gap: 8px !important;
   background: #ffffff !important;
   border: 1px solid #e2ebf6 !important;
-  border-radius: 10px !important;
+  border-radius: 0 !important;
   color: #0f172a !important;
   font-size: 14px !important;
   font-weight: 600 !important;
   line-height: 1 !important;
   cursor: pointer !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  box-shadow: none !important;
   margin: 0 !important;
   white-space: nowrap !important;
   transition: background 140ms, color 140ms, border-color 140ms !important;
@@ -21454,6 +21459,20 @@ body.dark .main-screen-back-btn:hover i {
   color: #ffffff !important;
 }
 
+/* Upcoming Events modal — back button anchored flush against the
+ * top-left corner of the modal (0,0) per user request. Overrides
+ * the shared `.case-detail-back-btn` base rule (top:14px,
+ * right:0.25cm). The selector chains `.ls` 14× to beat the base
+ * `.modal.ls×12 .case-detail-back-btn` (specificity 0,13,1)
+ * and ends with `.upcoming-agenda-modal` so it only matches this
+ * modal — Case Detail's own back button stays unaffected. */
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.upcoming-agenda-modal .case-detail-back-btn,
+html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.upcoming-agenda-modal .case-detail-back-btn {
+  top: 0.25cm !important;
+  left: 0.25cm !important;
+  right: auto !important;
+}
+
 /* X close button — moved to the LEFT edge for ClientDetail +
  * CaseDetail only, so the "back" arrow can sit on the right while
  * X sits on the left, matching the natural RTL header layout. */
@@ -21479,6 +21498,45 @@ body.dark .main-screen-back-btn:hover i {
   z-index: 70 !important;
   margin: 0 !important;
   float: none !important;
+}
+
+/* Upcoming Events modal — X close button styled as a solid dark
+ * navy square with a white ×, anchored to the TOP-RIGHT corner,
+ * per the reference screenshot. Self-chained `.ls` × 14 + the
+ * marker class beat any competing `.ls`-stacked overrides. */
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.upcoming-agenda-modal .modal-close-x,
+html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.upcoming-agenda-modal .modal-close-x {
+  position: absolute !important;
+  top: 0.25cm !important;
+  right: 0.25cm !important;
+  left: auto !important;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
+  border-radius: 0 !important;
+  border: 1px solid #0f172a !important;
+  background: #0f172a !important;
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  display: grid !important;
+  place-items: center !important;
+  z-index: 70 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  float: none !important;
+  box-shadow: none !important;
+}
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.upcoming-agenda-modal .modal-close-x:hover,
+html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.upcoming-agenda-modal .modal-close-x:hover {
+  background: #1e293b !important;
+  background-color: #1e293b !important;
+  border-color: #1e293b !important;
+  color: #ffffff !important;
 }
 
 /* ============================================================ *
@@ -36167,8 +36225,17 @@ html body.dark.dark .tasks-screen-panel .tasks-quick-filters .tasks-quick-filter
   html body .modern-portal-hub > .portal-hub-bot-back,
   html body .portal-wa-chat > .portal-wa-chat-back,
   html body .modern-portal-bot-chat > .portal-bot-chat-back {
-    top: 0.25cm !important;
-    left: 0.25cm !important;
+    /* Flush against the top-left corner per user request:
+     * 0cm from top, 0cm from left. */
+    top: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+  }
+  /* Tasks-specific override: back button sits 0.25cm from the
+   * LEFT edge per user request (top stays flush at 0). Selector
+   * self-chained for higher specificity than the multi-rule above. */
+  html body .panel.tasks-screen-panel.tasks-screen-panel > .main-screen-back-btn.main-screen-back-btn {
+    left: 0.40cm !important;
     right: auto !important;
   }
   /* Bot-chat back button (inside the sticky header) — overrides
@@ -36991,44 +37058,30 @@ body[data-home-style="minimalist"] .mobile-nav.mobile-nav.mobile-nav.mobile-nav.
 }
 
 /* ================================================================ *
- * MINIMALIST mode — main-screen back button visibility fix v2.
+ * Main-screen back button — colors/look mirror `.case-detail-back-btn`
+ * across every home style (minimalist included). The base rule at
+ * line ~21312 already sets the white-fill + dark-text + light-blue
+ * border treatment; this block re-asserts it with high specificity
+ * so the minimalist body[data-home-style] selectors can't repaint
+ * the button as a dark pill.
  *
- * The previous attempt (white pill + dark text) kept the button
- * blending into the cream/white minimalist panel background. The
- * user reported it stayed invisible. This v2 flips the palette to
- * a SOLID DARK pill with WHITE text + arrow — guaranteed contrast
- * against any panel surface (cream, white, or dark mode slate).
- *
- * Specificity is pushed beyond any plausible competing rule by
- * self-chaining `.main-screen-back-btn` 6× and `[data-home-style=
- * "minimalist"]` 2× on the body. This reaches (0, 11, 1) for the
- * button and (0, 11, 2) for the inner i/span — well above the
- * 14×.ls rules that haunt other layers of this stylesheet, and
- * comfortably above the base (0, 1, 0) rule at line 20906.
- *
- * The child selector also covers .fas (Font Awesome arrow) and
- * every descendant via `*` to defeat any inherited white from an
- * upstream `[data-home-style="minimalist"] .panel *` rule.
+ * Self-chained `.main-screen-back-btn` 6× + `body[data-home-style="…"]`
+ * 2× reaches (0, 11, 1) — well above the 14×.ls layers elsewhere.
  * ================================================================ */
 body[data-home-style="minimalist"][data-home-style="minimalist"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn,
+body[data-home-style="modern"][data-home-style="modern"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn,
+body[data-home-style="classic"][data-home-style="classic"]
   .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn {
-  background: #0f172a !important;
-  background-color: #0f172a !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
   background-image: none !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  border: 1px solid #0f172a !important;
-  border-color: #0f172a !important;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25) !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-body[data-home-style="minimalist"][data-home-style="minimalist"]
-  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn
-  * {
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  fill: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border: 1px solid #e2ebf6 !important;
+  border-color: #e2ebf6 !important;
+  box-shadow: none !important;
   opacity: 1 !important;
   visibility: visible !important;
 }
@@ -37040,9 +37093,27 @@ body[data-home-style="minimalist"][data-home-style="minimalist"]
   i.fas,
 body[data-home-style="minimalist"][data-home-style="minimalist"]
   .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn
+  span,
+body[data-home-style="modern"][data-home-style="modern"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn
+  i,
+body[data-home-style="modern"][data-home-style="modern"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn
+  i.fas,
+body[data-home-style="modern"][data-home-style="modern"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn
+  span,
+body[data-home-style="classic"][data-home-style="classic"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn
+  i,
+body[data-home-style="classic"][data-home-style="classic"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn
+  i.fas,
+body[data-home-style="classic"][data-home-style="classic"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn
   span {
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
   text-shadow: none !important;
   background: transparent !important;
   background-image: none !important;
@@ -37052,10 +37123,37 @@ body[data-home-style="minimalist"][data-home-style="minimalist"]
   align-items: center !important;
 }
 body[data-home-style="minimalist"][data-home-style="minimalist"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn:hover,
+body[data-home-style="modern"][data-home-style="modern"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn:hover,
+body[data-home-style="classic"][data-home-style="classic"]
   .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn:hover {
-  background: #1e293b !important;
-  background-color: #1e293b !important;
-  border-color: #1e293b !important;
+  background: #111827 !important;
+  background-color: #111827 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: #111827 !important;
+}
+body[data-home-style="minimalist"][data-home-style="minimalist"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn:hover
+  i,
+body[data-home-style="minimalist"][data-home-style="minimalist"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn:hover
+  span,
+body[data-home-style="modern"][data-home-style="modern"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn:hover
+  i,
+body[data-home-style="modern"][data-home-style="modern"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn:hover
+  span,
+body[data-home-style="classic"][data-home-style="classic"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn:hover
+  i,
+body[data-home-style="classic"][data-home-style="classic"]
+  .main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn.main-screen-back-btn:hover
+  span {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 
@@ -37073,4 +37171,59 @@ body[data-home-style="minimalist"][data-home-style="minimalist"]
      * shift the user asked for on iPad. */
     transform: translateX(-50%) translateY(-1.5cm) !important;
   }
+}
+
+/* ============================================================ *
+ * Unified search-box dimensions across ALL main screens.
+ * Per user request: every main-screen search input must match
+ * the Global Search input (height, width, padding, radius,
+ * font-size) so they look identical.
+ *
+ * Reference (Global Search base rule, line ~15321):
+ *   height: 40px
+ *   padding: 0 14px
+ *   border-radius: 8px
+ *   font-size: 14px
+ *   width: 100% (stretches to wrap)
+ *
+ * The Documents, Tasks, Finance and Global Search panels
+ * already inherit those numbers from the base rule. The
+ * Cases (`.cases-v2-fluid`) and Clients (`.clients-v2-fluid`)
+ * screens override them with a pill-shape + clamp() padding,
+ * so we force them back here.
+ *
+ * Specificity: `html body .cases-v2-fluid.cases-v2-fluid ...`
+ * = 0,0,5,2 — beats the existing `.cases-v2-fluid` rule
+ * (0,0,4,1) and the base content rule. The same chain is
+ * used for clients.
+ *
+ * Wrap rules unify the container width so the input stretches
+ * the full panel width on every screen (matches Global Search).
+ * ============================================================ */
+html body .panel.global-search-panel .case-search-wrap,
+html body .panel.documents-screen-panel .case-search-wrap,
+html body .panel.tasks-screen-panel .case-search-wrap,
+html body .panel.finance-screen-panel .case-search-wrap,
+html body .panel.cases-screen-panel.cases-v2-fluid .case-search-wrap,
+html body .panel.clients-screen-panel.clients-v2-fluid .case-search-wrap {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+html body .panel.global-search-panel .case-search-wrap .case-search-input,
+html body .panel.documents-screen-panel .case-search-wrap .case-search-input,
+html body .panel.tasks-screen-panel .case-search-wrap .case-search-input,
+html body .panel.finance-screen-panel .case-search-wrap .case-search-input,
+html body .panel.cases-screen-panel.cases-v2-fluid .case-search-wrap .case-search-input,
+html body .panel.clients-screen-panel.clients-v2-fluid .case-search-wrap .case-search-input {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: 40px !important;
+  padding: 0 14px !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  box-sizing: border-box !important;
 }
