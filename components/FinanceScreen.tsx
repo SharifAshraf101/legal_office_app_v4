@@ -21,7 +21,7 @@ export function FinanceScreen() {
 
   const placeholder =
     lang === 'ar'
-      ? 'بحث حسب اسم الموكل، رقم الهوية أو الهاتف'
+      ? 'بحث بحسب اسم الموكل، رقم الهوية أو الهاتف'
       : 'חיפוש לפי שם לקוח, תעודת זהות או מספר טלפון';
   const hint =
     lang === 'ar'

@@ -18,7 +18,7 @@ export function PortalSearch() {
 
   const placeholder =
     lang === 'ar'
-      ? 'بحث حسب اسم الموكل، رقم الهوية أو رقم الهاتف'
+      ? 'بحث بحسب اسم الموكل، رقم الهوية أو رقم الهاتف'
       : 'חיפוש לפי שם לקוח, תעודת זהות או מספר טלפון';
   const emptyHint =
     lang === 'ar'

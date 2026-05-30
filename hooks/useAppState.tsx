@@ -169,8 +169,36 @@ interface AppStateContextValue {
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
 
+// Only these action types represent user-initiated edits to the savable
+// domain data (clients, cases, events, tasks, finances, documents,
+// timeline). Auto-save fires only when the dirty flag is set by one of
+// these actions — REPLACE_ALL/HYDRATE and settings actions (lang/theme/
+// font/etc.) MUST NOT mark the state dirty, or the auto-save would push
+// the just-pulled Supabase data back over a concurrent edit from another
+// device.
+const SAVABLE_ACTION_TYPES = new Set<Action['type']>([
+  'SET_CLIENTS',
+  'SET_CASES',
+  'SET_EVENTS',
+  'SET_TASKS',
+  'SET_FINANCES',
+  'SET_DOCUMENTS',
+  'SET_TIMELINE',
+]);
+
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, rawDispatch] = useReducer(reducer, initialState);
+  // dirtyRef tracks whether the in-memory state holds un-pushed user
+  // edits. Only flipped to true by wrappedDispatch (consumer-facing
+  // dispatches); REPLACE_ALL/HYDRATE go through rawDispatch and leave
+  // it false. Auto-save flushes dirty=true, then resets to false.
+  const dirtyRef = useRef(false);
+  const dispatch = useCallback((action: Action) => {
+    if (SAVABLE_ACTION_TYPES.has(action.type)) {
+      dirtyRef.current = true;
+    }
+    rawDispatch(action);
+  }, []);
   // Gates Supabase auto-save until the v88 loader has settled — without this
   // a stale localStorage cache would upsert OVER newer Supabase rows during
   // the few-hundred-ms boot window before REPLACE_ALL fires.
@@ -260,8 +288,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       lastRefreshAt.current = now;
 
       // Flush latest local state to Supabase first so an un-pushed edit
-      // isn't clobbered by the pull that follows.
-      if (supaSaveReady) {
+      // isn't clobbered by the pull that follows. Skip when nothing is
+      // dirty — otherwise this refresh would echo the previously-pulled
+      // data back to Supabase, overwriting any cross-device write that
+      // happened in the meantime.
+      if (supaSaveReady && dirtyRef.current) {
         const s = stateRef.current;
         try {
           await legalOfficeSaveToSupabase({
@@ -273,6 +304,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             documentsArr: s.documentsArr,
             tasksArr: s.tasksArr,
           });
+          dirtyRef.current = false;
         } catch (e) {
           console.warn('[useAppState] flush before pull failed', e);
         }
@@ -345,11 +377,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // Supabase auto-save. Mirrors the localStorage effect but with a longer
   // debounce (live-typing in a form shouldn't hit the REST endpoint per
   // keystroke). Gated on supaSaveReady so the v88 loader's REPLACE_ALL has a
-  // chance to land first — otherwise a stale localStorage cache could
-  // overwrite newer cloud rows during the boot window.
+  // chance to land first.
+  //
+  // CRITICAL: gated on dirtyRef so a REPLACE_ALL from a poll/visibility
+  // pull does NOT trigger a save. Without this, every successful pull
+  // would echo the just-pulled rows back to Supabase 1.5s later — and
+  // if another device wrote between the pull and the echo, that write
+  // would be overwritten by stale data. Only user-initiated edits
+  // (which mark dirtyRef via the wrapped `dispatch`) trigger a push.
   // -----------------------------------------------------------------------
   useEffect(() => {
     if (!state.hydrated || !supaSaveReady) return;
+    if (!dirtyRef.current) return;
     const id = window.setTimeout(() => {
       void legalOfficeSaveToSupabase({
         clients: state.clients,
@@ -359,6 +398,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         timelineItems: state.timelineItems,
         documentsArr: state.documentsArr,
         tasksArr: state.tasksArr,
+      }).finally(() => {
+        dirtyRef.current = false;
       });
     }, 1500);
     return () => window.clearTimeout(id);

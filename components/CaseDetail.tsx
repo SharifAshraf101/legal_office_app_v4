@@ -5,6 +5,7 @@ import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { caseName, caseStatusView, clientName, money } from '@/lib/cases';
+import { clientDisplayName } from '@/lib/clients';
 import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { Modal } from './Modal';
@@ -237,28 +238,121 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
     );
   };
 
+  // Floating "brain" button → opens a placeholder screen the user
+  // will design later. Lives only on this screen (rendered inside
+  // CaseDetail's Modal) and uses position: fixed so it stays
+  // anchored mid-right of the viewport while the rest of the page
+  // scrolls.
+  const openBrainScreen = () => {
+    modalStack.open(<CaseBrainScreen caseId={caseId} />);
+  };
+
   return (
     <Modal
       onClose={close}
       className={modalClass}
       boxClassName={boxClass}
       hideBackBtn={true}
+      hideCloseX={true}
     >
+      {/* Floating action button — appears ONLY on the Case Detail
+       *  screen. The icon is a colorful inline SVG (left half
+       *  cyan→blue, right half pink→orange) so it's guaranteed
+       *  to render without needing any external image file.
+       *  Click opens the placeholder CaseBrainScreen modal
+       *  (to be designed). */}
       <button
         type="button"
-        className="case-detail-back-btn"
-        aria-label={lang === 'ar' ? 'رجوع' : 'חזרה'}
-        title={lang === 'ar' ? 'رجوع' : 'חזרה'}
-        onClick={close}
+        className="case-detail-floating-brain-btn"
+        onClick={openBrainScreen}
+        aria-label={lang === 'ar' ? 'فتح شاشة الذكاء' : 'פתח מסך מוח התיק'}
+        title={lang === 'ar' ? 'فتح شاشة الذكاء' : 'פתח מסך מוח התיק'}
       >
-        <i className="fas fa-arrow-left" />
-        <span>{lang === 'ar' ? 'رجوع' : 'חזרה'}</span>
+        <svg
+          viewBox="0 0 64 64"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <defs>
+            <linearGradient id="caseBrainLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#22d3ee" />
+              <stop offset="100%" stopColor="#3b82f6" />
+            </linearGradient>
+            <linearGradient id="caseBrainRight" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#f472b6" />
+              <stop offset="100%" stopColor="#f97316" />
+            </linearGradient>
+          </defs>
+          {/* Sparkle dots around the brain */}
+          <circle cx="10" cy="14" r="1.5" fill="#22d3ee" />
+          <circle cx="54" cy="14" r="1.5" fill="#f472b6" />
+          <circle cx="6" cy="34" r="1.5" fill="#3b82f6" />
+          <circle cx="58" cy="34" r="1.5" fill="#f97316" />
+          <circle cx="12" cy="52" r="1.2" fill="#22d3ee" />
+          <circle cx="52" cy="52" r="1.2" fill="#f472b6" />
+          {/* Top stem (lightbulb base) */}
+          <rect x="28" y="6" width="8" height="6" rx="2" fill="#1e293b" />
+          <rect x="26" y="11" width="12" height="2" rx="1" fill="#475569" />
+          {/* Left brain hemisphere */}
+          <path
+            d="M32 18 C22 18, 14 26, 14 36 C14 44, 20 52, 28 54 C30 54, 32 53, 32 51 L32 18 Z"
+            fill="url(#caseBrainLeft)"
+          />
+          {/* Right brain hemisphere */}
+          <path
+            d="M32 18 C42 18, 50 26, 50 36 C50 44, 44 52, 36 54 C34 54, 32 53, 32 51 L32 18 Z"
+            fill="url(#caseBrainRight)"
+          />
+          {/* Curve detail lines for "brain folds" */}
+          <path
+            d="M22 28 Q26 32, 22 36 Q18 40, 22 44"
+            stroke="#ffffff"
+            strokeWidth="1.4"
+            fill="none"
+            opacity="0.55"
+            strokeLinecap="round"
+          />
+          <path
+            d="M42 28 Q38 32, 42 36 Q46 40, 42 44"
+            stroke="#ffffff"
+            strokeWidth="1.4"
+            fill="none"
+            opacity="0.55"
+            strokeLinecap="round"
+          />
+        </svg>
       </button>
-      <div
-        className="case-detail-dark-wrapper"
-        onDragOver={onWrapperDragOver}
-        onDrop={onWrapperDrop}
-      >
+      {/* Sticky header: back + X + title + action buttons.
+       *
+       * It lives as a DIRECT child of the modal-box (NOT nested
+       * inside dark-wrapper) so it spans the full modal-box
+       * width without being clipped by dark-wrapper's
+       * `overflow-x: hidden`. That clipping was making the X
+       * close button appear cut off near the right edge on
+       * mobile. Now sticky-top is a sibling of dark-wrapper:
+       *   modal-box (flex col)
+       *     ├── sticky-top  (flex-shrink:0, doesn't scroll)
+       *     └── dark-wrapper (flex:1, scrolls)
+       */}
+      <div className="case-detail-sticky-top">
+        <button
+          type="button"
+          className="case-detail-back-btn"
+          aria-label={lang === 'ar' ? 'رجوع' : 'חזרה'}
+          title={lang === 'ar' ? 'رجوع' : 'חזרה'}
+          onClick={close}
+        >
+          <i className="fas fa-arrow-left" />
+          <span>{lang === 'ar' ? 'رجوع' : 'חזרה'}</span>
+        </button>
+        <button
+          type="button"
+          className="modal-close-x"
+          aria-label={lang === 'ar' ? 'إغلاق' : 'סגור'}
+          onClick={close}
+        >
+          ×
+        </button>
         {/* Title h2 — visible on both viewports. */}
         <div className="case-detail-title">
           <h2>{t('caseDetails')}</h2>
@@ -373,7 +467,14 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
             <i className="fas fa-trash" />
           </button>
         </div>
+      </div>
+      {/* /case-detail-sticky-top */}
 
+      <div
+        className="case-detail-dark-wrapper"
+        onDragOver={onWrapperDragOver}
+        onDrop={onWrapperDrop}
+      >
         <CaseLastHearingCard caseId={caseId} />
 
         {/* Two-column body: fields on the right (in RTL), documents + tasks
@@ -824,8 +925,8 @@ function CaseTimelineSection({
 
   const labels =
     lang === 'ar'
-      ? { clear: 'إلغاء التحديد', note: 'ملاحظات', call: 'مكالمات', task: 'مهام', document: 'مستندات', open: 'فتح المستند', empty: 'لا توجد إدخالات في الجدول الزمني.' }
-      : { clear: 'ניקוי בחירה', note: 'הערות', call: 'שיחות', task: 'משימות', document: 'מסמכים', open: 'פתח מסמך', empty: 'אין רשומות בציר הזמן.' };
+      ? { clear: 'إلغاء التحديد', note: 'ملاحظة', call: 'مكالمة', task: 'مهمة', document: 'مستند', open: 'فتح المستند', empty: 'لا توجد إدخالات في الجدول الزمني.' }
+      : { clear: 'ניקוי בחירה', note: 'הערה', call: 'שיחה', task: 'משימה', document: 'מסמך', open: 'פתח מסמך', empty: 'אין רשומות בציר הזמן.' };
 
   const FILTERS: { key: TimelineFilterType; cls: string; icon: string }[] = [
     { key: 'note', cls: 'filter-note', icon: 'fa-note-sticky' },
@@ -912,6 +1013,650 @@ function CaseTimelineSection({
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * AI brain screen for a case — opened by the floating brain button
+ * on the Case Detail screen. Layout matches the user's mockup:
+ * header (back / title+subtitle / AI status pill), 2×2 case-info
+ * grid, tab row (notes / tasks / documents), the active tab's
+ * content, and a per-document AI analysis section with 2×2
+ * action cards (reply draft, doc parse, action suggestion,
+ * task created). AI summaries / drafts are placeholder text for
+ * now; real model output can be wired in later without touching
+ * the layout.
+ */
+function CaseBrainScreen({ caseId }: { caseId: string }) {
+  const { state } = useAppState();
+  const { lang } = useT();
+  const modalStack = useModalStack();
+  const close = () => modalStack.close(modalStack.topId() ?? 0);
+  const [tab, setTab] = useState<'notes' | 'tasks' | 'documents'>('documents');
+
+  const c = state.casesArr.find((x) => String(x.id) === String(caseId));
+  if (!c) return null;
+  const client = state.clients.find((x) => x.id === c.clientId);
+  const clientLabel = client ? clientDisplayName(client, lang) : '-';
+  const courtLabel =
+    (lang === 'ar' ? c.courtAr || c.court : c.court || c.courtAr) || '-';
+  const docs = state.documentsArr.filter(
+    (d) => String(d.caseId) === String(caseId),
+  );
+  const tasksList = state.tasksArr.filter(
+    (tk) => String(tk.caseId) === String(caseId),
+  );
+  // Pick the next upcoming event for this case for the "מועד הדיון הבא"
+  // card; fall back to the case's lastHearing field if none scheduled.
+  const upcoming = state.eventsList
+    .filter(
+      (e) => e.caseId === c.id && new Date(e.dateTime).getTime() >= Date.now(),
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime(),
+    )[0];
+  const hearingLabel = upcoming
+    ? new Date(upcoming.dateTime).toLocaleString(
+        lang === 'ar' ? 'ar' : 'he-IL',
+        {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        },
+      )
+    : c.lastHearing || '-';
+
+  const T = {
+    title:
+      lang === 'ar'
+        ? 'القضية بمساعدة الذكاء الاصطناعي'
+        : 'התיק בסיוע הבינה המלאכותית',
+    subtitle:
+      lang === 'ar'
+        ? 'تحليل المستندات، القرارات، المهام ومسودات الردود تلقائياً'
+        : 'ניתוח מסמכים, החלטות, משימות וטיוטות תגובה באופן אוטומטי',
+    aiActive: lang === 'ar' ? 'AI نشط' : 'פעיל AI',
+    aiOn: lang === 'ar' ? 'فعّال' : 'פעיל',
+    back: lang === 'ar' ? 'رجوع' : 'חזרה',
+    backToCase: lang === 'ar' ? 'العودة لتفاصيل القضية' : 'חזרה לפרטי תיק',
+    nextHearing: lang === 'ar' ? 'الموعد القادم' : 'מועד הדיון הבא',
+    client: lang === 'ar' ? 'الموكل' : 'לקוח',
+    caseNumber: lang === 'ar' ? 'رقم الملف' : 'מספר תיק',
+    court: lang === 'ar' ? 'المحكمة' : 'בית משפט',
+    notes: lang === 'ar' ? 'ملاحظات' : 'הערות',
+    tasks: lang === 'ar' ? 'مهام' : 'משימות',
+    documents: lang === 'ar' ? 'مستندات' : 'מסמכים',
+    fileName: lang === 'ar' ? 'اسم الملف' : 'שם הקובץ',
+    summary: lang === 'ar' ? 'ملخص بواسطة AI' : 'קיצור שנוצר על ידי AI',
+    status: lang === 'ar' ? 'الحالة' : 'סטטוס',
+    action: lang === 'ar' ? 'إجراء' : 'פעולה',
+    open: lang === 'ar' ? 'افتح' : 'פתח',
+    aiAnalyzed: lang === 'ar' ? 'تم التحليل بواسطة AI' : 'נותח על ידי AI',
+    submittedBy:
+      lang === 'ar' ? 'تم تقديمه من قبل الطرف المقابل' : 'הוגש על ידי הצד שכנגד',
+    replyDraft: lang === 'ar' ? 'مسودة الرد' : 'טיוטת תגובה',
+    replyDraftDesc:
+      lang === 'ar'
+        ? 'إعداد مسودة رد تشمل الإنكار والادعاءات ذات الصلة.'
+        : 'הוכנה טיוטת כתב הגנה הכוללת הכחשות וטענות הגנה רלוונטיות.',
+    openDraft: lang === 'ar' ? 'افتح المسودة' : 'פתח טיוטה',
+    docParse: lang === 'ar' ? 'تحليل المستند' : 'פענוח המסמך',
+    docParseDesc:
+      lang === 'ar'
+        ? 'مطالبة مالية بمبلغ 250,000 شيكل بسبب خرق العقد.'
+        : 'תביעה כספית על סך 250,000 ₪ בטענת הפרת חוזה.',
+    actionSuggestion: lang === 'ar' ? 'اقتراح إجراء' : 'הצעה לפעולה',
+    actionSuggestionDesc:
+      lang === 'ar'
+        ? 'يُنصح بتقديم طلب لاكتشاف مستندات من الطرف المقابل.'
+        : 'לשקול הגשת דרישה לגילוי מסמכים והגשת בקשה לסילוק רכיבים לא מבוססים.',
+    viewSuggestion: lang === 'ar' ? 'عرض الاقتراح' : 'צפה בהצעה',
+    taskCreated: lang === 'ar' ? 'مهمة تم إنشاؤها' : 'משימה שנוצרה',
+    taskCreatedDesc:
+      lang === 'ar'
+        ? 'لجمع المستندات والكشوفات والإثباتات وتنفيذها.'
+        : 'לאסוף הסכם, קבלות, תכתובות והוכחות וביצוע.',
+    openTask: lang === 'ar' ? 'افتح المهمة' : 'פתח משימה',
+    additionalDocs:
+      lang === 'ar' ? 'مستندات إضافية في الملف' : 'מסמכים נוספים בתיק',
+    showMoreDocs: (n: number) =>
+      lang === 'ar' ? `عرض ${n} مستندات إضافية` : `הצג עוד מסמכים (${n})`,
+    noTasks: lang === 'ar' ? 'لا توجد مهام' : 'אין משימות',
+    noNotes: lang === 'ar' ? 'لا توجد ملاحظات' : 'אין הערות',
+    noDocs: lang === 'ar' ? 'لا توجد مستندات' : 'אין מסמכים',
+    // Sidebar cards
+    createdTasksTitle: lang === 'ar' ? 'مهام تم إنشاؤها' : 'משימות שנוצרו',
+    until: lang === 'ar' ? 'حتى' : 'עד',
+    urgent: lang === 'ar' ? 'عاجل' : 'דחוף',
+    viewAllTasks: (n: number) =>
+      lang === 'ar'
+        ? `عرض كل المهام (${n})`
+        : `צפייה בכל המשימות (${n})`,
+    upcomingHearingTitle: lang === 'ar' ? 'موعد جلسة قريب' : 'מועד דיון קרוב',
+    openCalendar: lang === 'ar' ? 'افتح في التقويم' : 'פתח ביומן',
+    quickActionsTitle: lang === 'ar' ? 'إجراءات سريعة' : 'פעולות מהירות',
+    newDraft: lang === 'ar' ? 'افتح مسودة جديدة' : 'פתח טיוטה חדשה',
+    newTask: lang === 'ar' ? 'إنشاء مهمة جديدة' : 'צור משימה חדשה',
+    openInCalendar: lang === 'ar' ? 'افتح في تقويم الملف' : 'פתח ביומן התיק',
+  };
+
+  const infoCards: Array<{
+    icon: string;
+    label: string;
+    value: string;
+    valueClass?: string;
+  }> = [
+    {
+      icon: 'fa-calendar-alt',
+      label: T.nextHearing,
+      value: hearingLabel,
+      valueClass: 'tw-text-blue-600',
+    },
+    { icon: 'fa-user', label: T.client, value: clientLabel },
+    { icon: 'fa-folder', label: T.caseNumber, value: c.caseNumber || '-' },
+    { icon: 'fa-landmark', label: T.court, value: courtLabel },
+  ];
+
+  const tabsData: Array<{
+    key: typeof tab;
+    label: string;
+    icon: string;
+  }> = [
+    { key: 'notes', label: T.notes, icon: 'fa-comment-alt' },
+    { key: 'tasks', label: T.tasks, icon: 'fa-check-square' },
+    { key: 'documents', label: T.documents, icon: 'fa-file-alt' },
+  ];
+
+  // Primary document = first one (gets the expanded AI panel on
+  // both mobile + desktop). Remaining ones land in the
+  // "מסמכים נוספים בתיק" table below.
+  const [primaryDoc, ...restDocs] = docs;
+  const firstUrgentTask = tasksList.find((tk) => tk.priority === 'critical') ||
+    tasksList.find((tk) => tk.priority === 'urgent') ||
+    tasksList[0];
+
+  return (
+    // `modern-portal-root` opts this Modal in to the Tailwind
+    // utilities that are scoped via `important: '.modern-portal-root'`
+    // in tailwind.config.ts. Without that class on an ancestor, the
+    // `tw-*` classes used below would render unstyled.
+    // `hideCloseX` so we don't double up with the absolute back
+    // button at top-left.
+    <Modal
+      onClose={close}
+      className="case-brain-modal modern-portal-root"
+      hideCloseX={true}
+    >
+      <div className="case-brain-screen tw-flex tw-flex-col tw-gap-4">
+        {/* HEADER — "חזרה לפרטי תיק" pill on left, centered
+         *  title+subtitle, "פעיל AI" pill on right. Same layout
+         *  on mobile + desktop; padding scales up on lg. */}
+        <div className="tw-relative tw-pt-1">
+          <button
+            type="button"
+            onClick={close}
+            className="case-detail-back-btn tw-absolute tw-top-0 tw-left-0"
+            aria-label={T.backToCase}
+            title={T.backToCase}
+            style={{ position: 'absolute' }}
+          >
+            <i className="fas fa-arrow-left" />
+            <span className="tw-hidden sm:tw-inline">{T.backToCase}</span>
+            <span className="sm:tw-hidden">{T.back}</span>
+          </button>
+          <div className="tw-px-24 lg:tw-px-40 tw-text-center">
+            <h2 className="tw-m-0 tw-text-lg lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-snug">
+              {T.title}
+            </h2>
+            <p className="tw-mt-1 tw-text-[11px] lg:tw-text-sm tw-text-slate-500 tw-leading-snug">
+              {T.subtitle}
+            </p>
+          </div>
+          <div
+            className="tw-absolute tw-top-0 tw-right-0 tw-flex tw-items-center tw-gap-2 tw-rounded-2xl tw-px-3 tw-py-2 lg:tw-px-4 lg:tw-py-3 tw-text-white"
+            style={{
+              background:
+                'linear-gradient(135deg, #4338ca 0%, #1e3a8a 100%)',
+            }}
+          >
+            <i className="fas fa-brain tw-text-base lg:tw-text-xl" aria-hidden="true" />
+            <div className="tw-flex tw-flex-col tw-text-[10px] lg:tw-text-xs tw-leading-tight">
+              <span className="tw-font-extrabold">{T.aiActive}</span>
+              <span className="tw-flex tw-items-center tw-gap-1">
+                <span className="tw-h-1.5 tw-w-1.5 tw-rounded-full tw-bg-emerald-400" />
+                <span className="tw-opacity-90">{T.aiOn}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Info cards — 2 cols on mobile, 4 cols on desktop. */}
+        <div className="tw-grid tw-grid-cols-2 lg:tw-grid-cols-4 tw-gap-3">
+          {infoCards.map((card, i) => (
+            <div
+              key={i}
+              className="tw-flex tw-items-center tw-gap-3 tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-slate-50 tw-p-3 lg:tw-p-4"
+            >
+              <i
+                className={
+                  'fas ' + card.icon + ' tw-text-slate-400 tw-text-lg lg:tw-text-2xl'
+                }
+                aria-hidden="true"
+              />
+              <div className="tw-flex tw-flex-col tw-min-w-0">
+                <div className="tw-text-[11px] lg:tw-text-xs tw-text-slate-500">
+                  {card.label}
+                </div>
+                <div
+                  className={
+                    'tw-truncate tw-text-sm lg:tw-text-base tw-font-extrabold ' +
+                    (card.valueClass || 'tw-text-slate-900')
+                  }
+                >
+                  {card.value}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Tab row — same on mobile + desktop. */}
+        <div className="tw-flex tw-justify-around tw-border-b tw-border-slate-200">
+          {tabsData.map((tabItem) => {
+            const isActive = tab === tabItem.key;
+            return (
+              <button
+                key={tabItem.key}
+                type="button"
+                onClick={() => setTab(tabItem.key)}
+                className={
+                  'tw-flex tw-items-center tw-gap-2 tw-px-4 tw-py-3 tw-text-sm lg:tw-text-base tw-font-semibold tw-transition tw-border-b-2 ' +
+                  (isActive
+                    ? 'tw-border-blue-500 tw-text-blue-600'
+                    : 'tw-border-transparent tw-text-slate-500 hover:tw-text-slate-700')
+                }
+              >
+                <i className={'fas ' + tabItem.icon} aria-hidden="true" />
+                <span>{tabItem.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Main content — single column on mobile (main first,
+         *  sidebar stacked below), sidebar+main grid on desktop
+         *  (sidebar on the visual LEFT in RTL via col 2 of the
+         *  grid). JSX order: main → sidebar; on mobile the flex
+         *  column stacks main above sidebar; on desktop the
+         *  grid places sidebar on the left and main on the
+         *  right (RTL: col 1 = visual right = main, col 2 =
+         *  visual left = sidebar). */}
+        <div
+          className="tw-flex tw-flex-col tw-gap-5 lg:tw-grid"
+          style={{ gridTemplateColumns: '1fr 300px' }}
+        >
+          {/* SIDEBAR — visible on both mobile and desktop.
+           *  `tw-order-2` on this aside + `tw-order-1` on the
+           *  main column below means:
+           *   - mobile (flex column): main renders first, sidebar
+           *     stacks below it.
+           *   - desktop (RTL grid with `1fr 300px`): grid items
+           *     are placed by order index, so the 1fr main lands
+           *     in col 1 (visual RIGHT in RTL) and the 300px
+           *     sidebar lands in col 2 (visual LEFT). */}
+          <aside className="tw-flex tw-flex-col tw-gap-3 tw-order-2">
+            {/* Created tasks card */}
+            <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white tw-p-3">
+              <h3 className="tw-flex tw-items-center tw-justify-between tw-text-sm tw-font-extrabold tw-text-slate-700 tw-mb-3">
+                <span>{T.createdTasksTitle}</span>
+                <i
+                  className="fas fa-clipboard-check tw-text-blue-500"
+                  aria-hidden="true"
+                />
+              </h3>
+              {firstUrgentTask ? (
+                <div className="tw-rounded-xl tw-border tw-border-orange-200 tw-bg-orange-50/60 tw-p-3">
+                  <div className="tw-flex tw-items-start tw-gap-2">
+                    <i
+                      className="fas fa-times-circle tw-text-red-500 tw-mt-0.5"
+                      aria-hidden="true"
+                    />
+                    <span className="tw-text-sm tw-font-bold tw-text-orange-700">
+                      {firstUrgentTask.title || '-'}
+                    </span>
+                  </div>
+                  {firstUrgentTask.dueDate && (
+                    <div className="tw-mt-1 tw-text-xs tw-text-slate-500">
+                      {T.until} {firstUrgentTask.dueDate}
+                    </div>
+                  )}
+                  <div className="tw-mt-2 tw-flex tw-items-center tw-gap-2">
+                    <span className="tw-inline-flex tw-items-center tw-gap-1 tw-rounded-full tw-bg-red-100 tw-px-2 tw-py-0.5 tw-text-[10px] tw-font-bold tw-text-red-700">
+                      <i className="fas fa-exclamation" aria-hidden="true" />
+                      {T.urgent}
+                    </span>
+                    <button
+                      type="button"
+                      className="tw-mr-auto tw-rounded-full tw-border tw-border-orange-300 tw-bg-white tw-px-3 tw-py-1 tw-text-[11px] tw-font-bold tw-text-orange-600 hover:tw-bg-orange-50"
+                    >
+                      {T.openTask}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="tw-text-center tw-text-xs tw-text-slate-400 tw-py-2">
+                  {T.noTasks}
+                </div>
+              )}
+              {tasksList.length > 0 && (
+                <div className="tw-mt-3 tw-text-center">
+                  <button
+                    type="button"
+                    className="tw-text-xs tw-font-bold tw-text-blue-600 hover:tw-underline"
+                  >
+                    {T.viewAllTasks(tasksList.length)}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Upcoming hearing card */}
+            <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white tw-p-3">
+              <h3 className="tw-flex tw-items-center tw-justify-between tw-text-sm tw-font-extrabold tw-text-slate-700 tw-mb-3">
+                <span>{T.upcomingHearingTitle}</span>
+                <i
+                  className="fas fa-calendar-alt tw-text-blue-500"
+                  aria-hidden="true"
+                />
+              </h3>
+              <div className="tw-text-center tw-text-base tw-font-extrabold tw-text-slate-900">
+                {hearingLabel}
+              </div>
+              <div className="tw-mt-1 tw-text-center tw-text-xs tw-text-slate-500">
+                {courtLabel}
+              </div>
+              <div className="tw-mt-3 tw-text-center">
+                <button
+                  type="button"
+                  className="tw-rounded-full tw-border tw-border-blue-300 tw-bg-white tw-px-4 tw-py-1.5 tw-text-xs tw-font-bold tw-text-blue-600 hover:tw-bg-blue-50"
+                >
+                  {T.openCalendar}
+                </button>
+              </div>
+            </div>
+
+            {/* Quick actions card */}
+            <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white tw-p-3">
+              <h3 className="tw-flex tw-items-center tw-justify-between tw-text-sm tw-font-extrabold tw-text-slate-700 tw-mb-3">
+                <span>{T.quickActionsTitle}</span>
+                <i
+                  className="fas fa-bolt tw-text-blue-500"
+                  aria-hidden="true"
+                />
+              </h3>
+              <div className="tw-flex tw-flex-col tw-gap-2">
+                <button
+                  type="button"
+                  className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-rounded-xl tw-border tw-border-blue-200 tw-bg-blue-50 tw-px-3 tw-py-2 tw-text-sm tw-font-bold tw-text-blue-700 hover:tw-bg-blue-100"
+                >
+                  <span>{T.newDraft}</span>
+                  <i className="fas fa-pen" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-rounded-xl tw-border tw-border-blue-200 tw-bg-blue-50 tw-px-3 tw-py-2 tw-text-sm tw-font-bold tw-text-blue-700 hover:tw-bg-blue-100"
+                >
+                  <span>{T.newTask}</span>
+                  <i className="fas fa-check-square" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-rounded-xl tw-border tw-border-blue-200 tw-bg-blue-50 tw-px-3 tw-py-2 tw-text-sm tw-font-bold tw-text-blue-700 hover:tw-bg-blue-100"
+                >
+                  <span>{T.openInCalendar}</span>
+                  <i className="fas fa-calendar" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          {/* MAIN COLUMN — `tw-order-1` so it renders first on
+           *  mobile and lands in col 1 (visual RIGHT in RTL grid)
+           *  on desktop. */}
+          <div className="tw-flex tw-flex-col tw-gap-4 tw-order-1">
+            {/* Tab content */}
+            {tab === 'documents' && (
+              <>
+                {/* Primary document AI panel — expanded by default. */}
+                {primaryDoc ? (
+                  <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white tw-overflow-hidden">
+                    {/* Header row, JSX order matches RTL visual order
+                     *  (1st child = visual right): file name + icon,
+                     *  submitted-by text, "נותח על ידי AI" badge,
+                     *  expand chevron (visual left). */}
+                    <div className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-flex-wrap tw-bg-slate-50 tw-px-4 tw-py-3 tw-text-xs lg:tw-text-sm">
+                      <div className="tw-flex tw-items-center tw-gap-2 tw-font-semibold tw-text-slate-900">
+                        <span>{primaryDoc.title || primaryDoc.fileName || '-'}</span>
+                        <i className="fas fa-file tw-text-slate-400" aria-hidden="true" />
+                      </div>
+                      <div className="tw-text-slate-500">{T.submittedBy}</div>
+                      <span className="tw-rounded-full tw-bg-emerald-100 tw-px-2.5 tw-py-1 tw-font-semibold tw-text-emerald-700">
+                        {T.aiAnalyzed}
+                      </span>
+                      <i className="fas fa-chevron-up tw-text-slate-400" aria-hidden="true" />
+                    </div>
+                    {/* 2×2 action card grid — JSX order matches RTL
+                     *  grid placement: purple top-right, blue top-left,
+                     *  orange bottom-right, emerald bottom-left. */}
+                    <div className="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 tw-gap-3 tw-p-3 lg:tw-p-4">
+                      <AIActionCard
+                        color="purple"
+                        icon="fa-file-alt"
+                        title={T.docParse}
+                        desc={T.docParseDesc}
+                      />
+                      <AIActionCard
+                        color="blue"
+                        icon="fa-pen"
+                        title={T.replyDraft}
+                        desc={T.replyDraftDesc}
+                        btn={T.openDraft}
+                      />
+                      <AIActionCard
+                        color="orange"
+                        icon="fa-check-square"
+                        title={T.taskCreated}
+                        desc={T.taskCreatedDesc}
+                        btn={T.openTask}
+                      />
+                      <AIActionCard
+                        color="emerald"
+                        icon="fa-bullseye"
+                        title={T.actionSuggestion}
+                        desc={T.actionSuggestionDesc}
+                        btn={T.viewSuggestion}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-slate-50 tw-p-6 tw-text-center tw-text-sm tw-text-slate-400">
+                    {T.noDocs}
+                  </div>
+                )}
+
+                {/* Additional documents table */}
+                {restDocs.length > 0 && (
+                  <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-overflow-hidden">
+                    <div className="tw-flex tw-items-center tw-justify-between tw-bg-slate-50 tw-px-4 tw-py-3">
+                      <h3 className="tw-text-sm lg:tw-text-base tw-font-extrabold tw-text-slate-700">
+                        {T.additionalDocs}
+                      </h3>
+                    </div>
+                    <div
+                      className="tw-hidden lg:tw-grid tw-gap-3 tw-bg-slate-50 tw-px-4 tw-py-2 tw-text-xs tw-font-bold tw-text-slate-500"
+                      style={{
+                        gridTemplateColumns: '1fr 1.6fr auto auto auto',
+                      }}
+                    >
+                      <div>{T.fileName}</div>
+                      <div>{T.summary}</div>
+                      <div>{T.status}</div>
+                      <div>{T.action}</div>
+                      <div />
+                    </div>
+                    {restDocs.slice(0, 3).map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="tw-grid tw-items-center tw-gap-3 tw-border-t tw-border-slate-100 tw-px-4 tw-py-3 tw-text-sm"
+                        style={{
+                          gridTemplateColumns: '1fr 1.6fr auto auto auto',
+                        }}
+                      >
+                        <div className="tw-flex tw-items-center tw-gap-2 tw-min-w-0">
+                          <i
+                            className="fas fa-file tw-text-slate-400 tw-flex-shrink-0"
+                            aria-hidden="true"
+                          />
+                          <span className="tw-truncate tw-font-medium tw-text-slate-900">
+                            {doc.title || doc.fileName || '-'}
+                          </span>
+                        </div>
+                        <div className="tw-text-xs tw-text-slate-600 tw-leading-snug">
+                          {T.docParseDesc}
+                        </div>
+                        <span className="tw-rounded-full tw-bg-emerald-100 tw-px-2 tw-py-1 tw-text-[11px] tw-font-semibold tw-text-emerald-700 tw-whitespace-nowrap">
+                          {T.aiAnalyzed}
+                        </span>
+                        <button
+                          type="button"
+                          className="tw-rounded-full tw-border tw-border-blue-300 tw-bg-white tw-px-4 tw-py-1.5 tw-text-xs tw-font-bold tw-text-blue-600 hover:tw-bg-blue-50"
+                        >
+                          {T.open}
+                        </button>
+                        <i
+                          className="fas fa-chevron-down tw-text-slate-400"
+                          aria-hidden="true"
+                        />
+                      </div>
+                    ))}
+                    {restDocs.length > 3 && (
+                      <div className="tw-border-t tw-border-slate-100 tw-bg-slate-50 tw-px-4 tw-py-2 tw-text-center">
+                        <button
+                          type="button"
+                          className="tw-text-xs tw-font-bold tw-text-blue-600 hover:tw-underline"
+                        >
+                          {T.showMoreDocs(restDocs.length - 3)}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {tab === 'tasks' && (
+              <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-slate-50 tw-p-4">
+                {tasksList.length === 0 ? (
+                  <div className="tw-text-center tw-text-sm tw-text-slate-400">
+                    {T.noTasks}
+                  </div>
+                ) : (
+                  <ul className="tw-flex tw-flex-col tw-gap-2">
+                    {tasksList.map((tk) => (
+                      <li
+                        key={tk.id}
+                        className="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-text-slate-700"
+                      >
+                        <i
+                          className="fas fa-check-circle tw-text-emerald-500"
+                          aria-hidden="true"
+                        />
+                        <span>{tk.title || '-'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {tab === 'notes' && (
+              <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-slate-50 tw-p-4 tw-text-center tw-text-sm tw-text-slate-400">
+                {T.noNotes}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/** Colored mini-card used inside the AI analysis section. Each
+ *  card has a tinted background, an icon, a bold title, a one-line
+ *  description, and an optional bottom action button. */
+function AIActionCard({
+  color,
+  icon,
+  title,
+  desc,
+  btn,
+}: {
+  color: 'blue' | 'purple' | 'emerald' | 'orange';
+  icon: string;
+  title: string;
+  desc: string;
+  btn?: string;
+}) {
+  const c = {
+    blue: {
+      bg: 'tw-bg-blue-50',
+      iconC: 'tw-text-blue-600',
+      titleC: 'tw-text-blue-700',
+      btnC: 'tw-border-blue-300 tw-text-blue-600',
+    },
+    purple: {
+      bg: 'tw-bg-purple-50',
+      iconC: 'tw-text-purple-600',
+      titleC: 'tw-text-purple-700',
+      btnC: 'tw-border-purple-300 tw-text-purple-600',
+    },
+    emerald: {
+      bg: 'tw-bg-emerald-50',
+      iconC: 'tw-text-emerald-600',
+      titleC: 'tw-text-emerald-700',
+      btnC: 'tw-border-emerald-300 tw-text-emerald-600',
+    },
+    orange: {
+      bg: 'tw-bg-orange-50',
+      iconC: 'tw-text-orange-600',
+      titleC: 'tw-text-orange-700',
+      btnC: 'tw-border-orange-300 tw-text-orange-600',
+    },
+  }[color];
+
+  return (
+    <div className={'tw-flex tw-flex-col tw-gap-2 tw-rounded-2xl tw-p-3 ' + c.bg}>
+      <div className="tw-flex tw-items-center tw-justify-between">
+        <h4 className={'tw-text-sm tw-font-extrabold ' + c.titleC}>{title}</h4>
+        <i className={'fas ' + icon + ' ' + c.iconC} aria-hidden="true" />
+      </div>
+      <p className="tw-text-[11px] tw-text-slate-600 tw-leading-snug">{desc}</p>
+      {btn && (
+        <button
+          type="button"
+          className={
+            'tw-mt-auto tw-rounded-full tw-border tw-bg-white tw-px-3 tw-py-1 tw-text-[11px] tw-font-bold ' +
+            c.btnC
+          }
+        >
+          {btn}
+        </button>
+      )}
+    </div>
   );
 }
 

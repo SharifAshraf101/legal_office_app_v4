@@ -336,18 +336,23 @@ function TopBar({
    *  the title text (visually "before" it in reading order). */
   leadingIcon?: ReactNode;
 }) {
-  const waLabel = lang === 'ar' ? 'WhatsApp متصل' : 'WhatsApp מחובר';
   return (
     <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FDFBF5]/95 tw-px-5 tw-py-4 tw-backdrop-blur lg:tw-px-10">
-      {/* Three header elements (leading icon, title, WA-connected
-       *  pill) sit on a single 44px horizontal line. `h-11` on
-       *  both flex groups + `tw-leading-none` on the title force a
-       *  consistent height so nothing drifts vertically. */}
+      {/* Header on a single 44px horizontal line. WhatsApp-connected
+       *  pill (MessageCircle icon + "WhatsApp מחובר" + green dot)
+       *  removed per user request — was distracting on both the
+       *  WhatsApp and Bot hubs. Leading icon + title block now own
+       *  the full row. */}
       <div className="tw-flex tw-h-11 tw-items-center tw-justify-between tw-gap-4">
         <div className="tw-flex tw-h-11 tw-items-center tw-gap-3">
           {leadingIcon}
           <div className="tw-flex tw-flex-col tw-justify-center">
-            <h1 className="tw-text-2xl tw-font-bold tw-tracking-tight tw-leading-none lg:tw-text-3xl">
+            {/* Title sized to match the Global Search title
+             *  (`.case-search-wrap > label`, see globals.css ~21087):
+             *  18px, weight 950, slate-900, tight letter-spacing.
+             *  Applies to both Bot Hub and WhatsApp Hub since both
+             *  use this shared TopBar. */}
+            <h1 className="tw-text-[18px] tw-font-[950] tw-tracking-[-0.01em] tw-leading-[1.25] tw-text-slate-900">
               {title}
             </h1>
             {subtitle && (
@@ -356,16 +361,6 @@ function TopBar({
               </p>
             )}
           </div>
-        </div>
-        <div className="tw-flex tw-h-11 tw-items-center tw-gap-3">
-          <div className="tw-hidden sm:tw-inline-flex tw-h-11 tw-items-center tw-gap-2 tw-rounded-full tw-bg-emerald-50 tw-px-4 tw-text-sm tw-font-medium tw-text-emerald-700">
-            <MessageCircle className="tw-h-5 tw-w-5" />
-            {waLabel}
-            <span className="tw-h-2 tw-w-2 tw-rounded-full tw-bg-emerald-500" />
-          </div>
-          {/* Bell/notification button removed per user request — it
-           *  was confusing in the portal context (the rest of the app
-           *  doesn't surface notifications there). */}
         </div>
       </div>
     </header>
@@ -634,7 +629,9 @@ function ChooserScreen({
     <div className="portal-chooser-screen tw-relative tw-flex tw-min-h-full tw-flex-col tw-items-center tw-justify-center tw-px-4 tw-py-[clamp(0.5rem,1.5vh,2.5rem)]">
       <MainScreenBackButton />
       <div className="tw-mb-[clamp(0.5rem,1.5vh,2rem)] tw-text-center">
-        <h1 className="tw-font-bold tw-text-indigo-900 tw-text-[clamp(1.125rem,2.4vh,1.875rem)]">
+        {/* "שער תקשורת עם לקוחות" — sized to match the Global
+         *  Search title style (18px, weight 950, slate-900). */}
+        <h1 className="tw-text-[18px] tw-font-[950] tw-tracking-[-0.01em] tw-leading-[1.25] tw-text-slate-900">
           {T.title}
         </h1>
         <p className="tw-mt-1 tw-text-slate-500 tw-text-[clamp(0.7rem,1.5vh,0.875rem)]">
@@ -1463,7 +1460,15 @@ function ClientChatScreen({
             )}
           </div>
 
-          <div className="portal-wa-chat-list tw-flex-1 tw-space-y-4 tw-overflow-y-auto tw-p-5">
+          {/* Chat list + composer are centered with `max-w-4xl mx-auto`
+           *  to MATCH the Bot Chat container layout
+           *  (`.modern-portal-bot-chat`, line ~2595). Without this
+           *  constraint, on wide viewports the WhatsApp bubbles
+           *  flush against the section's left/right edges; with it,
+           *  the chat content is centered to the same 896px max as
+           *  the bot chat, giving bubbles identical inset from the
+           *  visible chat area boundaries. */}
+          <div className="portal-wa-chat-list tw-flex-1 tw-space-y-4 tw-overflow-y-auto tw-p-5 tw-mx-auto tw-w-full tw-max-w-4xl">
             {/* "היום" pill — wrapped in a flex `justify-center` row
              *  so it lands at the true horizontal center of the
              *  chat area regardless of any padding asymmetry on
@@ -1483,12 +1488,14 @@ function ClientChatScreen({
               />
             ))}
           </div>
-          <ChatComposer
-            lang={lang}
-            onSubmit={sendChatText}
-            onAttach={attachFileToChat}
-            onRecord={attachVoiceToChat}
-          />
+          <div className="tw-mx-auto tw-w-full tw-max-w-4xl">
+            <ChatComposer
+              lang={lang}
+              onSubmit={sendChatText}
+              onAttach={attachFileToChat}
+              onRecord={attachVoiceToChat}
+            />
+          </div>
         </section>
         <aside className="tw-hidden lg:tw-block tw-border-r tw-border-slate-200 tw-bg-[#FDFBF5]/70 tw-p-4">
           <ActionPanel lang={lang} selectedCaseId={selectedCaseId} />
@@ -1729,7 +1736,7 @@ function LawyerSearchScreen({
   const T = {
     title:
       lang === 'ar'
-        ? 'بحث محادثات الموكلين مع البوت'
+        ? 'بحث عن محادثات الموكلين مع البوت'
         : 'חיפוש שיחות לקוחות עם הבוט',
     subtitle:
       lang === 'ar'
@@ -1746,13 +1753,17 @@ function LawyerSearchScreen({
         ? `${matches.length} نتيجة`
         : `${matches.length} תוצאות`,
     caseLabel: lang === 'ar' ? 'ملف' : 'תיק',
+    lastCaseLabel:
+      lang === 'ar'
+        ? 'آخر دعوى للموكل:'
+        : 'תביעה אחרונה של הלקוח:',
     back: lang === 'ar' ? 'رجوع' : 'חזרה',
     lawyerBanner:
       lang === 'ar'
         ? 'وضع العرض — محامي: قراءة محادثات الموكلين مع البوت'
         : 'מצב צפייה — עורך דין: קריאת שיחות הלקוחות עם הבוט',
     allClientsTitle:
-      lang === 'ar' ? 'كل الموكلين' : 'כל הלקוחות',
+      lang === 'ar' ? 'جميع الموكلون' : 'כל הלקוחות',
     recentTitle:
       lang === 'ar'
         ? 'موكلون تحدثوا مع البوت خلال الأسبوع الماضي'
@@ -1791,35 +1802,56 @@ function LawyerSearchScreen({
     <div className="modern-portal-client-chat tw-mx-auto tw-flex tw-min-h-full tw-w-full tw-max-w-6xl tw-flex-col tw-bg-[#FDFBF5]">
       <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FDFBF5]/95 tw-px-4 tw-py-3 tw-backdrop-blur">
         <div className="tw-flex tw-items-center tw-justify-between tw-gap-3">
+          {/* Bot icon and Back button swapped per user request.
+           *  In RTL `justify-between`, first JSX child = visual RIGHT
+           *  and last JSX child = visual LEFT. So:
+           *    bot icon (first)  → visual RIGHT side of the header
+           *    back button (last) → visual LEFT side of the header
+           */}
+          <div className="tw-grid tw-h-10 tw-w-10 tw-place-items-center tw-rounded-full tw-bg-indigo-500 tw-text-white">
+            <Bot className="tw-h-5 tw-w-5" />
+          </div>
+          <div className="tw-flex tw-flex-1 tw-flex-col tw-text-center">
+            {/* "חיפוש שיחות לקוחות עם הבוט" — match Global Search title. */}
+            <div className="tw-text-[18px] tw-font-[950] tw-tracking-[-0.01em] tw-leading-[1.25] tw-text-slate-900">
+              {T.title}
+            </div>
+            <div className="tw-text-xs tw-text-slate-500">{T.subtitle}</div>
+          </div>
+          {/* Back button — Global Search styling (white rectangle pill
+           *  with `←` arrow + "חזרה" label). Reuses the
+           *  `.main-screen-back-btn` class so it picks up the exact
+           *  Global Search look. The `.portal-lawyer-search-back`
+           *  marker class overrides the base `position: absolute /
+           *  top:12 / left:12` so the button stays inline within this
+           *  flex header — landing on the LEFT side of the screen in
+           *  RTL (last JSX child in `justify-between` = visual left). */}
           <button
             type="button"
             onClick={onBack}
             aria-label={T.back}
-            className="tw-grid tw-h-10 tw-w-10 tw-place-items-center tw-rounded-full hover:tw-bg-slate-100"
+            title={T.back}
+            className="main-screen-back-btn portal-lawyer-search-back"
           >
-            <ChevronLeft className="tw-h-6 tw-w-6" />
+            <i className="fas fa-arrow-left" />
+            <span>{T.back}</span>
           </button>
-          <div className="tw-flex tw-flex-1 tw-flex-col tw-text-center">
-            <div className="tw-font-bold tw-text-indigo-900">{T.title}</div>
-            <div className="tw-text-xs tw-text-slate-500">{T.subtitle}</div>
-          </div>
-          <div className="tw-grid tw-h-10 tw-w-10 tw-place-items-center tw-rounded-full tw-bg-indigo-500 tw-text-white">
-            <Bot className="tw-h-5 tw-w-5" />
-          </div>
         </div>
       </header>
       <div className="tw-flex tw-items-center tw-justify-center tw-gap-2 tw-border-b tw-border-amber-200 tw-bg-amber-50 tw-px-4 tw-py-2 tw-text-xs tw-font-medium tw-text-amber-800">
         <ShieldCheck className="tw-h-4 tw-w-4" />
         {T.lawyerBanner}
       </div>
-      <div className="tw-p-5">
+      <div className="tw-p-5 lawyer-search-body">
         {/* Search box: on desktop, constrained to the SAME width as the
          * right-hand clients list (column 1 of the dual-list grid below)
          * so it doesn't visually cross the vertical divider into the
          * recent-activity column. Mobile keeps it full width. The skin
          * here is light green per the user's request — emerald-50 surface
-         * with emerald-300 border + emerald-500 focus ring. */}
-        <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 lg:tw-gap-[2cm]">
+         * with emerald-300 border + emerald-500 focus ring.
+         * The `lawyer-search-search-strip` marker class makes this
+         * row a non-scrolling flex item via CSS (sticky search). */}
+        <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 lg:tw-gap-[2cm] lawyer-search-search-strip">
           <SearchBox
             placeholder={T.placeholder}
             value={query}
@@ -1842,8 +1874,10 @@ function LawyerSearchScreen({
          * one column and the divider disappears. Every ROW now carries
          * its own outer border + rounded corners + small gap between
          * rows — no more divide-y stripes (which made some rows look
-         * bordered and others not). */}
-        <div className="tw-relative tw-mt-5 tw-grid tw-grid-cols-1 tw-gap-5 lg:tw-grid-cols-2 lg:tw-gap-[2cm]">
+         * bordered and others not).
+         * The `lawyer-search-results` marker class makes this block
+         * the scroll body via CSS (search above stays sticky). */}
+        <div className="tw-relative tw-mt-5 tw-grid tw-grid-cols-1 tw-gap-5 lg:tw-grid-cols-2 lg:tw-gap-[2cm] lawyer-search-results">
           {/* Vertical divider — only on desktop, dead center of the
            * 2cm column-gap. `pointer-events-none` so it never blocks
            * clicks on the rows. */}
@@ -1853,8 +1887,12 @@ function LawyerSearchScreen({
           />
 
           {/* Column 1 (DOM-first → RIGHT in RTL on desktop): all matching
-           * clients from the search box. */}
-          <section className="tw-flex tw-flex-col">
+           * clients from the search box.
+           * Mobile (single-column stack): `tw-order-2` so this section
+           * appears BELOW the recent-week list per user request.
+           * Desktop (`lg:`): order reset to 0 so DOM order applies and
+           * this section stays on the visual right. */}
+          <section className="tw-flex tw-flex-col tw-order-2 lg:tw-order-none">
             <div className="tw-mb-3 tw-flex tw-items-center tw-justify-between tw-px-1">
               <h2 className="tw-text-sm tw-font-bold tw-text-indigo-900">
                 {T.allClientsTitle}
@@ -1883,7 +1921,7 @@ function LawyerSearchScreen({
                         )}
                       </div>
                       <div className="tw-truncate tw-text-xs tw-text-slate-500">
-                        {T.caseLabel} {c.caseNo} · {c.caseType}
+                        {T.lastCaseLabel} {c.caseType} · {c.caseNo}
                       </div>
                     </div>
                     <MessageCircle className="tw-h-5 tw-w-5 tw-text-indigo-600" />
@@ -1896,8 +1934,12 @@ function LawyerSearchScreen({
           {/* Column 2 (DOM-second → LEFT in RTL on desktop): clients who
            * chatted with the bot in the last 7 days. Each row has its
            * own indigo-tinted bordered card to match the right list's
-           * box pattern while staying visually distinct. */}
-          <section className="tw-flex tw-flex-col">
+           * box pattern while staying visually distinct.
+           * Mobile (single-column stack): `tw-order-1` so this section
+           * appears ABOVE the all-clients list per user request.
+           * Desktop (`lg:`): order reset to 0 so DOM order applies and
+           * this section stays on the visual left. */}
+          <section className="tw-flex tw-flex-col tw-order-1 lg:tw-order-none">
             <div className="tw-mb-3 tw-flex tw-items-center tw-justify-between tw-px-1">
               <h2 className="tw-text-sm tw-font-bold tw-text-indigo-900">
                 {T.recentTitle}
@@ -1928,7 +1970,7 @@ function LawyerSearchScreen({
                         )}
                       </div>
                       <div className="tw-truncate tw-text-xs tw-text-slate-500">
-                        {T.caseLabel} {c.caseNo} · {c.caseType}
+                        {T.lastCaseLabel} {c.caseType} · {c.caseNo}
                       </div>
                       <div className="tw-mt-1 tw-flex tw-items-center tw-gap-2 tw-text-[11px] tw-text-indigo-700">
                         <span>{formatRelative(c.lastTime)}</span>
@@ -2592,7 +2634,10 @@ function BotChatScreen({
             className="tw-pointer-events-none tw-absolute tw-left-1/2 tw-top-1/2 tw-text-center"
             style={{ transform: 'translate(-50%, -50%)' }}
           >
-            <div className="tw-font-bold tw-text-indigo-900">{T.title}</div>
+            {/* Bot chat title — match Global Search title. */}
+            <div className="tw-text-[18px] tw-font-[950] tw-tracking-[-0.01em] tw-leading-[1.25] tw-text-slate-900">
+              {T.title}
+            </div>
             <div className="tw-text-xs tw-text-emerald-600">{T.online}</div>
           </div>
           <button
@@ -3191,6 +3236,11 @@ function MessageBubble({
   // `tw-justify-start` resolves to visual-right and `tw-justify-end`
   // to visual-left. The "tail" corner (`rounded-t?-md`) sits on the
   // side closest to the chat edge so the bubble points at its sender.
+  //
+  // Spacing matches the bot-chat pattern (see ClientBotChatScreen):
+  // outer flex container has NO padding, bubble's `tw-max-w-[78%]`
+  // plus the chat list's `tw-p-5` (20px) handle the inset from
+  // the chat edges. No extra per-bubble padding needed.
   return (
     <div className={cn('tw-flex', office ? 'tw-justify-start' : 'tw-justify-end')}>
       <div

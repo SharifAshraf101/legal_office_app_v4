@@ -65,7 +65,7 @@ export function TasksScreen() {
   const openCount = (state.tasksArr || []).filter((x) => x.status !== 'done').length;
   const placeholder = taskText(
     'חיפוש לפי משימה, לקוח, תיק, סטטוס או הערה',
-    'بحث حسب المهمة، الموكل، القضية، الحالة أو الملاحظة',
+    'بحث بحسب المهمة، الموكل، القضية، الحالة أو الملاحظة',
     lang,
   );
   const hint = taskText(

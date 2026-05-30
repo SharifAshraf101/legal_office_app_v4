@@ -34,13 +34,13 @@ export function ClientsScreen() {
 
   const placeholder =
     lang === 'ar'
-      ? 'بحث حسب اسم الموكل، رقم الهوية أو الهاتف'
+      ? 'بحث بحسب اسم الموكل، رقم الهوية أو الهاتف'
       : 'חיפוש לפי שם לקוח, תעודת זהות או מספר טלפון';
   const hint =
     lang === 'ar'
       ? 'يمكن البحث حسب التفاصيل غير الظاهرة في القائمة.'
       : 'ניתן לחפש גם לפי פרטים שאינם מוצגים ברשימה.';
-  const searchLabel = lang === 'ar' ? 'بحث في الموكلون' : 'חיפוש בלקוחות';
+  const searchLabel = lang === 'ar' ? 'بحث عن الموكلين' : 'חיפוש בלקוחות';
 
   // Source clientList uses clients (unfiltered) by default. filterClientsScreen
   // narrows by clientSearchText match. We combine those two steps here.

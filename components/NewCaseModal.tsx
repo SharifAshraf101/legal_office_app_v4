@@ -169,7 +169,7 @@ export function NewCaseModal() {
             autoComplete="off"
             placeholder={
               lang === 'ar'
-                ? 'بحث حسب الاسم، الهوية أو الهاتف'
+                ? 'بحث بحسب الاسم، الهوية أو الهاتف'
                 : 'חיפוש לפי שם, תעודת זהות או מספר טלפון'
             }
             value={clientQuery}

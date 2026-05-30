@@ -759,24 +759,65 @@ html body .modal.case-docs-modal .cpm-footer,
 html body .modal.case-docs-modal .modal-box .cpm-footer {
   display: none !important;
 }
-/* Modal box height = content height. No min-height, no extra
- * bottom padding, no background showing below the documents
- * list. The empty gray strip the user reported was the modal
- * box's bottom padding/empty space below the list. */
+/* Modal box: flex column with hidden overflow. Splits into a
+ * non-scrolling sticky top (header) and a scrolling body, so
+ * the title + back/X stay locked above the scrolling docs list.
+ * Pattern mirrors CaseDetail's sticky-header architecture. */
 html body .modal.case-docs-modal .modal-box {
   min-height: 0 !important;
   height: auto !important;
   max-height: 90vh !important;
-  padding-bottom: 1rem !important;
+  padding: 0 !important;
   overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
-/* The docs list itself — remove the 52vh cap so it can grow to
- * fill the modal's available height instead of leaving empty
- * grey area below. */
+/* Sticky top: holds the .case-docs-modal-head and serves as the
+ * visual surface the absolute back-arrow + X close hover above
+ * (they're rendered by Modal as direct children of modal-box at
+ * top:14 with z-index 70). flex 0 0 auto keeps it from shrinking
+ * when the body has lots of rows; padding-top:14px reserves space
+ * for those buttons; the horizontal padding matches the original
+ * modal-box gutter (60px on desktop accommodates the 38px back
+ * button label "← חזרה"; tighter on mobile). */
+html body .modal.case-docs-modal .case-docs-sticky-top {
+  flex: 0 0 auto !important;
+  position: relative !important;
+  background: var(--surface, #ffffff) !important;
+  padding: 14px 60px 12px 60px !important;
+  z-index: 30 !important;
+}
+@media (max-width: 700px) {
+  html body .modal.case-docs-modal .case-docs-sticky-top {
+    padding: 14px 12px 10px 12px !important;
+  }
+}
+body.dark .modal.case-docs-modal .case-docs-sticky-top {
+  background: var(--surface, #0F172A) !important;
+}
+/* Scroll body: fills remaining height, scrolls vertically.
+ * The docs list, empty message, and pick-mode banner all live
+ * inside. Horizontal padding restores the content gutter the
+ * modal-box used to provide. */
+html body .modal.case-docs-modal .case-docs-scroll-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 12px 24px 16px 24px !important;
+}
+@media (max-width: 700px) {
+  html body .modal.case-docs-modal .case-docs-scroll-body {
+    padding: 12px 12px 16px 12px !important;
+  }
+}
+/* The docs list no longer needs its own scrolling — the
+ * scroll-body parent handles it. Reset max-height + overflow
+ * so the list lays out naturally inside the scroller. */
 html body .modal.case-docs-modal .case-docs-modal-list {
   max-height: none !important;
-  overflow: auto !important;
-  flex: 1 1 auto !important;
+  overflow: visible !important;
+  flex: none !important;
 }
 
 /* Case-documents modal — back-arrow + X close styled EXACTLY
@@ -3523,7 +3564,14 @@ button[data-settings-toggle],
     min-width: 0 !important;
     width: auto !important;
     padding: clamp(0.3rem, 1.2vw, 0.55rem) clamp(0.1rem, 0.5vw, 0.3rem) !important;
-    font-size: clamp(0.5rem, 2.1vw, 0.7rem) !important;
+    /* Font size reduced by 20% per user request: original
+     * `clamp(0.5rem, 2.1vw, 0.7rem)` × 0.8. Reduced this BASE
+     * mobile rule directly (not just the lower-rule override
+     * further down) because some browsers enforce a minimum-
+     * font-size floor on extreme clamp values, so the rule
+     * with the smallest values wasn't necessarily winning
+     * visually. */
+    font-size: clamp(0.4rem, 1.68vw, 0.56rem) !important;
     line-height: 1.1 !important;
     letter-spacing: 0 !important;
     gap: clamp(0.1rem, 0.5vw, 0.25rem) !important;
@@ -3538,7 +3586,7 @@ button[data-settings-toggle],
    * .tasks-quick-filter-btn unconditionally so this rule wins. */
   html[lang="he"] body .tasks-quick-filters .tasks-quick-filter-btn,
   html[lang="ar"] body .tasks-quick-filters .tasks-quick-filter-btn {
-    font-size: clamp(0.5rem, 2.1vw, 0.7rem) !important;
+    font-size: clamp(0.4rem, 1.68vw, 0.56rem) !important;
     line-height: 1.1 !important;
   }
 }
@@ -21590,14 +21638,18 @@ html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-open
   left: 0.25cm !important;
   right: auto !important;
 }
-html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-mobile-v140 .modal-box > .modal-close-x,
-html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-desktop-v215 .modal-box > .modal-close-x,
-html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-open-v210 .modal-box > .modal-close-x,
-html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-mobile-v140 .case-detail-modal-box > .modal-close-x,
-html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-desktop-v215 .case-detail-modal-box > .modal-close-x,
-html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-mobile-v140 .modal-box > .modal-close-x,
-html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-desktop-v215 .modal-box > .modal-close-x,
-html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-open-v210 .modal-box > .modal-close-x {
+/* The `>` (direct-child) form was needed when the X was a direct
+ * child of `.modal-box`. After the CaseDetail JSX moved the X into
+ * the `.case-detail-sticky-top` wrapper (for the sticky-header
+ * fix), the direct-child selector stopped matching and the X fell
+ * back to its base `left: 0` position. Descendant selector now,
+ * so it pins to `right: 0.25cm` no matter how it's nested. */
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-mobile-v140 .modal-close-x,
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-desktop-v215 .modal-close-x,
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-open-v210 .modal-close-x,
+html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-mobile-v140 .modal-close-x,
+html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-desktop-v215 .modal-close-x,
+html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-open-v210 .modal-close-x {
   left: auto !important;
   right: 0.25cm !important;
 }
@@ -36221,13 +36273,23 @@ html body.dark.dark .tasks-screen-panel .tasks-quick-filters .tasks-quick-filter
   html body .panel.finance-screen-panel > .main-screen-back-btn,
   html body .panel:has(.calendar-toolbar) > .main-screen-back-btn,
   html body .portal-chooser-screen > .main-screen-back-btn,
-  html body .modern-portal-hub > .portal-hub-wa-back,
-  html body .modern-portal-hub > .portal-hub-bot-back,
   html body .portal-wa-chat > .portal-wa-chat-back,
   html body .modern-portal-bot-chat > .portal-bot-chat-back {
     /* Flush against the top-left corner per user request:
      * 0cm from top, 0cm from left. */
     top: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+  }
+  /* Portal hub (WhatsApp + Bot) — back button vertically
+   * aligned with the TopBar header content row so the back
+   * button + bot icon + title all sit on the SAME visual line.
+   * The TopBar has `tw-py-4` (16px) padding-top and a `tw-h-11`
+   * (44px) content row → row center at y=38. A 38px-tall back
+   * button at top:19 has its center at y=38 → vertical match. */
+  html body .modern-portal-hub > .portal-hub-wa-back,
+  html body .modern-portal-hub > .portal-hub-bot-back {
+    top: 19px !important;
     left: 0 !important;
     right: auto !important;
   }
@@ -36240,13 +36302,14 @@ html body.dark.dark .tasks-screen-panel .tasks-quick-filters .tasks-quick-filter
   }
   /* Bot-chat back button (inside the sticky header) — overrides
    * the `.main-screen-back-btn` base position (top:12px, left:12px)
-   * to land 0.25cm from the screen's top-left corner. The header
-   * is `tw-sticky`, so the absolute back button anchors to it
-   * and tracks the viewport top. */
+   * to land flush in the top-left corner, matching the Bot Hub
+   * back-button position per user request. The header is
+   * `tw-sticky`, so the absolute back button anchors to it and
+   * tracks the viewport top. */
   html body .modern-portal-bot-chat .portal-bot-chat-back-mobile.portal-bot-chat-back-mobile {
     position: absolute !important;
-    top: 0.25cm !important;
-    left: 0.25cm !important;
+    top: 0 !important;
+    left: 0 !important;
     right: auto !important;
     bottom: auto !important;
     z-index: 50 !important;
@@ -36302,14 +36365,15 @@ html body.dark.dark .tasks-screen-panel .tasks-quick-filters .tasks-quick-filter
   html body .modern-portal-hub .portal-hub-bot-title {
     width: 100% !important;
   }
-  /* Spacer width = back button width + its 0.25cm inset, so the
-   * title's centering reference is balanced between the visible
-   * back button (left) and the bot icon (right). The back button
-   * is ~84px (38px height pill + 14px H-padding × 2 + arrow +
-   * "חזרה" label) plus 0.25cm (~9.5px) inset = ~94px total. */
+  /* Spacer width = bot icon width (2.25rem / 36px) so the
+   * row layout is SYMMETRIC and the title text lands at the
+   * exact horizontal center of the screen per user request.
+   * The absolute back button at the left no longer participates
+   * in the centering math — it sits on top of the row's left
+   * padding without affecting where the title is drawn. */
   html body .modern-portal-hub .portal-hub-bot-title-spacer {
-    width: clamp(5rem, 23vw, 6rem) !important;
-    min-width: clamp(5rem, 23vw, 6rem) !important;
+    width: 2.25rem !important;
+    min-width: 2.25rem !important;
   }
   /* Bot-mode SUBTITLE ("מענה אוטומטי ללקוחות" / "إجابات تلقائية
    * للموكلين") — sits below the title block. Center it on the
@@ -36519,7 +36583,11 @@ html body.dark.dark .tasks-screen-panel .tasks-quick-filters .tasks-quick-filter
     min-width: 0 !important;
     width: auto !important;
     padding: clamp(0.25rem, 1vw, 0.47rem) clamp(0.08rem, 0.42vw, 0.25rem) !important;
-    font-size: clamp(0.27rem, 1.15vw, 0.38rem) !important;
+    /* Font size reduced by 20% from the original
+     * `clamp(0.5rem, 2.1vw, 0.7rem)` per user request,
+     * matching the same reduction applied at the base
+     * mobile rule above. Values: 0.5×0.8 / 2.1×0.8 / 0.7×0.8. */
+    font-size: clamp(0.4rem, 1.68vw, 0.56rem) !important;
     line-height: 1.1 !important;
     letter-spacing: 0 !important;
     gap: clamp(0.08rem, 0.42vw, 0.21rem) !important;
@@ -36536,7 +36604,7 @@ html body.dark.dark .tasks-screen-panel .tasks-quick-filters .tasks-quick-filter
   html[lang="ar"] body .tasks-screen-panel .tasks-quick-filters .tasks-quick-filter-btn,
   html[lang="he"] body .tasks-quick-filters.tasks-quick-filters .tasks-quick-filter-btn,
   html[lang="ar"] body .tasks-quick-filters.tasks-quick-filters .tasks-quick-filter-btn {
-    font-size: clamp(0.27rem, 1.15vw, 0.38rem) !important;
+    font-size: clamp(0.4rem, 1.68vw, 0.56rem) !important;
     line-height: 1.1 !important;
   }
 }
@@ -37226,4 +37294,910 @@ html body .panel.clients-screen-panel.clients-v2-fluid .case-search-wrap .case-s
   font-size: 14px !important;
   font-weight: 400 !important;
   box-sizing: border-box !important;
+}
+
+/* ============================================================ *
+ * CaseDetail — sticky header (`case-detail-sticky-top`).
+ *
+ * The whole top strip — back button (חזרה), X close, title
+ * "פרטי תיק", and all action buttons (Delete / Edit / Status /
+ * Docs / New Event) — stays visually pinned at the top of the
+ * modal-box during scroll, with a SOLID background so list rows
+ * scrolling underneath aren't visible through it.
+ *
+ * Mechanics:
+ *   - The wrapper uses `position: sticky; top: 0` so it stays
+ *     glued to the top of the modal-box's scrollport.
+ *   - Negative margin compensates for the modal-box's outer
+ *     padding so the sticky strip bleeds edge-to-edge.
+ *   - Inner padding restores the original button positions.
+ *   - The back button and X are positioned absolute relative
+ *     to this sticky wrapper (it's a positioned ancestor), so
+ *     their existing `top: 14px / left: 0 / right: 0.25cm`
+ *     CSS keeps working without modification — they just now
+ *     pin to the sticky strip instead of the scrolling modal.
+ *   - `z-index: 50` keeps it above scrolled content + above
+ *     the sub-panels (tasks panel header is z-20, cases list
+ *     items have no z-index).
+ *
+ * Background matches the modal-box's `#F8FAFC` so the strip
+ * blends with the rest of the screen when not scrolled.
+ * Dark-mode override below uses the dark surface token.
+ * ============================================================ */
+/* Step 1: take scrolling AWAY from the modal-box and give it to
+ * the inner `.case-detail-dark-wrapper`. With this:
+ *   - modal-box is a flex column that never scrolls
+ *   - dark-wrapper fills the remaining height and scrolls
+ *   - the sticky strip lives inside the scrolling dark-wrapper
+ *     and sticks at top:0 of that scroller
+ *
+ * Because modal-box no longer scrolls, NO content can ever
+ * render above the sticky strip — there's nothing to clip
+ * incorrectly, no padding gap, no overscroll bleed. The strip
+ * just sits at the visual top of the modal.
+ *
+ * Selector chain self-doubles every class up to 14× to outrank
+ * every other `.modal-box` rule (the heaviest competing one is
+ * the (0,4,0)-specificity `padding:32px 36px 96px` block at
+ * line ~16903 and a later `padding:20px 18px 96px` block in a
+ * (max-width:1050px) @media). `html body` adds two type
+ * selectors so the final specificity is (0, 14, 2). */
+html body .modal.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140 .modal-box,
+html body .modal.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215 .modal-box {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  overflow-x: hidden !important;
+  /* All padding moves to the children: sticky-top spans full
+   * modal-box width (edge-to-edge), dark-wrapper carries the
+   * horizontal content gutter (36px desktop / 18px mobile) and
+   * the bottom safe-area padding (96px). */
+  padding: 0 !important;
+}
+html body .modal.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-dark-wrapper,
+html body .modal.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-dark-wrapper {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  /* Horizontal gutter for the inner content (cards, fields,
+   * panels). Bottom padding preserves the original safe-area
+   * spacing. Top padding stays 0 — sticky-top sits flush above. */
+  padding: 0 36px 96px 36px !important;
+}
+@media (max-width: 1050px) {
+  html body .modal.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-dark-wrapper,
+  html body .modal.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-dark-wrapper {
+    padding: 0 18px 96px 18px !important;
+  }
+}
+
+/* Step 2: sticky strip — now a non-scrolling flex item that's a
+ * DIRECT child of the modal-box (sibling of dark-wrapper). It
+ * spans the full modal-box width with no clipping from anything,
+ * so the absolute-positioned back button (left: 0.25cm) and X
+ * close (right: 0.25cm) sit cleanly 0.25cm in from the screen
+ * edges with zero overflow.
+ *
+ * `position: relative` makes this wrapper the positioned
+ * containing block for its absolute children. No `sticky`
+ * needed — modal-box doesn't scroll, so this item naturally
+ * stays at the top of the column. */
+html body .modal.case-detail-mobile-v140 .case-detail-sticky-top,
+html body .modal.case-detail-desktop-v215 .case-detail-sticky-top {
+  position: relative !important;
+  flex: 0 0 auto !important;
+  z-index: 50 !important;
+  background: #F8FAFC !important;
+  margin: 0 !important;
+  padding: 14px 36px 12px 36px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+@media (max-width: 1050px) {
+  html body .modal.case-detail-mobile-v140 .case-detail-sticky-top,
+  html body .modal.case-detail-desktop-v215 .case-detail-sticky-top {
+    padding: 14px 18px 10px 18px !important;
+  }
+}
+body.dark .modal.case-detail-mobile-v140 .case-detail-sticky-top,
+body.dark .modal.case-detail-desktop-v215 .case-detail-sticky-top {
+  /* Match the dark modal-box background so the sticky strip
+   * blends with the rest of the screen. Slate-900 matches the
+   * existing dark mode treatment at globals.css:8005+. */
+  background: var(--surface, #0F172A) !important;
+}
+
+/* ============================================================ *
+ * ClientDetail — sticky header (mirrors CaseDetail pattern).
+ *
+ * Modal-box becomes a flex column with `overflow: hidden`. The
+ * sticky-top (back + X + title) is a non-scrolling flex item
+ * locked at the top; the scroll-body (toolbar + grids + cases
+ * + tasks + notes + documents) is the scrolling flex item below.
+ * The user can never see content peek above the header during
+ * scroll because the parent (modal-box) doesn't scroll at all
+ * and the scroll container (scroll-body) starts AT the bottom
+ * edge of the sticky-top.
+ *
+ * Specificity chained heavily (`.client-detail-stable-v229` 11×)
+ * to outrank every existing `.modal-box` padding/overflow rule
+ * across the multiple @media blocks that touch this modal. */
+html body .modal.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229 .modal-box,
+html body .modal.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229 .client-mobile-fullscreen-box {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  overflow-x: hidden !important;
+  /* All padding moves to children: sticky-top spans edge-to-edge
+   * for solid-bg coverage, scroll-body carries the content gutter
+   * and bottom safe-area. */
+  padding: 0 !important;
+}
+
+/* Sticky-top: holds back-btn + X + title. flex 0 0 auto keeps it
+ * pinned at the top of the modal-box (modal-box doesn't scroll).
+ * position: relative makes the absolute-positioned back-btn and X
+ * resolve against this wrapper. */
+html body .modal.client-detail-stable-v229 .client-detail-sticky-top {
+  position: relative !important;
+  flex: 0 0 auto !important;
+  z-index: 50 !important;
+  background: #F8FAFC !important;
+  margin: 0 !important;
+  padding: 14px 36px 12px 36px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+@media (max-width: 1050px) {
+  html body .modal.client-detail-stable-v229 .client-detail-sticky-top {
+    padding: 14px 18px 10px 18px !important;
+  }
+}
+body.dark .modal.client-detail-stable-v229 .client-detail-sticky-top {
+  background: var(--surface, #0F172A) !important;
+}
+
+/* Scroll body: takes the remaining vertical space and owns all
+ * vertical scrolling for the modal. Horizontal padding restores
+ * the original content gutter (36px desktop, 18px mobile); the
+ * bottom padding preserves the 96px safe-area spacing. */
+html body .modal.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229 .client-detail-scroll-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 0 36px 96px 36px !important;
+}
+@media (max-width: 1050px) {
+  html body .modal.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229.client-detail-stable-v229 .client-detail-scroll-body {
+    padding: 0 18px 96px 18px !important;
+  }
+}
+
+/* The client X-close swap rule (line ~21508) previously used a
+ * `.modal-box > .modal-close-x` direct-child selector. Now that
+ * the X is rendered INSIDE `.client-detail-sticky-top` (via the
+ * sticky-header restructure), the direct-child form doesn't
+ * match — re-pin the X to `right: 0.25cm` with a descendant
+ * selector that works at any nesting depth. */
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.client-detail-stable-v229 .modal-close-x,
+html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.client-detail-stable-v229 .modal-close-x {
+  left: auto !important;
+  right: 0.25cm !important;
+}
+
+/* ============================================================ *
+ * Clients screen — sticky search-wrap + reliable list scroll.
+ *
+ * The existing CSS already tried to make the panel a flex column
+ * with a separately-scrolling `.clients-scroll-list`, but it
+ * also pinned the list to `max-height: calc(100vh - 285px)` (and
+ * variants per breakpoint). When the calc value doesn't match
+ * the actual available flex space, content overflows the panel,
+ * the page itself starts scrolling, and the search row + back
+ * button scroll away with everything else.
+ *
+ * Pattern (same as CaseDetail / CaseDocs):
+ *   .clients-screen-panel         — flex column, overflow hidden
+ *     .panel-body.clients-panel-body — flex column, overflow hidden
+ *       .case-search-wrap         — flex 0 0 auto, solid bg
+ *       .clients-scroll-list      — flex 1 1 auto, overflow-y auto
+ *
+ * No `max-height` caps: the list always exactly fills the
+ * remaining height. The MainScreenBackButton stays absolute
+ * inside the panel — since the panel itself never scrolls, the
+ * button stays visually pinned at the corner.
+ *
+ * Self-chained specificity (`.clients-screen-panel` × 11) to
+ * outrank the inline `<style>` rules at line ~93 that set the
+ * brittle calc heights.
+ * ============================================================ */
+/* Force `.content` (the screen scroll area between Topbar and
+ * MobileNav) into a non-scrolling flex column when it holds the
+ * clients panel. This removes the page-level scroll that was
+ * dragging the search bar away — the panel inside owns scrolling
+ * via its own internal `.clients-scroll-list`. */
+html body #content.content:has(.panel.clients-screen-panel) {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding-bottom: 0 !important;
+}
+/* Panel: stretch to fill the flex column (no fragile calc
+ * heights), become a flex column itself, clip overflow so
+ * children scroll INSIDE, not the panel itself. */
+html body .panel.clients-screen-panel.clients-screen-panel.clients-screen-panel.clients-screen-panel.clients-screen-panel.clients-screen-panel.clients-screen-panel.clients-screen-panel.clients-screen-panel.clients-screen-panel.clients-screen-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  flex: 1 1 auto !important;
+}
+html body .panel.clients-screen-panel .panel-body.clients-panel-body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+/* Search wrap: non-scrolling top of the column, with a solid
+ * background that ensures list rows scrolling underneath never
+ * peek through. */
+html body .panel.clients-screen-panel .panel-body.clients-panel-body > .case-search-wrap {
+  flex: 0 0 auto !important;
+  position: relative !important;
+  z-index: 5 !important;
+  background: var(--bg, #FDFBF5) !important;
+}
+body.dark .panel.clients-screen-panel .panel-body.clients-panel-body > .case-search-wrap {
+  background: var(--bg, #0F172A) !important;
+}
+/* Scroll list: owns the panel's vertical scroll. No max-height —
+ * the flex parent gives it exactly the remaining height. */
+html body .panel.clients-screen-panel .panel-body.clients-panel-body > .clients-scroll-list.clients-scroll-list.clients-scroll-list.clients-scroll-list.clients-scroll-list.clients-scroll-list.clients-scroll-list.clients-scroll-list.clients-scroll-list.clients-scroll-list.clients-scroll-list {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* ============================================================ *
+ * Global Search screen — same sticky-search pattern as Clients.
+ *
+ * Structure (after the JSX wrapper edit in GlobalSearchScreen.tsx):
+ *   .panel.global-search-panel
+ *     MainScreenBackButton          (absolute — stays pinned)
+ *     .panel-body
+ *       .case-search-wrap           (sticky strip at top)
+ *       .global-search-scroll-body  (owns vertical scroll)
+ *         result sections + empty state
+ *
+ * `.content` is forced non-scrolling whenever it holds the global-
+ * search-panel, so the page can't scroll the search bar away. The
+ * panel fills `.content` via flex, its body becomes a flex column,
+ * the search-wrap is `flex 0 0 auto` with a solid bg, and the
+ * scroll-body takes `flex 1 1 auto` with `overflow-y: auto`.
+ * ============================================================ */
+html body #content.content:has(.panel.global-search-panel) {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding-bottom: 0 !important;
+}
+html body .panel.global-search-panel.global-search-panel.global-search-panel.global-search-panel.global-search-panel.global-search-panel.global-search-panel.global-search-panel.global-search-panel.global-search-panel.global-search-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  flex: 1 1 auto !important;
+}
+html body .panel.global-search-panel > .panel-body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+html body .panel.global-search-panel > .panel-body > .case-search-wrap {
+  flex: 0 0 auto !important;
+  position: relative !important;
+  z-index: 5 !important;
+  background: var(--bg, #FDFBF5) !important;
+}
+body.dark .panel.global-search-panel > .panel-body > .case-search-wrap {
+  background: var(--bg, #0F172A) !important;
+}
+html body .panel.global-search-panel > .panel-body > .global-search-scroll-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* ============================================================ *
+ * Unified sticky-search + reliable internal scroll for all six
+ * main screens: Cases, Documents, Calendar, Tasks, Finance, and
+ * (re-asserted here for completeness) Clients + Global Search.
+ *
+ * Pattern (mirrors Clients/Global Search above):
+ *   #content.content       — non-scrolling flex column
+ *     .panel.<screen>      — flex column, fills .content
+ *       MainScreenBackButton (absolute, naturally pinned)
+ *       .panel-body        — flex column, overflow hidden
+ *         <sticky strip>   — flex 0 0 auto, solid bg
+ *         <scroll body>    — flex 1 1 auto, overflow-y auto
+ *
+ * Per-screen elements:
+ *   Cases    : sticky = .case-search-wrap            ; scroll = .cases-scroll-list
+ *   Documents: sticky = .documents-toolbar           ; scroll = .documents-scroll-list
+ *   Tasks    : sticky = .tasks-toolbar (+ chip row)  ; scroll = .tasks-scroll-list
+ *   Finance  : sticky = .case-search-wrap            ; scroll = .finance-table-wrap
+ *   Calendar : sticky = list-title + search + toolbar; scroll = .calendar-scroll-body
+ *
+ * The .content `:has()` rule is repeated per-screen so the page-
+ * level scroll is removed only when on one of these screens.
+ * The `MainScreenBackButton` is absolute inside the panel; the
+ * panel itself never scrolls, so the button stays visually
+ * pinned regardless of the list scrolling underneath.
+ * ============================================================ */
+
+/* ---------- .content non-scrolling on these six screens ------ */
+html body #content.content:has(.panel.cases-screen-panel),
+html body #content.content:has(.panel.documents-screen-panel),
+html body #content.content:has(.panel.tasks-screen-panel),
+html body #content.content:has(.panel.finance-screen-panel),
+html body #content.content:has(.panel:has(> .panel-body > .calendar-toolbar)) {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding-bottom: 0 !important;
+}
+
+/* ---------- Panel: fill .content via flex, never scroll ------ */
+html body .panel.cases-screen-panel.cases-screen-panel.cases-screen-panel.cases-screen-panel.cases-screen-panel.cases-screen-panel.cases-screen-panel.cases-screen-panel.cases-screen-panel.cases-screen-panel.cases-screen-panel,
+html body .panel.documents-screen-panel.documents-screen-panel.documents-screen-panel.documents-screen-panel.documents-screen-panel.documents-screen-panel.documents-screen-panel.documents-screen-panel.documents-screen-panel.documents-screen-panel.documents-screen-panel,
+html body .panel.tasks-screen-panel.tasks-screen-panel.tasks-screen-panel.tasks-screen-panel.tasks-screen-panel.tasks-screen-panel.tasks-screen-panel.tasks-screen-panel.tasks-screen-panel.tasks-screen-panel.tasks-screen-panel,
+html body .panel.finance-screen-panel.finance-screen-panel.finance-screen-panel.finance-screen-panel.finance-screen-panel.finance-screen-panel.finance-screen-panel.finance-screen-panel.finance-screen-panel.finance-screen-panel.finance-screen-panel,
+html body .panel:has(> .panel-body > .calendar-toolbar) {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  flex: 1 1 auto !important;
+}
+
+/* ---------- Panel-body: flex column, overflow hidden --------- */
+html body .panel.cases-screen-panel > .panel-body,
+html body .panel.documents-screen-panel > .panel-body,
+html body .panel.tasks-screen-panel > .panel-body,
+html body .panel.finance-screen-panel > .panel-body,
+html body .panel:has(> .panel-body > .calendar-toolbar) > .panel-body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* ---------- Sticky strips: flex 0 0 auto, solid bg ----------- *
+ * Cases + Finance use plain `.case-search-wrap` as the strip.
+ * Documents + Tasks have an outer toolbar wrapping the search.
+ * Calendar's strip is the list-title + search + view-tabs row
+ * (everything that's a direct child of panel-body EXCEPT the
+ * new `.calendar-scroll-body` we just added). */
+html body .panel.cases-screen-panel > .panel-body > .case-search-wrap,
+html body .panel.finance-screen-panel > .panel-body > .case-search-wrap,
+html body .panel.documents-screen-panel > .panel-body > .documents-toolbar,
+html body .panel.tasks-screen-panel > .panel-body > .tasks-toolbar,
+html body .panel.tasks-screen-panel > .panel-body > .tasks-quick-filters,
+html body .panel:has(> .panel-body > .calendar-toolbar) > .panel-body > .calendar-list-title,
+html body .panel:has(> .panel-body > .calendar-toolbar) > .panel-body > .calendar-list-search-wrap,
+html body .panel:has(> .panel-body > .calendar-toolbar) > .panel-body > .calendar-toolbar {
+  flex: 0 0 auto !important;
+  position: relative !important;
+  z-index: 5 !important;
+  background: var(--bg, #FDFBF5) !important;
+}
+body.dark .panel.cases-screen-panel > .panel-body > .case-search-wrap,
+body.dark .panel.finance-screen-panel > .panel-body > .case-search-wrap,
+body.dark .panel.documents-screen-panel > .panel-body > .documents-toolbar,
+body.dark .panel.tasks-screen-panel > .panel-body > .tasks-toolbar,
+body.dark .panel.tasks-screen-panel > .panel-body > .tasks-quick-filters,
+body.dark .panel:has(> .panel-body > .calendar-toolbar) > .panel-body > .calendar-list-title,
+body.dark .panel:has(> .panel-body > .calendar-toolbar) > .panel-body > .calendar-list-search-wrap,
+body.dark .panel:has(> .panel-body > .calendar-toolbar) > .panel-body > .calendar-toolbar {
+  background: var(--bg, #0F172A) !important;
+}
+
+/* ---------- Scroll bodies: flex 1, overflow-y auto ----------- *
+ * Self-chained per-screen scroll class 11× so this rule outranks
+ * any per-screen `max-height: calc(...)` cap elsewhere in the
+ * stylesheet. */
+html body .panel.cases-screen-panel > .panel-body > .cases-scroll-list.cases-scroll-list.cases-scroll-list.cases-scroll-list.cases-scroll-list.cases-scroll-list.cases-scroll-list.cases-scroll-list.cases-scroll-list.cases-scroll-list.cases-scroll-list,
+html body .panel.documents-screen-panel > .panel-body > .documents-scroll-list.documents-scroll-list.documents-scroll-list.documents-scroll-list.documents-scroll-list.documents-scroll-list.documents-scroll-list.documents-scroll-list.documents-scroll-list.documents-scroll-list.documents-scroll-list,
+html body .panel.tasks-screen-panel > .panel-body > .tasks-scroll-list.tasks-scroll-list.tasks-scroll-list.tasks-scroll-list.tasks-scroll-list.tasks-scroll-list.tasks-scroll-list.tasks-scroll-list.tasks-scroll-list.tasks-scroll-list.tasks-scroll-list,
+html body .panel.finance-screen-panel > .panel-body > .finance-table-wrap.finance-table-wrap.finance-table-wrap.finance-table-wrap.finance-table-wrap.finance-table-wrap.finance-table-wrap.finance-table-wrap.finance-table-wrap.finance-table-wrap.finance-table-wrap,
+html body .panel:has(> .panel-body > .calendar-toolbar) > .panel-body > .calendar-scroll-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* ============================================================ *
+ * Finance Detail (שכר טרחה) screen — same sticky pattern.
+ *
+ * Structure:
+ *   .panel.finance-detail-panel
+ *     .panel-body.finance-detail-body
+ *       .finance-detail-title          (h2 — sticky)
+ *       .case-edit-toolbar.finance-edit-toolbar (back + edit — sticky)
+ *       .finance-detail-scroll-body    (grid + payments — scrolls)
+ *
+ * Per user request, back button + edit button stay pinned at the
+ * top during scroll. They both live in the toolbar, which becomes
+ * a non-scrolling flex item alongside the title.
+ * ============================================================ */
+html body #content.content:has(.panel.finance-detail-panel) {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding-bottom: 0 !important;
+}
+html body .panel.finance-detail-panel.finance-detail-panel.finance-detail-panel.finance-detail-panel.finance-detail-panel.finance-detail-panel.finance-detail-panel.finance-detail-panel.finance-detail-panel.finance-detail-panel.finance-detail-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  flex: 1 1 auto !important;
+}
+html body .panel.finance-detail-panel > .panel-body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+/* Sticky strip: title + toolbar (back + edit). Solid bg + z-index
+ * so scrolled content never bleeds through. */
+html body .panel.finance-detail-panel > .panel-body > .finance-detail-title,
+html body .panel.finance-detail-panel > .panel-body > .case-edit-toolbar {
+  flex: 0 0 auto !important;
+  position: relative !important;
+  z-index: 5 !important;
+  background: var(--bg, #FDFBF5) !important;
+}
+body.dark .panel.finance-detail-panel > .panel-body > .finance-detail-title,
+body.dark .panel.finance-detail-panel > .panel-body > .case-edit-toolbar {
+  background: var(--bg, #0F172A) !important;
+}
+/* Scroll body: takes remaining height, owns all vertical scroll. */
+html body .panel.finance-detail-panel > .panel-body > .finance-detail-scroll-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* ============================================================ *
+ * Portal screens — same sticky pattern.
+ *
+ * Two screens covered:
+ *   1. Portal chooser ("שער תקשורת עם לקוחות") — `.portal-chooser-screen`
+ *      Has MainScreenBackButton (absolute) + centered title + 2
+ *      cards. Just needs the parent to be a non-scrolling flex
+ *      column so the back button stays anchored even if the
+ *      content ever overflows.
+ *
+ *   2. WhatsApp hub ("מרכז תקשורת עם לקוחות") — `.modern-portal-hub`
+ *      Has the back button (absolute) + header + search box + a
+ *      flex-1 grid containing a Panel with the client list. The
+ *      back button + header + search box stay pinned; the grid
+ *      becomes the scrolling container so client rows scroll
+ *      under the search.
+ *
+ * Both screens are children of `.modern-portal-root`, which itself
+ * is forced into a flex column with `overflow: hidden` so the
+ * page-level (.content) scroll never drags the search/back away.
+ * ============================================================ */
+html body #content.content:has(.modern-portal-root) {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding-bottom: 0 !important;
+}
+html body .modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+}
+/* PortalShell wraps every screen in
+ *   <div className="tw-bg-[#FDFBF5] tw-text-slate-900 tw-min-h-full">
+ * so .portal-chooser-screen / .modern-portal-hub aren't direct
+ * children of .modern-portal-root. Force this intermediate
+ * wrapper to flex column + overflow hidden so the chooser/hub
+ * inside gets a constrained height to flex into. */
+html body .modern-portal-root > div {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Chooser ("שער תקשורת"): flex column, owns vertical scroll
+ * internally if the 2-card content ever overflows; back button
+ * stays absolute (rendered by MainScreenBackButton). Descendant
+ * selector so the intermediate PortalShell wrapper doesn't
+ * break it. */
+html body .modern-portal-root .portal-chooser-screen {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* WhatsApp hub: flex column, header + search-box pinned at top,
+ * client-list grid scrolls underneath. position: relative so the
+ * absolute back button (`.main-screen-back-btn.portal-hub-wa-back`
+ * / `.portal-hub-bot-back` at top:12 left:12) anchors to the hub
+ * instead of the viewport — otherwise it'd land inside the
+ * AppShell's 78px Topbar on desktop and look invisible. */
+html body .modern-portal-root .modern-portal-hub {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  position: relative !important;
+}
+/* Sticky strip pieces: back button (already absolute — no flex
+ * adjustment needed), the <header> element rendered by TopBar,
+ * and the search box. All flex 0 0 auto so they don't shrink. */
+html body .modern-portal-root .modern-portal-hub > header,
+html body .modern-portal-root .modern-portal-hub > .portal-hub-wa-search {
+  flex: 0 0 auto !important;
+  position: relative !important;
+  z-index: 5 !important;
+}
+/* Back button must sit ABOVE the sticky `<header>` (z-20) on all
+ * viewports — the mobile @media block already did this; now do it
+ * for desktop too so the bot-hub back button shows up next to the
+ * hub's header instead of disappearing under it. */
+html body .modern-portal-root .modern-portal-hub > .portal-hub-wa-back,
+html body .modern-portal-root .modern-portal-hub > .portal-hub-bot-back {
+  z-index: 50 !important;
+}
+/* Scroll body: the tailwind-styled grid that wraps the client-
+ * list Panel. flex: 1 1 auto + overflow-y: auto owns scrolling. */
+html body .modern-portal-root .modern-portal-hub > div.tw-grid {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* ---------- WhatsApp client-chat screen (`.portal-wa-chat`) -- *
+ * Structure inside the PortalShell wrapper:
+ *   .portal-wa-chat
+ *     .main-screen-back-btn.portal-wa-chat-back (absolute)
+ *     <header tw-sticky tw-top-0>             (client info row)
+ *     div.tw-grid.tw-flex-1                    (3-col on desktop,
+ *                                                1-col on mobile)
+ *       aside  (left sidebar)
+ *       section (chat — header pill + chat list + composer)
+ *         div.portal-wa-chat-list tw-overflow-y-auto
+ *       aside  (right sidebar)
+ *
+ * The chat list's own `tw-overflow-y-auto` is fine, but it can't
+ * scroll unless every ancestor up to `.modern-portal-root` is a
+ * height-constrained flex column. Without these rules the
+ * `tw-min-h-[calc(100vh-180px)]` on the inner <section> blows
+ * out the column height and the page itself ends up scrolling. */
+html body .modern-portal-root .portal-wa-chat {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: hidden !important;
+  /* position: relative so the absolute back button
+   * (`.main-screen-back-btn.portal-wa-chat-back` at top:12 left:12
+   * from the base rule) anchors to this container instead of the
+   * viewport. Same fix as the Bot/WhatsApp hubs above —
+   * otherwise the back button lands inside the AppShell's 78px
+   * Topbar on desktop and looks invisible. */
+  position: relative !important;
+}
+/* Back button must sit ABOVE the sticky `<header>` (z-20) on
+ * desktop too, so it's visible on top of the client info row.
+ * Same as the bot-hub fix earlier. */
+html body .modern-portal-root .portal-wa-chat > .portal-wa-chat-back {
+  z-index: 50 !important;
+}
+html body .modern-portal-root .portal-wa-chat > header {
+  flex: 0 0 auto !important;
+}
+html body .modern-portal-root .portal-wa-chat > div.tw-grid {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+/* The chat <section> in the middle column — drop the
+ * `tw-min-h-[calc(100vh-180px)]` constraint that pushes the
+ * column past viewport height, and let it size to the grid cell
+ * with `min-height: 0` so its flex children can shrink. */
+html body .modern-portal-root .portal-wa-chat > div.tw-grid > section {
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: hidden !important;
+}
+/* Side panels (aside): allow their own internal scroll if their
+ * content overflows. They sit beside the chat column on desktop. */
+html body .modern-portal-root .portal-wa-chat > div.tw-grid > aside {
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+/* The actual scrolling messages list. tw-flex-1 + tw-overflow-y-auto
+ * are already on the element; re-assert with !important so nothing
+ * accidentally overrides them. */
+html body .modern-portal-root .portal-wa-chat .portal-wa-chat-list {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* ---------- Lawyer search ("חיפוש שיחות לקוחות עם הבוט") ------ *
+ * Structure inside the PortalShell wrapper:
+ *   .modern-portal-client-chat
+ *     <header>                       (back button + title + bot icon)
+ *     <div tw-bg-amber-50…>          (yellow lawyer-mode banner)
+ *     <div.lawyer-search-body>       (search + results — flex col)
+ *       <div.lawyer-search-search-strip>  (the green search box)
+ *       <div.lawyer-search-results>       (the two-column lists)
+ *
+ * Sticky strip = header + banner + search-strip
+ * Scroll body  = lawyer-search-results
+ *
+ * The `.tw-sticky tw-top-0` on the <header> already declared
+ * sticky positioning, but it requires the parent to be the
+ * scroll container. After this CSS the parent doesn't scroll
+ * at all — instead the inner `.lawyer-search-results` does —
+ * which means the header (a `flex 0 0 auto` sibling) naturally
+ * stays at the visual top of the column. */
+html body .modern-portal-root .modern-portal-client-chat {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: hidden !important;
+}
+html body .modern-portal-root .modern-portal-client-chat > header {
+  flex: 0 0 auto !important;
+}
+/* The yellow lawyer-mode banner — the only direct child of
+ * `.modern-portal-client-chat` that has neither `<header>` nor
+ * `.lawyer-search-body`. Pin it as a flex 0 0 auto strip. */
+html body .modern-portal-root .modern-portal-client-chat > div:not(.lawyer-search-body):not(.tw-p-5) {
+  flex: 0 0 auto !important;
+}
+/* The search + results container — make it a flex column that
+ * fills remaining height, with overflow hidden so its child
+ * `.lawyer-search-results` owns scroll. Keep the original
+ * `tw-p-5` padding visually intact. */
+html body .modern-portal-root .modern-portal-client-chat > .lawyer-search-body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+html body .modern-portal-root .modern-portal-client-chat > .lawyer-search-body > .lawyer-search-search-strip {
+  flex: 0 0 auto !important;
+  position: relative !important;
+  z-index: 5 !important;
+}
+html body .modern-portal-root .modern-portal-client-chat > .lawyer-search-body > .lawyer-search-results {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* Lawyer-search back button — desktop: stay inline in the flex
+ * header so the title + bot icon center properly. */
+html body .portal-lawyer-search-back.portal-lawyer-search-back.portal-lawyer-search-back {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  z-index: auto !important;
+}
+/* Mobile: switch to absolute at top:0 left:0 of the sticky header
+ * to match the Bot Hub back-button position. Both LawyerSearch
+ * and Bot Chat use the same anchor so all three portal screens
+ * have the back button in the same visual corner on phones. */
+@media (max-width: 720px) {
+  html body .portal-lawyer-search-back.portal-lawyer-search-back.portal-lawyer-search-back {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    z-index: 50 !important;
+  }
+  /* LawyerSearchScreen mobile header — bot icon at top:0 right:0
+   * so it sits at the SAME vertical level as the back button at
+   * top:0 left:0. The header gets extra padding-top so the title
+   * + subtitle drop BELOW the icons with a 0.25cm gap (the user's
+   * "תוריד את כל הטקסטים תחת כפתור הבוט וכפתור החזרה ב- 0.25 ס"מ"
+   * request). 40px = bot icon (h-10) height; 0.25cm gap; minus
+   * the original tw-py-3 (12px) padding-top the header already had. */
+  html body .modern-portal-client-chat > header {
+    position: relative !important;
+    padding-top: calc(40px + 0.25cm) !important;
+  }
+  /* Bot icon — pull out of the flex row to the top-right corner.
+   * The selector targets the first child of the inner flex row
+   * which is the indigo bot-icon div (h-10 w-10 rounded-full). */
+  html body .modern-portal-client-chat > header > div.tw-flex > div:first-child.tw-h-10 {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    z-index: 5 !important;
+    margin: 0 !important;
+  }
+}
+
+/* ============================================================ *
+ * CaseDetail — floating "brain" button.
+ *
+ * Appears ONLY on the Case Detail screen (the markup is rendered
+ * inside CaseDetail's Modal).
+ *
+ * `position: absolute` (NOT fixed) anchors the button to the
+ * `.modal-box`, which is the nearest positioned ancestor
+ * (modal-box has `position: relative` set globally). On desktop
+ * the modal-box is constrained to `min(1500px, 96vw)` and
+ * centered, so a `fixed; right: 20px` button would sit on the
+ * viewport edge OUTSIDE the modal — visually floating over the
+ * main screen behind. Switching to `absolute` keeps the button
+ * inside the modal-box no matter how the modal is sized.
+ *
+ * The modal-box itself doesn't scroll (its child `.dark-wrapper`
+ * is the scroller), so the button still stays mid-right while
+ * the user scrolls through the case content.
+ *
+ * Spec from the user's reference HTML (with the LEFT anchor
+ * flipped to RIGHT per their request):
+ *   - 56×56 circle anchored at `right: 20px; top: 50%` of the
+ *     modal-box and visually centred vertically via
+ *     `transform: translateY(-50%)`
+ *   - transparent background (the colorful brain image carries
+ *     its own visual identity); restore the navy circle by
+ *     setting `background: #2c3e66; border: 2px solid white`
+ *   - 32×32 brain icon image inside
+ *   - z-index sits above the sticky header (50) and any other
+ *     modal chrome
+ *   - hover: slight scale-up + bigger shadow
+ * ============================================================ */
+html body .case-detail-floating-brain-btn {
+  position: absolute !important;
+  right: 20px !important;
+  left: auto !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 56px !important;
+  height: 56px !important;
+  /* White circle backdrop so the colorful brain SVG stays
+   * legible on any modal background (light cream, dark slate,
+   * etc.). Soft slate border + drop shadow give the button
+   * weight without dominating the icon. */
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  z-index: 99999 !important;
+  box-shadow: 0 4px 15px rgba(15, 23, 42, 0.18) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+html body .case-detail-floating-brain-btn:hover {
+  transform: translateY(-50%) scale(1.08) !important;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.28) !important;
+}
+html body .case-detail-floating-brain-btn:active {
+  transform: translateY(-50%) scale(1.02) !important;
+}
+/* Brain SVG — sized so it fills most of the 56×56 circle with
+ * a small visual padding inside the white backdrop. */
+html body .case-detail-floating-brain-btn svg {
+  width: 40px !important;
+  height: 40px !important;
+  display: block !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* ============================================================ *
+ * CaseBrainScreen — back button position override.
+ *
+ * The `.case-detail-back-btn` class brings the Global Search
+ * white-pill visual (white bg, dark text, arrow + "חזרה" label)
+ * — that styling we WANT to keep. But the same base rule at
+ * `.modal.ls × 12 .case-detail-back-btn` also forces position
+ * to `top: 14px; right: 0.25cm; left: auto` with !important,
+ * landing the button at the visual right of the modal.
+ *
+ * The brain modal needs the button at the visual LEFT (in RTL
+ * = physical left), at top:0 left:0. We can't beat `!important`
+ * with inline styles, and Tailwind utilities scoped via
+ * `.modern-portal-root` don't carry !important — so this CSS
+ * override is the only way. Self-chain `.case-brain-modal` 14×
+ * to push specificity to (0,16,2), beating the (0,14,0) base.
+ * Modal-close-x gets the same treatment so the X (hidden via
+ * hideCloseX, but kept here for safety) doesn't drift either.
+ * ============================================================ */
+html body .modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal .case-detail-back-btn {
+  top: 0 !important;
+  left: 0 !important;
+  right: auto !important;
+  z-index: 50 !important;
+}
+html body .modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-modal .modal-close-x {
+  display: none !important;
+}
+/* The brain modal opens via `modalStack.open()` and renders
+ * INSIDE the AppShell where its modal-box gets the default
+ * 22px padding from the base `.modal-box` rule. Override here
+ * to make room for the absolute back button at top:0 left:0
+ * + the absolute AI pill at top:0 right:0 — adds extra
+ * top-padding so the centered title/subtitle don't tuck under
+ * either floating element. */
+html body .modal.case-brain-modal .modal-box {
+  padding-top: 18px !important;
+  position: relative !important;
+}
+@media (min-width: 1024px) {
+  html body .modal.case-brain-modal .modal-box {
+    width: min(1440px, 96vw) !important;
+    max-width: min(1440px, 96vw) !important;
+    max-height: 96vh !important;
+    padding: 28px 32px !important;
+  }
 }

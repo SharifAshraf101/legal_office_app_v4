@@ -147,19 +147,32 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
 
   return (
     <Modal onClose={close} className="case-docs-modal">
-      <div className="case-docs-modal-head">
-        <div>
-          <h2>
-            <i className="fas fa-folder-open" /> {title}
-          </h2>
-          <div className="case-docs-modal-sub">
-            {sub}
-            <br />
-            {lang === 'ar' ? `عدد المستندات: ${docs.length}` : `מספר מסמכים: ${docs.length}`}
+      {/* Sticky header: back + X (rendered by Modal as absolute
+       *  children of modal-box, both at top:14 with z-index 70 —
+       *  they hover on top of this wrapper visually) plus the
+       *  folder-icon title + sub-info ("case · client · count").
+       *  As a flex 0 0 auto child of modal-box (which is now a
+       *  flex column with overflow:hidden), it doesn't scroll. */}
+      <div className="case-docs-sticky-top">
+        <div className="case-docs-modal-head">
+          <div>
+            <h2>
+              <i className="fas fa-folder-open" /> {title}
+            </h2>
+            <div className="case-docs-modal-sub">
+              {sub}
+              <br />
+              {lang === 'ar' ? `عدد المستندات: ${docs.length}` : `מספר מסמכים: ${docs.length}`}
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Scrollable body: pick-mode banner + docs list. Flex 1 1
+       *  auto child of modal-box, overflow-y auto carries all the
+       *  vertical scroll for this modal. Everything above (sticky
+       *  header) stays fixed; everything below scrolls under it. */}
+      <div className="case-docs-scroll-body">
       {pickMode && (
         <div
           role="alert"
@@ -338,6 +351,8 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
           })}
         </div>
       )}
+      </div>
+      {/* /case-docs-scroll-body */}
 
       {pickMode && (
         <div className="cpm-footer">

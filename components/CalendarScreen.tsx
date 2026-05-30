@@ -48,7 +48,7 @@ export function CalendarScreen() {
 
   const listSearchPlaceholder =
     lang === 'ar'
-      ? 'بحث حسب اسم الموكل، رقم الهوية، الهاتف، نوع الدعوى، المحكمة أو رقم الملف في المحكمة'
+      ? 'بحث بحسب اسم الموكل، رقم الهوية، الهاتف، نوع الدعوى، المحكمة أو رقم الملف في المحكمة'
       : 'חיפוש לפי שם לקוח, תעודת זהות, טלפון, סוג תביעה, בית משפט או מספר תיק בבית המשפט';
 
   const setView = (v: CalendarView) => dispatch({ type: 'SET_CALENDAR_VIEW', view: v });
@@ -143,10 +143,16 @@ export function CalendarScreen() {
           )}
         </div>
 
-        {view === 'day' && <DayView focus={focus} items={items} />}
-        {view === 'week' && <WeekView focus={focus} items={items} />}
-        {view === 'month' && <MonthView focus={focus} items={items} />}
-        {view === 'list' && <ListView items={items} query={listQuery} />}
+        {/* Scroll body: takes the remaining flex height in panel-body
+         *  and owns vertical scroll. The list-title + search-wrap +
+         *  view-tabs toolbar above stay visually pinned because the
+         *  panel itself never scrolls. */}
+        <div className="calendar-scroll-body">
+          {view === 'day' && <DayView focus={focus} items={items} />}
+          {view === 'week' && <WeekView focus={focus} items={items} />}
+          {view === 'month' && <MonthView focus={focus} items={items} />}
+          {view === 'list' && <ListView items={items} query={listQuery} />}
+        </div>
       </div>
     </section>
   );

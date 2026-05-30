@@ -135,6 +135,11 @@ export function GlobalSearchScreen() {
           <div className="case-search-meta">{q ? hint : emptyHint}</div>
         </div>
 
+        {/* Sibling of case-search-wrap; takes the remaining flex
+         *  height in panel-body and owns vertical scroll. The back
+         *  button (absolute on panel) + the search-wrap above stay
+         *  visually pinned because the panel itself never scrolls. */}
+        <div className="global-search-scroll-body">
         {q && total === 0 && (
           <div className="case-empty">
             {lang === 'ar' ? 'لا توجد نتائج مطابقة.' : 'לא נמצאו תוצאות.'}
@@ -275,6 +280,8 @@ export function GlobalSearchScreen() {
             ))}
           </Section>
         )}
+        </div>
+        {/* /global-search-scroll-body */}
       </div>
     </section>
   );

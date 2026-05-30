@@ -205,18 +205,39 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
       className={modalClassName}
       boxClassName={boxClassName}
       hideBackBtn={true}
+      hideCloseX={true}
     >
-      <button
-        type="button"
-        className="client-detail-back-btn"
-        aria-label={lang === 'ar' ? 'رجوع' : 'חזרה'}
-        title={lang === 'ar' ? 'رجوع' : 'חזרה'}
-        onClick={close}
-      >
-        <i className="fas fa-arrow-left" />
-        <span>{lang === 'ar' ? 'رجوع' : 'חזרה'}</span>
-      </button>
-      <h2 className="client-detail-title-centered">{t('clientDetails')}</h2>
+
+      {/* Sticky header: back button + X close + title stay
+       *  visually pinned at the top of the modal-box during
+       *  scroll. The wrapper is a non-scrolling flex item, so
+       *  everything below it (the toolbar + cases + tasks +
+       *  documents + notes etc.) lives in a sibling scroll-body
+       *  and slides under this header. Pattern mirrors
+       *  CaseDetail's `.case-detail-sticky-top`. */}
+      <div className="client-detail-sticky-top">
+        <button
+          type="button"
+          className="client-detail-back-btn"
+          aria-label={lang === 'ar' ? 'رجوع' : 'חזרה'}
+          title={lang === 'ar' ? 'رجوع' : 'חזרה'}
+          onClick={close}
+        >
+          <i className="fas fa-arrow-left" />
+          <span>{lang === 'ar' ? 'رجوع' : 'חזרה'}</span>
+        </button>
+        <button
+          type="button"
+          className="modal-close-x"
+          aria-label={lang === 'ar' ? 'إغلاق' : 'סגור'}
+          onClick={close}
+        >
+          ×
+        </button>
+        <h2 className="client-detail-title-centered">{t('clientDetails')}</h2>
+      </div>
+
+      <div className="client-detail-scroll-body">
 
       {/* Edit + delete toolbar — the client avatar sits on this same row
        *  next to the edit / delete buttons (per user request). The avatar
@@ -445,6 +466,9 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
           })
         )}
       </div>
+
+      </div>
+      {/* /client-detail-scroll-body */}
     </Modal>
   );
 }

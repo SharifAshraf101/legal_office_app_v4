@@ -93,6 +93,12 @@ export function FinanceDetail() {
             <i className="fas fa-arrow-left" />
           </button>
         </div>
+
+        {/* Scroll body: takes the remaining flex height in panel-body
+         *  and owns vertical scroll. The title + back/edit toolbar
+         *  above stay visually pinned because the panel itself
+         *  never scrolls. */}
+        <div className="finance-detail-scroll-body">
         <div className="finance-detail-grid">
           <div className="finance-detail-card">
             <span>{t('clientName')}</span>
@@ -170,6 +176,8 @@ export function FinanceDetail() {
             )}
           </div>
         </div>
+        </div>
+        {/* /finance-detail-scroll-body */}
       </div>
     </section>
   );
