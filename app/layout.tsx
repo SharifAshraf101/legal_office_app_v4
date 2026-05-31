@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
+// Z Fold responsive layer — imported AFTER globals.css so its
+// foldable rules win on equal specificity. Kept separate so it
+// survives `npm run extract-css` regenerating globals.css.
+import './zfold.css';
 
 // The v155 early mobile resize guard from the source HTML (lines 7-48).
 // It wraps EventTarget.prototype.addEventListener BEFORE any other script runs
