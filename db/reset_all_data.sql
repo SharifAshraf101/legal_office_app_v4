@@ -22,30 +22,32 @@
 -- otherwise the bidirectional sync can repopulate the cloud.
 -- =========================================================================
 
-begin;
-
 -- The single user this app serves. If you ever change USER_ID in
--- lib/supabase.ts, change it here too.
-\set user_id 'c0307382-5fd2-4a2b-88df-40b22bb9ad26'
+-- lib/supabase.ts, change the UUID below (every line) to match.
+-- The full UUID is inlined on each statement instead of a psql \set
+-- variable, because the Supabase SQL Editor does not support psql
+-- meta-commands — this way it pastes and runs as-is anywhere.
+
+begin;
 
 -- ---- 1. Database rows --------------------------------------------------
 -- FKs are ON DELETE SET NULL, so order is not strictly required, but we
 -- delete children before parents anyway for tidiness.
 
-delete from public.timeline_items   where user_id = :'user_id'::uuid;
-delete from public.timeline_entries where user_id = :'user_id'::uuid;
-delete from public.payments         where user_id = :'user_id'::uuid;
-delete from public.finances         where user_id = :'user_id'::uuid;
-delete from public.documents        where user_id = :'user_id'::uuid;
-delete from public.calendar_events  where user_id = :'user_id'::uuid;
-delete from public.tasks            where user_id = :'user_id'::uuid;
-delete from public.cases            where user_id = :'user_id'::uuid;
-delete from public.clients          where user_id = :'user_id'::uuid;
+delete from public.timeline_items   where user_id = 'c0307382-5fd2-4a2b-88df-40b22bb9ad26'::uuid;
+delete from public.timeline_entries where user_id = 'c0307382-5fd2-4a2b-88df-40b22bb9ad26'::uuid;
+delete from public.payments         where user_id = 'c0307382-5fd2-4a2b-88df-40b22bb9ad26'::uuid;
+delete from public.finances         where user_id = 'c0307382-5fd2-4a2b-88df-40b22bb9ad26'::uuid;
+delete from public.documents        where user_id = 'c0307382-5fd2-4a2b-88df-40b22bb9ad26'::uuid;
+delete from public.calendar_events  where user_id = 'c0307382-5fd2-4a2b-88df-40b22bb9ad26'::uuid;
+delete from public.tasks            where user_id = 'c0307382-5fd2-4a2b-88df-40b22bb9ad26'::uuid;
+delete from public.cases            where user_id = 'c0307382-5fd2-4a2b-88df-40b22bb9ad26'::uuid;
+delete from public.clients          where user_id = 'c0307382-5fd2-4a2b-88df-40b22bb9ad26'::uuid;
 
 -- Whole-app JSON snapshot fallback (loader reads this when per-table
 -- queries return zero rows — must be cleared too, or a new device would
 -- re-hydrate from it).
-delete from public.app_state        where user_id = :'user_id'::uuid;
+delete from public.app_state        where user_id = 'c0307382-5fd2-4a2b-88df-40b22bb9ad26'::uuid;
 
 -- ---- 2. Stored document files -----------------------------------------
 -- File bytes uploaded via the app live in the Supabase Storage bucket
