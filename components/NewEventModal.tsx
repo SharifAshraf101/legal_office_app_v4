@@ -370,6 +370,9 @@ export function NewEventModal({
             const uploaded = await uploadFileToDropbox(docFile, {
               caseId,
               clientId,
+              caseObj: state.casesArr.find((c) => c.id === caseId) ?? null,
+              client: state.clients.find((c) => c.id === clientId) ?? null,
+              lang,
             });
             if (uploaded.ok) {
               relativePath = uploaded.url || uploaded.path;

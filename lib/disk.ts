@@ -6,7 +6,8 @@
 // The actual per-document read/write is intentionally left for Stage 4 where
 // it's wired up alongside the Documents screen and the auto-sync interval.
 
-import type { AppState } from '@/types';
+import type { AppState, Case, Client, Lang } from '@/types';
+import { FILING_ROOT, filingFolderSegments, filingFileName } from './filing';
 
 export const LEGAL_OFFICE_DATA_FILE = 'legal-office-data.json';
 export const LEGAL_OFFICE_DOCUMENTS_FOLDER = 'Clients';
@@ -191,23 +192,59 @@ async function ensureSubdir(
   return dir;
 }
 
-/** Save a document file into the Dropbox folder under
- *  `Clients/<caseId or clientId>/<timestamp>-<file.name>`. Returns the
- *  relative path inside the picked folder, or null on failure. */
+/** Return a filename that doesn't already exist in `dir`, appending " (n)"
+ *  before the extension when needed, so two different uploads that resolve to
+ *  the same numbered name don't silently overwrite each other. */
+async function uniqueFileName(
+  dir: FileSystemDirectoryHandle,
+  name: string,
+): Promise<string> {
+  const dot = name.lastIndexOf('.');
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : '';
+  let candidate = name;
+  for (let n = 1; n < 1000; n++) {
+    try {
+      await dir.getFileHandle(candidate, { create: false });
+    } catch {
+      return candidate; // not found → free to use
+    }
+    candidate = `${stem} (${n})${ext}`;
+  }
+  return candidate;
+}
+
+/** Save a document into the picked folder under the firm's filing scheme:
+ *  `Clients/CLT-101 - Name/CS-1001 - Title/CLT-101_CS-1001_<file>`. Falls back
+ *  to the legacy flat layout when no client/case object is supplied. Returns
+ *  the relative path inside the picked folder, or null on failure. */
 export async function saveDocumentToLegalOfficeFolder(
   file: File,
-  options: { caseId?: string; clientId?: string; lang: 'he' | 'ar' },
+  options: {
+    caseId?: string;
+    clientId?: string;
+    client?: Client | null;
+    caseObj?: Case | null;
+    lang: Lang;
+  },
 ): Promise<{ relativePath: string } | null> {
   try {
     const root = await ensureLegalOfficeFolder(options.lang);
     if (!root) return null;
-    const subdirName = options.caseId || options.clientId || 'misc';
-    const dir = await ensureSubdir(root, [
-      LEGAL_OFFICE_DOCUMENTS_FOLDER,
-      subdirName,
-    ]);
-    const filename = `${Date.now()}-${safeFilename(file.name)}`;
-    const fileHandle = await dir.getFileHandle(filename, { create: true });
+
+    let segments: string[];
+    let filename: string;
+    if (options.client || options.caseObj) {
+      segments = filingFolderSegments(options.client, options.caseObj, options.lang);
+      filename = filingFileName(options.client, options.caseObj, file.name);
+    } else {
+      segments = [safeFilename(options.caseId || options.clientId || 'misc')];
+      filename = `${Date.now()}-${safeFilename(file.name)}`;
+    }
+
+    const dir = await ensureSubdir(root, [FILING_ROOT, ...segments]);
+    const finalName = await uniqueFileName(dir, filename);
+    const fileHandle = await dir.getFileHandle(finalName, { create: true });
     const writable = await (
       fileHandle as FileSystemFileHandle & {
         createWritable: () => Promise<FileSystemWritableFileStream>;
@@ -216,9 +253,7 @@ export async function saveDocumentToLegalOfficeFolder(
     await writable.write(file);
     await writable.close();
     return {
-      relativePath: `${LEGAL_OFFICE_DOCUMENTS_FOLDER}/${safeFilename(
-        subdirName,
-      )}/${filename}`,
+      relativePath: `${FILING_ROOT}/${segments.join('/')}/${finalName}`,
     };
   } catch (e) {
     console.warn('[LegalOffice disk] save failed', e);

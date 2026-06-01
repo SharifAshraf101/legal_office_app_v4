@@ -18,6 +18,9 @@
 // 4. Copy the App key and expose it as the Next.js env variable
 //    `NEXT_PUBLIC_DROPBOX_APP_KEY` (in .env.local or your hosting env).
 
+import type { Case, Client, Lang } from '@/types';
+import { FILING_ROOT, filingFolderSegments, filingFileName } from './filing';
+
 const TOKEN_KEY = 'legal_office_dropbox_tokens';
 const VERIFIER_KEY = 'legal_office_dropbox_pkce_verifier';
 const FOLDER_KEY = 'legal_office_dropbox_folder';
@@ -342,7 +345,15 @@ export type DropboxUploadResult =
 
 export async function uploadFileToDropbox(
   file: File,
-  hint: { caseId?: string; clientId?: string } = {},
+  hint: {
+    caseId?: string;
+    clientId?: string;
+    /** Resolved client + case used to build the nested folder tree and the
+     *  numbered filename. When provided, takes precedence over caseId/clientId. */
+    client?: Client | null;
+    caseObj?: Case | null;
+    lang?: Lang;
+  } = {},
 ): Promise<DropboxUploadResult> {
   const token = await getValidAccessToken();
   if (!token) {
@@ -352,13 +363,25 @@ export async function uploadFileToDropbox(
     };
   }
 
-  // Path = <chosen folder> / Clients / <caseId|clientId|"misc"> / <ts>-<file>
   const base = getDropboxFolderPath(); // already starts with "/" or ""
-  const subdir = hint.caseId || hint.clientId || 'misc';
-  const filename = `${Date.now()}-${safeFilename(file.name)}`;
   // Normalize: ensure leading "/" and no trailing slashes
   const baseNorm = base.replace(/\/+$/, '');
-  const path = `${baseNorm || ''}/Clients/${safeFilename(subdir)}/${filename}`;
+
+  // Preferred scheme — nest case inside client and number the file:
+  //   <folder>/Clients/CLT-101 - Name/CS-1001 - Title/CLT-101_CS-1001_file
+  // Falls back to the legacy flat layout when no client/case object is passed
+  // (e.g. the connect-modal diagnostic upload).
+  let segments: string[];
+  let filename: string;
+  if (hint.client || hint.caseObj) {
+    segments = filingFolderSegments(hint.client, hint.caseObj, hint.lang ?? 'he');
+    filename = filingFileName(hint.client, hint.caseObj, file.name);
+  } else {
+    const subdir = hint.caseId || hint.clientId || 'misc';
+    segments = [safeFilename(subdir)];
+    filename = `${Date.now()}-${safeFilename(file.name)}`;
+  }
+  const path = `${baseNorm || ''}/${FILING_ROOT}/${segments.join('/')}/${filename}`;
 
   let finalPath: string;
   try {
