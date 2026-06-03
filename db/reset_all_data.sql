@@ -49,14 +49,19 @@ delete from public.clients          where user_id = 'c0307382-5fd2-4a2b-88df-40b
 -- re-hydrate from it).
 delete from public.app_state        where user_id = 'c0307382-5fd2-4a2b-88df-40b22bb9ad26'::uuid;
 
--- ---- 2. Stored document files -----------------------------------------
--- File bytes uploaded via the app live in the Supabase Storage bucket
--- `legal-office-documents`. Empty it so no orphaned files remain.
--- (This does NOT touch files stored in your Dropbox — delete those
--- separately in the Dropbox UI, see the assistant's instructions.)
-delete from storage.objects where bucket_id = 'legal-office-documents';
-
 commit;
+
+-- ---- 2. Stored document files (NOT done here) -------------------------
+-- File bytes uploaded via the app may also live in the Supabase Storage
+-- bucket `legal-office-documents`. Supabase BLOCKS `delete from
+-- storage.objects` via SQL (trigger storage.protect_delete) to prevent
+-- orphaned objects, so it cannot be cleared in this script. Empty it via
+-- either:
+--   • Dashboard → Storage → legal-office-documents → select all → Delete
+--   • or the Storage API / `supabase storage rm`.
+-- Document files in THIS app are stored in Dropbox, so this bucket is
+-- often empty — check the dashboard. (Dropbox files are deleted
+-- separately by removing the `Clients` folder in the Dropbox UI.)
 
 -- =========================================================================
 -- VERIFICATION — run this AFTER the commit (or the SELECT-only preview
