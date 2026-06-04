@@ -70,17 +70,32 @@ export function filingFolderSegments(
   return segments;
 }
 
-/** Renamed file, e.g. "CLT-101_CS-1001_contract.pdf". A missing client or
- *  case id is simply skipped, so the original name is always preserved at
- *  the tail (extension intact). */
+/** Renamed file, e.g. "CLT-101_CS-1001_contract_DOC-001.pdf".
+ *
+ *  Layout:  <clientId>_<caseId>_<original name>_<docId>.<ext>
+ *
+ *  A missing client / case id is skipped. The unique document id, when
+ *  given, is inserted BEFORE the extension (not after) so the file still
+ *  opens correctly — guaranteeing every saved file is unique even if two
+ *  documents share the same original name in the same case folder. */
 export function filingFileName(
   client: Client | null | undefined,
   caseObj: Case | null | undefined,
   originalName: string,
+  docId?: string | null,
 ): string {
-  const parts: string[] = [];
-  if (client?.id) parts.push(safeSegment(client.id));
-  if (caseObj?.id) parts.push(safeSegment(caseObj.id));
-  parts.push(safeSegment(originalName));
-  return parts.join('_');
+  const prefix: string[] = [];
+  if (client?.id) prefix.push(safeSegment(client.id));
+  if (caseObj?.id) prefix.push(safeSegment(caseObj.id));
+
+  // Split the sanitized name into stem + extension so the docId lands
+  // before the dot (".pdf" stays a real extension).
+  const safeName = safeSegment(originalName);
+  const dot = safeName.lastIndexOf('.');
+  const stem = dot > 0 ? safeName.slice(0, dot) : safeName;
+  const ext = dot > 0 ? safeName.slice(dot) : '';
+
+  const base = [...prefix, stem].join('_');
+  const tail = docId ? safeSegment(docId) : '';
+  return tail ? `${base}_${tail}${ext}` : `${base}${ext}`;
 }

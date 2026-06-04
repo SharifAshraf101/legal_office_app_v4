@@ -4,6 +4,22 @@ import type { Case, Client, DocumentRecord, Lang, Task } from '@/types';
 import { caseName, clientName } from './cases';
 import { clientDisplayName } from './clients';
 
+/** Next short, zero-padded running document number, e.g. "DOC-001".
+ *  Mirrors nextClientId / nextCaseId: takes the max numeric tail + 1.
+ *  Only short numeric ids (DOC-1 .. DOC-999999) are considered, so any
+ *  legacy timestamp ids like "DOC-1749038400000" are ignored and the
+ *  sequence stays clean and human-readable. */
+export function nextDocumentNumber(documents: DocumentRecord[]): string {
+  let max = 0;
+  for (const d of documents || []) {
+    const m = String(d?.id || '').match(/^DOC-(\d{1,6})$/);
+    if (!m) continue;
+    const n = parseInt(m[1], 10);
+    if (!isNaN(n) && n > max) max = n;
+  }
+  return 'DOC-' + String(max + 1).padStart(3, '0');
+}
+
 /** Source line 3635. */
 export function formatDocumentSize(bytes: number | undefined, lang: Lang): string {
   const n = Number(bytes || 0);

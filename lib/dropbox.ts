@@ -353,6 +353,9 @@ export async function uploadFileToDropbox(
     client?: Client | null;
     caseObj?: Case | null;
     lang?: Lang;
+    /** Unique running document id (e.g. "DOC-001") appended before the
+     *  extension to guarantee a collision-free filename. */
+    docId?: string;
   } = {},
 ): Promise<DropboxUploadResult> {
   const token = await getValidAccessToken();
@@ -375,7 +378,7 @@ export async function uploadFileToDropbox(
   let filename: string;
   if (hint.client || hint.caseObj) {
     segments = filingFolderSegments(hint.client, hint.caseObj, hint.lang ?? 'he');
-    filename = filingFileName(hint.client, hint.caseObj, file.name);
+    filename = filingFileName(hint.client, hint.caseObj, file.name, hint.docId);
   } else {
     const subdir = hint.caseId || hint.clientId || 'misc';
     segments = [safeFilename(subdir)];

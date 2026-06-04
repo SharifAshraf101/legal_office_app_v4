@@ -226,6 +226,9 @@ export async function saveDocumentToLegalOfficeFolder(
     client?: Client | null;
     caseObj?: Case | null;
     lang: Lang;
+    /** Unique running document id (e.g. "DOC-001") appended before the
+     *  extension to guarantee a collision-free filename. */
+    docId?: string;
   },
 ): Promise<{ relativePath: string } | null> {
   try {
@@ -236,7 +239,7 @@ export async function saveDocumentToLegalOfficeFolder(
     let filename: string;
     if (options.client || options.caseObj) {
       segments = filingFolderSegments(options.client, options.caseObj, options.lang);
-      filename = filingFileName(options.client, options.caseObj, file.name);
+      filename = filingFileName(options.client, options.caseObj, file.name, options.docId);
     } else {
       segments = [safeFilename(options.caseId || options.clientId || 'misc')];
       filename = `${Date.now()}-${safeFilename(file.name)}`;

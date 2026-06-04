@@ -6,6 +6,7 @@ import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { caseName, clientName } from '@/lib/cases';
 import { clientDisplayName } from '@/lib/clients';
+import { nextDocumentNumber } from '@/lib/documents';
 import { calendarLocale, findConflictingEvent } from '@/lib/calendar';
 import { useConflictConfirm } from '@/hooks/useConflictConfirm';
 import {
@@ -354,6 +355,10 @@ export function NewEventModal({
       // Previously this block early-returned on any upload failure,
       // which meant clicking "save" silently did nothing when Dropbox
       // wasn't set up — the description + filing step was lost.
+      // Unique running id for this document, computed once and used both
+      // as the record id AND as the filename suffix (…_DOC-001.pdf) so the
+      // saved file can never collide with another of the same name.
+      const docId = nextDocumentNumber(state.documentsArr);
       let relativePath = '';
       let fileName = trimmedTitle;
       let fileSize = 0;
@@ -373,6 +378,7 @@ export function NewEventModal({
               caseObj: state.casesArr.find((c) => c.id === caseId) ?? null,
               client: state.clients.find((c) => c.id === clientId) ?? null,
               lang,
+              docId,
             });
             if (uploaded.ok) {
               relativePath = uploaded.url || uploaded.path;
@@ -394,7 +400,7 @@ export function NewEventModal({
         fileType = docFile.type || '';
       }
       const doc: DocumentRecord & { uploadedAt?: string } = {
-        id: 'DOC-' + Date.now(),
+        id: docId,
         caseId,
         clientId,
         title: trimmedTitle,
