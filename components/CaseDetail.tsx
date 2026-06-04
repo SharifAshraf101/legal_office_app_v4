@@ -73,15 +73,19 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
     close();
     modalStack.open(<CaseEdit caseId={caseId} />);
   };
+  
   const openStatusWarning = () => {
     modalStack.open(<CaseStatusWarning caseId={caseId} />);
   };
+
   const onNewEvent = () => {
     modalStack.open(<NewEventModal preselectedCaseId={caseId} />);
   };
+
   const onShowDocs = () => {
     modalStack.open(<CaseDocumentsModal caseId={caseId} />);
   };
+
   const onOpenDoc = async (docId: string) => {
     const doc = state.documentsArr.find((d) => String(d.id) === String(docId));
     const relativePath = doc?.relativePath || '';
