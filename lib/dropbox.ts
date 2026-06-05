@@ -368,7 +368,12 @@ export async function uploadFileToDropbox(
 
   const base = getDropboxFolderPath(); // already starts with "/" or ""
   // Normalize: ensure leading "/" and no trailing slashes
-  const baseNorm = base.replace(/\/+$/, '');
+  let baseNorm = base.replace(/\/+$/, '');
+  // Guard against a doubled "Clients/Clients": if the user picked the
+  // app's "Clients" folder itself as the target during connect, strip the
+  // trailing segment so we don't append a second one below. Picking the
+  // root (base "") and picking "/Clients" now both yield a single Clients.
+  baseNorm = baseNorm.replace(new RegExp('/' + FILING_ROOT + '$', 'i'), '');
 
   // Preferred scheme — nest case inside client and number the file:
   //   <folder>/Clients/CLT-101 - Name/CS-1001 - Title/CLT-101_CS-1001_file
