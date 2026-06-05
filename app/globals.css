@@ -21669,6 +21669,23 @@ html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-open-v210 .modal-cl
   box-sizing: border-box !important;
 }
 
+/* ClientDetail title re-center (sticky-header restructure fix).
+ * The <h2> now lives INSIDE `.client-detail-sticky-top`, so the older
+ * `.modal-box > h2` (direct-child) centering rules above no longer match
+ * and the title fell back to RTL start (right) alignment — visible on
+ * mobile especially. Re-center with a descendant selector that matches the
+ * current nesting, on every viewport. The back-btn (left) and X (right) are
+ * absolutely positioned over the ends, so centering across the full width
+ * with symmetric side padding lands the title visually between them. */
+html body .modal.client-detail-stable-v229 .client-detail-sticky-top > h2.client-detail-title-centered,
+html body .modal.client-mobile-fullscreen .client-detail-sticky-top > h2.client-detail-title-centered {
+  text-align: center !important;
+  width: 100% !important;
+  margin-inline: auto !important;
+  padding-inline: 44px !important;
+  box-sizing: border-box !important;
+}
+
 /* ============================================================ *
  * Bottom nav (mobile + desktop sidebar) — per-tab accent colors.
  * Each tab gets a distinct, modern accent on its FA icon so the
