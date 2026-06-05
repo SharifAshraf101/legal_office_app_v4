@@ -79,14 +79,57 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
           ? 'minmax(0, 4fr) minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1fr)'
           : 'minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)',
       );
+      // Auto-fit each identity value (name | alt name | ID number) to its
+      // box: shrink the font from MAX down to MIN until the text fits on one
+      // line, so nothing is clipped and nothing is left unreadably small. If
+      // even MIN is still too wide, fall back to wrapping — never truncate.
+      const grid = infoGridRef.current;
+      if (grid) {
+        const vals = grid.querySelectorAll<HTMLElement>(
+          ':scope > .detail-row > strong',
+        );
+        const MAX = 13;
+        const MIN = 8.5;
+        vals.forEach((el) => {
+          el.style.setProperty('white-space', 'nowrap', 'important');
+          el.style.setProperty('overflow', 'hidden', 'important');
+          el.style.setProperty('text-overflow', 'clip', 'important');
+          let size = MAX;
+          el.style.setProperty('font-size', size + 'px', 'important');
+          let guard = 0;
+          while (
+            el.scrollWidth > el.clientWidth + 0.5 &&
+            size > MIN &&
+            guard < 32
+          ) {
+            size -= 0.5;
+            el.style.setProperty('font-size', size + 'px', 'important');
+            guard += 1;
+          }
+          if (el.scrollWidth > el.clientWidth + 0.5) {
+            // Still wider than the box at MIN — wrap to a second line so the
+            // whole value stays readable instead of being cut off.
+            el.style.setProperty('white-space', 'normal', 'important');
+            el.style.setProperty('overflow-wrap', 'anywhere', 'important');
+            el.style.setProperty('overflow', 'visible', 'important');
+          }
+        });
+      }
     };
     refresh();
+    // A second pass after layout + web fonts settle, so the width
+    // measurement above reflects the final rendered text.
+    const raf =
+      typeof window !== 'undefined' ? window.requestAnimationFrame(refresh) : 0;
     // Re-apply on window resize so crossing the 700px breakpoint
-    // (e.g. rotating phone, resizing browser) immediately swaps
-    // between the mobile and desktop templates.
+    // (e.g. rotating phone, resizing browser) immediately swaps the
+    // templates and re-fits the values.
     if (typeof window !== 'undefined') {
       window.addEventListener('resize', refresh);
-      return () => window.removeEventListener('resize', refresh);
+      return () => {
+        window.removeEventListener('resize', refresh);
+        window.cancelAnimationFrame(raf);
+      };
     }
   });
 

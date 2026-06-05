@@ -38218,3 +38218,20 @@ html body .modal.case-brain-modal .modal-box {
     padding: 28px 32px !important;
   }
 }
+
+/* ============================================================ *
+ * ClientDetail identity cards — center the label + value inside
+ * each box (name | alt name | ID number), per request. Appended
+ * last so it wins over the earlier mobile `text-align: start`
+ * rule on every viewport. The VALUE font-size is set inline by
+ * the auto-fit effect in ClientDetail.tsx, so it is intentionally
+ * not pinned here — only alignment + full-width are enforced.
+ * ============================================================ */
+html body .modal.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row {
+  align-items: center !important;
+}
+html body .modal.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row > span,
+html body .modal.client-detail-stable-v229 .detail-grid.client-detail-info-grid > .detail-row > strong {
+  text-align: center !important;
+  width: 100% !important;
+}
