@@ -1049,12 +1049,12 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       (d) => String(d.caseId) === String(caseId),
     );
     const fn = primary?.fileName;
-    if (!fn) {
+    if (!fn && !caseId) {
       setDocSummary(null);
       return;
     }
     let cancelled = false;
-    fetchDocumentSummary(fn, lang).then((s) => {
+    fetchDocumentSummary(fn, lang, caseId).then((s) => {
       if (!cancelled) setDocSummary(s);
     });
     return () => {

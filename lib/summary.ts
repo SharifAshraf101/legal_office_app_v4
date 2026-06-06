@@ -1,30 +1,30 @@
-// Document-summary fetcher.
+// Document-summary fetcher (client side).
 //
-// Fetches a per-document summary from a Cloudflare endpoint, keyed by file
-// name, for the case-brain "פענוח המסמך" card. Configure the endpoint base
-// URL via the env var NEXT_PUBLIC_CLOUDFLARE_SUMMARY_URL.
+// Calls our own /api/summary route, which queries the Cloudflare D1
+// `file_summary` table server-side (keeping the D1 token off the client)
+// and returns JSON { he, ar }. Used by the case-brain "פענוח המסמך" card.
 //
-// Request:  GET {base}?file=<encodeURIComponent(fileName)>
-// Response: JSON { "he": "...", "ar": "..." }
-//
-// The active-language field is returned (falling back to the other language
-// if one is missing). Returns null when the env var is unset, the file name
-// is empty, or the request fails — callers should fall back to their own
-// placeholder text in that case, so nothing breaks when Cloudflare is not
-// configured.
+// Returns the active-language summary (falling back to the other language
+// if one is missing), or null when nothing is found / the request fails —
+// callers then keep their placeholder text.
 
 import type { Lang } from '@/types';
 
 export async function fetchDocumentSummary(
   fileName: string | undefined,
   lang: Lang,
+  caseId?: string,
 ): Promise<string | null> {
-  const base = (process.env.NEXT_PUBLIC_CLOUDFLARE_SUMMARY_URL || '').trim();
-  if (!base || !fileName) return null;
-  const sep = base.includes('?') ? '&' : '?';
-  const url = `${base}${sep}file=${encodeURIComponent(fileName)}`;
+  if (!fileName && !caseId) return null;
+  const params = new URLSearchParams();
+  if (fileName) params.set('file', fileName);
+  if (caseId) params.set('caseId', caseId);
   try {
-    const res = await fetch(url, { method: 'GET' });
+    // Trailing slash matches next.config `trailingSlash: true` (avoids a
+    // 308 redirect round-trip).
+    const res = await fetch('/api/summary/?' + params.toString(), {
+      method: 'GET',
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as { he?: string; ar?: string };
     const primary = lang === 'ar' ? data.ar : data.he;
