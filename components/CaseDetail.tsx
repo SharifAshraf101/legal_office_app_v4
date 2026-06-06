@@ -1648,7 +1648,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                       <div>{T.action}</div>
                       <div />
                     </div>
-                    {restDocs.slice(0, 3).map((doc) => (
+                    {restDocs.slice(0, 3).reverse().map((doc) => (
                       <div
                         key={doc.id}
                         className="tw-grid tw-items-center tw-gap-3 tw-border-t tw-border-slate-100 tw-px-4 tw-py-3 tw-text-sm"
