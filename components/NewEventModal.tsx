@@ -107,6 +107,11 @@ export interface NewEventModalProps {
    *  name (sans extension). Always forces `preselectedType` to
    *  'document' so the file upload UI is visible. */
   preselectedFile?: File;
+  /** Lock the modal to adding a "note": forces type to 'note', hides the
+   *  event-type selector and the related-case search, so only the note
+   *  title + description are editable. Use with preselectedCaseId so the
+   *  note is filed under the chosen case. */
+  noteOnly?: boolean;
 }
 
 function fileNameWithoutExtension(name: string): string {
@@ -119,6 +124,7 @@ export function NewEventModal({
   preselectedType,
   titleOverride,
   preselectedFile,
+  noteOnly = false,
 }: NewEventModalProps) {
   const { state, dispatch } = useAppState();
   const { t, lang } = useT();
@@ -135,7 +141,11 @@ export function NewEventModal({
   // If a file was dropped, force type to "document" so the upload UI
   // is visible — the only way to attach a file in this modal.
   const initialType: 'hearingMeeting' | 'document' | 'meeting' | 'reminder' | 'call' | 'task' | 'note' =
-    preselectedFile ? 'document' : preselectedType || 'hearingMeeting';
+    noteOnly
+      ? 'note'
+      : preselectedFile
+        ? 'document'
+        : preselectedType || 'hearingMeeting';
   const [type, setType] = useState<'hearingMeeting' | 'document' | 'meeting' | 'reminder' | 'call' | 'task' | 'note'>(
     initialType,
   );
@@ -537,6 +547,7 @@ export function NewEventModal({
           {titleOverride || t('newEvent')}
         </h2>
       <form id="eventForm" className="form-grid" onSubmit={onSubmit}>
+        {!noteOnly && (
         <div className="form-field">
           <label>{t('eventType')}</label>
           <select
@@ -556,6 +567,7 @@ export function NewEventModal({
             <option value="note">{t('note')}</option>
           </select>
         </div>
+        )}
 
         {type === 'document' && (
           <div className="form-field" id="documentUploadWrap">
@@ -572,6 +584,7 @@ export function NewEventModal({
           </div>
         )}
 
+        {!noteOnly && (
         <div className="form-field search-box">
           <label>{t('relatedCase')}</label>
           <input
@@ -616,6 +629,7 @@ export function NewEventModal({
             )}
           </div>
         </div>
+        )}
 
         <div className="form-field">
           <label id="eventTitleLabel">{eventTitleLabel(type, t)}</label>
