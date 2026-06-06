@@ -1032,7 +1032,7 @@ function CaseTimelineSection({
  * the layout.
  */
 function CaseBrainScreen({ caseId }: { caseId: string }) {
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
   const { lang } = useT();
   const modalStack = useModalStack();
   const close = () => modalStack.close(modalStack.topId() ?? 0);
@@ -1423,6 +1423,16 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                 <button
                   type="button"
                   className="tw-rounded-full tw-border tw-border-blue-300 tw-bg-white tw-px-4 tw-py-1.5 tw-text-xs tw-font-bold tw-text-blue-600 hover:tw-bg-blue-50"
+                  onClick={() => {
+                    // Open the calendar focused on this case's hearing
+                    // (the upcoming one, else the last recorded hearing).
+                    const focusDate =
+                      upcoming?.dateTime || c.lastHearing || new Date().toISOString();
+                    dispatch({ type: 'SET_CALENDAR_FOCUS', date: focusDate });
+                    dispatch({ type: 'SET_CALENDAR_VIEW', view: 'day' });
+                    dispatch({ type: 'SET_TAB', tab: 'calendar' });
+                    close();
+                  }}
                 >
                   {T.openCalendar}
                 </button>
