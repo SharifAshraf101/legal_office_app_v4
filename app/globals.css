@@ -38235,3 +38235,99 @@ html body .modal.client-detail-stable-v229 .detail-grid.client-detail-info-grid 
   text-align: center !important;
   width: 100% !important;
 }
+
+/* ============================================================ *
+ * CalendarEventDetail ("פרטי יומן") header — match the
+ * ClientDetail header EXACTLY: centered title, back arrow pinned
+ * top-left, X close as a navy rounded square pinned top-right.
+ * Same size, look, and edge distance as the client-detail header.
+ * Marker class `calendar-detail-v1` is set on the modal in
+ * components/CalendarEventDetail.tsx. The .ls chain + repeated
+ * target class give enough specificity to beat the generic modal
+ * button rules (which match any `.modal.ls` modal).
+ * ============================================================ */
+
+/* Centered title */
+html body .modal.calendar-detail-v1 .modal-box > h2.calendar-detail-title-centered {
+  text-align: center !important;
+  width: 100% !important;
+  margin: 14px 0 14px 0 !important;
+  padding: 0 60px !important;
+  line-height: 38px !important;
+  min-height: 38px !important;
+  box-sizing: border-box !important;
+  font-weight: 800 !important;
+}
+
+/* Back arrow — top-left white square pill (icon + "חזרה" label),
+ * identical to .client-detail-back-btn. */
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .modal-mobile-back-btn.modal-mobile-back-btn {
+  position: absolute !important;
+  top: 14px !important;
+  left: 0.25cm !important;
+  right: auto !important;
+  z-index: 70 !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: #ffffff !important;
+  border: 1px solid #e2ebf6 !important;
+  border-radius: 0 !important;
+  color: #0f172a !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+}
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .modal-mobile-back-btn.modal-mobile-back-btn i,
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .modal-mobile-back-btn.modal-mobile-back-btn .modal-mobile-back-btn-label {
+  color: #0f172a !important;
+  font-size: 14px !important;
+  display: inline !important;
+}
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .modal-mobile-back-btn.modal-mobile-back-btn:hover {
+  background: #111827 !important;
+  color: #ffffff !important;
+  border-color: #111827 !important;
+}
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .modal-mobile-back-btn.modal-mobile-back-btn:hover i,
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .modal-mobile-back-btn.modal-mobile-back-btn:hover .modal-mobile-back-btn-label {
+  color: #ffffff !important;
+}
+
+/* X close — top-right navy rounded square with white ×, identical
+ * to the final ClientDetail .modal-close-x styling. */
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .modal-close-x.modal-close-x.modal-close-x.modal-close-x {
+  position: absolute !important;
+  top: 14px !important;
+  right: 0.25cm !important;
+  left: auto !important;
+  z-index: 70 !important;
+  width: 2rem !important;
+  height: 2rem !important;
+  min-width: 2rem !important;
+  min-height: 2rem !important;
+  max-width: 2rem !important;
+  max-height: 2rem !important;
+  border-radius: 0.5rem !important;
+  background: #1E293B !important;
+  background-color: #1E293B !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  border: 1px solid #334155 !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.28) !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  float: none !important;
+}
