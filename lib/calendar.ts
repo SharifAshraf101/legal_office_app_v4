@@ -1,4 +1,4 @@
-// Calendar helpers. Ports of source 4067-4106 + 4307-4310. Names preserved so
+// Calendar helpers. Ports of source 4067-4106 + 4307-4310. Names preserved so ver 3sion of calendar modals can read directly from source without needing to import this module.
 // porting the calendar modals in Stage 4b-4 reads directly from the source.
 
 import { calendarDateValue, sameCalendarDay } from './dates';
