@@ -1219,9 +1219,13 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // both mobile + desktop). Remaining ones land in the
   // "מסמכים נוספים בתיק" table below.
   const [primaryDoc, ...restDocs] = docs;
-  const firstUrgentTask = tasksList.find((tk) => tk.priority === 'critical') ||
-    tasksList.find((tk) => tk.priority === 'urgent') ||
-    tasksList[0];
+  // The "משימות שנוצרו" preview card shows only OPEN (not-done) tasks, so a
+  // task disappears from it once it's marked done. (The Tasks tab still
+  // lists all tasks incl. done — reached via "צפייה בכל המשימות".)
+  const openTasksList = tasksList.filter((tk) => tk.status !== 'done');
+  const firstUrgentTask = openTasksList.find((tk) => tk.priority === 'critical') ||
+    openTasksList.find((tk) => tk.priority === 'urgent') ||
+    openTasksList[0];
 
   return (
     // `modern-portal-root` opts this Modal in to the Tailwind
