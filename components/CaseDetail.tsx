@@ -1050,6 +1050,16 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   const tasksList = state.tasksArr.filter(
     (tk) => String(tk.caseId) === String(caseId),
   );
+  // All notes recorded on this case (timeline items of type "note"),
+  // newest first — shown in the case-brain "הערות" tab.
+  const notesList = state.timelineItems
+    .filter(
+      (n) => String(n.caseId) === String(caseId) && String(n.type) === 'note',
+    )
+    .slice()
+    .sort((a, b) =>
+      String(b.date || '').localeCompare(String(a.date || '')),
+    );
   // Pick the next upcoming event for this case for the "מועד הדיון הבא"
   // card; fall back to the case's lastHearing field if none scheduled.
   const upcoming = state.eventsList
@@ -1631,8 +1641,51 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
             )}
 
             {tab === 'notes' && (
-              <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-slate-50 tw-p-4 tw-text-center tw-text-sm tw-text-slate-400">
-                {T.noNotes}
+              <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-slate-50 tw-p-4">
+                {notesList.length === 0 ? (
+                  <div className="tw-text-center tw-text-sm tw-text-slate-400">
+                    {T.noNotes}
+                  </div>
+                ) : (
+                  <ul className="tw-flex tw-flex-col tw-gap-3">
+                    {notesList.map((n) => {
+                      const noteTitle =
+                        lang === 'ar'
+                          ? n.titleAr || n.title
+                          : n.title || n.titleAr;
+                      const noteDesc =
+                        lang === 'ar'
+                          ? n.descriptionAr || n.description
+                          : n.description || n.descriptionAr;
+                      return (
+                        <li
+                          key={n.id}
+                          className="tw-flex tw-flex-col tw-gap-1 tw-rounded-xl tw-border tw-border-slate-200 tw-bg-white tw-p-3 tw-text-slate-700"
+                        >
+                          <div className="tw-flex tw-items-center tw-gap-2">
+                            <i
+                              className="fas fa-comment-alt tw-text-blue-500"
+                              aria-hidden="true"
+                            />
+                            <span className="tw-text-sm tw-font-semibold">
+                              {noteTitle || '-'}
+                            </span>
+                          </div>
+                          {noteDesc ? (
+                            <p className="tw-m-0 tw-text-sm tw-text-slate-600">
+                              {noteDesc}
+                            </p>
+                          ) : null}
+                          {n.date ? (
+                            <span className="tw-text-xs tw-text-slate-400">
+                              {n.date}
+                            </span>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
             )}
           </div>
