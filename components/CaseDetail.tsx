@@ -1596,18 +1596,35 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                   </div>
                 ) : (
                   <ul className="tw-flex tw-flex-col tw-gap-2">
-                    {tasksList.map((tk) => (
-                      <li
-                        key={tk.id}
-                        className="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-text-slate-700"
-                      >
-                        <i
-                          className="fas fa-check-circle tw-text-emerald-500"
-                          aria-hidden="true"
-                        />
-                        <span>{tk.title || '-'}</span>
-                      </li>
-                    ))}
+                    {tasksList.map((tk) => {
+                      // Show every task for the case — done AND not done.
+                      // Status-aware icon so the two are distinguishable:
+                      //   done  → filled green check + strikethrough title
+                      //   open  → empty gray circle
+                      const done = tk.status === 'done';
+                      return (
+                        <li
+                          key={tk.id}
+                          className="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-text-slate-700"
+                        >
+                          <i
+                            className={
+                              done
+                                ? 'fas fa-check-circle tw-text-emerald-500'
+                                : 'far fa-circle tw-text-slate-400'
+                            }
+                            aria-hidden="true"
+                          />
+                          <span
+                            className={
+                              done ? 'tw-line-through tw-text-slate-400' : ''
+                            }
+                          >
+                            {tk.title || '-'}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>
