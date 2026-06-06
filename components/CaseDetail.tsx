@@ -1074,6 +1074,30 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       )
     : c.lastHearing || '-';
 
+  // Most recent PAST event for this case for the "מועד הדיון האחרון"
+  // (last hearing) card; fall back to the case's lastHearing field.
+  const lastPast = state.eventsList
+    .filter(
+      (e) => e.caseId === c.id && new Date(e.dateTime).getTime() < Date.now(),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime(),
+    )[0];
+  const lastHearingLabel = lastPast
+    ? new Date(lastPast.dateTime).toLocaleString(
+        lang === 'ar' ? 'ar' : 'he-IL',
+        {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        },
+      )
+    : c.lastHearing || '-';
+
   const T = {
     title:
       lang === 'ar'
@@ -1087,7 +1111,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     aiOn: lang === 'ar' ? 'فعّال' : 'פעיל',
     back: lang === 'ar' ? 'رجوع' : 'חזרה',
     backToCase: lang === 'ar' ? 'العودة لتفاصيل القضية' : 'חזרה לפרטי תיק',
-    nextHearing: lang === 'ar' ? 'الموعد القادم' : 'מועד הדיון הבא',
+    lastHearing: lang === 'ar' ? 'الموعد الأخير' : 'מועד הדיון האחרון',
     client: lang === 'ar' ? 'الموكل' : 'לקוח',
     caseNumber: lang === 'ar' ? 'رقم الملف' : 'מספר תיק',
     court: lang === 'ar' ? 'المحكمة' : 'בית משפט',
@@ -1156,8 +1180,8 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   }> = [
     {
       icon: 'fa-calendar-alt',
-      label: T.nextHearing,
-      value: hearingLabel,
+      label: T.lastHearing,
+      value: lastHearingLabel,
       valueClass: 'tw-text-blue-600',
     },
     { icon: 'fa-user', label: T.client, value: clientLabel },
