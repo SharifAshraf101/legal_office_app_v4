@@ -23,7 +23,7 @@ import {
 import {
   legalOfficeLoadFromSupabaseV88,
   legalOfficeSaveToSupabase,
-} from '@/lib/supabase';
+} from '@/lib/cloudflare';
 import { normalizeFontFamily } from '@/lib/translations';
 import type {
   AppState,

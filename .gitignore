@@ -6,6 +6,12 @@ out
 *.tsbuildinfo
 .DS_Store
 
+# Cloudflare migration: dumped client data + generated seed (never commit)
+migration-out/
+
+# Cloudflare Worker local state
+worker/.wrangler
+
 # Local Netlify folder
 .netlify
 

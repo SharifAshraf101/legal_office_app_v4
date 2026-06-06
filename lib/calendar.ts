@@ -19,7 +19,7 @@ export interface CalendarItem {
   source: 'event' | 'task';
 }
 
-/** Source line 4067. */
+/** Source line 4067. v3 */
 export function calendarText(key: string, lang: Lang): string {
   const labels: Record<Lang, Record<string, string>> = {
     he: {

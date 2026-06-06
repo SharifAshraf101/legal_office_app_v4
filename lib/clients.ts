@@ -1,4 +1,4 @@
-// Client-related helpers. Ports of source functions 3925, 4199-4205, 4611
+// Client-related helpers. Ports of source functions 3925, 4199-4205, 4611 v3 versions of client modals read directly from source without needing to import this module.
 // — names preserved so screen code reads naturally.
 
 import type { Case, Client, Lang } from '@/types';
@@ -6,6 +6,7 @@ import type { Case, Client, Lang } from '@/types';
 /** Source line 3925. Computes the next CLT-NNN id by taking max numeric tail + 1. */
 export function nextClientId(clients: Client[]): string {
   let max = 100;
+
   for (const c of clients) {
     const n = parseInt(String(c.id || '').replace(/\D/g, ''), 10);
     if (!isNaN(n) && n > max) max = n;

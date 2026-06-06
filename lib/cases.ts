@@ -1,4 +1,4 @@
-// Case-related helpers. Ports of source 3776-3779, 3919, 4188-4192, 4399.
+// Case-related helpers. Ports of source 3776-3779, 3919, 4188-4192, 4399. v3 versions of case modals read directly from source without needing to import this module.
 
 import type { Case, CalendarEvent, Client, Lang, Task } from '@/types';
 

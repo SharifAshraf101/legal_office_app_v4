@@ -1,0 +1,32 @@
+# Cloudflare Worker that replaces Supabase PostgREST + Storage for the
+# legal-office app. The browser talks to THIS worker instead of Supabase.
+#
+# Fill in the two REPLACE_ME values after running:
+#   wrangler d1 create legal-office-v3
+#   wrangler r2 bucket create legal-office-photos-v3
+# (see RUNBOOK.md). APP_TOKEN is a SECRET — set it with
+#   wrangler secret put APP_TOKEN
+# do NOT put it in [vars] (which is committed).
+
+name = "legal-office-api"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+
+# --- D1 database (relational data) ---
+[[d1_databases]]
+binding = "DB"
+database_name = "legal-office-v3"
+database_id = "22d82799-9240-43ee-bd6c-1258ec9d987d"
+
+# --- R2 bucket (client photos) ---
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "legal-office-photos-v3"
+
+# --- Non-secret config (committed) ---
+# ALLOWED_ORIGIN: the exact origin of the deployed app (comma-separate to allow
+#   more than one, e.g. localhost for dev + the production domain).
+# USER_ID: moved server-side so the browser can no longer address other users.
+[vars]
+ALLOWED_ORIGIN = "http://localhost:3000,http://localhost:3001"
+USER_ID = "c0307382-5fd2-4a2b-88df-40b22bb9ad26"

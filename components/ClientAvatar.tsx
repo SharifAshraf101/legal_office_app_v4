@@ -5,7 +5,7 @@ import type { Client } from '@/types';
 import { clientDisplayName } from '@/lib/clients';
 import { useT } from '@/hooks/useT';
 import { useAppState } from '@/hooks/useAppState';
-import { uploadClientPhotoToStorage } from '@/lib/supabase';
+import { uploadClientPhotoToStorage } from '@/lib/cloudflare';
 
 /**
  * Avatar + photo upload. Placeholder text "תמונה" / "صورة" replaces
