@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -1078,8 +1078,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   }, [state.documentsArr, state.casesArr, state.clients, caseId, lang]);
 
   // Decision-derived task + hearing for the latest (decision) document —
-  // shown in the "משימה שנוצרה" card and used by "פתח משימה".
+  // shown in the "משימה שנוצרה" card. The task is ALSO auto-created as a real
+  // Task (with the decision's due date) so it appears in the tasks screen,
+  // the case-detail tasks panel, and the "משימות שנוצרו" card.
   const [decisionInfo, setDecisionInfo] = useState<DecisionInfo | null>(null);
+  const decisionTaskHandledRef = useRef(false);
   useEffect(() => {
     const primary = caseDocumentsForCase(caseId, state.documentsArr)[0];
     const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
@@ -1097,12 +1100,37 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     }
     let cancelled = false;
     fetchDecisionInfo({ renamed, clientId }).then((info) => {
-      if (!cancelled) setDecisionInfo(info);
+      if (cancelled) return;
+      setDecisionInfo(info);
+      const desc = info?.taskDescription;
+      if (!desc || decisionTaskHandledRef.current) return;
+      decisionTaskHandledRef.current = true;
+      const exists = state.tasksArr.some(
+        (t) => String(t.caseId) === String(caseId) && t.title === desc,
+      );
+      if (exists) return;
+      dispatch({
+        type: 'SET_TASKS',
+        tasks: [
+          ...state.tasksArr,
+          {
+            id: 'TASK-' + String(Date.now()),
+            title: desc,
+            caseId,
+            clientId: clientId || '',
+            // Deadline for the task = the date set in the decision.
+            dueDate: info.taskDueDate || '',
+            status: 'open',
+            priority: 'normal',
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
     });
     return () => {
       cancelled = true;
     };
-  }, [state.documentsArr, state.casesArr, state.clients, caseId]);
+  }, [state.documentsArr, state.casesArr, state.clients, caseId, dispatch]);
 
   const c = state.casesArr.find((x) => String(x.id) === String(caseId));
   if (!c) return null;
