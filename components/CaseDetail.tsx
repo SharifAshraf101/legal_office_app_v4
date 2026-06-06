@@ -1258,7 +1258,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // Primary document = first one (gets the expanded AI panel on
   // both mobile + desktop). Remaining ones land in the
   // "מסמכים נוספים בתיק" table below.
-  const [primaryDoc, ...restDocs] = docs;
+  const [primaryDoc] = docs;
   // The "משימות שנוצרו" preview card shows only OPEN (not-done) tasks, so a
   // task disappears from it once it's marked done. (The Tasks tab still
   // lists all tasks incl. done — reached via "צפייה בכל המשימות".)
@@ -1638,7 +1638,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                 )}
 
                 {/* Additional documents table */}
-                {restDocs.length > 0 && (
+                {docs.length > 0 && (
                   <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-overflow-hidden">
                     <div className="tw-flex tw-items-center tw-justify-between tw-bg-slate-50 tw-px-4 tw-py-3">
                       <h3 className="tw-text-sm lg:tw-text-base tw-font-extrabold tw-text-slate-700">
@@ -1657,7 +1657,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                       <div>{T.action}</div>
                       <div />
                     </div>
-                    {restDocs.slice(0, 3).reverse().map((doc) => (
+                    {[...docs].reverse().map((doc) => (
                       <div
                         key={doc.id}
                         className="tw-grid tw-items-center tw-gap-3 tw-border-t tw-border-slate-100 tw-px-4 tw-py-3 tw-text-sm"
@@ -1692,16 +1692,6 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         />
                       </div>
                     ))}
-                    {restDocs.length > 3 && (
-                      <div className="tw-border-t tw-border-slate-100 tw-bg-slate-50 tw-px-4 tw-py-2 tw-text-center">
-                        <button
-                          type="button"
-                          className="tw-text-xs tw-font-bold tw-text-blue-600 hover:tw-underline"
-                        >
-                          {T.showMoreDocs(restDocs.length - 3)}
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )}
               </>
