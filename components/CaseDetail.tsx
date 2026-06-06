@@ -15,6 +15,7 @@ import { CaseStatusWarning } from './CaseStatusWarning';
 import { TaskModal } from './TaskModal';
 import { NewEventModal } from './NewEventModal';
 import { CaseDocumentsModal } from './CaseDocumentsModal';
+import { CalendarEventDetail } from './CalendarEventDetail';
 import { caseDocumentsForCase } from '@/lib/documents';
 import { financeCaseBalance } from '@/lib/finance';
 import {
@@ -1424,10 +1425,18 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                   type="button"
                   className="tw-rounded-full tw-border tw-border-blue-300 tw-bg-white tw-px-4 tw-py-1.5 tw-text-xs tw-font-bold tw-text-blue-600 hover:tw-bg-blue-50"
                   onClick={() => {
-                    // Open the calendar focused on this case's hearing
-                    // (the upcoming one, else the last recorded hearing).
-                    const focusDate =
-                      upcoming?.dateTime || c.lastHearing || new Date().toISOString();
+                    // Open the linked hearing's detail screen ("פרטי יומן")
+                    // for the registered upcoming hearing of this case.
+                    if (upcoming) {
+                      close();
+                      modalStack.open(
+                        <CalendarEventDetail source="event" id={upcoming.id} />,
+                      );
+                      return;
+                    }
+                    // No registered upcoming hearing — fall back to opening
+                    // the calendar focused on the last recorded hearing.
+                    const focusDate = c.lastHearing || new Date().toISOString();
                     dispatch({ type: 'SET_CALENDAR_FOCUS', date: focusDate });
                     dispatch({ type: 'SET_CALENDAR_VIEW', view: 'day' });
                     dispatch({ type: 'SET_TAB', tab: 'calendar' });
