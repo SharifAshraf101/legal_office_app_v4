@@ -98,6 +98,10 @@ export interface DocumentRecord {
   /** Full filing timestamp (ISO). Used to sort documents newest-first with
    *  time precision; falls back to `date` (day only) when absent. */
   uploadedAt?: string;
+  /** AI summary of the document (per language), sourced from Cloudflare D1
+   *  and persisted to Supabase. Shown under the document title. */
+  summaryHe?: string;
+  summaryAr?: string;
   type?: string;
   size?: number;
 }

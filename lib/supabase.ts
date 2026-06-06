@@ -235,6 +235,8 @@ function normalizeDocument(
     date: String(first(r, ['date', 'created_at', 'uploaded_at'], new Date().toISOString())).slice(0, 10),
     // Keep the FULL timestamp so same-day documents sort by time, newest first.
     uploadedAt: String(first(r, ['uploaded_at', 'created_at'], '')) || undefined,
+    summaryHe: String(first(r, ['summary_he', 'summaryHe'], '')) || undefined,
+    summaryAr: String(first(r, ['summary_ar', 'summaryAr'], '')) || undefined,
     type: 'document',
   };
 }
@@ -540,6 +542,8 @@ function docToRow(d: DocumentRecord): Record<string, unknown> {
     file_name: emptyToNull(d.fileName),
     relative_path: emptyToNull(d.relativePath),
     date: emptyToNull(d.date),
+    summary_he: emptyToNull(d.summaryHe),
+    summary_ar: emptyToNull(d.summaryAr),
   };
 }
 

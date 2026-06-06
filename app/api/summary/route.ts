@@ -44,9 +44,12 @@ export async function GET(req: Request) {
   // e.g. "cs-1001 - מזונות ילדים" while the app passes "CS-1001"). The
   // fallback returns the NEWEST row for the case (id DESC) so the box
   // reflects the latest filed document.
+  // The case_id branch is guarded by `?3 <> ''` so a per-document lookup
+  // (no caseId) only matches by exact file name and never falls back to an
+  // unrelated row.
   const sql =
     'SELECT summary_he, summary_ar FROM file_summary ' +
-    "WHERE file_name = ?1 OR file_name = ?2 OR lower(case_id) LIKE lower(?3) || '%' " +
+    "WHERE file_name = ?1 OR file_name = ?2 OR (?3 <> '' AND lower(case_id) LIKE lower(?3) || '%') " +
     'ORDER BY (file_name = ?1) DESC, (file_name = ?2) DESC, id DESC LIMIT 1';
 
   try {

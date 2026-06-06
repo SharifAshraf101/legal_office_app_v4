@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { caseName, clientName } from '@/lib/cases';
 import { caseDocumentsForCase } from '@/lib/documents';
+import { filingFileName } from '@/lib/filing';
+import { fetchDocumentSummaryBoth } from '@/lib/summary';
 import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { Modal } from './Modal';
@@ -35,6 +37,58 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
   const { lang } = useT();
   const modalStack = useModalStack();
   const confirmDelete = useDeleteConfirm();
+
+  // For each document without a stored summary, pull it from Cloudflare
+  // (by file name, like the case-brain) and persist it onto the record so
+  // it shows under the title and saves to Supabase. Each doc is attempted
+  // once (attemptedRef) so docs that have no summary aren't re-fetched.
+  const attemptedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
+    const client = caseObj
+      ? state.clients.find((x) => x.id === caseObj.clientId)
+      : undefined;
+    const missing = state.documentsArr.filter(
+      (d) =>
+        String(d.caseId) === String(caseId) &&
+        !d.summaryHe &&
+        !d.summaryAr &&
+        !attemptedRef.current.has(d.id),
+    );
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const updates: Record<string, { he: string; ar: string }> = {};
+      for (const d of missing) {
+        if (cancelled) return;
+        attemptedRef.current.add(d.id);
+        const original = d.fileName || undefined;
+        const renamed = original
+          ? filingFileName(client, caseObj, original, d.id)
+          : undefined;
+        if (!renamed && !original) continue;
+        // No caseId → exact file match only, so each doc gets ITS summary.
+        const both = await fetchDocumentSummaryBoth({ renamed, original });
+        if (both) updates[d.id] = both;
+      }
+      if (cancelled || Object.keys(updates).length === 0) return;
+      dispatch({
+        type: 'SET_DOCUMENTS',
+        documents: state.documentsArr.map((d) =>
+          updates[d.id]
+            ? {
+                ...d,
+                summaryHe: updates[d.id].he || d.summaryHe,
+                summaryAr: updates[d.id].ar || d.summaryAr,
+              }
+            : d,
+        ),
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [state.documentsArr, state.casesArr, state.clients, caseId, dispatch]);
 
   const c = state.casesArr.find((x) => String(x.id) === String(caseId));
   if (!c) return null;
@@ -291,6 +345,25 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
                       </span>
                     )}
                   </div>
+                  {(() => {
+                    const summaryText =
+                      lang === 'ar'
+                        ? doc.summaryAr || doc.summaryHe
+                        : doc.summaryHe || doc.summaryAr;
+                    return summaryText ? (
+                      <div
+                        className="case-docs-modal-summary"
+                        style={{
+                          marginTop: 4,
+                          fontSize: 12,
+                          lineHeight: 1.45,
+                          color: 'var(--muted)',
+                        }}
+                      >
+                        {summaryText}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
                 <div className="case-docs-modal-row-actions">
                   {!doc.isTask &&
