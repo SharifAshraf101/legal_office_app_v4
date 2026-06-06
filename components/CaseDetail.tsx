@@ -17,6 +17,7 @@ import { NewEventModal } from './NewEventModal';
 import { CaseDocumentsModal } from './CaseDocumentsModal';
 import { CalendarEventDetail } from './CalendarEventDetail';
 import { fetchDocumentSummary } from '@/lib/summary';
+import { filingFileName } from '@/lib/filing';
 import { caseDocumentsForCase } from '@/lib/documents';
 import { financeCaseBalance } from '@/lib/finance';
 import {
@@ -1049,15 +1050,23 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     // Newest filed document for the case — its summary fills the box, and it
     // updates whenever a more recent document is filed.
     const primary = caseDocumentsForCase(caseId, state.documentsArr)[0];
-    const fn = primary?.fileName;
-    if (!fn && !caseId) {
+    const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
+    const client = caseObj
+      ? state.clients.find((x) => x.id === caseObj.clientId)
+      : undefined;
+    const original = primary?.fileName;
+    // D1 keys app uploads by the renamed saved name, so reconstruct it.
+    const renamed = original
+      ? filingFileName(client, caseObj, original, primary?.id)
+      : undefined;
+    if (!original && !caseId) {
       setDocSummary(null);
       setSummaryLoaded(true);
       return;
     }
     let cancelled = false;
     setSummaryLoaded(false);
-    fetchDocumentSummary(fn, lang, caseId).then((s) => {
+    fetchDocumentSummary({ renamed, original, caseId }, lang).then((s) => {
       if (!cancelled) {
         setDocSummary(s);
         setSummaryLoaded(true);
@@ -1066,7 +1075,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [state.documentsArr, caseId, lang]);
+  }, [state.documentsArr, state.casesArr, state.clients, caseId, lang]);
 
   const c = state.casesArr.find((x) => String(x.id) === String(caseId));
   if (!c) return null;

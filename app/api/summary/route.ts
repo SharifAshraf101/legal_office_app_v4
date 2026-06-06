@@ -25,9 +25,12 @@ export const runtime = 'nodejs';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
+  // `file`  = the renamed saved file name (e.g. CLT-101_CS-1001_..._DOC-004.pdf)
+  // `orig`  = the original file name (for rows keyed by the un-renamed name)
   const file = (searchParams.get('file') || '').trim();
+  const orig = (searchParams.get('orig') || '').trim();
   const caseId = (searchParams.get('caseId') || '').trim();
-  if (!file && !caseId) return NextResponse.json({ he: '', ar: '' });
+  if (!file && !orig && !caseId) return NextResponse.json({ he: '', ar: '' });
 
   const account = process.env.CLOUDFLARE_ACCOUNT_ID;
   const dbId = process.env.CLOUDFLARE_D1_DATABASE_ID;
@@ -36,13 +39,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ he: '', ar: '', error: 'not_configured' });
   }
 
-  // Prefer an exact file-name match; fall back to a case-insensitive
-  // case_id PREFIX match — D1 stores case_id as e.g. "cs-1001 - מזונות
-  // ילדים" while the app passes "CS-1001", so we match "cs-1001%".
+  // Match the renamed saved name first, then the original name, then fall
+  // back to a case-insensitive case_id PREFIX match (D1 stores case_id as
+  // e.g. "cs-1001 - מזונות ילדים" while the app passes "CS-1001"). The
+  // fallback returns the NEWEST row for the case (id DESC) so the box
+  // reflects the latest filed document.
   const sql =
     'SELECT summary_he, summary_ar FROM file_summary ' +
-    "WHERE file_name = ?1 OR lower(case_id) LIKE lower(?2) || '%' " +
-    'ORDER BY (file_name = ?1) DESC LIMIT 1';
+    "WHERE file_name = ?1 OR file_name = ?2 OR lower(case_id) LIKE lower(?3) || '%' " +
+    'ORDER BY (file_name = ?1) DESC, (file_name = ?2) DESC, id DESC LIMIT 1';
 
   try {
     const res = await fetch(
@@ -53,7 +58,7 @@ export async function GET(req: Request) {
           Authorization: 'Bearer ' + token,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ sql, params: [file, caseId] }),
+        body: JSON.stringify({ sql, params: [file, orig, caseId] }),
       },
     );
     if (!res.ok) {
