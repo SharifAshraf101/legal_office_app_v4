@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -16,6 +16,7 @@ import { TaskModal } from './TaskModal';
 import { NewEventModal } from './NewEventModal';
 import { CaseDocumentsModal } from './CaseDocumentsModal';
 import { CalendarEventDetail } from './CalendarEventDetail';
+import { fetchDocumentSummary } from '@/lib/summary';
 import { caseDocumentsForCase } from '@/lib/documents';
 import { financeCaseBalance } from '@/lib/finance';
 import {
@@ -1039,6 +1040,28 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   const close = () => modalStack.close(modalStack.topId() ?? 0);
   const [tab, setTab] = useState<'notes' | 'tasks' | 'documents'>('documents');
 
+  // Document summary for the "פענוח המסמך" card — fetched from Cloudflare by
+  // the primary document's file name, in the active language. Falls back to
+  // the static placeholder text when unavailable (see lib/summary.ts).
+  const [docSummary, setDocSummary] = useState<string | null>(null);
+  useEffect(() => {
+    const primary = state.documentsArr.find(
+      (d) => String(d.caseId) === String(caseId),
+    );
+    const fn = primary?.fileName;
+    if (!fn) {
+      setDocSummary(null);
+      return;
+    }
+    let cancelled = false;
+    fetchDocumentSummary(fn, lang).then((s) => {
+      if (!cancelled) setDocSummary(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.documentsArr, caseId, lang]);
+
   const c = state.casesArr.find((x) => String(x.id) === String(caseId));
   if (!c) return null;
   const client = state.clients.find((x) => x.id === c.clientId);
@@ -1559,7 +1582,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         color="purple"
                         icon="fa-file-alt"
                         title={T.docParse}
-                        desc={T.docParseDesc}
+                        desc={docSummary || T.docParseDesc}
                       />
                       <AIActionCard
                         color="blue"
