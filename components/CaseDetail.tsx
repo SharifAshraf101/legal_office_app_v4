@@ -16,7 +16,7 @@ import { TaskModal } from './TaskModal';
 import { NewEventModal } from './NewEventModal';
 import { CaseDocumentsModal } from './CaseDocumentsModal';
 import { CalendarEventDetail } from './CalendarEventDetail';
-import { fetchDocumentSummary } from '@/lib/summary';
+import { fetchDocumentSummary, fetchDecisionInfo, type DecisionInfo } from '@/lib/summary';
 import { filingFileName } from '@/lib/filing';
 import { caseDocumentsForCase } from '@/lib/documents';
 import { financeCaseBalance } from '@/lib/finance';
@@ -1077,12 +1077,72 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     };
   }, [state.documentsArr, state.casesArr, state.clients, caseId, lang]);
 
+  // Decision-derived task + hearing for the latest (decision) document —
+  // shown in the "משימה שנוצרה" card and used by "פתח משימה".
+  const [decisionInfo, setDecisionInfo] = useState<DecisionInfo | null>(null);
+  useEffect(() => {
+    const primary = caseDocumentsForCase(caseId, state.documentsArr)[0];
+    const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
+    const cl = caseObj
+      ? state.clients.find((x) => x.id === caseObj.clientId)
+      : undefined;
+    const original = primary?.fileName;
+    const renamed = original
+      ? filingFileName(cl, caseObj, original, primary?.id)
+      : undefined;
+    const clientId = caseObj?.clientId;
+    if (!renamed && !clientId) {
+      setDecisionInfo(null);
+      return;
+    }
+    let cancelled = false;
+    fetchDecisionInfo({ renamed, clientId }).then((info) => {
+      if (!cancelled) setDecisionInfo(info);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.documentsArr, state.casesArr, state.clients, caseId]);
+
   const c = state.casesArr.find((x) => String(x.id) === String(caseId));
   if (!c) return null;
   const client = state.clients.find((x) => x.id === c.clientId);
   const clientLabel = client ? clientDisplayName(client, lang) : '-';
   const courtLabel =
     (lang === 'ar' ? c.courtAr || c.court : c.court || c.courtAr) || '-';
+
+  // "פתח משימה" on the decision card: ensure the decision's task exists as a
+  // real Task under this case/client (so it appears in the tasks screen and
+  // the case-detail tasks), then open it. Dedupes by title within the case.
+  const onOpenDecisionTask = () => {
+    const desc = decisionInfo?.taskDescription;
+    if (!desc) return;
+    const existing = state.tasksArr.find(
+      (t) => String(t.caseId) === String(caseId) && t.title === desc,
+    );
+    let taskId = existing?.id;
+    if (!existing) {
+      taskId = 'TASK-' + String(Date.now());
+      dispatch({
+        type: 'SET_TASKS',
+        tasks: [
+          ...state.tasksArr,
+          {
+            id: taskId,
+            title: desc,
+            caseId,
+            clientId: c.clientId,
+            dueDate: decisionInfo?.taskDueDate || '',
+            status: 'open',
+            priority: 'normal',
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+    }
+    close();
+    modalStack.open(<TaskModal editTaskId={taskId ?? ''} />);
+  };
   // Newest-first, so the primary document (docs[0]) is the last one filed —
   // its summary is what the "פענוח המסמך" box shows.
   const docs = caseDocumentsForCase(caseId, state.documentsArr);
@@ -1626,8 +1686,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         color="orange"
                         icon="fa-check-square"
                         title={T.taskCreated}
-                        desc={T.taskCreatedDesc}
+                        desc={decisionInfo?.taskDescription || T.taskCreatedDesc}
                         btn={T.openTask}
+                        onBtnClick={onOpenDecisionTask}
                       />
                       <AIActionCard
                         color="emerald"
@@ -1811,12 +1872,14 @@ function AIActionCard({
   title,
   desc,
   btn,
+  onBtnClick,
 }: {
   color: 'blue' | 'purple' | 'emerald' | 'orange';
   icon: string;
   title: string;
   desc: string;
   btn?: string;
+  onBtnClick?: () => void;
 }) {
   const c = {
     blue: {
@@ -1855,6 +1918,7 @@ function AIActionCard({
       {btn && (
         <button
           type="button"
+          onClick={onBtnClick}
           className={
             'tw-mt-auto tw-rounded-full tw-border tw-bg-white tw-px-3 tw-py-1 tw-text-[11px] tw-font-bold ' +
             c.btnC

@@ -57,3 +57,40 @@ export async function fetchDocumentSummary(
   const fallback = lang === 'ar' ? data.he : data.ar;
   return (primary || fallback || '').trim() || null;
 }
+
+export interface DecisionInfo {
+  taskDescription: string;
+  taskDueDate: string;
+  hearingDate: string;
+}
+
+/** Task + hearing derived from a ruling document, from the Cloudflare D1
+ *  decisions/tasks/hearings tables. Matched by the document's renamed name,
+ *  falling back to the client's latest decision. */
+export async function fetchDecisionInfo(opts: {
+  renamed?: string;
+  clientId?: string;
+}): Promise<DecisionInfo | null> {
+  const { renamed, clientId } = opts;
+  if (!renamed && !clientId) return null;
+  const params = new URLSearchParams();
+  if (renamed) params.set('file', renamed);
+  if (clientId) params.set('clientId', clientId);
+  try {
+    const res = await fetch('/api/decision/?' + params.toString(), {
+      method: 'GET',
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as Partial<DecisionInfo>;
+    const info: DecisionInfo = {
+      taskDescription: (data.taskDescription || '').trim(),
+      taskDueDate: (data.taskDueDate || '').trim(),
+      hearingDate: (data.hearingDate || '').trim(),
+    };
+    return info.taskDescription || info.taskDueDate || info.hearingDate
+      ? info
+      : null;
+  } catch {
+    return null;
+  }
+}
