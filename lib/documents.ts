@@ -102,10 +102,18 @@ export function caseDocumentsForCase(
     }
   >;
 
+  // Newest filed document first. Order by the effective date (uploadedAt
+  // timestamp when present, else the `date` field), then break ties by the
+  // running document number (DOC-NNN) so same-day documents keep their
+  // filing order with the most recent on top. Robust for synced documents
+  // that have a `date` but no `uploadedAt`.
   return docs.sort((a, b) => {
-    const da = new Date(a.uploadedAt || (a as { dueDate?: string }).dueDate || '0').getTime();
-    const db = new Date(b.uploadedAt || (b as { dueDate?: string }).dueDate || '0').getTime();
-    return db - da;
+    const ta = new Date(a.uploadedAt || a.date || 0).getTime() || 0;
+    const tb = new Date(b.uploadedAt || b.date || 0).getTime() || 0;
+    if (tb !== ta) return tb - ta;
+    const na = parseInt(String(a.id || '').replace(/\D/g, ''), 10) || 0;
+    const nb = parseInt(String(b.id || '').replace(/\D/g, ''), 10) || 0;
+    return nb - na;
   });
 }
 
