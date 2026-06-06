@@ -1170,9 +1170,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     label: string;
     icon: string;
   }> = [
-    { key: 'notes', label: T.notes, icon: 'fa-comment-alt' },
-    { key: 'tasks', label: T.tasks, icon: 'fa-check-square' },
+    // RTL reading order: the first item renders on the right.
+    // Requested order — documents first, then tasks, notes last.
     { key: 'documents', label: T.documents, icon: 'fa-file-alt' },
+    { key: 'tasks', label: T.tasks, icon: 'fa-check-square' },
+    { key: 'notes', label: T.notes, icon: 'fa-comment-alt' },
   ];
 
   // Primary document = first one (gets the expanded AI panel on
