@@ -5,7 +5,7 @@
 // Filing scheme (per the firm's request):
 //
 //   Clients/
-//     CLT-101 - <client name>/        ← one folder per client, unique number
+//     clt-101/                        ← one folder per client, code only (lowercase)
 //       CS-1001 - <case title>/       ← one folder per case, unique number
 //         CLT-101_CS-1001_<file>      ← file is renamed to carry both numbers
 //
@@ -30,23 +30,17 @@ export function safeSegment(name: string, fallback = 'file'): string {
   return clean || fallback;
 }
 
-function clientName(client: Client, lang: Lang): string {
-  return lang === 'ar'
-    ? client.nameAr || client.name || ''
-    : client.name || client.nameAr || '';
-}
-
 function caseTitle(caseObj: Case, lang: Lang): string {
   return lang === 'ar'
     ? caseObj.titleAr || caseObj.title || ''
     : caseObj.title || caseObj.titleAr || '';
 }
 
-/** Client folder name, e.g. "CLT-101 - Israel Israeli" (name part optional). */
-export function clientFolderName(client: Client, lang: Lang): string {
+/** Client folder name — the client code ONLY, in lowercase English letters
+ *  (e.g. "clt-101"), with no client name, per the firm's request. */
+export function clientFolderName(client: Client, _lang?: Lang): string {
   const id = String(client.id || '').trim();
-  const name = clientName(client, lang).trim();
-  return safeSegment(name ? `${id} - ${name}` : id, 'client');
+  return safeSegment(id, 'client').toLowerCase();
 }
 
 /** Case folder name, e.g. "CS-1001 - Eviction claim" (title part optional). */
