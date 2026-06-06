@@ -1199,6 +1199,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       valueClass: 'tw-text-blue-600',
     },
     { icon: 'fa-user', label: T.client, value: clientLabel },
+    {
+      icon: 'fa-gavel',
+      label: lang === 'ar' ? 'نوع الدعوى' : 'סוג התביעה',
+      value: caseName(c, lang) || '-',
+    },
     { icon: 'fa-folder', label: T.caseNumber, value: c.caseNumber || '-' },
     { icon: 'fa-landmark', label: T.court, value: courtLabel },
   ];
@@ -1284,7 +1289,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         </div>
 
         {/* Info cards — 2 cols on mobile, 4 cols on desktop. */}
-        <div className="tw-grid tw-grid-cols-2 lg:tw-grid-cols-4 tw-gap-3">
+        <div className="tw-grid tw-grid-cols-2 lg:tw-grid-cols-5 tw-gap-3">
           {infoCards.map((card, i) => (
             <div
               key={i}
