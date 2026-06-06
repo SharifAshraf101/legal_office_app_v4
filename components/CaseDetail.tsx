@@ -1231,6 +1231,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       onClose={close}
       className="case-brain-modal modern-portal-root"
       hideCloseX={true}
+      hideBackBtn={true}
     >
       <div className="case-brain-screen tw-flex tw-flex-col tw-gap-4">
         {/* HEADER — "חזרה לפרטי תיק" pill on left, centered
