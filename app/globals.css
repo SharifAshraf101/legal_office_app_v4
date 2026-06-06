@@ -38227,6 +38227,26 @@ html body .modal.case-brain-modal .modal-box {
   }
 }
 
+/* Case-brain header — pinned to the top of the scrolling modal-box so the
+ * rest of the content scrolls underneath it. Negative margins + matching
+ * padding make the header span the modal-box's own padding, so scrolling
+ * content is fully covered (no peeking above or at the sides). The solid
+ * background + z-index keep it opaque over the scrolling content. */
+html body .modal.case-brain-modal .case-brain-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+  background: var(--bg) !important;
+  margin: -18px -22px 0 -22px !important;
+  padding: 18px 22px 12px 22px !important;
+}
+@media (min-width: 1024px) {
+  html body .modal.case-brain-modal .case-brain-header {
+    margin: -28px -32px 0 -32px !important;
+    padding: 28px 32px 14px 32px !important;
+  }
+}
+
 /* ============================================================ *
  * ClientDetail identity cards — center the label + value inside
  * each box (name | alt name | ID number), per request. Appended

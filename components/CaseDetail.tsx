@@ -1286,8 +1286,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       <div className="case-brain-screen tw-flex tw-flex-col tw-gap-4">
         {/* HEADER — "חזרה לפרטי תיק" pill on left, centered
          *  title+subtitle, "פעיל AI" pill on right. Same layout
-         *  on mobile + desktop; padding scales up on lg. */}
-        <div className="tw-relative tw-pt-1">
+         *  on mobile + desktop; padding scales up on lg.
+         *  `case-brain-header` pins it to the top while the rest scrolls. */}
+        <div className="case-brain-header tw-relative tw-pt-1">
           <button
             type="button"
             onClick={close}
