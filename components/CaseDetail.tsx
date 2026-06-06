@@ -1178,7 +1178,8 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     upcomingHearingTitle: lang === 'ar' ? 'موعد جلسة قريب' : 'מועד דיון קרוב',
     openCalendar: lang === 'ar' ? 'افتح في التقويم' : 'פתח ביומן',
     quickActionsTitle: lang === 'ar' ? 'إجراءات سريعة' : 'פעולות מהירות',
-    newDraft: lang === 'ar' ? 'افتح مسودة جديدة' : 'פתח טיוטה חדשה',
+    newDraft: lang === 'ar' ? 'أضف مكالمة جديدة مع الموكل' : 'תוסיף שיחה חדשה עם הלקוח',
+    newCallTitle: lang === 'ar' ? 'مكالمة جديدة' : 'שיחה חדשה',
     newTask: lang === 'ar' ? 'إنشاء مهمة جديدة' : 'צור משימה חדשה',
     addNote: lang === 'ar' ? 'أضف ملاحظة ذات صلة بالملف' : 'תוסיף הערה רלוונטית לתיק',
     addNoteTitle: lang === 'ar' ? 'إضافة ملاحظة للملف' : 'הוספת הערה לתיק',
@@ -1463,6 +1464,15 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
               <div className="tw-flex tw-flex-col tw-gap-2">
                 <button
                   type="button"
+                  onClick={() =>
+                    modalStack.open(
+                      <NewEventModal
+                        preselectedCaseId={caseId}
+                        callOnly
+                        titleOverride={T.newCallTitle}
+                      />,
+                    )
+                  }
                   className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-rounded-xl tw-border tw-border-blue-200 tw-bg-blue-50 tw-px-3 tw-py-2 tw-text-sm tw-font-bold tw-text-blue-700 hover:tw-bg-blue-100"
                 >
                   <span>{T.newDraft}</span>

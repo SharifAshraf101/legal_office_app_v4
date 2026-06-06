@@ -117,6 +117,11 @@ export interface NewEventModalProps {
    *  title + description + due date are editable. Use with
    *  preselectedCaseId so the task is filed under the chosen case. */
   taskOnly?: boolean;
+  /** Lock the modal to adding a "call" (שיחה): forces type to 'call',
+   *  hides the event-type selector and the related-case search, so only
+   *  the call title + description are editable. Use with preselectedCaseId
+   *  so the call is filed under the chosen case. */
+  callOnly?: boolean;
 }
 
 function fileNameWithoutExtension(name: string): string {
@@ -131,6 +136,7 @@ export function NewEventModal({
   preselectedFile,
   noteOnly = false,
   taskOnly = false,
+  callOnly = false,
 }: NewEventModalProps) {
   const { state, dispatch } = useAppState();
   const { t, lang } = useT();
@@ -151,9 +157,11 @@ export function NewEventModal({
       ? 'note'
       : taskOnly
         ? 'task'
-        : preselectedFile
-          ? 'document'
-          : preselectedType || 'hearingMeeting';
+        : callOnly
+          ? 'call'
+          : preselectedFile
+            ? 'document'
+            : preselectedType || 'hearingMeeting';
   const [type, setType] = useState<'hearingMeeting' | 'document' | 'meeting' | 'reminder' | 'call' | 'task' | 'note'>(
     initialType,
   );
@@ -555,7 +563,7 @@ export function NewEventModal({
           {titleOverride || t('newEvent')}
         </h2>
       <form id="eventForm" className="form-grid" onSubmit={onSubmit}>
-        {!(noteOnly || taskOnly) && (
+        {!(noteOnly || taskOnly || callOnly) && (
         <div className="form-field">
           <label>{t('eventType')}</label>
           <select
@@ -592,7 +600,7 @@ export function NewEventModal({
           </div>
         )}
 
-        {!(noteOnly || taskOnly) && (
+        {!(noteOnly || taskOnly || callOnly) && (
         <div className="form-field search-box">
           <label>{t('relatedCase')}</label>
           <input
