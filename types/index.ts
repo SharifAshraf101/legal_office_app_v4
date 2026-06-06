@@ -95,6 +95,9 @@ export interface DocumentRecord {
   fileName?: string;
   relativePath?: string;
   date?: string; // YYYY-MM-DD
+  /** Full filing timestamp (ISO). Used to sort documents newest-first with
+   *  time precision; falls back to `date` (day only) when absent. */
+  uploadedAt?: string;
   type?: string;
   size?: number;
 }

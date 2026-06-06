@@ -233,6 +233,8 @@ function normalizeDocument(
     fileName: String(first(r, ['file_name', 'filename', 'title', 'name'], '')),
     relativePath: String(first(r, ['relative_path', 'path', 'document_path'], '')),
     date: String(first(r, ['date', 'created_at', 'uploaded_at'], new Date().toISOString())).slice(0, 10),
+    // Keep the FULL timestamp so same-day documents sort by time, newest first.
+    uploadedAt: String(first(r, ['uploaded_at', 'created_at'], '')) || undefined,
     type: 'document',
   };
 }
