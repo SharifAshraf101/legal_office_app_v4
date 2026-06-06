@@ -80,7 +80,7 @@ export async function GET(req: Request) {
     //    only and never falls back to an unrelated row. id DESC makes the
     //    case_id fallback return the newest row.
     const row = await d1(
-      'SELECT summary_he, summary_ar FROM file_summary ' +
+      'SELECT summary_he, summary_ar, language FROM file_summary ' +
         "WHERE file_name = ?1 OR file_name = ?2 OR (?3 <> '' AND lower(case_id) LIKE lower(?3) || '%') " +
         'ORDER BY (file_name = ?1) DESC, (file_name = ?2) DESC, id DESC LIMIT 1',
       [file, orig, caseId],
@@ -88,6 +88,9 @@ export async function GET(req: Request) {
     return NextResponse.json({
       he: row?.summary_he || '',
       ar: row?.summary_ar || '',
+      // The document's own language ("ar" / "he"), so the UI can show the
+      // summary in the language the document is written in.
+      language: (row?.language || '').toLowerCase(),
     });
   } catch {
     return NextResponse.json({ he: '', ar: '' });

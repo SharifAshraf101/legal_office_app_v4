@@ -19,10 +19,11 @@ export interface SummaryOpts {
   caseId?: string;
 }
 
-/** Raw { he, ar } summary for a document, or null when nothing matches. */
+/** Raw { he, ar, language } summary for a document, or null when nothing
+ *  matches. `language` is the document's own language ("ar" / "he" / ""). */
 export async function fetchDocumentSummaryBoth(
   opts: SummaryOpts,
-): Promise<{ he: string; ar: string } | null> {
+): Promise<{ he: string; ar: string; language: string } | null> {
   const { renamed, original, caseId } = opts;
   if (!renamed && !original && !caseId) return null;
   const params = new URLSearchParams();
@@ -36,25 +37,51 @@ export async function fetchDocumentSummaryBoth(
       method: 'GET',
     });
     if (!res.ok) return null;
-    const data = (await res.json()) as { he?: string; ar?: string };
+    const data = (await res.json()) as {
+      he?: string;
+      ar?: string;
+      language?: string;
+    };
     const he = (data.he || '').trim();
     const ar = (data.ar || '').trim();
     if (!he && !ar) return null;
-    return { he, ar };
+    return { he, ar, language: (data.language || '').toLowerCase() };
   } catch {
     return null;
   }
 }
 
-/** The active-language summary string (falls back to the other language). */
+/** Summary string in the DOCUMENT's own language (Arabic doc → Arabic
+ *  summary, Hebrew doc → Hebrew summary). Falls back to the app `lang` when
+ *  the document language is unknown, then to whichever summary exists. */
 export async function fetchDocumentSummary(
   opts: SummaryOpts,
   lang: Lang,
 ): Promise<string | null> {
   const data = await fetchDocumentSummaryBoth(opts);
   if (!data) return null;
-  const primary = lang === 'ar' ? data.ar : data.he;
-  const fallback = lang === 'ar' ? data.he : data.ar;
+  return pickDocumentLanguageSummary(data, lang);
+}
+
+/** Choose the summary in the document's own language. */
+export function pickDocumentLanguageSummary(
+  data: { he: string; ar: string; language?: string },
+  appLang: Lang,
+): string | null {
+  const docLang = (data.language || '').toLowerCase();
+  let primary: string;
+  let fallback: string;
+  if (docLang === 'ar') {
+    primary = data.ar;
+    fallback = data.he;
+  } else if (docLang === 'he') {
+    primary = data.he;
+    fallback = data.ar;
+  } else {
+    // Unknown document language — fall back to the app language.
+    primary = appLang === 'ar' ? data.ar : data.he;
+    fallback = appLang === 'ar' ? data.he : data.ar;
+  }
   return (primary || fallback || '').trim() || null;
 }
 

@@ -74,7 +74,18 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
         if (!renamed && !original) continue;
         // No caseId → exact file match only, so each doc gets ITS summary.
         const both = await fetchDocumentSummaryBoth({ renamed, original });
-        if (both) updates[d.id] = both;
+        if (both) {
+          // Keep the summary in the DOCUMENT's own language: an Arabic
+          // document keeps only the Arabic summary, a Hebrew document only
+          // the Hebrew one. The other is dropped so the display always
+          // shows the document language (not the app language). When the
+          // document language is unknown, keep both as a fallback.
+          const docLang = both.language;
+          updates[d.id] = {
+            he: docLang === 'ar' ? '' : both.he,
+            ar: docLang === 'he' ? '' : both.ar,
+          };
+        }
       }
       if (cancelled || Object.keys(updates).length === 0) return;
       // Keep a local copy for stable display...
@@ -85,9 +96,11 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
         documents: state.documentsArr.map((d) =>
           updates[d.id]
             ? {
+                // Store the document-language summary only (the other side
+                // was intentionally cleared above).
                 ...d,
-                summaryHe: updates[d.id].he || d.summaryHe,
-                summaryAr: updates[d.id].ar || d.summaryAr,
+                summaryHe: updates[d.id].he,
+                summaryAr: updates[d.id].ar,
               }
             : d,
         ),
