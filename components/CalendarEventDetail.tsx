@@ -72,7 +72,17 @@ export function CalendarEventDetail({ source, id }: CalendarEventDetailProps) {
   const natureLabel = lang === 'ar' ? 'ماهية الموعد' : 'מהות המועד';
 
   return (
-    <Modal onClose={close} className="calendar-detail-v1">
+    <Modal onClose={close} className="calendar-detail-v1" hideBackBtn={true}>
+      <button
+        type="button"
+        className="calendar-detail-back-btn"
+        aria-label={lang === 'ar' ? 'رجوع' : 'חזרה'}
+        title={lang === 'ar' ? 'رجوع' : 'חזרה'}
+        onClick={close}
+      >
+        <i className="fas fa-arrow-left" />
+        <span>{lang === 'ar' ? 'رجوع' : 'חזרה'}</span>
+      </button>
       <h2 className="calendar-detail-title-centered">{title}</h2>
       <div className="calendar-detail-toolbar">
         <button type="button" className="case-edit-btn" onClick={openCase}>

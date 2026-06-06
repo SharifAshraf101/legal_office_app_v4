@@ -38259,9 +38259,10 @@ html body .modal.calendar-detail-v1 .modal-box > h2.calendar-detail-title-center
   font-weight: 800 !important;
 }
 
-/* Back arrow — top-left white square pill (icon + "חזרה" label),
- * identical to .client-detail-back-btn. */
-html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .modal-mobile-back-btn.modal-mobile-back-btn {
+/* Back arrow — custom button (the default Modal back-btn is hidden via
+ * hideBackBtn) with a fresh class that has NO competing rules, styled
+ * identically to .client-detail-back-btn: top-left white square pill. */
+html body .modal.calendar-detail-v1 .calendar-detail-back-btn {
   position: absolute !important;
   top: 14px !important;
   left: 0.25cm !important;
@@ -38285,19 +38286,18 @@ html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .moda
   margin: 0 !important;
   white-space: nowrap !important;
 }
-html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .modal-mobile-back-btn.modal-mobile-back-btn i,
-html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .modal-mobile-back-btn.modal-mobile-back-btn .modal-mobile-back-btn-label {
+html body .modal.calendar-detail-v1 .calendar-detail-back-btn i,
+html body .modal.calendar-detail-v1 .calendar-detail-back-btn span {
   color: #0f172a !important;
   font-size: 14px !important;
-  display: inline !important;
 }
-html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .modal-mobile-back-btn.modal-mobile-back-btn:hover {
+html body .modal.calendar-detail-v1 .calendar-detail-back-btn:hover {
   background: #111827 !important;
   color: #ffffff !important;
   border-color: #111827 !important;
 }
-html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .modal-mobile-back-btn.modal-mobile-back-btn:hover i,
-html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .modal-mobile-back-btn.modal-mobile-back-btn:hover .modal-mobile-back-btn-label {
+html body .modal.calendar-detail-v1 .calendar-detail-back-btn:hover i,
+html body .modal.calendar-detail-v1 .calendar-detail-back-btn:hover span {
   color: #ffffff !important;
 }
 
