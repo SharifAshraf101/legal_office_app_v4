@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -61,11 +61,121 @@ export interface CaseDetailProps {
   caseId: string;
 }
 
+// Imported decision items, tracked across hook instances so the same task /
+// hearing is created only once even if CaseDetail and the case-brain both
+// mount the importer concurrently. Cleared on full reload; the state-dedup
+// inside the hook then prevents re-creating already-saved items.
+const decisionImportKeys = new Set<string>();
+
+/**
+ * Fetches the case's decision from Cloudflare D1 and imports its derived
+ * items into the case, deduped against existing data:
+ *   - the task it imposes → a real Task (with the decision's deadline)
+ *   - the hearing it sets → a calendar event (hearingMeeting)
+ * Returns the decision info for display. Runs from both the main CaseDetail
+ * (so it fires whenever the case is opened) and the case-brain.
+ */
+function useCaseDecisionImport(caseId: string): DecisionInfo | null {
+  const { state, dispatch } = useAppState();
+  const [info, setInfo] = useState<DecisionInfo | null>(null);
+  useEffect(() => {
+    const primary = caseDocumentsForCase(caseId, state.documentsArr)[0];
+    const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
+    const cl = caseObj
+      ? state.clients.find((x) => x.id === caseObj.clientId)
+      : undefined;
+    const original = primary?.fileName;
+    const renamed = original
+      ? filingFileName(cl, caseObj, original, primary?.id)
+      : undefined;
+    const clientId = caseObj?.clientId;
+    if (!renamed && !clientId) {
+      setInfo(null);
+      return;
+    }
+    let cancelled = false;
+    fetchDecisionInfo({ renamed, clientId }).then((d) => {
+      if (cancelled || !d) return;
+      setInfo(d);
+
+      // Task → real Task with the decision's deadline.
+      const desc = d.taskDescription;
+      const taskKey = 'task:' + caseId + ':' + desc;
+      if (
+        desc &&
+        !decisionImportKeys.has(taskKey) &&
+        !state.tasksArr.some(
+          (t) => String(t.caseId) === String(caseId) && t.title === desc,
+        )
+      ) {
+        decisionImportKeys.add(taskKey);
+        dispatch({
+          type: 'SET_TASKS',
+          tasks: [
+            ...state.tasksArr,
+            {
+              id: 'TASK-' + String(Date.now()),
+              title: desc,
+              caseId,
+              clientId: clientId || '',
+              dueDate: d.taskDueDate || '',
+              status: 'open',
+              priority: 'normal',
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+
+      // Hearing → calendar event on the decision's hearing date.
+      if (d.hearingDate) {
+        const hd = new Date(d.hearingDate + 'T09:00:00');
+        const hearingIso = isNaN(hd.getTime()) ? '' : hd.toISOString();
+        const day = d.hearingDate.slice(0, 10);
+        const hearingKey = 'hearing:' + caseId + ':' + day;
+        const hearingExists = state.eventsList.some(
+          (e) =>
+            String(e.caseId) === String(caseId) &&
+            String(e.type) === 'hearingMeeting' &&
+            String(e.dateTime).slice(0, 10) === day,
+        );
+        if (hearingIso && !decisionImportKeys.has(hearingKey) && !hearingExists) {
+          decisionImportKeys.add(hearingKey);
+          dispatch({
+            type: 'SET_EVENTS',
+            events: [
+              ...state.eventsList,
+              {
+                id: 'EV-' + String(Date.now() + 1),
+                caseId,
+                clientId: clientId || '',
+                client_source_id: clientId || '',
+                case_source_id: caseId,
+                title: 'מועד דיון',
+                titleAr: 'موعد جلسة',
+                dateTime: hearingIso,
+                type: 'hearingMeeting',
+              },
+            ],
+          });
+        }
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.documentsArr, state.casesArr, state.clients, caseId, dispatch]);
+  return info;
+}
+
 export function CaseDetail({ caseId }: CaseDetailProps) {
   const { state, dispatch } = useAppState();
   const { t, lang } = useT();
   const modalStack = useModalStack();
   const confirmDelete = useDeleteConfirm();
+  // Import the case's decision task + hearing from Cloudflare whenever the
+  // case detail is opened (so it doesn't depend on opening the case-brain).
+  useCaseDecisionImport(caseId);
 
   const c = state.casesArr.find((x) => x.id === caseId);
   if (!c) return null;
@@ -1077,107 +1187,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     };
   }, [state.documentsArr, state.casesArr, state.clients, caseId, lang]);
 
-  // Decision-derived task + hearing for the latest (decision) document —
-  // shown in the "משימה שנוצרה" card. The task is ALSO auto-created as a real
-  // Task (with the decision's due date) so it appears in the tasks screen,
-  // the case-detail tasks panel, and the "משימות שנוצרו" card.
-  const [decisionInfo, setDecisionInfo] = useState<DecisionInfo | null>(null);
-  // Per-item creation guard (task / hearing tracked separately) so each is
-  // created once even across re-renders, and adding one later never blocks
-  // the other.
-  const decisionCreatedRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    const primary = caseDocumentsForCase(caseId, state.documentsArr)[0];
-    const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
-    const cl = caseObj
-      ? state.clients.find((x) => x.id === caseObj.clientId)
-      : undefined;
-    const original = primary?.fileName;
-    const renamed = original
-      ? filingFileName(cl, caseObj, original, primary?.id)
-      : undefined;
-    const clientId = caseObj?.clientId;
-    if (!renamed && !clientId) {
-      setDecisionInfo(null);
-      return;
-    }
-    let cancelled = false;
-    fetchDecisionInfo({ renamed, clientId }).then((info) => {
-      if (cancelled || !info) return;
-      setDecisionInfo(info);
-
-      // Task → real Task with the decision's deadline.
-      const desc = info.taskDescription;
-      const taskKey = 'task:' + caseId;
-      if (
-        desc &&
-        !decisionCreatedRef.current.has(taskKey) &&
-        !state.tasksArr.some(
-          (t) => String(t.caseId) === String(caseId) && t.title === desc,
-        )
-      ) {
-        decisionCreatedRef.current.add(taskKey);
-        dispatch({
-          type: 'SET_TASKS',
-          tasks: [
-            ...state.tasksArr,
-            {
-              id: 'TASK-' + String(Date.now()),
-              title: desc,
-              caseId,
-              clientId: clientId || '',
-              dueDate: info.taskDueDate || '',
-              status: 'open',
-              priority: 'normal',
-              createdAt: new Date().toISOString(),
-            },
-          ],
-        });
-      }
-
-      // Hearing → calendar event on the decision's hearing date, so it
-      // appears in the calendar and the case's upcoming-hearing card.
-      if (info.hearingDate) {
-        const hd = new Date(info.hearingDate + 'T09:00:00');
-        const hearingIso = isNaN(hd.getTime()) ? '' : hd.toISOString();
-        const day = info.hearingDate.slice(0, 10);
-        const hearingKey = 'hearing:' + caseId + ':' + day;
-        const hearingExists = state.eventsList.some(
-          (e) =>
-            String(e.caseId) === String(caseId) &&
-            String(e.type) === 'hearingMeeting' &&
-            String(e.dateTime).slice(0, 10) === day,
-        );
-        if (
-          hearingIso &&
-          !decisionCreatedRef.current.has(hearingKey) &&
-          !hearingExists
-        ) {
-          decisionCreatedRef.current.add(hearingKey);
-          dispatch({
-            type: 'SET_EVENTS',
-            events: [
-              ...state.eventsList,
-              {
-                id: 'EV-' + String(Date.now() + 1),
-                caseId,
-                clientId: clientId || '',
-                client_source_id: clientId || '',
-                case_source_id: caseId,
-                title: 'מועד דיון',
-                titleAr: 'موعد جلسة',
-                dateTime: hearingIso,
-                type: 'hearingMeeting',
-              },
-            ],
-          });
-        }
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [state.documentsArr, state.casesArr, state.clients, caseId, dispatch]);
+  // Decision-derived task + hearing for the latest (decision) document,
+  // imported from Cloudflare and shown in the "משימה שנוצרה" card. The
+  // import (creating the Task + hearing event) is shared with the main
+  // CaseDetail via useCaseDecisionImport.
+  const decisionInfo = useCaseDecisionImport(caseId);
 
   const c = state.casesArr.find((x) => String(x.id) === String(caseId));
   if (!c) return null;
