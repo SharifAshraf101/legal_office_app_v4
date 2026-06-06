@@ -1044,6 +1044,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // the primary document's file name, in the active language. Falls back to
   // the static placeholder text when unavailable (see lib/summary.ts).
   const [docSummary, setDocSummary] = useState<string | null>(null);
+  const [summaryLoaded, setSummaryLoaded] = useState(false);
   useEffect(() => {
     const primary = state.documentsArr.find(
       (d) => String(d.caseId) === String(caseId),
@@ -1051,11 +1052,16 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     const fn = primary?.fileName;
     if (!fn && !caseId) {
       setDocSummary(null);
+      setSummaryLoaded(true);
       return;
     }
     let cancelled = false;
+    setSummaryLoaded(false);
     fetchDocumentSummary(fn, lang, caseId).then((s) => {
-      if (!cancelled) setDocSummary(s);
+      if (!cancelled) {
+        setDocSummary(s);
+        setSummaryLoaded(true);
+      }
     });
     return () => {
       cancelled = true;
@@ -1582,7 +1588,16 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         color="purple"
                         icon="fa-file-alt"
                         title={T.docParse}
-                        desc={docSummary || T.docParseDesc}
+                        desc={
+                          docSummary ||
+                          (summaryLoaded
+                            ? lang === 'ar'
+                              ? 'لا يوجد ملخص لهذا المستند بعد.'
+                              : 'אין סיכום זמין למסמך זה עדיין.'
+                            : lang === 'ar'
+                              ? 'جارٍ تحميل الملخص…'
+                              : 'טוען סיכום…')
+                        }
                       />
                       <AIActionCard
                         color="blue"
