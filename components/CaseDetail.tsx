@@ -1171,10 +1171,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     createdTasksTitle: lang === 'ar' ? 'مهام تم إنشاؤها' : 'משימות שנוצרו',
     until: lang === 'ar' ? 'حتى' : 'עד',
     urgent: lang === 'ar' ? 'عاجل' : 'דחוף',
-    viewAllTasks: (n: number) =>
-      lang === 'ar'
-        ? `عرض كل المهام (${n})`
-        : `צפייה בכל המשימות (${n})`,
+    viewAllTasks: lang === 'ar' ? 'عرض كل المهام' : 'צפייה בכל המשימות',
     upcomingHearingTitle: lang === 'ar' ? 'موعد جلسة قريب' : 'מועד דיון קרוב',
     openCalendar: lang === 'ar' ? 'افتح في التقويم' : 'פתח ביומן',
     quickActionsTitle: lang === 'ar' ? 'إجراءات سريعة' : 'פעולות מהירות',
@@ -1418,7 +1415,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                     onClick={() => setTab('tasks')}
                     className="tw-text-xs tw-font-bold tw-text-blue-600 hover:tw-underline"
                   >
-                    {T.viewAllTasks(tasksList.length)}
+                    {T.viewAllTasks}
                   </button>
                 </div>
               )}
