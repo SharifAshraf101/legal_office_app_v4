@@ -1046,9 +1046,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   const [docSummary, setDocSummary] = useState<string | null>(null);
   const [summaryLoaded, setSummaryLoaded] = useState(false);
   useEffect(() => {
-    const primary = state.documentsArr.find(
-      (d) => String(d.caseId) === String(caseId),
-    );
+    // Newest filed document for the case — its summary fills the box, and it
+    // updates whenever a more recent document is filed.
+    const primary = caseDocumentsForCase(caseId, state.documentsArr)[0];
     const fn = primary?.fileName;
     if (!fn && !caseId) {
       setDocSummary(null);
@@ -1074,9 +1074,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   const clientLabel = client ? clientDisplayName(client, lang) : '-';
   const courtLabel =
     (lang === 'ar' ? c.courtAr || c.court : c.court || c.courtAr) || '-';
-  const docs = state.documentsArr.filter(
-    (d) => String(d.caseId) === String(caseId),
-  );
+  // Newest-first, so the primary document (docs[0]) is the last one filed —
+  // its summary is what the "פענוח המסמך" box shows.
+  const docs = caseDocumentsForCase(caseId, state.documentsArr);
   const tasksList = state.tasksArr.filter(
     (tk) => String(tk.caseId) === String(caseId),
   );
