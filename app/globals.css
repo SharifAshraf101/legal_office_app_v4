@@ -38241,8 +38241,13 @@ html body .modal.case-brain-modal .case-brain-header {
   position: sticky !important;
   top: 0 !important;
   z-index: 50 !important;
-  background: var(--bg) !important;
-  background-color: var(--bg) !important;
+  /* Hardcoded OPAQUE fill (not var(--bg), which can fail to resolve in this
+   * portal context and leave the bar transparent). #FDFBF5 matches the
+   * modal-box background. */
+  background: #fdfbf5 !important;
+  background-color: #fdfbf5 !important;
+  background-image: none !important;
+  isolation: isolate !important;
   margin: 0 -22px 4px -22px !important;
   padding: 18px 22px 12px 22px !important;
   box-shadow: 0 8px 14px -8px rgba(15, 23, 42, 0.18) !important;
@@ -38253,8 +38258,9 @@ html body .modal.case-brain-modal .case-brain-header {
     padding: 28px 32px 14px 32px !important;
   }
 }
-body.dark html body .modal.case-brain-modal .case-brain-header,
-html body.dark .modal.case-brain-modal .case-brain-header {
+body.dark .modal.case-brain-modal .case-brain-header {
+  background: #0f172a !important;
+  background-color: #0f172a !important;
   box-shadow: 0 8px 14px -8px rgba(0, 0, 0, 0.5) !important;
 }
 
