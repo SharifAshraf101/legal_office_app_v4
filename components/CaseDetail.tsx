@@ -1283,7 +1283,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       hideCloseX={true}
       hideBackBtn={true}
     >
-      <div className="case-brain-screen tw-flex tw-flex-col tw-gap-4">
+      <div className="case-brain-screen tw-flex tw-flex-col">
         {/* HEADER — "חזרה לפרטי תיק" pill on left, centered
          *  title+subtitle, "פעיל AI" pill on right. Same layout
          *  on mobile + desktop; padding scales up on lg.
@@ -1327,6 +1327,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
           </div>
         </div>
 
+        {/* SCROLL BODY — everything below the fixed header scrolls here, so
+         *  no content can ever show through the pinned header. */}
+        <div className="case-brain-body tw-flex tw-flex-col tw-gap-4">
         {/* Info cards — 2 cols on mobile, 4 cols on desktop. */}
         <div className="tw-grid tw-grid-cols-2 lg:tw-grid-cols-5 tw-gap-3">
           {infoCards.map((card, i) => (
@@ -1792,6 +1795,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
     </Modal>

@@ -38206,62 +38206,70 @@ html body .modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-m
  * + the absolute AI pill at top:0 right:0 — adds extra
  * top-padding so the centered title/subtitle don't tuck under
  * either floating element. */
+/* Case-brain modal — FIXED header + SEPARATE scrolling body. The modal-box
+ * is a flex column that does NOT scroll; the `.case-brain-body` inside owns
+ * all vertical scrolling. Because the header and body are separate boxes,
+ * scrolling content can never overlap or show through the header. */
 html body .modal.case-brain-modal .modal-box {
-  /* Top padding is 0 — the sticky header (below) owns the top spacing so it
-   * sits flush at the very top of the scroll viewport. */
-  padding-top: 0 !important;
   position: relative !important;
-  /* Allow the case-brain content (long sidebar + AI panel + docs) to scroll
-   * vertically when it's taller than the viewport. */
+  display: flex !important;
+  flex-direction: column !important;
   max-height: 92vh !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  -webkit-overflow-scrolling: touch !important;
+  overflow: hidden !important;
+  padding: 0 !important;
 }
 @media (min-width: 1024px) {
   html body .modal.case-brain-modal .modal-box {
     width: min(1440px, 96vw) !important;
     max-width: min(1440px, 96vw) !important;
     max-height: 92vh !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    padding: 0 32px 32px 32px !important;
+    padding: 0 !important;
   }
 }
+html body .modal.case-brain-modal .case-brain-screen {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+}
 
-/* Case-brain header — pinned to the top of the scrolling modal-box so the
- * rest of the content scrolls UNDERNEATH it and is never visible through it.
- * - Negative side margins span the modal-box's horizontal padding so the
- *   opaque bar reaches the full width (no side peeking).
- * - The modal-box has padding-top:0, so the header sits flush at top:0 with
- *   no gap; its own top padding provides the spacing.
- * - Solid opaque background + high z-index + bottom shadow hide and visually
- *   separate the scrolling content below. */
+/* Fixed header — flex:0 0 auto so it never scrolls. Opaque (hardcoded, not
+ * var(--bg) which can fail to resolve in the portal). */
 html body .modal.case-brain-modal .case-brain-header {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 50 !important;
-  /* Hardcoded OPAQUE fill (not var(--bg), which can fail to resolve in this
-   * portal context and leave the bar transparent). #FDFBF5 matches the
-   * modal-box background. */
+  flex: 0 0 auto !important;
+  position: relative !important;
+  z-index: 2 !important;
   background: #fdfbf5 !important;
   background-color: #fdfbf5 !important;
   background-image: none !important;
-  isolation: isolate !important;
-  margin: 0 -22px 4px -22px !important;
-  padding: 18px 22px 12px 22px !important;
-  box-shadow: 0 8px 14px -8px rgba(15, 23, 42, 0.18) !important;
+  padding: 16px 22px 12px 22px !important;
+  box-shadow: 0 6px 12px -8px rgba(15, 23, 42, 0.15) !important;
 }
 @media (min-width: 1024px) {
   html body .modal.case-brain-modal .case-brain-header {
-    margin: 0 -32px 4px -32px !important;
-    padding: 28px 32px 14px 32px !important;
+    padding: 22px 32px 14px 32px !important;
   }
 }
 body.dark .modal.case-brain-modal .case-brain-header {
   background: #0f172a !important;
   background-color: #0f172a !important;
-  box-shadow: 0 8px 14px -8px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Scrolling body — takes the remaining height and owns all scrolling. */
+html body .modal.case-brain-modal .case-brain-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding: 12px 22px 22px 22px !important;
+}
+@media (min-width: 1024px) {
+  html body .modal.case-brain-modal .case-brain-body {
+    padding: 14px 32px 32px 32px !important;
+  }
 }
 
 /* ============================================================ *
