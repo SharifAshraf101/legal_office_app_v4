@@ -38209,12 +38209,20 @@ html body .modal.case-brain-modal.case-brain-modal.case-brain-modal.case-brain-m
 html body .modal.case-brain-modal .modal-box {
   padding-top: 18px !important;
   position: relative !important;
+  /* Allow the case-brain content (long sidebar + AI panel + docs) to scroll
+   * vertically when it's taller than the viewport. */
+  max-height: 92vh !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 @media (min-width: 1024px) {
   html body .modal.case-brain-modal .modal-box {
     width: min(1440px, 96vw) !important;
     max-width: min(1440px, 96vw) !important;
-    max-height: 96vh !important;
+    max-height: 92vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
     padding: 28px 32px !important;
   }
 }
