@@ -1182,6 +1182,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     newTask: lang === 'ar' ? 'إنشاء مهمة جديدة' : 'צור משימה חדשה',
     addNote: lang === 'ar' ? 'أضف ملاحظة ذات صلة بالملف' : 'תוסיף הערה רלוונטית לתיק',
     addNoteTitle: lang === 'ar' ? 'إضافة ملاحظة للملف' : 'הוספת הערה לתיק',
+    newTaskTitle: lang === 'ar' ? 'مهمة جديدة' : 'משימה חדשה',
   };
 
   const infoCards: Array<{
@@ -1469,6 +1470,15 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                 </button>
                 <button
                   type="button"
+                  onClick={() =>
+                    modalStack.open(
+                      <NewEventModal
+                        preselectedCaseId={caseId}
+                        taskOnly
+                        titleOverride={T.newTaskTitle}
+                      />,
+                    )
+                  }
                   className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-rounded-xl tw-border tw-border-blue-200 tw-bg-blue-50 tw-px-3 tw-py-2 tw-text-sm tw-font-bold tw-text-blue-700 hover:tw-bg-blue-100"
                 >
                   <span>{T.newTask}</span>
