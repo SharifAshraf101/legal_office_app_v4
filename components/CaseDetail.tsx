@@ -1082,7 +1082,10 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // Task (with the decision's due date) so it appears in the tasks screen,
   // the case-detail tasks panel, and the "משימות שנוצרו" card.
   const [decisionInfo, setDecisionInfo] = useState<DecisionInfo | null>(null);
-  const decisionHandledRef = useRef(false);
+  // Per-item creation guard (task / hearing tracked separately) so each is
+  // created once even across re-renders, and adding one later never blocks
+  // the other.
+  const decisionCreatedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const primary = caseDocumentsForCase(caseId, state.documentsArr)[0];
     const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
@@ -1100,19 +1103,20 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     }
     let cancelled = false;
     fetchDecisionInfo({ renamed, clientId }).then((info) => {
-      if (cancelled) return;
+      if (cancelled || !info) return;
       setDecisionInfo(info);
-      if (!info || decisionHandledRef.current) return;
-      decisionHandledRef.current = true;
 
       // Task → real Task with the decision's deadline.
       const desc = info.taskDescription;
+      const taskKey = 'task:' + caseId;
       if (
         desc &&
+        !decisionCreatedRef.current.has(taskKey) &&
         !state.tasksArr.some(
           (t) => String(t.caseId) === String(caseId) && t.title === desc,
         )
       ) {
+        decisionCreatedRef.current.add(taskKey);
         dispatch({
           type: 'SET_TASKS',
           tasks: [
@@ -1137,13 +1141,19 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         const hd = new Date(info.hearingDate + 'T09:00:00');
         const hearingIso = isNaN(hd.getTime()) ? '' : hd.toISOString();
         const day = info.hearingDate.slice(0, 10);
+        const hearingKey = 'hearing:' + caseId + ':' + day;
         const hearingExists = state.eventsList.some(
           (e) =>
             String(e.caseId) === String(caseId) &&
             String(e.type) === 'hearingMeeting' &&
             String(e.dateTime).slice(0, 10) === day,
         );
-        if (hearingIso && !hearingExists) {
+        if (
+          hearingIso &&
+          !decisionCreatedRef.current.has(hearingKey) &&
+          !hearingExists
+        ) {
+          decisionCreatedRef.current.add(hearingKey);
           dispatch({
             type: 'SET_EVENTS',
             events: [
