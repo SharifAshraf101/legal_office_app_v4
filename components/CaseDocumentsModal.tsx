@@ -39,10 +39,14 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
   const confirmDelete = useDeleteConfirm();
 
   // For each document without a stored summary, pull it from Cloudflare
-  // (by file name, like the case-brain) and persist it onto the record so
-  // it shows under the title and saves to Supabase. Each doc is attempted
-  // once (attemptedRef) so docs that have no summary aren't re-fetched.
+  // (by file name, like the case-brain). Fetched summaries are kept in LOCAL
+  // state (`summaries`) so a background Supabase re-sync (REPLACE_ALL) can't
+  // wipe them from the view, AND persisted onto the record so they save to
+  // Supabase. Each doc is attempted once (attemptedRef).
   const attemptedRef = useRef<Set<string>>(new Set());
+  const [summaries, setSummaries] = useState<
+    Record<string, { he: string; ar: string }>
+  >({});
   useEffect(() => {
     const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
     const client = caseObj
@@ -53,6 +57,7 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
         String(d.caseId) === String(caseId) &&
         !d.summaryHe &&
         !d.summaryAr &&
+        !summaries[d.id] &&
         !attemptedRef.current.has(d.id),
     );
     if (missing.length === 0) return;
@@ -72,6 +77,9 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
         if (both) updates[d.id] = both;
       }
       if (cancelled || Object.keys(updates).length === 0) return;
+      // Keep a local copy for stable display...
+      setSummaries((prev) => ({ ...prev, ...updates }));
+      // ...and persist onto the records (saves to Supabase).
       dispatch({
         type: 'SET_DOCUMENTS',
         documents: state.documentsArr.map((d) =>
@@ -88,7 +96,7 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
     return () => {
       cancelled = true;
     };
-  }, [state.documentsArr, state.casesArr, state.clients, caseId, dispatch]);
+  }, [state.documentsArr, state.casesArr, state.clients, caseId, dispatch, summaries]);
 
   const c = state.casesArr.find((x) => String(x.id) === String(caseId));
   if (!c) return null;
@@ -346,10 +354,11 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
                     )}
                   </div>
                   {(() => {
+                    const local = summaries[doc.id];
+                    const he = local?.he || doc.summaryHe;
+                    const ar = local?.ar || doc.summaryAr;
                     const summaryText =
-                      lang === 'ar'
-                        ? doc.summaryAr || doc.summaryHe
-                        : doc.summaryHe || doc.summaryAr;
+                      lang === 'ar' ? ar || he : he || ar;
                     return summaryText ? (
                       <div
                         className="case-docs-modal-summary"
