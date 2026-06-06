@@ -39,20 +39,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ he: '', ar: '', error: 'not_configured' });
   }
 
-  // Match the renamed saved name first, then the original name, then fall
-  // back to a case-insensitive case_id PREFIX match (D1 stores case_id as
-  // e.g. "cs-1001 - מזונות ילדים" while the app passes "CS-1001"). The
-  // fallback returns the NEWEST row for the case (id DESC) so the box
-  // reflects the latest filed document.
-  // The case_id branch is guarded by `?3 <> ''` so a per-document lookup
-  // (no caseId) only matches by exact file name and never falls back to an
-  // unrelated row.
-  const sql =
-    'SELECT summary_he, summary_ar FROM file_summary ' +
-    "WHERE file_name = ?1 OR file_name = ?2 OR (?3 <> '' AND lower(case_id) LIKE lower(?3) || '%') " +
-    'ORDER BY (file_name = ?1) DESC, (file_name = ?2) DESC, id DESC LIMIT 1';
-
-  try {
+  const d1 = async (sql: string, params: unknown[]) => {
     const res = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${dbId}/query`,
       {
@@ -61,16 +48,43 @@ export async function GET(req: Request) {
           Authorization: 'Bearer ' + token,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ sql, params: [file, orig, caseId] }),
+        body: JSON.stringify({ sql, params }),
       },
     );
-    if (!res.ok) {
-      return NextResponse.json({ he: '', ar: '' });
-    }
+    if (!res.ok) return null;
     const json = (await res.json()) as {
-      result?: Array<{ results?: Array<{ summary_he?: string; summary_ar?: string }> }>;
+      result?: Array<{ results?: Array<Record<string, string>> }>;
     };
-    const row = json?.result?.[0]?.results?.[0];
+    return json?.result?.[0]?.results?.[0] || null;
+  };
+
+  try {
+    // 1. Decisions table — for a ruling document, its `decision_summary` is
+    //    the authoritative content, so it takes precedence. Matched by the
+    //    document_name (the renamed saved name, then the original).
+    const decRow = await d1(
+      'SELECT decision_summary FROM decisions WHERE document_name = ?1 OR document_name = ?2 LIMIT 1',
+      [file, orig],
+    );
+    const decision = (decRow?.decision_summary || '').trim();
+    if (decision) {
+      // Single-language ruling text — return it for both so it shows
+      // regardless of the app language.
+      return NextResponse.json({ he: decision, ar: decision, isDecision: true });
+    }
+
+    // 2. file_summary — match renamed name, then original, then a
+    //    case-insensitive case_id PREFIX (D1 stores "cs-1001 - …" while the
+    //    app passes "CS-1001"). The case_id branch is guarded by `?3 <> ''`
+    //    so a per-document lookup (no caseId) matches by exact file name
+    //    only and never falls back to an unrelated row. id DESC makes the
+    //    case_id fallback return the newest row.
+    const row = await d1(
+      'SELECT summary_he, summary_ar FROM file_summary ' +
+        "WHERE file_name = ?1 OR file_name = ?2 OR (?3 <> '' AND lower(case_id) LIKE lower(?3) || '%') " +
+        'ORDER BY (file_name = ?1) DESC, (file_name = ?2) DESC, id DESC LIMIT 1',
+      [file, orig, caseId],
+    );
     return NextResponse.json({
       he: row?.summary_he || '',
       ar: row?.summary_ar || '',
