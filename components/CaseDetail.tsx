@@ -1386,6 +1386,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                     </span>
                     <button
                       type="button"
+                      onClick={() =>
+                        modalStack.open(
+                          <TaskModal editTaskId={firstUrgentTask.id} />,
+                        )
+                      }
                       className="tw-mr-auto tw-rounded-full tw-border tw-border-orange-300 tw-bg-white tw-px-3 tw-py-1 tw-text-[11px] tw-font-bold tw-text-orange-600 hover:tw-bg-orange-50"
                     >
                       {T.openTask}
@@ -1401,6 +1406,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                 <div className="tw-mt-3 tw-text-center">
                   <button
                     type="button"
+                    onClick={() => setTab('tasks')}
                     className="tw-text-xs tw-font-bold tw-text-blue-600 hover:tw-underline"
                   >
                     {T.viewAllTasks(tasksList.length)}
