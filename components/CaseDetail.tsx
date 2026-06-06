@@ -1082,7 +1082,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // Task (with the decision's due date) so it appears in the tasks screen,
   // the case-detail tasks panel, and the "משימות שנוצרו" card.
   const [decisionInfo, setDecisionInfo] = useState<DecisionInfo | null>(null);
-  const decisionTaskHandledRef = useRef(false);
+  const decisionHandledRef = useRef(false);
   useEffect(() => {
     const primary = caseDocumentsForCase(caseId, state.documentsArr)[0];
     const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
@@ -1102,30 +1102,67 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     fetchDecisionInfo({ renamed, clientId }).then((info) => {
       if (cancelled) return;
       setDecisionInfo(info);
-      const desc = info?.taskDescription;
-      if (!desc || decisionTaskHandledRef.current) return;
-      decisionTaskHandledRef.current = true;
-      const exists = state.tasksArr.some(
-        (t) => String(t.caseId) === String(caseId) && t.title === desc,
-      );
-      if (exists) return;
-      dispatch({
-        type: 'SET_TASKS',
-        tasks: [
-          ...state.tasksArr,
-          {
-            id: 'TASK-' + String(Date.now()),
-            title: desc,
-            caseId,
-            clientId: clientId || '',
-            // Deadline for the task = the date set in the decision.
-            dueDate: info.taskDueDate || '',
-            status: 'open',
-            priority: 'normal',
-            createdAt: new Date().toISOString(),
-          },
-        ],
-      });
+      if (!info || decisionHandledRef.current) return;
+      decisionHandledRef.current = true;
+
+      // Task → real Task with the decision's deadline.
+      const desc = info.taskDescription;
+      if (
+        desc &&
+        !state.tasksArr.some(
+          (t) => String(t.caseId) === String(caseId) && t.title === desc,
+        )
+      ) {
+        dispatch({
+          type: 'SET_TASKS',
+          tasks: [
+            ...state.tasksArr,
+            {
+              id: 'TASK-' + String(Date.now()),
+              title: desc,
+              caseId,
+              clientId: clientId || '',
+              dueDate: info.taskDueDate || '',
+              status: 'open',
+              priority: 'normal',
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+
+      // Hearing → calendar event on the decision's hearing date, so it
+      // appears in the calendar and the case's upcoming-hearing card.
+      if (info.hearingDate) {
+        const hd = new Date(info.hearingDate + 'T09:00:00');
+        const hearingIso = isNaN(hd.getTime()) ? '' : hd.toISOString();
+        const day = info.hearingDate.slice(0, 10);
+        const hearingExists = state.eventsList.some(
+          (e) =>
+            String(e.caseId) === String(caseId) &&
+            String(e.type) === 'hearingMeeting' &&
+            String(e.dateTime).slice(0, 10) === day,
+        );
+        if (hearingIso && !hearingExists) {
+          dispatch({
+            type: 'SET_EVENTS',
+            events: [
+              ...state.eventsList,
+              {
+                id: 'EV-' + String(Date.now() + 1),
+                caseId,
+                clientId: clientId || '',
+                client_source_id: clientId || '',
+                case_source_id: caseId,
+                title: 'מועד דיון',
+                titleAr: 'موعد جلسة',
+                dateTime: hearingIso,
+                type: 'hearingMeeting',
+              },
+            ],
+          });
+        }
+      }
     });
     return () => {
       cancelled = true;
