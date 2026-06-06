@@ -37,10 +37,11 @@ export async function GET(req: Request) {
   }
 
   // Prefer an exact file-name match; fall back to a case-insensitive
-  // case_id match (one summary row per case).
+  // case_id PREFIX match — D1 stores case_id as e.g. "cs-1001 - מזונות
+  // ילדים" while the app passes "CS-1001", so we match "cs-1001%".
   const sql =
     'SELECT summary_he, summary_ar FROM file_summary ' +
-    'WHERE file_name = ?1 OR lower(case_id) = lower(?2) ' +
+    "WHERE file_name = ?1 OR lower(case_id) LIKE lower(?2) || '%' " +
     'ORDER BY (file_name = ?1) DESC LIMIT 1';
 
   try {
