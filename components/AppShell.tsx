@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { LanguageSelector } from './LanguageSelector';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
@@ -71,12 +71,12 @@ function ShellInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const hasChosenLanguage =
-    state.hydrated &&
-    (state.currentLang === 'he' || state.currentLang === 'ar') &&
-    hasStoredLang();
+  // The language screen ALWAYS shows on every open and waits for an explicit
+  // choice — we never auto-skip it based on a previously stored language. The
+  // user must click Hebrew or Arabic, and the app then runs in that language.
+  const [langChosen, setLangChosen] = useState(false);
 
-  if (!hasChosenLanguage) {
+  if (!langChosen) {
     return (
       <LanguageSelector
         onChoose={(lang) => {
@@ -84,10 +84,15 @@ function ShellInner() {
           if (typeof localStorage !== 'undefined') {
             try { localStorage.setItem('law_lang', lang); } catch {}
           }
+          setLangChosen(true);
         }}
       />
     );
   }
+
+  // After the choice, hold for hydration to complete before the main shell
+  // (it loads almost immediately, since the user reads the screen first).
+  if (!state.hydrated) return null;
 
   return (
     <div id="mainApp">
@@ -106,14 +111,4 @@ function ShellInner() {
       </div>
     </div>
   );
-}
-
-function hasStoredLang(): boolean {
-  if (typeof localStorage === 'undefined') return false;
-  try {
-    const v = localStorage.getItem('law_lang');
-    return v === 'he' || v === 'ar';
-  } catch {
-    return false;
-  }
 }

@@ -52,6 +52,9 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
   // weren't found before — so a server-side summary appears here just like it
   // does on the case-brain screen, no manual page refresh needed.
   const lastDocsRef = useRef(state.documentsArr);
+  // Docs we've already tried to GENERATE for (Claude is slow/costly) — never
+  // cleared, so the periodic re-check only re-FETCHES existing summaries.
+  const generatedRef = useRef<Set<string>>(new Set());
   const [summaries, setSummaries] = useState<
     Record<string, { he: string; ar: string }>
   >({});
@@ -69,9 +72,14 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
     };
     document.addEventListener('visibilitychange', onActive);
     window.addEventListener('focus', onActive);
+    // Also re-check on a short interval so a summary added server-side (by the
+    // external pipeline) shows up within ~20s while the modal stays open —
+    // without needing a focus toggle or a full page refresh.
+    const pollId = window.setInterval(onActive, 20000);
     return () => {
       document.removeEventListener('visibilitychange', onActive);
       window.removeEventListener('focus', onActive);
+      window.clearInterval(pollId);
     };
   }, []);
   useEffect(() => {
@@ -105,18 +113,22 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
           ? filingFileName(client, caseObj, original, d.id)
           : undefined;
         if (!renamed && !original) continue;
-        // No caseId → exact file match only, so each doc gets ITS summary.
-        // If none exists yet, GENERATE one (PDF → Claude → file_summary) so a
-        // summary appears for every case, not just ones the external pipeline
-        // already processed.
-        const both =
-          (await fetchDocumentSummaryBoth({ renamed, original })) ??
-          (await generateDocumentSummary({
+        // Always FETCH first (cheap; no caseId → exact file match so each doc
+        // gets ITS own summary). This re-check is what picks up a summary the
+        // external pipeline added after the modal was opened.
+        let both = await fetchDocumentSummaryBoth({ renamed, original });
+        // Only when none exists AND we haven't generated for this doc yet,
+        // GENERATE one (PDF → Claude → file_summary). Gated by generatedRef so
+        // the 20s re-check never re-generates — it only re-fetches.
+        if (!both && !cancelled && !generatedRef.current.has(d.id)) {
+          generatedRef.current.add(d.id);
+          both = await generateDocumentSummary({
             relativePath: d.relativePath,
             fileName: renamed || original || '',
             clientId: d.clientId,
             caseId: d.caseId,
-          }));
+          });
+        }
         if (both && !cancelled) {
           // Keep the summary in the DOCUMENT's own language: an Arabic
           // document keeps only the Arabic summary, a Hebrew document only the
