@@ -7,7 +7,10 @@ import { useT } from '@/hooks/useT';
 import { caseName, clientName } from '@/lib/cases';
 import { caseDocumentsForCase } from '@/lib/documents';
 import { filingFileName } from '@/lib/filing';
-import { fetchDocumentSummaryBoth } from '@/lib/summary';
+import {
+  fetchDocumentSummaryBoth,
+  generateDocumentSummary,
+} from '@/lib/summary';
 import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { Modal } from './Modal';
@@ -44,10 +47,41 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
   // wipe them from the view, AND persisted onto the record so they save to
   // Supabase. Each doc is attempted once (attemptedRef).
   const attemptedRef = useRef<Set<string>>(new Set());
+  // Tracks the documents array reference: a background re-sync (the 30s poll /
+  // focus refresh) replaces it, which is our cue to re-attempt summaries that
+  // weren't found before — so a server-side summary appears here just like it
+  // does on the case-brain screen, no manual page refresh needed.
+  const lastDocsRef = useRef(state.documentsArr);
   const [summaries, setSummaries] = useState<
     Record<string, { he: string; ar: string }>
   >({});
+  // Re-pull summaries when the tab regains focus / becomes visible, so a
+  // summary added server-side (by the external pipeline, on-demand generation,
+  // or another device) shows up WITHOUT a manual page refresh — the per-doc
+  // `attemptedRef` would otherwise cache "no summary" for the whole session.
+  const [refreshTick, setRefreshTick] = useState(0);
   useEffect(() => {
+    const onActive = () => {
+      if (document.visibilityState !== 'hidden') {
+        attemptedRef.current.clear();
+        setRefreshTick((t) => t + 1);
+      }
+    };
+    document.addEventListener('visibilitychange', onActive);
+    window.addEventListener('focus', onActive);
+    return () => {
+      document.removeEventListener('visibilitychange', onActive);
+      window.removeEventListener('focus', onActive);
+    };
+  }, []);
+  useEffect(() => {
+    // On a background data refresh (poll/focus) documentsArr is replaced —
+    // clear the "already attempted" cache so docs that had no summary before
+    // are retried and newly-added server-side summaries show up.
+    if (lastDocsRef.current !== state.documentsArr) {
+      lastDocsRef.current = state.documentsArr;
+      attemptedRef.current.clear();
+    }
     const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
     const client = caseObj
       ? state.clients.find((x) => x.id === caseObj.clientId)
@@ -63,7 +97,6 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
     if (missing.length === 0) return;
     let cancelled = false;
     (async () => {
-      const updates: Record<string, { he: string; ar: string }> = {};
       for (const d of missing) {
         if (cancelled) return;
         attemptedRef.current.add(d.id);
@@ -73,43 +106,43 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
           : undefined;
         if (!renamed && !original) continue;
         // No caseId → exact file match only, so each doc gets ITS summary.
-        const both = await fetchDocumentSummaryBoth({ renamed, original });
-        if (both) {
+        // If none exists yet, GENERATE one (PDF → Claude → file_summary) so a
+        // summary appears for every case, not just ones the external pipeline
+        // already processed.
+        const both =
+          (await fetchDocumentSummaryBoth({ renamed, original })) ??
+          (await generateDocumentSummary({
+            relativePath: d.relativePath,
+            fileName: renamed || original || '',
+            clientId: d.clientId,
+            caseId: d.caseId,
+          }));
+        if (both && !cancelled) {
           // Keep the summary in the DOCUMENT's own language: an Arabic
-          // document keeps only the Arabic summary, a Hebrew document only
-          // the Hebrew one. The other is dropped so the display always
-          // shows the document language (not the app language). When the
-          // document language is unknown, keep both as a fallback.
+          // document keeps only the Arabic summary, a Hebrew document only the
+          // Hebrew one. Display it as soon as it's ready (generation is slow),
+          // in LOCAL state only — file_summary is the source of truth, so we
+          // don't persist it onto the document record.
           const docLang = both.language;
-          updates[d.id] = {
+          const entry = {
             he: docLang === 'ar' ? '' : both.he,
             ar: docLang === 'he' ? '' : both.ar,
           };
+          setSummaries((prev) => ({ ...prev, [d.id]: entry }));
         }
       }
-      if (cancelled || Object.keys(updates).length === 0) return;
-      // Keep a local copy for stable display...
-      setSummaries((prev) => ({ ...prev, ...updates }));
-      // ...and persist onto the records (saves to Supabase).
-      dispatch({
-        type: 'SET_DOCUMENTS',
-        documents: state.documentsArr.map((d) =>
-          updates[d.id]
-            ? {
-                // Store the document-language summary only (the other side
-                // was intentionally cleared above).
-                ...d,
-                summaryHe: updates[d.id].he,
-                summaryAr: updates[d.id].ar,
-              }
-            : d,
-        ),
-      });
     })();
     return () => {
       cancelled = true;
     };
-  }, [state.documentsArr, state.casesArr, state.clients, caseId, dispatch, summaries]);
+  }, [
+    state.documentsArr,
+    state.casesArr,
+    state.clients,
+    caseId,
+    summaries,
+    refreshTick,
+  ]);
 
   const c = state.casesArr.find((x) => String(x.id) === String(caseId));
   if (!c) return null;

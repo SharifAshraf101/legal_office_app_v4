@@ -8,6 +8,7 @@ import { calendarItemTitle, findConflictingEvent } from '@/lib/calendar';
 import { useConflictConfirm } from '@/hooks/useConflictConfirm';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { caseName, clientName } from '@/lib/cases';
+import { removeTaskEverywhere } from '@/lib/tasks';
 import { calendarDateValue } from '@/lib/dates';
 import { pad } from '@/lib/utils';
 import { Modal } from './Modal';
@@ -65,12 +66,25 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
         events: state.eventsList.filter((e) => String(e.id) !== String(id)),
       });
     } else {
-      dispatch({
-        type: 'SET_TIMELINE',
-        timeline: state.timelineItems.filter(
-          (ti) => String(ti.id) !== String(id),
-        ),
-      });
+      const item = state.timelineItems.find((ti) => String(ti.id) === String(id));
+      if (item?.type === 'task') {
+        // A task: clear every copy (tasksArr record + timeline twin) so it
+        // disappears from all screens, not just the timeline.
+        const next = removeTaskEverywhere(
+          String(id),
+          state.tasksArr,
+          state.timelineItems,
+        );
+        dispatch({ type: 'SET_TASKS', tasks: next.tasks });
+        dispatch({ type: 'SET_TIMELINE', timeline: next.timeline });
+      } else {
+        dispatch({
+          type: 'SET_TIMELINE',
+          timeline: state.timelineItems.filter(
+            (ti) => String(ti.id) !== String(id),
+          ),
+        });
+      }
     }
     modalStack.closeAll();
   };

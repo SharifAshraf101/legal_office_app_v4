@@ -34,10 +34,11 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
     'source_id', 'case_source_id', 'client_source_id', 'title', 'title_ar',
     'date_time', 'description', 'description_ar', 'type',
   ],
+  // NOTE: summary_he / summary_ar are deliberately omitted — document
+  // summaries live solely in the file_summary table, not on the document row.
   documents: [
     'source_id', 'case_source_id', 'client_source_id', 'title', 'title_ar',
     'description', 'description_ar', 'file_name', 'relative_path', 'date',
-    'summary_he', 'summary_ar',
   ],
   payments: [
     'source_id', 'case_source_id', 'date', 'amount', 'type',

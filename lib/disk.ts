@@ -8,6 +8,11 @@
 
 import type { AppState, Case, Client, Lang } from '@/types';
 import { FILING_ROOT, filingFolderSegments, filingFileName } from './filing';
+import {
+  dropboxPathForRelative,
+  getDropboxTemporaryLink,
+  isFileSystemAccessAvailable,
+} from './dropbox';
 
 export const LEGAL_OFFICE_DATA_FILE = 'legal-office-data.json';
 export const LEGAL_OFFICE_DOCUMENTS_FOLDER = 'Clients';
@@ -214,6 +219,18 @@ async function uniqueFileName(
   return candidate;
 }
 
+/** How many path levels to prepend before the per-client/-case segments.
+ *  If the user pointed the directory picker straight AT the filing-root folder
+ *  itself (i.e. they picked the existing "Clients" folder), writing another
+ *  "Clients" inside it would produce `Clients/Clients/…`. So in that case we
+ *  write directly inside the picked folder; otherwise we create/enter a
+ *  "Clients" subfolder under it. */
+function filingRootParts(root: DirectoryHandle): string[] {
+  return (root.name || '').toLowerCase() === FILING_ROOT.toLowerCase()
+    ? [] // the picked folder already IS "Clients"
+    : [FILING_ROOT];
+}
+
 /** Save a document into the picked folder under the firm's filing scheme:
  *  `Clients/CLT-101 - Name/CS-1001 - Title/CLT-101_CS-1001_<file>`. Falls back
  *  to the legacy flat layout when no client/case object is supplied. Returns
@@ -245,7 +262,7 @@ export async function saveDocumentToLegalOfficeFolder(
       filename = `${Date.now()}-${safeFilename(file.name)}`;
     }
 
-    const dir = await ensureSubdir(root, [FILING_ROOT, ...segments]);
+    const dir = await ensureSubdir(root, [...filingRootParts(root), ...segments]);
     const finalName = await uniqueFileName(dir, filename);
     const fileHandle = await dir.getFileHandle(finalName, { create: true });
     const writable = await (
@@ -264,18 +281,177 @@ export async function saveDocumentToLegalOfficeFolder(
   }
 }
 
-/** Open a previously-saved document by reading its file from the picked
- *  folder and creating an Object URL. The URL is opened in a new tab. */
+/** Open a previously-saved document, choosing the best strategy per file type
+ *  and device so it OPENS (never silently downloads when avoidable):
+ *
+ *   - PDF / images (browser can render these): DESKTOP opens the local copy
+ *     inline in a new tab; MOBILE (or a local miss) opens the synced Dropbox
+ *     copy via a short-lived link.
+ *   - Office files (.docx/.xlsx/.pptx — browsers CANNOT render these inline):
+ *     open through the Microsoft Office Online viewer pointed at the Dropbox
+ *     copy, so it previews in a tab instead of downloading.
+ *   - Last resort (no Dropbox connection and a non-viewable type): download the
+ *     local copy so the OS app can open it.
+ *
+ *  Returns false only when nothing could be opened (caller shows a message). */
 export async function openDocumentFromLegalOfficeFolder(
   relativePath: string,
   lang: 'he' | 'ar',
 ): Promise<boolean> {
+  const fileName = relativePath.split('/').filter(Boolean).pop() || '';
+  const inlineViewable = isInlineViewable(fileName);
+
+  // 1. Open via the synced Dropbox copy FIRST. A temporary link opens reliably
+  //    in a new tab — PDFs/images render inline, Office docs go through the
+  //    Office Online viewer. This is the same path that already works for
+  //    .docx, and it sidesteps two local-file pitfalls: a blob: URL that the
+  //    browser downloads instead of displaying, and Unicode/normalization
+  //    mismatches between the stored path and the on-disk filename (e.g. files
+  //    registered by the external pipeline).
+  try {
+    const link = await getDropboxTemporaryLink(
+      dropboxPathForRelative(relativePath),
+    );
+    if (link) {
+      const target = inlineViewable
+        ? link
+        : 'https://view.officeapps.live.com/op/view.aspx?src=' +
+          encodeURIComponent(link);
+      window.open(target, '_blank', 'noopener,noreferrer');
+      return true;
+    }
+  } catch (e) {
+    console.warn('[LegalOffice disk] dropbox open failed', e);
+  }
+
+  // 2. Fallback to the local copy (no Dropbox connection, or the file hasn't
+  //    synced to the cloud yet). PDFs/images open inline; anything else is
+  //    downloaded so the OS app can open it.
+  if (isFileSystemAccessAvailable()) {
+    const localFile = await readLocalFilingFile(relativePath, lang);
+    if (localFile) {
+      if (inlineViewable && openBlobInNewTab(localFile)) return true;
+      downloadBlob(localFile, fileName);
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Read a saved filing file from the local picked folder, handling the
+ *  duplicate-"Clients" cases. Returns null if not found / no folder. */
+async function readLocalFilingFile(
+  relativePath: string,
+  lang: 'he' | 'ar',
+): Promise<File | null> {
   try {
     const root = await ensureLegalOfficeFolder(lang);
-    if (!root) return false;
+    if (!root) return null;
     const parts = relativePath.split('/').filter(Boolean);
-    if (parts.length < 2) return false;
-    // All but the last part are directories.
+    if (parts.length < 2) return null;
+    // When the picked folder already IS "Clients", drop the duplicate
+    // "Clients/" prefix; fall back to the raw parts for legacy files written
+    // into Clients/Clients before the double-nesting fix.
+    const stripped =
+      filingRootParts(root).length === 0 &&
+      parts[0] &&
+      parts[0].toLowerCase() === FILING_ROOT.toLowerCase()
+        ? parts.slice(1)
+        : parts;
+    return (
+      (await readFileAtParts(root, stripped)) ??
+      (stripped !== parts ? await readFileAtParts(root, parts) : null)
+    );
+  } catch (e) {
+    console.warn('[LegalOffice disk] local read failed', e);
+    return null;
+  }
+}
+
+/** Types a browser renders inline in a tab. Everything else (Office docs, etc.)
+ *  is opened through an online viewer or downloaded. */
+function isInlineViewable(name: string): boolean {
+  const ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase();
+  return [
+    'pdf',
+    'png',
+    'jpg',
+    'jpeg',
+    'gif',
+    'webp',
+    'svg',
+    'bmp',
+    'txt',
+    'html',
+    'htm',
+  ].includes(ext);
+}
+
+/** Download a File via a temporary object URL (used as the final fallback). */
+function downloadBlob(file: File, name: string): void {
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name || 'document';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** Open a File in a new browser tab so PDFs/images render INLINE instead of
+ *  downloading. Two things matter:
+ *   1. A File from the File System Access API frequently has an EMPTY mime
+ *      type, and a blob: URL with no type makes the browser download it. We
+ *      re-wrap the bytes with a type inferred from the extension.
+ *   2. The tab must be opened with `window.open` — a programmatic
+ *      `<a target="_blank">` click on a blob: URL is treated as a DOWNLOAD by
+ *      Chrome (the UUID-named downloads users saw), whereas window.open renders
+ *      viewable types inline.
+ *  Returns false if a popup blocker prevented the tab from opening, so the
+ *  caller can fall back to the Dropbox copy. */
+function openBlobInNewTab(file: File): boolean {
+  const mime = file.type || mimeFromName(file.name);
+  const blob = mime && mime !== file.type ? file.slice(0, file.size, mime) : file;
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, '_blank');
+  // Revoke later so the new tab has time to load it.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return !!w;
+}
+
+/** Best-effort mime type from a filename extension. */
+function mimeFromName(name: string): string {
+  const ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase();
+  switch (ext) {
+    case 'pdf':
+      return 'application/pdf';
+    case 'png':
+      return 'image/png';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'gif':
+      return 'image/gif';
+    case 'webp':
+      return 'image/webp';
+    case 'txt':
+      return 'text/plain';
+    case 'html':
+    case 'htm':
+      return 'text/html';
+    default:
+      return '';
+  }
+}
+
+/** Walk `parts` (dirs… + filename) from `root` and return the File, or null
+ *  if any segment is missing. */
+async function readFileAtParts(
+  root: DirectoryHandle,
+  parts: string[],
+): Promise<File | null> {
+  try {
     const dirParts = parts.slice(0, -1);
     const fileName = parts[parts.length - 1];
     let dir: FileSystemDirectoryHandle = root;
@@ -283,14 +459,8 @@ export async function openDocumentFromLegalOfficeFolder(
       dir = await dir.getDirectoryHandle(part, { create: false });
     }
     const fileHandle = await dir.getFileHandle(fileName, { create: false });
-    const file = await fileHandle.getFile();
-    const url = URL.createObjectURL(file);
-    const w = window.open(url, '_blank', 'noopener,noreferrer');
-    // Revoke after a short delay so the new tab has time to read it.
-    setTimeout(() => URL.revokeObjectURL(url), 30_000);
-    return !!w;
-  } catch (e) {
-    console.warn('[LegalOffice disk] open failed', e);
-    return false;
+    return await fileHandle.getFile();
+  } catch {
+    return null;
   }
 }

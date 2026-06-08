@@ -1,9 +1,9 @@
 // Document-summary fetcher (client side).
 //
-// Calls our own /api/summary route, which queries the Cloudflare D1
-// `file_summary` table server-side (keeping the D1 token off the client)
-// and returns JSON { he, ar }. Used by the case-brain "פענוח המסמך" card
-// and the case-documents screen.
+// Calls the Cloudflare Worker's /api/file-summary endpoint, which reads the D1
+// `file_summary` table — the SINGLE source of truth for document summaries
+// (they are NOT duplicated onto the documents row). Used by the case-brain
+// "פענוח המסמך" card and the case-documents screen.
 //
 // D1 keys summaries by the SAVED (renamed) file name for app uploads
 // (CLT-101_CS-1001_..._DOC-004.pdf) but by the ORIGINAL name for older
@@ -12,6 +12,11 @@
 // must resolve to a specific file only.
 
 import type { Lang } from '@/types';
+import { dropboxPathForRelative, getDropboxTemporaryLink } from './dropbox';
+
+// Same Worker config the rest of the app uses (see lib/cloudflare.ts).
+const WORKER_URL = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(/\/$/, '');
+const APP_TOKEN = process.env.NEXT_PUBLIC_APP_TOKEN || '';
 
 export interface SummaryOpts {
   renamed?: string;
@@ -31,10 +36,58 @@ export async function fetchDocumentSummaryBoth(
   if (original) params.set('orig', original);
   if (caseId) params.set('caseId', caseId);
   try {
-    // Trailing slash matches next.config `trailingSlash: true` (avoids a
-    // 308 redirect round-trip).
-    const res = await fetch('/api/summary/?' + params.toString(), {
-      method: 'GET',
+    const res = await fetch(
+      WORKER_URL + '/api/file-summary?' + params.toString(),
+      {
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + APP_TOKEN },
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      he?: string;
+      ar?: string;
+      language?: string;
+    };
+    const he = (data.he || '').trim();
+    const ar = (data.ar || '').trim();
+    if (!he && !ar) return null;
+    return { he, ar, language: (data.language || '').toLowerCase() };
+  } catch {
+    return null;
+  }
+}
+
+/** Generate a summary for a PDF document that has none yet: obtain a temporary
+ *  Dropbox link for it, hand that to /api/generate-summary (which fetches the
+ *  PDF server-side, asks Claude, and stores the result in file_summary), then
+ *  return the summary. Returns null when generation isn't possible — not a PDF,
+ *  Dropbox not connected, or an error. Used as a fallback when no pre-existing
+ *  summary is found, so summaries appear for every case, not only the ones the
+ *  external pipeline processed. */
+export async function generateDocumentSummary(opts: {
+  /** Stored relative path, used to locate the file in Dropbox. */
+  relativePath?: string;
+  /** Renamed file name (CLT-…_CS-…_…_DOC-NNN.pdf) — the file_summary key. */
+  fileName: string;
+  clientId?: string;
+  caseId?: string;
+}): Promise<{ he: string; ar: string; language: string } | null> {
+  const { relativePath, fileName, clientId, caseId } = opts;
+  if (!relativePath || !/\.pdf$/i.test(fileName)) return null;
+  let fileUrl: string | null = null;
+  try {
+    fileUrl = await getDropboxTemporaryLink(dropboxPathForRelative(relativePath));
+  } catch {
+    fileUrl = null;
+  }
+  if (!fileUrl) return null;
+  try {
+    // Trailing slash matches next.config `trailingSlash: true` (avoids a 308).
+    const res = await fetch('/api/generate-summary/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileUrl, fileName, clientId, caseId }),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as {

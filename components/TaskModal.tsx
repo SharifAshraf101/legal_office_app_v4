@@ -6,7 +6,13 @@ import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { caseName, clientName } from '@/lib/cases';
-import { nextTaskId, taskPriorityLabel, taskStatusLabel, taskText } from '@/lib/tasks';
+import {
+  nextTaskId,
+  removeTaskEverywhere,
+  taskPriorityLabel,
+  taskStatusLabel,
+  taskText,
+} from '@/lib/tasks';
 import type { Task } from '@/types';
 
 /**
@@ -35,10 +41,13 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
       taskText('למחוק את המשימה מהרשימה?', 'حذف المهمة من القائمة؟', lang),
     );
     if (!ok) return;
-    dispatch({
-      type: 'SET_TASKS',
-      tasks: state.tasksArr.filter((x) => String(x.id) !== String(existing.id)),
-    });
+    const next = removeTaskEverywhere(
+      String(existing.id),
+      state.tasksArr,
+      state.timelineItems,
+    );
+    dispatch({ type: 'SET_TASKS', tasks: next.tasks });
+    dispatch({ type: 'SET_TIMELINE', timeline: next.timeline });
     modalStack.closeAll();
   };
   const defaultCaseId = existing?.caseId || preselectedCaseId || state.casesArr[0]?.id || '';

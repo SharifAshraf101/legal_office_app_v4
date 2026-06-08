@@ -119,16 +119,22 @@ function normalizeTask(
   caseByUuid: Record<string, string>,
   caseBySource: Record<string, Case>,
 ): Task {
-  const caseId =
+  // Canonicalise to UPPER-CASE: case ids are "CS-NNNN" and client ids
+  // "CLT-NNN" everywhere in the app, but the external pipeline has written
+  // some rows with lower-case ids. A case-sensitive match would then hide the
+  // row from its case (documents showed 0 in every case).
+  const caseId = (
     String(first(r, ['case_source_id', 'caseId'], '')) ||
     caseByUuid[String(first(r, ['case_id'], ''))] ||
-    '';
+    ''
+  ).toUpperCase();
   const c = caseBySource[caseId] || ({} as Case);
-  const clientId =
+  const clientId = (
     String(first(r, ['client_source_id', 'clientId'], '')) ||
     clientByUuid[String(first(r, ['client_id'], ''))] ||
     c.clientId ||
-    '';
+    ''
+  ).toUpperCase();
   const id = String(first(r, ['source_id', 'task_source_id', 'local_id', 'external_id', 'id'], '')).trim();
   const appId = id && !id.includes('-0000-') ? id : 'TASK-' + String(first(r, ['id'], '')).slice(0, 8);
   const dueRaw = String(first(r, ['due_date', 'dueDate', 'date'], ''));
@@ -159,16 +165,22 @@ function normalizeEvent(
   if (['task', 'document', 'note', 'call'].includes(rawType) || /כתב תביעה|מסמך|document|task/.test(lower)) {
     return null;
   }
-  const caseId =
+  // Canonicalise to UPPER-CASE: case ids are "CS-NNNN" and client ids
+  // "CLT-NNN" everywhere in the app, but the external pipeline has written
+  // some rows with lower-case ids. A case-sensitive match would then hide the
+  // row from its case (documents showed 0 in every case).
+  const caseId = (
     String(first(r, ['case_source_id', 'caseId'], '')) ||
     caseByUuid[String(first(r, ['case_id'], ''))] ||
-    '';
+    ''
+  ).toUpperCase();
   const c = caseBySource[caseId] || ({} as Case);
-  const clientId =
+  const clientId = (
     String(first(r, ['client_source_id', 'clientId'], '')) ||
     clientByUuid[String(first(r, ['client_id'], ''))] ||
     c.clientId ||
-    '';
+    ''
+  ).toUpperCase();
   const dt = dateFromRow(r);
   if (!dt) return null;
   const id = String(first(r, ['source_id', 'event_source_id', 'local_id', 'external_id', 'id'], '')).trim();
@@ -195,16 +207,22 @@ function normalizeDocument(
   caseByUuid: Record<string, string>,
   caseBySource: Record<string, Case>,
 ): DocumentRecord {
-  const caseId =
+  // Canonicalise to UPPER-CASE: case ids are "CS-NNNN" and client ids
+  // "CLT-NNN" everywhere in the app, but the external pipeline has written
+  // some rows with lower-case ids. A case-sensitive match would then hide the
+  // row from its case (documents showed 0 in every case).
+  const caseId = (
     String(first(r, ['case_source_id', 'caseId'], '')) ||
     caseByUuid[String(first(r, ['case_id'], ''))] ||
-    '';
+    ''
+  ).toUpperCase();
   const c = caseBySource[caseId] || ({} as Case);
-  const clientId =
+  const clientId = (
     String(first(r, ['client_source_id', 'clientId'], '')) ||
     clientByUuid[String(first(r, ['client_id'], ''))] ||
     c.clientId ||
-    '';
+    ''
+  ).toUpperCase();
   const id = String(first(r, ['source_id', 'doc_source_id', 'document_source_id', 'id'], '')).trim();
   const appId = id && !id.includes('-0000-') ? id : 'DOC-' + String(first(r, ['id'], '')).slice(0, 8);
   return {
@@ -220,8 +238,9 @@ function normalizeDocument(
     date: String(first(r, ['date', 'created_at', 'uploaded_at'], new Date().toISOString())).slice(0, 10),
     // Keep the FULL timestamp so same-day documents sort by time, newest first.
     uploadedAt: String(first(r, ['uploaded_at', 'created_at'], '')) || undefined,
-    summaryHe: String(first(r, ['summary_he', 'summaryHe'], '')) || undefined,
-    summaryAr: String(first(r, ['summary_ar', 'summaryAr'], '')) || undefined,
+    // Summaries are NOT read from the documents table: they live solely in the
+    // file_summary table and are fetched on demand (see lib/summary.ts). This
+    // avoids duplicating the summary in two places.
     type: 'document',
   };
 }
@@ -494,8 +513,9 @@ function docToRow(d: DocumentRecord): Record<string, unknown> {
     file_name: emptyToNull(d.fileName),
     relative_path: emptyToNull(d.relativePath),
     date: emptyToNull(d.date),
-    summary_he: emptyToNull(d.summaryHe),
-    summary_ar: emptyToNull(d.summaryAr),
+    // summary_he / summary_ar are intentionally NOT written here — summaries
+    // are owned exclusively by the file_summary table, not duplicated onto
+    // the document row.
   };
 }
 

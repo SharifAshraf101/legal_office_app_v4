@@ -4,9 +4,14 @@
 # Fill in the two REPLACE_ME values after running:
 #   wrangler d1 create legal-office-v3
 #   wrangler r2 bucket create legal-office-photos-v3
-# (see RUNBOOK.md). APP_TOKEN is a SECRET — set it with
-#   wrangler secret put APP_TOKEN
-# do NOT put it in [vars] (which is committed).
+# (see RUNBOOK.md).
+#
+# APP_TOKEN lives in [vars] (below), NOT as a `wrangler secret`. It is a
+# NEXT_PUBLIC_* value already inlined into the browser bundle (same exposure as
+# the old Supabase anon key — see .env.example), so it is not truly secret. As a
+# committed var it is baked into every deploy and CANNOT be wiped out-of-band —
+# unlike the secret, which got reset repeatedly by an external process and broke
+# all authenticated requests (401).
 
 name = "legal-office-api"
 main = "src/index.ts"
@@ -28,5 +33,9 @@ bucket_name = "legal-office-photos-v3"
 #   more than one, e.g. localhost for dev + the production domain).
 # USER_ID: moved server-side so the browser can no longer address other users.
 [vars]
-ALLOWED_ORIGIN = "http://localhost:3000,http://localhost:3001"
+ALLOWED_ORIGIN = "http://localhost:3000,http://localhost:3001,https://legal-office-app-v3.vercel.app"
 USER_ID = "c0307382-5fd2-4a2b-88df-40b22bb9ad26"
+# Comma-separated list of accepted tokens: the localhost/.env.local build AND
+# the deployed (Vercel) build use DIFFERENT NEXT_PUBLIC_APP_TOKEN values, so the
+# Worker accepts both. (1st = .env.local / desktop, 2nd = Vercel / mobile.)
+APP_TOKEN = "12a52ef1036713e388ecf0ff7e64929dc45c147a4cb20967,kEJg5dhYi8cRD29OyCSVwPWpNftz0ejUxHX6B3QMorZT7K4a"

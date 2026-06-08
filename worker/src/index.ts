@@ -30,13 +30,29 @@ export default {
       return servePhoto(env, path.slice('/api/photo/'.length));
     }
 
-    // ----- everything below requires the shared token -----
+    // ----- everything below requires a shared token -----
+    // APP_TOKEN may hold a COMMA-SEPARATED list of accepted tokens so the
+    // localhost/desktop build and the deployed (Vercel) build — which were
+    // generated with DIFFERENT NEXT_PUBLIC_APP_TOKEN values — both work at the
+    // same time. Previously only one matched, so whichever side was set last
+    // broke the other with a 401.
     const auth = request.headers.get('Authorization') || '';
-    if (!env.APP_TOKEN || auth !== `Bearer ${env.APP_TOKEN}`) {
+    const provided = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+    const allowed = (env.APP_TOKEN || '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (!provided || !allowed.includes(provided)) {
       return json({ error: 'unauthorized' }, request, env, 401);
     }
 
     if (method === 'GET' && path === '/api/load') return handleLoad(request, env);
+    if (method === 'GET' && path === '/api/file-summary') {
+      return handleFileSummary(request, env);
+    }
+    if (method === 'POST' && path === '/api/file-summary') {
+      return handleStoreFileSummary(request, env);
+    }
     if (method === 'POST' && path === '/api/save') return handleSave(request, env);
     if (method === 'POST' && path === '/api/upload-photo') {
       return handleUploadPhoto(request, env);
@@ -69,6 +85,82 @@ async function handleLoad(request: Request, env: Env): Promise<Response> {
     : null;
 
   return json(out, request, env);
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/file-summary — look up a document's AI summary in the file_summary
+// table (the single source of truth for summaries; they are NOT stored on the
+// documents row). Matches the renamed file name, then the original name, then
+// a case-insensitive case_id prefix (newest first). Returns { he, ar, language }.
+// ---------------------------------------------------------------------------
+async function handleFileSummary(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const file = (url.searchParams.get('file') || '').trim();
+  const orig = (url.searchParams.get('orig') || '').trim();
+  const caseId = (url.searchParams.get('caseId') || '').trim();
+  if (!file && !orig && !caseId) {
+    return json({ he: '', ar: '', language: '' }, request, env);
+  }
+  const row = await env.DB.prepare(
+    'SELECT summary_he, summary_ar, language FROM file_summary ' +
+      "WHERE file_name = ?1 OR file_name = ?2 OR (?3 <> '' AND lower(case_id) LIKE lower(?3) || '%') " +
+      'ORDER BY (file_name = ?1) DESC, (file_name = ?2) DESC, id DESC LIMIT 1',
+  )
+    .bind(file, orig, caseId)
+    .first<{ summary_he?: string; summary_ar?: string; language?: string }>();
+  return json(
+    {
+      he: row?.summary_he || '',
+      ar: row?.summary_ar || '',
+      language: String(row?.language || '').toLowerCase(),
+    },
+    request,
+    env,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/file-summary — store (upsert) an AI-generated summary for a file.
+// Body: { file_name, client_id?, case_id?, summary_he?, summary_ar?, language?,
+//         ai_model? }. Replaces any existing row with the same file_name so a
+// document keeps exactly one summary.
+// ---------------------------------------------------------------------------
+async function handleStoreFileSummary(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: 'invalid json' }, request, env, 400);
+  }
+  const fileName = String(body.file_name || '').trim();
+  if (!fileName) {
+    return json({ error: 'file_name required' }, request, env, 400);
+  }
+  const str = (v: unknown) => {
+    const s = String(v ?? '').trim();
+    return s || null;
+  };
+  await env.DB.prepare('DELETE FROM file_summary WHERE file_name = ?')
+    .bind(fileName)
+    .run();
+  await env.DB.prepare(
+    'INSERT INTO file_summary (client_id, case_id, file_name, summary_he, summary_ar, language, ai_model) ' +
+      'VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)',
+  )
+    .bind(
+      str(String(body.client_id ?? '').toLowerCase()),
+      str(String(body.case_id ?? '').toLowerCase()),
+      fileName,
+      str(body.summary_he),
+      str(body.summary_ar),
+      str(String(body.language ?? '').toLowerCase()),
+      str(body.ai_model),
+    )
+    .run();
+  return json({ ok: true }, request, env);
 }
 
 // ---------------------------------------------------------------------------

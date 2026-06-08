@@ -22,6 +22,10 @@ import { caseDocumentsForCase } from '@/lib/documents';
 import { financeCaseBalance } from '@/lib/finance';
 import {
   caseTaskItems,
+  decisionTaskKey,
+  loadDecisionImportKeys,
+  rememberDecisionImportKey,
+  removeTaskEverywhere,
   taskDueInfo,
   taskPriorityClass,
   taskPriorityLabel,
@@ -65,7 +69,8 @@ export interface CaseDetailProps {
 // hearing is created only once even if CaseDetail and the case-brain both
 // mount the importer concurrently. Cleared on full reload; the state-dedup
 // inside the hook then prevents re-creating already-saved items.
-const decisionImportKeys = new Set<string>();
+// Persisted across reloads so a deleted AI task is never resurrected.
+const decisionImportKeys = loadDecisionImportKeys();
 
 /**
  * Fetches the case's decision from Cloudflare D1 and imports its derived
@@ -100,7 +105,7 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
 
       // Task → real Task with the decision's deadline.
       const desc = d.taskDescription;
-      const taskKey = 'task:' + caseId + ':' + desc;
+      const taskKey = decisionTaskKey(caseId, desc);
       if (
         desc &&
         !decisionImportKeys.has(taskKey) &&
@@ -108,7 +113,7 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
           (t) => String(t.caseId) === String(caseId) && t.title === desc,
         )
       ) {
-        decisionImportKeys.add(taskKey);
+        rememberDecisionImportKey(decisionImportKeys, taskKey);
         dispatch({
           type: 'SET_TASKS',
           tasks: [
@@ -140,7 +145,7 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
             String(e.dateTime).slice(0, 10) === day,
         );
         if (hearingIso && !decisionImportKeys.has(hearingKey) && !hearingExists) {
-          decisionImportKeys.add(hearingKey);
+          rememberDecisionImportKey(decisionImportKeys, hearingKey);
           dispatch({
             type: 'SET_EVENTS',
             events: [
@@ -264,10 +269,11 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
       taskText('למחוק את המשימה מהרשימה?', 'حذف المهمة من القائمة؟', lang),
     );
     if (!ok) return;
-    dispatch({
-      type: 'SET_TASKS',
-      tasks: state.tasksArr.filter((x) => String(x.id) !== String(taskId)),
-    });
+    // Remove every copy (tasksArr + timeline twin + duplicates) so the task
+    // disappears from all screens at once.
+    const next = removeTaskEverywhere(taskId, state.tasksArr, state.timelineItems);
+    dispatch({ type: 'SET_TASKS', tasks: next.tasks });
+    dispatch({ type: 'SET_TIMELINE', timeline: next.timeline });
   };
   const openTasksScreen = () => {
     close();
@@ -1368,7 +1374,10 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     newDraft: lang === 'ar' ? 'أضف مكالمة جديدة مع الموكل' : 'תוסיף שיחה חדשה עם הלקוח',
     newCallTitle: lang === 'ar' ? 'مكالمة جديدة' : 'שיחה חדשה',
     newTask: lang === 'ar' ? 'إنشاء مهمة جديدة' : 'צור משימה חדשה',
-    addNote: lang === 'ar' ? 'أضف ملاحظة ذات صلة بالملف' : 'תוסיף הערה רלוונטית לתיק',
+    addNote:
+      lang === 'ar'
+        ? 'إضافة ملاحظات ذات صلة لاستخدام الذكاء الاصطناعي'
+        : 'הוספת הערות רלוונטיות לשימוש הבינה המלאכותית',
     addNoteTitle: lang === 'ar' ? 'إضافة ملاحظة للملف' : 'הוספת הערה לתיק',
     newTaskTitle: lang === 'ar' ? 'مهمة جديدة' : 'משימה חדשה',
   };
@@ -1674,6 +1683,22 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                     modalStack.open(
                       <NewEventModal
                         preselectedCaseId={caseId}
+                        noteOnly
+                        titleOverride={T.addNoteTitle}
+                      />,
+                    )
+                  }
+                  className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-rounded-xl tw-border tw-border-blue-200 tw-bg-blue-50 tw-px-3 tw-py-2 tw-text-sm tw-font-bold tw-text-blue-700 hover:tw-bg-blue-100"
+                >
+                  <span>{T.addNote}</span>
+                  <i className="fas fa-comment-alt" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    modalStack.open(
+                      <NewEventModal
+                        preselectedCaseId={caseId}
                         callOnly
                         titleOverride={T.newCallTitle}
                       />,
@@ -1699,22 +1724,6 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                 >
                   <span>{T.newTask}</span>
                   <i className="fas fa-check-square" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    modalStack.open(
-                      <NewEventModal
-                        preselectedCaseId={caseId}
-                        noteOnly
-                        titleOverride={T.addNoteTitle}
-                      />,
-                    )
-                  }
-                  className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-rounded-xl tw-border tw-border-blue-200 tw-bg-blue-50 tw-px-3 tw-py-2 tw-text-sm tw-font-bold tw-text-blue-700 hover:tw-bg-blue-100"
-                >
-                  <span>{T.addNote}</span>
-                  <i className="fas fa-comment-alt" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -1775,9 +1784,24 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         color="orange"
                         icon="fa-check-square"
                         title={T.taskCreated}
-                        desc={decisionInfo?.taskDescription || T.taskCreatedDesc}
+                        // Show the case's own relevant (most urgent / open) task
+                        // here too, falling back to the AI-suggested decision
+                        // task, then a generic placeholder. "פתח משימה" opens the
+                        // real task when one exists.
+                        desc={
+                          firstUrgentTask?.title ||
+                          decisionInfo?.taskDescription ||
+                          T.taskCreatedDesc
+                        }
                         btn={T.openTask}
-                        onBtnClick={onOpenDecisionTask}
+                        onBtnClick={
+                          firstUrgentTask
+                            ? () =>
+                                modalStack.open(
+                                  <TaskModal editTaskId={firstUrgentTask.id} />,
+                                )
+                            : onOpenDecisionTask
+                        }
                       />
                       <AIActionCard
                         color="emerald"

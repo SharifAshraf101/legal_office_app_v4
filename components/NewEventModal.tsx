@@ -19,8 +19,10 @@ import { pad } from '@/lib/utils';
 import {
   hasDropboxFolder,
   isDropboxConfigured,
+  isFileSystemAccessAvailable,
   uploadFileToDropbox,
 } from '@/lib/dropbox';
+import { saveDocumentToLegalOfficeFolder } from '@/lib/disk';
 import { DropboxConnectModal } from './DropboxConnectModal';
 import type { CalendarEvent, DocumentRecord, Task, TimelineItem } from '@/types';
 
@@ -275,9 +277,20 @@ export function NewEventModal({
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (uploading) return;
-    const trimmedTitle = title.trim();
+    // A note has no separate title field — the description box IS the note,
+    // so its text becomes the (displayed) title. Every other type keeps its
+    // required title input.
+    const trimmedTitle = noteOnly ? description.trim() : title.trim();
     if (!trimmedTitle) {
-      window.alert(lang === 'ar' ? 'أدخل العنوان' : 'יש להזין כותרת');
+      window.alert(
+        noteOnly
+          ? lang === 'ar'
+            ? 'أدخل نص الملاحظة'
+            : 'יש להזין את תוכן ההערה'
+          : lang === 'ar'
+            ? 'أدخل العنوان'
+            : 'יש להזין כותרת',
+      );
       return;
     }
     const caseId = selectedCaseId;
@@ -371,19 +384,19 @@ export function NewEventModal({
       dispatch({ type: 'SET_EVENTS', events: [...state.eventsList, ev] });
     } else if (type === 'document') {
       // Save strategy for all views (desktop/mobile):
-      // upload to Dropbox as a best-effort, then ALWAYS persist the
-      // document record so it shows up in the case's documents list +
-      // gets autosaved to Supabase. If Dropbox isn't configured (or
-      // the upload fails), we keep the row with an empty relativePath
-      // so the lawyer at least has a logged record + description; they
-      // can re-upload the binary later from the documents screen.
+      //   - DESKTOP → write the file into the firm's local filing folder; the
+      //     installed cloud-sync app (Dropbox/Drive/OneDrive) uploads it.
+      //   - MOBILE  → upload through the Dropbox OAuth API.
+      // CRITICAL: a document record is persisted ONLY when its attached file
+      // was actually saved (we obtained a relativePath). If the save fails or
+      // the user cancels the folder/file pick, we abort the whole save and
+      // create NOTHING — no phantom row that shows in the list + D1 but can't
+      // be opened. (Per the firm's request; replaces the old "always keep the
+      // row with an empty path" behavior.)
       //
-      // Previously this block early-returned on any upload failure,
-      // which meant clicking "save" silently did nothing when Dropbox
-      // wasn't set up — the description + filing step was lost.
-      // Unique running id for this document, computed once and used both
-      // as the record id AND as the filename suffix (…_DOC-001.pdf) so the
-      // saved file can never collide with another of the same name.
+      // Unique running id for this document, computed once and used both as the
+      // record id AND as the filename suffix (…_DOC-001.pdf) so the saved file
+      // can never collide with another of the same name.
       const docId = nextDocumentNumber(state.documentsArr);
       let relativePath = '';
       let fileName = trimmedTitle;
@@ -391,35 +404,73 @@ export function NewEventModal({
       let fileType = '';
       if (docFile) {
         setUploading(true);
+        const caseObj = state.casesArr.find((c) => c.id === caseId) ?? null;
+        const client = state.clients.find((c) => c.id === clientId) ?? null;
+        // Reason shown to the user when the file could not be saved (so the
+        // abort message below explains WHY nothing was saved).
+        let saveError = '';
         try {
-          if (!isDropboxConfigured() || !hasDropboxFolder()) {
-            // Open the one-time setup modal in the background so the
-            // user can authorize Dropbox + pick a folder. We still
-            // save the doc record below so this save click isn't lost.
+          if (isFileSystemAccessAvailable()) {
+            // DESKTOP: write straight into the firm's local filing folder
+            // (Clients/<clientCode>/<caseCode> - title/…). Whatever cloud
+            // sync app watches that folder pushes it to the cloud on its own.
+            // The folder picker prompts at most once (handle persists in
+            // IndexedDB) and is reused silently afterwards.
+            const saved = await saveDocumentToLegalOfficeFolder(docFile, {
+              caseId,
+              clientId,
+              caseObj,
+              client,
+              lang,
+              docId,
+            });
+            if (saved) {
+              relativePath = saved.relativePath;
+            } else {
+              saveError =
+                lang === 'ar'
+                  ? 'تعذّر حفظ الملف في المجلد المحلي (أُلغي اختيار المجلد أو فشلت الكتابة). لم يتم حفظ المستند.'
+                  : 'שמירת הקובץ לתיקייה המקומית בוטלה או נכשלה. המסמך לא נשמר.';
+            }
+          } else if (!isDropboxConfigured() || !hasDropboxFolder()) {
+            // MOBILE (no File System Access) and Dropbox not connected: prompt
+            // the one-time setup. Nothing was saved this round, so abort.
             modalStack.open(<DropboxConnectModal />);
+            saveError =
+              lang === 'ar'
+                ? 'يجب ربط Dropbox أولاً ثم إعادة المحاولة. لم يتم حفظ المستند.'
+                : 'יש לחבר את Dropbox תחילה ואז לנסות שוב. המסמך לא נשמר.';
           } else {
             const uploaded = await uploadFileToDropbox(docFile, {
               caseId,
               clientId,
-              caseObj: state.casesArr.find((c) => c.id === caseId) ?? null,
-              client: state.clients.find((c) => c.id === clientId) ?? null,
+              caseObj,
+              client,
               lang,
               docId,
             });
             if (uploaded.ok) {
               relativePath = uploaded.url || uploaded.path;
             } else {
-              // Warn but don't abort — the metadata still gets saved
-              // so the document at least appears in the case file.
-              window.alert(
+              saveError =
                 lang === 'ar'
-                  ? `فشل رفع الملف إلى Dropbox، لكن تم حفظ سجل المستند. السبب: ${uploaded.error}`
-                  : `העלאת הקובץ ל-Dropbox נכשלה אבל רשומת המסמך נשמרה. סיבה: ${uploaded.error}`,
-              );
+                  ? `فشل رفع الملف إلى Dropbox. لم يتم حفظ المستند. السبب: ${uploaded.error}`
+                  : `העלאת הקובץ ל-Dropbox נכשלה. המסמך לא נשמר. סיבה: ${uploaded.error}`;
             }
           }
         } finally {
           setUploading(false);
+        }
+        // File attached but not saved → abort: warn and create no record. The
+        // modal stays open (we return before close()) so the user can retry.
+        if (!relativePath) {
+          window.alert(
+            saveError ||
+              (lang === 'ar'
+                ? 'تعذّر حفظ الملف. لم يتم حفظ المستند.'
+                : 'שמירת הקובץ נכשלה. המסמך לא נשמר.'),
+          );
+          return;
         }
         fileName = docFile.name;
         fileSize = docFile.size;
@@ -451,8 +502,10 @@ export function NewEventModal({
         title: trimmedTitle,
         titleAr: trimmedTitle,
         date: today,
-        description: desc,
-        descriptionAr: desc,
+        // For a note the text already lives in the title, so keep the
+        // description empty to avoid showing it twice.
+        description: noteOnly ? '' : desc,
+        descriptionAr: noteOnly ? '' : desc,
       };
       if (type === 'task' && dueDateTimeStr) {
         ti.dueDateTime = new Date(dueDateTimeStr).toISOString();
@@ -647,16 +700,18 @@ export function NewEventModal({
         </div>
         )}
 
-        <div className="form-field">
-          <label id="eventTitleLabel">{eventTitleLabel(type, t)}</label>
-          <input
-            id="eventTitleInput"
-            required
-            placeholder={eventTitlePlaceholder(type, lang, t)}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
+        {!noteOnly && (
+          <div className="form-field">
+            <label id="eventTitleLabel">{eventTitleLabel(type, t)}</label>
+            <input
+              id="eventTitleInput"
+              required
+              placeholder={eventTitlePlaceholder(type, lang, t)}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+        )}
 
         {(type === 'hearingMeeting' || type === 'meeting' || type === 'reminder') && (
           <div className="form-field" id="singleDateWrap">
@@ -739,13 +794,23 @@ export function NewEventModal({
         )}
 
         <div className="form-field">
-          <label>{t('description')}</label>
+          <label>
+            {noteOnly
+              ? lang === 'ar'
+                ? 'نص الملاحظة'
+                : 'תוכן ההערה'
+              : t('description')}
+          </label>
           <textarea
             id="eventDescInput"
             placeholder={
-              lang === 'ar'
-                ? 'اكتب التفاصيل أو ملخص المتابعة'
-                : 'כתוב פירוט או סיכום קצר'
+              noteOnly
+                ? lang === 'ar'
+                  ? 'اكتب ملاحظتك هنا'
+                  : 'כתוב כאן את ההערה'
+                : lang === 'ar'
+                  ? 'اكتب التفاصيل أو ملخص المتابعة'
+                  : 'כתוב פירוט או סיכום קצר'
             }
             value={description}
             onChange={(e) => setDescription(e.target.value)}

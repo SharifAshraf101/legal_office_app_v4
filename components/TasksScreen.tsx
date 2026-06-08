@@ -14,6 +14,7 @@ import {
   taskFilterCounts,
   taskMatchesQuickFilter,
   taskPriorityClass,
+  removeTaskEverywhere,
   taskPriorityLabel,
   taskQuickLabel,
   taskSearchText,
@@ -88,10 +89,9 @@ export function TasksScreen() {
       taskText('למחוק את המשימה מהרשימה?', 'حذف المهمة من القائمة؟', lang),
     );
     if (!ok) return;
-    dispatch({
-      type: 'SET_TASKS',
-      tasks: state.tasksArr.filter((x) => String(x.id) !== String(id)),
-    });
+    const next = removeTaskEverywhere(id, state.tasksArr, state.timelineItems);
+    dispatch({ type: 'SET_TASKS', tasks: next.tasks });
+    dispatch({ type: 'SET_TIMELINE', timeline: next.timeline });
   };
 
   const edit = (id: string) => modalStack.open(<TaskModal editTaskId={id} />);

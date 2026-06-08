@@ -1,6 +1,6 @@
 // Task helpers. Ports of source 5017-5025, 5038-5040, 5055. Names preserved.
 
-import type { Case, Client, Lang, Task } from '@/types';
+import type { Case, Client, Lang, Task, TimelineItem } from '@/types';
 import { calendarLocale } from './calendar';
 import { caseName, clientName } from './cases';
 import { clientDisplayName } from './clients';
@@ -157,6 +157,86 @@ export function caseTaskItems(caseId: string, tasks: Task[]): Task[] {
 /** New TASK-NNN id matching source line 5063 pattern. */
 export function nextTaskId(): string {
   return 'TASK-' + Date.now();
+}
+
+// ---- Cross-store task deletion + AI-import dedup --------------------------
+//
+// A task can live in BOTH `state.tasksArr` (a Task record) AND
+// `state.timelineItems` (an entry with type 'task'), created with DIFFERENT
+// ids, and can be duplicated in tasksArr (a manual task + an AI "decision
+// task"). So deleting in one screen used to leave copies behind in the others.
+// `removeTaskEverywhere` clears every copy from both stores at once.
+
+/** Stable key for an AI-imported decision task, so it is imported at most once
+ *  and never resurrected after the user deletes it. */
+export function decisionTaskKey(caseId: string, title: string): string {
+  return 'task:' + String(caseId) + ':' + (title || '').trim();
+}
+
+const DECISION_IMPORT_KEYS_LS = 'law_decision_import_keys_v1';
+
+/** Load the persisted set of already-imported / dismissed decision keys.
+ *  Persisting across reloads is what stops a deleted AI task from coming back
+ *  (the in-memory module Set used to reset on every page load). */
+export function loadDecisionImportKeys(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(DECISION_IMPORT_KEYS_LS);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/** Remember a decision key (imported or dismissed) so it survives reloads. */
+export function rememberDecisionImportKey(set: Set<string>, key: string): void {
+  set.add(key);
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(DECISION_IMPORT_KEYS_LS, JSON.stringify([...set]));
+  } catch {
+    /* ignore quota / serialization errors */
+  }
+}
+
+/** Remove a task from BOTH stores at once — every `tasksArr` record and every
+ *  `timelineItems` (type 'task') entry that is the SAME logical task: matched
+ *  by id, or by (title + caseId) so duplicates and the differently-id'd
+ *  timeline twin are all cleared. Also records the task's decision key as
+ *  "dismissed" so the AI decision-import won't recreate it. Returns the new
+ *  arrays for SET_TASKS / SET_TIMELINE. */
+export function removeTaskEverywhere(
+  id: string,
+  tasks: Task[],
+  timeline: TimelineItem[],
+): { tasks: Task[]; timeline: TimelineItem[] } {
+  // Resolve title + caseId from whichever store holds this id.
+  const ref =
+    (tasks || []).find((t) => String(t.id) === String(id)) ||
+    (timeline || []).find(
+      (ti) => String(ti.id) === String(id) && ti.type === 'task',
+    );
+  const title = (ref?.title || '').trim();
+  const caseId = ref?.caseId != null ? String(ref.caseId) : '';
+
+  // Dismiss the AI key so the decision-import won't bring it back.
+  if (title && caseId) {
+    rememberDecisionImportKey(loadDecisionImportKeys(), decisionTaskKey(caseId, title));
+  }
+
+  const sameLogical = (cand: { id?: string; title?: string; caseId?: string }) =>
+    String(cand.id) === String(id) ||
+    (!!title &&
+      !!caseId &&
+      (cand.title || '').trim() === title &&
+      String(cand.caseId) === caseId);
+
+  return {
+    tasks: (tasks || []).filter((t) => !sameLogical(t)),
+    timeline: (timeline || []).filter(
+      (ti) => !(ti.type === 'task' && sameLogical(ti)),
+    ),
+  };
 }
 
 // ---- Quick-filter bar helpers (source 7288-7322) -------------------------

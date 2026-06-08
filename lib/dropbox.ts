@@ -490,6 +490,54 @@ export async function uploadFileToDropbox(
   return { ok: true, path: finalPath, url };
 }
 
+/** Convert a stored local filing path (e.g. "Clients/clt-108/CS-1009 - X/f.pdf"
+ *  or a legacy "/clients/.../f.pdf") into the Dropbox API path inside the
+ *  connected app folder, so a device with no local disk access (mobile) can
+ *  fetch the same file from the cloud. Mirrors the path scheme used on upload. */
+export function dropboxPathForRelative(relativePath: string): string {
+  const rp = (relativePath || '').replace(/^\/+/, ''); // drop any leading slash
+  let base = getDropboxFolderPath().replace(/\/+$/, '');
+  // Same double-"Clients" guard the uploader uses.
+  base = base.replace(new RegExp('/' + FILING_ROOT + '$', 'i'), '');
+  return `${base}/${rp}`.replace(/\/{2,}/g, '/');
+}
+
+/** Get a short-lived direct link to a file in Dropbox (used to open/download a
+ *  document on mobile, where the file isn't on the local disk). Returns null
+ *  when Dropbox isn't connected or the path isn't found. */
+export async function getDropboxTemporaryLink(
+  path: string,
+): Promise<string | null> {
+  const token = await getValidAccessToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(
+      'https://api.dropboxapi.com/2/files/get_temporary_link',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + token,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path }),
+      },
+    );
+    if (!res.ok) {
+      console.warn(
+        '[Dropbox temp link] failed',
+        res.status,
+        await res.text().catch(() => ''),
+      );
+      return null;
+    }
+    const json = (await res.json()) as { link?: string };
+    return json.link || null;
+  } catch (e) {
+    console.warn('[Dropbox temp link] error', e);
+    return null;
+  }
+}
+
 /** True when running in a browser that supports the File System Access API
  *  (desktop Chrome/Edge/Brave). Used to branch desktop vs mobile flows. */
 export function isFileSystemAccessAvailable(): boolean {
