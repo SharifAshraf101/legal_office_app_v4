@@ -104,6 +104,7 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
     );
     if (missing.length === 0) return;
     let cancelled = false;
+    const persistUpdates: Record<string, { he: string; ar: string }> = {};
     (async () => {
       for (const d of missing) {
         if (cancelled) return;
@@ -132,16 +133,33 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
         if (both && !cancelled) {
           // Keep the summary in the DOCUMENT's own language: an Arabic
           // document keeps only the Arabic summary, a Hebrew document only the
-          // Hebrew one. Display it as soon as it's ready (generation is slow),
-          // in LOCAL state only — file_summary is the source of truth, so we
-          // don't persist it onto the document record.
+          // Hebrew one. Show it locally as soon as it's ready (generation is
+          // slow) and queue it to be saved onto the document record.
           const docLang = both.language;
           const entry = {
             he: docLang === 'ar' ? '' : both.he,
             ar: docLang === 'he' ? '' : both.ar,
           };
           setSummaries((prev) => ({ ...prev, [d.id]: entry }));
+          persistUpdates[d.id] = entry;
         }
+      }
+      // Persist the fetched/generated summaries onto the document records in a
+      // single dispatch, so they are saved into the documents table (and from
+      // there read back via normalizeDocument on the next load).
+      if (!cancelled && Object.keys(persistUpdates).length > 0) {
+        dispatch({
+          type: 'SET_DOCUMENTS',
+          documents: state.documentsArr.map((doc) =>
+            persistUpdates[doc.id]
+              ? {
+                  ...doc,
+                  summaryHe: persistUpdates[doc.id].he,
+                  summaryAr: persistUpdates[doc.id].ar,
+                }
+              : doc,
+          ),
+        });
       }
     })();
     return () => {

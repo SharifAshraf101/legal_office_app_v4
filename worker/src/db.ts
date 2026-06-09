@@ -34,11 +34,10 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
     'source_id', 'case_source_id', 'client_source_id', 'title', 'title_ar',
     'date_time', 'description', 'description_ar', 'type',
   ],
-  // NOTE: summary_he / summary_ar are deliberately omitted — document
-  // summaries live solely in the file_summary table, not on the document row.
   documents: [
     'source_id', 'case_source_id', 'client_source_id', 'title', 'title_ar',
     'description', 'description_ar', 'file_name', 'relative_path', 'date',
+    'summary_he', 'summary_ar',
   ],
   payments: [
     'source_id', 'case_source_id', 'date', 'amount', 'type',
@@ -51,6 +50,10 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
 };
 
 export const LOAD_TABLES = Object.keys(TABLE_COLUMNS);
+
+// Cache-like columns that must never be wiped to null by a client whose copy is
+// empty — on update they keep the existing value unless a real value arrives.
+const COALESCE_ON_UPDATE = new Set(['summary_he', 'summary_ar']);
 
 export interface BuiltStatement {
   sql: string;
@@ -74,6 +77,10 @@ export function buildUpsert(
 
   const present = allowed.filter((c) => row[c] !== undefined);
   if (!present.includes('source_id')) return null;
+  // Reject a corrupted source_id that is a file PATH instead of an id (the
+  // external pipeline has written document rows keyed by the Dropbox path,
+  // which then show up as duplicate junk rows). Real ids never contain '/'.
+  if (String(row.source_id ?? '').includes('/')) return null;
 
   const now = new Date().toISOString();
   const id = typeof row.id === 'string' && row.id ? row.id : crypto.randomUUID();
@@ -89,7 +96,16 @@ export function buildUpsert(
 
   // Never overwrite the conflict key (source_id) or created_at on update.
   const updateCols = [...present.filter((c) => c !== 'source_id'), 'updated_at'];
-  const setClause = updateCols.map((c) => `${c}=excluded.${c}`).join(', ');
+  const setClause = updateCols
+    .map((c) =>
+      // Document summaries are a cache that must never be wiped by a client
+      // whose copy is empty: keep the existing value when the incoming one is
+      // null (COALESCE), only overwrite with a real new summary.
+      COALESCE_ON_UPDATE.has(c)
+        ? `${c}=COALESCE(excluded.${c}, ${c})`
+        : `${c}=excluded.${c}`,
+    )
+    .join(', ');
 
   const sql =
     `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders}) ` +

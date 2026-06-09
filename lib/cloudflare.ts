@@ -238,9 +238,11 @@ function normalizeDocument(
     date: String(first(r, ['date', 'created_at', 'uploaded_at'], new Date().toISOString())).slice(0, 10),
     // Keep the FULL timestamp so same-day documents sort by time, newest first.
     uploadedAt: String(first(r, ['uploaded_at', 'created_at'], '')) || undefined,
-    // Summaries are NOT read from the documents table: they live solely in the
-    // file_summary table and are fetched on demand (see lib/summary.ts). This
-    // avoids duplicating the summary in two places.
+    // Summaries live on the documents row. They originate in file_summary (the
+    // external pipeline / on-demand generation) and are fetched + cached here
+    // so the document always carries its own summary.
+    summaryHe: String(first(r, ['summary_he', 'summaryHe'], '')) || undefined,
+    summaryAr: String(first(r, ['summary_ar', 'summaryAr'], '')) || undefined,
     type: 'document',
   };
 }
@@ -513,9 +515,13 @@ function docToRow(d: DocumentRecord): Record<string, unknown> {
     file_name: emptyToNull(d.fileName),
     relative_path: emptyToNull(d.relativePath),
     date: emptyToNull(d.date),
-    // summary_he / summary_ar are intentionally NOT written here — summaries
-    // are owned exclusively by the file_summary table, not duplicated onto
-    // the document row.
+    // Only WRITE a summary when this client actually has one. Sending `null`
+    // (emptyToNull) would make the Worker upsert null-out an existing cached
+    // summary just because this browser loaded the doc before the summary was
+    // fetched. `undefined` is dropped from the JSON, so the column is left
+    // untouched — the summary is only ever set, never wiped, by a save.
+    summary_he: d.summaryHe || undefined,
+    summary_ar: d.summaryAr || undefined,
   };
 }
 
