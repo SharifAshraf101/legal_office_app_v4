@@ -16,7 +16,12 @@ import { TaskModal } from './TaskModal';
 import { NewEventModal } from './NewEventModal';
 import { CaseDocumentsModal } from './CaseDocumentsModal';
 import { CalendarEventDetail } from './CalendarEventDetail';
-import { fetchDocumentSummary, fetchDecisionInfo, type DecisionInfo } from '@/lib/summary';
+import {
+  fetchDocumentSummary,
+  fetchDocumentDraft,
+  fetchDecisionInfo,
+  type DecisionInfo,
+} from '@/lib/summary';
 import { filingFileName } from '@/lib/filing';
 import { caseDocumentsForCase } from '@/lib/documents';
 import { financeCaseBalance } from '@/lib/finance';
@@ -1281,6 +1286,31 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     };
   }, [state.documentsArr, state.casesArr, state.clients, caseId, lang]);
 
+  // Reply draft for the "טיוטת תגובה" card — the draft prepared (by the Make
+  // pipeline, stored in D1 `drafts`) for the SAME document the "פענוח המסמך"
+  // box decodes: the newest filed document for this case.
+  const [replyDraft, setReplyDraft] = useState<string | null>(null);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  useEffect(() => {
+    const primary = caseDocumentsForCase(caseId, state.documentsArr)[0];
+    if (!primary && !caseId) {
+      setReplyDraft(null);
+      setDraftLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    setDraftLoaded(false);
+    fetchDocumentDraft({ caseId, documentId: primary?.id }, lang).then((d) => {
+      if (!cancelled) {
+        setReplyDraft(d);
+        setDraftLoaded(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.documentsArr, caseId, lang]);
+
   // Decision-derived task + hearing for the latest (decision) document,
   // imported from Cloudflare and shown in the "משימה שנוצרה" card. The
   // import (creating the Task + hearing event) is shared with the main
@@ -1865,7 +1895,18 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         color="blue"
                         icon="fa-pen"
                         title={T.replyDraft}
-                        desc={T.replyDraftDesc}
+                        // The actual draft prepared for the decoded document
+                        // (D1 `drafts`); falls back while loading / when none.
+                        desc={
+                          replyDraft ||
+                          (draftLoaded
+                            ? lang === 'ar'
+                              ? 'لا توجد مسودة لهذا المستند بعد.'
+                              : 'אין טיוטה זמינה למסמך זה עדיין.'
+                            : lang === 'ar'
+                              ? 'جارٍ تحميل المسودة…'
+                              : 'טוען טיוטה…')
+                        }
                         btn={T.openDraft}
                       />
                       <AIActionCard

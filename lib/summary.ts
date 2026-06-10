@@ -138,6 +138,57 @@ export function pickDocumentLanguageSummary(
   return (primary || fallback || '').trim() || null;
 }
 
+/** Reply-draft text for a case's document, from the D1 `drafts` table (written
+ *  by the Make pipeline). Fetches the case's drafts and prefers the one whose
+ *  `document_source_id` matches the given document (the one shown in the
+ *  "פענוח המסמך" box), falling back to the newest. Returns the draft in the
+ *  document's own language. Used by the case-brain "טיוטת תגובה" card. */
+export async function fetchDocumentDraft(
+  opts: { caseId?: string; documentId?: string },
+  lang: Lang,
+): Promise<string | null> {
+  const { caseId, documentId } = opts;
+  if (!caseId && !documentId) return null;
+  const params = new URLSearchParams();
+  if (caseId) params.set('caseId', caseId);
+  if (!caseId && documentId) params.set('documentId', documentId);
+  try {
+    const res = await fetch(WORKER_URL + '/api/drafts?' + params.toString(), {
+      method: 'GET',
+      headers: { Authorization: 'Bearer ' + APP_TOKEN },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      drafts?: Array<{
+        document_source_id?: string;
+        draft_he?: string;
+        draft_ar?: string;
+        language?: string;
+      }>;
+    };
+    const rows = data.drafts || [];
+    if (rows.length === 0) return null;
+    const match = documentId
+      ? rows.find(
+          (r) =>
+            String(r.document_source_id || '').toUpperCase() ===
+            String(documentId).toUpperCase(),
+        )
+      : undefined;
+    const row = match || rows[0];
+    return pickDocumentLanguageSummary(
+      {
+        he: (row.draft_he || '').trim(),
+        ar: (row.draft_ar || '').trim(),
+        language: (row.language || '').toLowerCase(),
+      },
+      lang,
+    );
+  } catch {
+    return null;
+  }
+}
+
 export interface DecisionInfo {
   taskDescription: string;
   taskDueDate: string;

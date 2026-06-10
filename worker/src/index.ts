@@ -301,10 +301,13 @@ async function handleDrafts(request: Request, env: Env): Promise<Response> {
   const clientId = (url.searchParams.get('clientId') || '').trim();
   const documentId = (url.searchParams.get('documentId') || '').trim();
   const binds: unknown[] = [env.USER_ID];
+  // Never surface drafts a pipeline wrote keyed by the full Dropbox path
+  // instead of a DOC-NNN id (same defense as /api/load for documents).
   let sql =
     'SELECT source_id, case_source_id, client_source_id, document_source_id, ' +
     'file_name, title, title_ar, draft_he, draft_ar, language, doc_type, ' +
-    'status, date, updated_at FROM drafts WHERE user_id = ?1';
+    "status, date, updated_at FROM drafts WHERE user_id = ?1 " +
+    "AND source_id NOT LIKE '%/%'";
   if (caseId) {
     binds.push(caseId);
     sql += ` AND upper(case_source_id) = upper(?${binds.length})`;
