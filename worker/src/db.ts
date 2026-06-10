@@ -39,6 +39,23 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
     'description', 'description_ar', 'file_name', 'relative_path', 'date',
     'summary_he', 'summary_ar',
   ],
+  // AI-generated reply/response drafts (one per source document/decision),
+  // written by the Make pipeline and pulled back by the app. `source_id`
+  // should be stable per source document (e.g. DRAFT-DOC-020) so re-running
+  // the pipeline UPDATES the draft instead of inserting a duplicate.
+  drafts: [
+    'source_id', 'case_source_id', 'client_source_id', 'document_source_id',
+    'file_name', 'title', 'title_ar', 'draft_he', 'draft_ar', 'language',
+    'doc_type', 'status', 'date',
+  ],
+  // GLOBAL drafting "skills" / guideline documents that Claude reads BEFORE
+  // writing a draft (the lawyer's how-to-respond methodology). Not per-case.
+  // `skill_key` selects which skill (e.g. 'legal-draft'); `status='active'`
+  // marks the one(s) in use.
+  skills: [
+    'source_id', 'skill_key', 'title', 'title_ar', 'content', 'language',
+    'status', 'date',
+  ],
   payments: [
     'source_id', 'case_source_id', 'date', 'amount', 'type',
     'description', 'description_ar',
@@ -53,7 +70,9 @@ export const LOAD_TABLES = Object.keys(TABLE_COLUMNS);
 
 // Cache-like columns that must never be wiped to null by a client whose copy is
 // empty — on update they keep the existing value unless a real value arrives.
-const COALESCE_ON_UPDATE = new Set(['summary_he', 'summary_ar']);
+const COALESCE_ON_UPDATE = new Set([
+  'summary_he', 'summary_ar', 'draft_he', 'draft_ar',
+]);
 
 export interface BuiltStatement {
   sql: string;

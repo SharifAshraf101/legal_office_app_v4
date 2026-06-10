@@ -104,49 +104,83 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
     );
     if (missing.length === 0) return;
     let cancelled = false;
-    const persistUpdates: Record<string, { he: string; ar: string }> = {};
     (async () => {
-      for (const d of missing) {
+      // Resolve each doc's renamed/original file name up front.
+      const prep = missing
+        .map((d) => {
+          const original = d.fileName || undefined;
+          const renamed = original
+            ? filingFileName(client, caseObj, original, d.id)
+            : undefined;
+          return { d, original, renamed };
+        })
+        .filter((x) => x.renamed || x.original);
+      // Claim them now so a re-render can't re-enter the same fetch.
+      prep.forEach((x) => attemptedRef.current.add(x.d.id));
+
+      // Summary kept in the DOCUMENT's own language (Arabic doc → Arabic
+      // summary only, Hebrew doc → Hebrew only).
+      const toEntry = (both: { he: string; ar: string; language: string }) => ({
+        he: both.language === 'ar' ? '' : both.he,
+        ar: both.language === 'he' ? '' : both.ar,
+      });
+
+      const persistUpdates: Record<string, { he: string; ar: string }> = {};
+
+      // PHASE 1 — fetch every existing summary IN PARALLEL and show them in a
+      // SINGLE batch, so all summaries that already exist appear together
+      // instead of trickling in one-by-one (the old sequential loop re-ran
+      // the effect on each setSummaries, which is what made them lag).
+      const fetched = await Promise.all(
+        prep.map((x) =>
+          fetchDocumentSummaryBoth({ renamed: x.renamed, original: x.original })
+            .then((both) => ({ x, both }))
+            .catch(() => ({ x, both: null as null | { he: string; ar: string; language: string } })),
+        ),
+      );
+      if (cancelled) return;
+      const batch: Record<string, { he: string; ar: string }> = {};
+      const toGenerate: typeof prep = [];
+      for (const { x, both } of fetched) {
+        if (both) batch[x.d.id] = toEntry(both);
+        else if (!generatedRef.current.has(x.d.id)) toGenerate.push(x);
+      }
+      if (Object.keys(batch).length > 0) {
+        // Local state only (not a dep) → shows all at once, no effect re-run.
+        setSummaries((prev) => ({ ...prev, ...batch }));
+        Object.assign(persistUpdates, batch);
+      }
+
+      // PHASE 2 — only the docs with no server summary get a (slow) Claude
+      // generation, also in parallel; show them as a second batch when ready.
+      if (toGenerate.length > 0 && !cancelled) {
+        toGenerate.forEach((x) => generatedRef.current.add(x.d.id));
+        const generated = await Promise.all(
+          toGenerate.map((x) =>
+            generateDocumentSummary({
+              relativePath: x.d.relativePath,
+              fileName: x.renamed || x.original || '',
+              clientId: x.d.clientId,
+              caseId: x.d.caseId,
+            })
+              .then((both) => ({ x, both }))
+              .catch(() => ({ x, both: null as null | { he: string; ar: string; language: string } })),
+          ),
+        );
         if (cancelled) return;
-        attemptedRef.current.add(d.id);
-        const original = d.fileName || undefined;
-        const renamed = original
-          ? filingFileName(client, caseObj, original, d.id)
-          : undefined;
-        if (!renamed && !original) continue;
-        // Always FETCH first (cheap; no caseId → exact file match so each doc
-        // gets ITS own summary). This re-check is what picks up a summary the
-        // external pipeline added after the modal was opened.
-        let both = await fetchDocumentSummaryBoth({ renamed, original });
-        // Only when none exists AND we haven't generated for this doc yet,
-        // GENERATE one (PDF → Claude → file_summary). Gated by generatedRef so
-        // the 20s re-check never re-generates — it only re-fetches.
-        if (!both && !cancelled && !generatedRef.current.has(d.id)) {
-          generatedRef.current.add(d.id);
-          both = await generateDocumentSummary({
-            relativePath: d.relativePath,
-            fileName: renamed || original || '',
-            clientId: d.clientId,
-            caseId: d.caseId,
-          });
+        const batch2: Record<string, { he: string; ar: string }> = {};
+        for (const { x, both } of generated) {
+          if (both) batch2[x.d.id] = toEntry(both);
         }
-        if (both && !cancelled) {
-          // Keep the summary in the DOCUMENT's own language: an Arabic
-          // document keeps only the Arabic summary, a Hebrew document only the
-          // Hebrew one. Show it locally as soon as it's ready (generation is
-          // slow) and queue it to be saved onto the document record.
-          const docLang = both.language;
-          const entry = {
-            he: docLang === 'ar' ? '' : both.he,
-            ar: docLang === 'he' ? '' : both.ar,
-          };
-          setSummaries((prev) => ({ ...prev, [d.id]: entry }));
-          persistUpdates[d.id] = entry;
+        if (Object.keys(batch2).length > 0) {
+          setSummaries((prev) => ({ ...prev, ...batch2 }));
+          Object.assign(persistUpdates, batch2);
         }
       }
-      // Persist the fetched/generated summaries onto the document records in a
-      // single dispatch, so they are saved into the documents table (and from
-      // there read back via normalizeDocument on the next load).
+
+      // Persist everything (fetched + generated) onto the document records in
+      // a SINGLE dispatch at the end. Showing stays instant via local state;
+      // this only saves them into the documents table for the next load.
       if (!cancelled && Object.keys(persistUpdates).length > 0) {
         dispatch({
           type: 'SET_DOCUMENTS',
@@ -165,14 +199,11 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
     return () => {
       cancelled = true;
     };
-  }, [
-    state.documentsArr,
-    state.casesArr,
-    state.clients,
-    caseId,
-    summaries,
-    refreshTick,
-  ]);
+    // `summaries` is intentionally NOT a dependency: it changes inside this
+    // effect (setSummaries), and re-running on it would cancel the in-flight
+    // parallel fetch/generate mid-batch. attemptedRef guards re-entry instead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.documentsArr, state.casesArr, state.clients, caseId, refreshTick]);
 
   const c = state.casesArr.find((x) => String(x.id) === String(caseId));
   if (!c) return null;
@@ -348,6 +379,23 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
               doc.title ||
               '';
             const titleStr = doc.title || doc.fileName || '';
+            // File type (pdf/docx/…) shown as a badge at the start of the row.
+            // Derived from the stored file name (falls back to the relative
+            // path); query/hash and any folder prefix are stripped first so a
+            // Dropbox share URL still yields a clean extension.
+            const fileExt = (() => {
+              const src = String(
+                doc.fileName ||
+                  (doc as { storedFileName?: string }).storedFileName ||
+                  doc.relativePath ||
+                  '',
+              );
+              const base = src.split(/[?#]/)[0].split(/[\\/]/).pop() || '';
+              const dot = base.lastIndexOf('.');
+              return dot > 0 && dot < base.length - 1
+                ? base.slice(dot + 1).toUpperCase()
+                : '';
+            })();
             const openTitle = lang === 'ar' ? 'افتح المستند' : 'פתח מסמך';
             const pickTitle =
               lang === 'ar' ? 'تحديد المستند' : 'סימון מסמך';
@@ -383,6 +431,17 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
               >
                 <div>
                   <div className="case-docs-modal-title">
+                    {fileExt && (
+                      <span
+                        className="case-docs-type-badge"
+                        data-ext={fileExt.toLowerCase()}
+                        title={
+                          (lang === 'ar' ? 'نوع الملف: ' : 'סוג הקובץ: ') + fileExt
+                        }
+                      >
+                        {fileExt}
+                      </span>
+                    )}
                     <i
                       className={
                         isPending

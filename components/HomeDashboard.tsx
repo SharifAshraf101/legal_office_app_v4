@@ -85,7 +85,7 @@ export function HomeDashboard() {
             type="button"
             id="upcomingAgendaBtn"
             className="upcoming-center-btn upcoming-center-icon-btn"
-            aria-label={lang === 'ar' ? 'أحداث قريبة' : 'אירועים קרובים'}
+            aria-label={lang === 'ar' ? 'مواعيد قريبة' : 'אירועים קרובים'}
             onClick={() => modalStack.open(<UpcomingAgendaModal />)}
           >
             <span className="upcoming-mini-card">
@@ -93,7 +93,7 @@ export function HomeDashboard() {
                 <i className="far fa-clock" />
               </span>
               <span className="upcoming-mini-label">
-                {lang === 'ar' ? 'أحداث قريبة' : 'אירועים קרובים'}
+                {lang === 'ar' ? 'مواعيد قريبة' : 'אירועים קרובים'}
               </span>
             </span>
           </button>

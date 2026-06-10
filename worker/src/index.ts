@@ -54,6 +54,15 @@ export default {
       return handleStoreFileSummary(request, env);
     }
     if (method === 'POST' && path === '/api/save') return handleSave(request, env);
+    if (method === 'GET' && path === '/api/case-notes') {
+      return handleCaseNotes(request, env);
+    }
+    if (method === 'GET' && path === '/api/drafts') {
+      return handleDrafts(request, env);
+    }
+    if (method === 'GET' && path === '/api/skills') {
+      return handleSkills(request, env);
+    }
     if (method === 'POST' && path === '/api/upload-photo') {
       return handleUploadPhoto(request, env);
     }
@@ -69,7 +78,14 @@ export default {
 async function handleLoad(request: Request, env: Env): Promise<Response> {
   const out: Record<string, unknown> = {};
   for (const table of LOAD_TABLES) {
-    const rs = await env.DB.prepare(`SELECT * FROM ${table} WHERE user_id = ?`)
+    // Defensive: a reprocess pipeline can write a `documents` row keyed by the
+    // full Dropbox path instead of the DOC-NNN id (directly to D1, bypassing
+    // the /api/save guard), duplicating the real row. Never surface those — a
+    // real source_id never contains '/'.
+    const extra = table === 'documents' ? " AND source_id NOT LIKE '%/%'" : '';
+    const rs = await env.DB.prepare(
+      `SELECT * FROM ${table} WHERE user_id = ?${extra}`,
+    )
       .bind(env.USER_ID)
       .all();
     out[table] = rs.results ?? [];
@@ -101,12 +117,20 @@ async function handleFileSummary(request: Request, env: Env): Promise<Response> 
   if (!file && !orig && !caseId) {
     return json({ he: '', ar: '', language: '' }, request, env);
   }
+  // Also match by the stable DOC-NNN id so a row stored under a slightly
+  // different path is still found (otherwise a "not found" triggers a
+  // regenerate → yet another duplicate). Ranked below the exact file matches.
+  const docMatch = /(DOC-\d+)/i.exec(file) || /(DOC-\d+)/i.exec(orig);
+  const docId = docMatch ? docMatch[1].toUpperCase() : '';
   const row = await env.DB.prepare(
     'SELECT summary_he, summary_ar, language FROM file_summary ' +
-      "WHERE file_name = ?1 OR file_name = ?2 OR (?3 <> '' AND lower(case_id) LIKE lower(?3) || '%') " +
-      'ORDER BY (file_name = ?1) DESC, (file_name = ?2) DESC, id DESC LIMIT 1',
+      'WHERE file_name = ?1 OR file_name = ?2 ' +
+      "OR (?4 <> '' AND (upper(file_name) LIKE '%' || ?4 || '.%' OR upper(file_name) LIKE '%' || ?4)) " +
+      "OR (?3 <> '' AND lower(case_id) LIKE lower(?3) || '%') " +
+      'ORDER BY (file_name = ?1) DESC, (file_name = ?2) DESC, ' +
+      "(?4 <> '' AND upper(file_name) LIKE '%' || ?4 || '.%') DESC, id DESC LIMIT 1",
   )
-    .bind(file, orig, caseId)
+    .bind(file, orig, caseId, docId)
     .first<{ summary_he?: string; summary_ar?: string; language?: string }>();
   return json(
     {
@@ -143,9 +167,26 @@ async function handleStoreFileSummary(
     const s = String(v ?? '').trim();
     return s || null;
   };
-  await env.DB.prepare('DELETE FROM file_summary WHERE file_name = ?')
-    .bind(fileName)
-    .run();
+  // Dedup by the STABLE DOC-NNN id embedded in the filing name, not by the
+  // exact file_name. A reprocess whose Dropbox path/name differs even slightly
+  // (different stem, casing, .docx→.pdf, folder prefix) would otherwise fail
+  // the exact match and INSERT a duplicate instead of replacing the old row.
+  // The token boundary ('DOC-12.' or end-of-string) avoids DOC-12 ≡ DOC-120.
+  const docMatch = /(DOC-\d+)/i.exec(fileName);
+  const docId = docMatch ? docMatch[1].toUpperCase() : '';
+  if (docId) {
+    await env.DB.prepare(
+      'DELETE FROM file_summary WHERE file_name = ?1 ' +
+        "OR upper(file_name) LIKE '%' || ?2 || '.%' " +
+        "OR upper(file_name) LIKE '%' || ?2",
+    )
+      .bind(fileName, docId)
+      .run();
+  } else {
+    await env.DB.prepare('DELETE FROM file_summary WHERE file_name = ?')
+      .bind(fileName)
+      .run();
+  }
   await env.DB.prepare(
     'INSERT INTO file_summary (client_id, case_id, file_name, summary_he, summary_ar, language, ai_model) ' +
       'VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)',
@@ -186,7 +227,126 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
   }
 
   if (statements.length) await env.DB.batch(statements);
+  // Keep the dedicated `case_notes` table in sync. It's a DERIVED MIRROR of the
+  // note-type timeline rows (joined to cases for the client id), so it can never
+  // drift out of sync the way an independently-edited copy would. Rebuilt only
+  // when notes or cases changed in this save.
+  if (Array.isArray(body.timeline_items) || Array.isArray(body.cases)) {
+    try {
+      await syncCaseNotes(env);
+    } catch {
+      // never fail the save because the mirror rebuild hiccuped
+    }
+  }
   return json({ ok: true, count: statements.length }, request, env);
+}
+
+// Rebuild `case_notes` for this user from the note-type timeline_items, joining
+// `cases` to resolve the client id. One row per note, keyed by the note's own
+// stable source_id — same document/note, any path. See /api/case-notes.
+async function syncCaseNotes(env: Env): Promise<void> {
+  await env.DB.prepare('DELETE FROM case_notes WHERE user_id = ?')
+    .bind(env.USER_ID)
+    .run();
+  await env.DB.prepare(
+    'INSERT INTO case_notes ' +
+      '(id, user_id, source_id, client_id, case_id, note, note_ar, date, created_at, updated_at) ' +
+      'SELECT ti.id, ti.user_id, ti.source_id, c.client_source_id, ti.case_source_id, ' +
+      'ti.description, ti.description_ar, ti.date, ti.created_at, ti.updated_at ' +
+      'FROM timeline_items ti ' +
+      'LEFT JOIN cases c ON c.user_id = ti.user_id AND c.source_id = ti.case_source_id ' +
+      "WHERE ti.user_id = ?1 AND lower(coalesce(ti.type, 'note')) = 'note' " +
+      "AND coalesce(trim(ti.description), '') <> ''",
+  )
+    .bind(env.USER_ID)
+    .run();
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/case-notes?caseId=&clientId= — the dedicated per-client+case notes
+// list (mirror of the note-type timeline rows). Either filter is optional;
+// without filters it returns every note for the user. Newest first.
+// ---------------------------------------------------------------------------
+async function handleCaseNotes(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const caseId = (url.searchParams.get('caseId') || '').trim();
+  const clientId = (url.searchParams.get('clientId') || '').trim();
+  const binds: unknown[] = [env.USER_ID];
+  let sql =
+    'SELECT source_id, client_id, case_id, note, note_ar, date, created_at ' +
+    'FROM case_notes WHERE user_id = ?1';
+  if (caseId) {
+    binds.push(caseId);
+    sql += ` AND upper(case_id) = upper(?${binds.length})`;
+  }
+  if (clientId) {
+    binds.push(clientId);
+    sql += ` AND lower(client_id) = lower(?${binds.length})`;
+  }
+  sql += ' ORDER BY date DESC, created_at DESC';
+  const rs = await env.DB.prepare(sql)
+    .bind(...binds)
+    .all();
+  return json({ notes: rs.results ?? [] }, request, env);
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/drafts?caseId=&clientId=&documentId= — pull AI-generated reply
+// drafts. All filters optional; newest first. Drafts are WRITTEN by the Make
+// pipeline via POST /api/save ({ drafts: [...] }) — this is the read side.
+// ---------------------------------------------------------------------------
+async function handleDrafts(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const caseId = (url.searchParams.get('caseId') || '').trim();
+  const clientId = (url.searchParams.get('clientId') || '').trim();
+  const documentId = (url.searchParams.get('documentId') || '').trim();
+  const binds: unknown[] = [env.USER_ID];
+  let sql =
+    'SELECT source_id, case_source_id, client_source_id, document_source_id, ' +
+    'file_name, title, title_ar, draft_he, draft_ar, language, doc_type, ' +
+    'status, date, updated_at FROM drafts WHERE user_id = ?1';
+  if (caseId) {
+    binds.push(caseId);
+    sql += ` AND upper(case_source_id) = upper(?${binds.length})`;
+  }
+  if (clientId) {
+    binds.push(clientId);
+    sql += ` AND lower(client_source_id) = lower(?${binds.length})`;
+  }
+  if (documentId) {
+    binds.push(documentId);
+    sql += ` AND upper(document_source_id) = upper(?${binds.length})`;
+  }
+  sql += ' ORDER BY date DESC, updated_at DESC';
+  const rs = await env.DB.prepare(sql)
+    .bind(...binds)
+    .all();
+  return json({ drafts: rs.results ?? [] }, request, env);
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/skills?key=&all=1 — pull the global drafting "skill" document(s)
+// Claude reads before writing a draft. Default: only status='active' rows.
+// `key` filters to one skill_key; `all=1` includes inactive ones too.
+// ---------------------------------------------------------------------------
+async function handleSkills(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const key = (url.searchParams.get('key') || '').trim();
+  const all = (url.searchParams.get('all') || '').trim() === '1';
+  const binds: unknown[] = [env.USER_ID];
+  let sql =
+    'SELECT source_id, skill_key, title, title_ar, content, language, ' +
+    'status, date, updated_at FROM skills WHERE user_id = ?1';
+  if (!all) sql += " AND lower(coalesce(status, 'active')) = 'active'";
+  if (key) {
+    binds.push(key);
+    sql += ` AND skill_key = ?${binds.length}`;
+  }
+  sql += ' ORDER BY updated_at DESC';
+  const rs = await env.DB.prepare(sql)
+    .bind(...binds)
+    .all();
+  return json({ skills: rs.results ?? [] }, request, env);
 }
 
 // ---------------------------------------------------------------------------

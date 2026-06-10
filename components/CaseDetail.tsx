@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -840,6 +840,94 @@ function CaseTasksPanel({
   const { t, lang } = useT();
   const items = caseTaskItems(caseId, state.tasksArr);
 
+  // Show exactly ONE task at a time inside .case-tasks-list; the rest are
+  // reached by scrolling. The list's height is set to a single task's natural
+  // height and the panel shrinks to it. This is done IMPERATIVELY with
+  // setProperty(..., 'important') because the stylesheet pins this panel with
+  // a high-specificity ID rule (#caseTasksPanel_<id> { height:258px } and the
+  // list to flex:1 1 auto) that a normal inline style / class rule can't beat.
+  //
+  // The task height is measured from each row's inner columns (text + actions),
+  // NOT the row's own offsetHeight — the row carries min-height:100%, so its
+  // own height is inflated to the list and would feed back on itself. The inner
+  // columns are never stretched, so they report the true content height.
+  const multi = items.length > 1;
+  const listRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const panel = el.closest('.case-tasks-panel') as HTMLElement | null;
+    const clear = () => {
+      ['flex', 'height', 'overflow-y', 'scroll-snap-type', 'scrollbar-gutter'].forEach(
+        (p) => el.style.removeProperty(p),
+      );
+      (Array.from(el.children) as HTMLElement[]).forEach((row) => {
+        row.style.removeProperty('min-height');
+        row.style.removeProperty('scroll-snap-align');
+      });
+      if (panel)
+        ['height', 'max-height', 'flex'].forEach((p) => panel.style.removeProperty(p));
+    };
+    if (!multi) {
+      clear();
+      return;
+    }
+    let lastPageH = -1;
+    const apply = () => {
+      const rows = Array.from(el.children) as HTMLElement[];
+      if (rows.length === 0) return;
+      let maxRow = 0;
+      for (const row of rows) {
+        const cs = getComputedStyle(row);
+        const padV =
+          (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+        const borderV =
+          (parseFloat(cs.borderTopWidth) || 0) +
+          (parseFloat(cs.borderBottomWidth) || 0);
+        let inner = 0;
+        for (const child of Array.from(row.children) as HTMLElement[]) {
+          inner = Math.max(inner, child.offsetHeight);
+        }
+        maxRow = Math.max(maxRow, inner + padV + borderV);
+      }
+      if (maxRow <= 0) return;
+      const csl = getComputedStyle(el);
+      const lpad =
+        (parseFloat(csl.paddingTop) || 0) + (parseFloat(csl.paddingBottom) || 0);
+      const pageH = Math.ceil(maxRow + lpad);
+      if (pageH === lastPageH) return; // already applied — avoid an RO loop
+      lastPageH = pageH;
+      // Beat the ID rule's !important by setting our own !important inline.
+      el.style.setProperty('flex', '0 0 auto', 'important');
+      el.style.setProperty('height', pageH + 'px', 'important');
+      el.style.setProperty('overflow-y', 'auto', 'important');
+      el.style.setProperty('scroll-snap-type', 'y mandatory', 'important');
+      el.style.setProperty('scrollbar-gutter', 'stable', 'important');
+      if (panel) {
+        // Shrink the panel to one task (it was pinned to 258px) so there's no
+        // empty gap below the single visible task.
+        panel.style.setProperty('height', 'auto', 'important');
+        panel.style.setProperty('max-height', 'none', 'important');
+        panel.style.setProperty('flex', '0 0 auto', 'important');
+      }
+      // Make EACH row fill exactly one task height (so the next task can't peek
+      // in below the current one) and snap. Done imperatively too, so it works
+      // even if the CSS min-height:100% / scroll-snap rules don't match.
+      for (const row of rows) {
+        row.style.setProperty('min-height', maxRow + 'px', 'important');
+        row.style.setProperty('scroll-snap-align', 'start', 'important');
+      }
+    };
+    const raf = requestAnimationFrame(() => requestAnimationFrame(apply));
+    const ro = new ResizeObserver(apply);
+    Array.from(el.children).forEach((c) => ro.observe(c));
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      clear();
+    };
+  }, [items, lang, multi]);
+
   return (
     <section className="case-tasks-panel" id={'caseTasksPanel_' + caseId}>
       <div className="case-tasks-head">
@@ -878,8 +966,8 @@ function CaseTasksPanel({
           )}
         </div>
       ) : (
-        <div className="case-tasks-list">
-          {items.slice(0, 5).map((task) => {
+        <div className="case-tasks-list" ref={listRef}>
+          {items.map((task) => {
             const due = taskDueInfo(task, lang);
             return (
               <div key={task.id} className={'case-task-row ' + due.cls}>

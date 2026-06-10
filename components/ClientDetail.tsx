@@ -144,26 +144,6 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   const otherNameDisplay = lang === 'ar' ? c.name || '' : c.nameAr || '';
   const clientCases = state.casesArr.filter((x) => x.clientId === clientId);
 
-  // Aggregate every document and task that belongs to this client —
-  // either directly (d.clientId === clientId / t.clientId === clientId)
-  // OR through one of their cases (d.caseId / t.caseId matches a case
-  // whose clientId is this client's). Used by the documents and tasks
-  // sections rendered below.
-  const clientIdStr = String(clientId);
-  const clientCaseIds = new Set(clientCases.map((x) => String(x.id)));
-  const clientDocuments = state.documentsArr.filter(
-    (d) =>
-      String(d.clientId || '') === clientIdStr ||
-      (d.caseId ? clientCaseIds.has(String(d.caseId)) : false),
-  );
-  const clientTasks = state.tasksArr.filter(
-    (t) =>
-      String(t.clientId || '') === clientIdStr ||
-      (t.caseId ? clientCaseIds.has(String(t.caseId)) : false),
-  );
-  const clientOpenTaskCount = clientTasks.filter(
-    (t) => t.status !== 'done',
-  ).length;
   const emptyCases =
     lang === 'ar' ? 'لا توجد قضايا لهذا الموكل' : 'אין תיקים ללקוח זה';
   const voiceLabel = lang === 'ar' ? 'واتساب صوتي' : 'וואטסאפ קולי';
@@ -419,95 +399,10 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         )}
       </div>
 
-      {/* All open + closed tasks that belong to this client.
-       *  Order per user request: Tasks + Notes sit RIGHT under Cases,
-       *  ABOVE Documents (so the action items are seen first when the
-       *  user scrolls the client detail screen). */}
-      <h3>
-        {lang === 'ar' ? 'مهام' : 'משימות'}
-        {clientOpenTaskCount > 0 && (
-          <span className="client-tasks-open-count">
-            {' '}
-            (
-            {lang === 'ar'
-              ? `${clientOpenTaskCount} مفتوحة`
-              : `${clientOpenTaskCount} פתוחות`}
-            )
-          </span>
-        )}
-      </h3>
-      <div className="client-tasks-list">
-        {clientTasks.length === 0 ? (
-          <div className="case-empty">
-            {lang === 'ar' ? 'لا توجد مهام' : 'אין משימות'}
-          </div>
-        ) : (
-          clientTasks.map((t2) => {
-            const linkedCase = state.casesArr.find((x) => x.id === t2.caseId);
-            const caseLabel = linkedCase
-              ? (lang === 'ar'
-                  ? linkedCase.titleAr || linkedCase.title
-                  : linkedCase.title || linkedCase.titleAr) || ''
-              : '';
-            const statusClass =
-              t2.status === 'done' ? 'task-status-done' : 'task-status-open';
-            const statusText =
-              t2.status === 'done'
-                ? lang === 'ar' ? 'منجزة' : 'בוצעה'
-                : lang === 'ar' ? 'مفتوحة' : 'פתוחה';
-            return (
-              <div key={t2.id} className="client-task-row">
-                <div className="client-task-main">
-                  <strong>
-                    <i className="fas fa-list-check" /> {t2.title || '-'}
-                  </strong>
-                  <span className="sub">
-                    {[caseLabel, t2.dueDate].filter(Boolean).join(' · ')}
-                  </span>
-                </div>
-                <span className={'task-status-badge ' + statusClass}>{statusText}</span>
-              </div>
-            );
-          })
-        )}
-      </div>
-
       <div className="client-notes-box client-notes-after-cases">
         <strong>{notesLabel}:</strong>
         <br />
         {notes || '—'}
-      </div>
-
-      {/* All documents that belong to this client (direct + via cases).
-       *  Moved BELOW Tasks + Notes per user request. */}
-      <h3>{lang === 'ar' ? 'المستندات' : 'מסמכים'}</h3>
-      <div className="client-documents-list">
-        {clientDocuments.length === 0 ? (
-          <div className="case-empty">
-            {lang === 'ar' ? 'لا توجد مستندات' : 'אין מסמכים'}
-          </div>
-        ) : (
-          clientDocuments.map((d) => {
-            const linkedCase = state.casesArr.find((x) => x.id === d.caseId);
-            const caseLabel = linkedCase
-              ? (lang === 'ar'
-                  ? linkedCase.titleAr || linkedCase.title
-                  : linkedCase.title || linkedCase.titleAr) || ''
-              : '';
-            return (
-              <div key={d.id} className="client-document-row">
-                <div className="client-document-main">
-                  <strong>
-                    <i className="fas fa-file-lines" /> {d.title || d.fileName || '-'}
-                  </strong>
-                  <span className="sub">
-                    {[d.fileName, caseLabel, d.date].filter(Boolean).join(' · ')}
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        )}
       </div>
 
       </div>

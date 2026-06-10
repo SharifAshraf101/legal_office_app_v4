@@ -783,7 +783,9 @@ html body .modal.case-docs-modal .modal-box {
 html body .modal.case-docs-modal .case-docs-sticky-top {
   flex: 0 0 auto !important;
   position: relative !important;
-  background: var(--surface, #ffffff) !important;
+  /* Match the modal body's gray (--bg) instead of the white surface so the
+     header blends with the screen behind the list. */
+  background: var(--bg, #F1F5F9) !important;
   padding: 14px 60px 12px 60px !important;
   z-index: 30 !important;
 }
@@ -793,7 +795,7 @@ html body .modal.case-docs-modal .case-docs-sticky-top {
   }
 }
 body.dark .modal.case-docs-modal .case-docs-sticky-top {
-  background: var(--surface, #0F172A) !important;
+  background: var(--bg, #0F172A) !important;
 }
 /* Scroll body: fills remaining height, scrolls vertically.
  * The docs list, empty message, and pick-mode banner all live
@@ -991,6 +993,36 @@ html body .modal.case-docs-modal.ls.ls.ls.ls.ls .modal-box > .modal-mobile-back-
 .case-docs-modal-list{display:grid;gap:10px;max-height:52vh;overflow:auto;padding-inline-end:6px;scrollbar-width:thin;}
 .case-docs-modal-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:18px;background:var(--surface-soft);padding:12px 14px;}
 .case-docs-modal-title{display:flex;align-items:center;gap:8px;font-weight:950;min-width:0;}
+/* File-type badge at the start of each document row (PDF / DOCX / …). */
+.case-docs-type-badge{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:38px;
+  padding:3px 7px;
+  border-radius:7px;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.03em;
+  line-height:1;
+  color:#475569;
+  background:#eef2f7;
+  border:1px solid #d8e0ea;
+  text-transform:uppercase;
+}
+.case-docs-type-badge[data-ext="pdf"]{color:#b91c1c;background:#fef2f2;border-color:#fecaca;}
+.case-docs-type-badge[data-ext="doc"],
+.case-docs-type-badge[data-ext="docx"]{color:#1d4ed8;background:#eff6ff;border-color:#bfdbfe;}
+.case-docs-type-badge[data-ext="xls"],
+.case-docs-type-badge[data-ext="xlsx"],
+.case-docs-type-badge[data-ext="csv"]{color:#047857;background:#ecfdf5;border-color:#a7f3d0;}
+.case-docs-type-badge[data-ext="jpg"],
+.case-docs-type-badge[data-ext="jpeg"],
+.case-docs-type-badge[data-ext="png"],
+.case-docs-type-badge[data-ext="gif"],
+.case-docs-type-badge[data-ext="webp"],
+.case-docs-type-badge[data-ext="heic"]{color:#7c3aed;background:#f5f3ff;border-color:#ddd6fe;}
 .case-docs-modal-title span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .case-docs-modal-meta{display:flex;flex-wrap:wrap;gap:6px;color:var(--muted);font-size:11px;font-weight:800;margin-top:5px;}
 .case-docs-modal-path{font-size:11px;color:var(--muted);direction:ltr;text-align:right;margin-top:5px;word-break:break-word;}
@@ -17020,15 +17052,35 @@ body:has(.content:not(.home-content)){
   display:flex!important;
   flex-direction:column!important;
 }
-/* Inside docs / tasks panels: header stays, list scrolls internally so
-   the panels never grow beyond their allotted share. */
+/* Documents list: header stays, list scrolls internally within its share. */
 .modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-side-col .case-documents-list,
-.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-side-col .case-documents-list,
-.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-side-col .case-tasks-list,
-.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-side-col .case-tasks-list{
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-side-col .case-documents-list{
   flex:1 1 0!important;
   min-height:0!important;
   overflow-y:auto!important;
+}
+/* Tasks panel shows exactly ONE task at a time. Its height is set in JS to a
+   single task's measured height (CaseTasksPanel), so the panel is NOT part of
+   the equal docs/tasks split — it sizes to one task and the documents panel
+   takes the rest. The list scrolls one task per view (scroll-snap), and each
+   row fills the list (min-height:100%) so the next task can't peek in. */
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-side-col .case-tasks-panel,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-side-col .case-tasks-panel{
+  flex:0 0 auto!important;
+}
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-side-col .case-tasks-list,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-side-col .case-tasks-list{
+  flex:0 0 auto!important;   /* height comes from the inline px value */
+  min-height:0!important;
+  overflow-y:auto!important;
+  scroll-snap-type:y mandatory!important;
+  scrollbar-gutter:stable!important;
+}
+.modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-side-col .case-tasks-list .case-task-row,
+.modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-side-col .case-tasks-list .case-task-row{
+  min-height:100%!important;
+  box-sizing:border-box!important;
+  scroll-snap-align:start!important;
 }
 @media(max-width:900px){
   .modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-main-row,
@@ -18947,6 +18999,23 @@ body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.new-event-over-detail .modal-box
 .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .case-last-hearing-card.lh-next-hearing-red .lh-date {
   color: #dc2626 !important;
   -webkit-text-fill-color: #dc2626 !important;
+}
+
+/* Upcoming-hearing line BLINKS to draw the eye. The animation is on the
+ * .lh-label (which wraps the date span), so the whole line pulses as one
+ * opacity layer — no compounded dimming on the nested date. */
+.case-last-hearing-card.lh-next-hearing-red .lh-label {
+  animation: lh-next-hearing-blink 1s steps(1, end) infinite !important;
+}
+@keyframes lh-next-hearing-blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0.2; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .case-last-hearing-card.lh-next-hearing-red .lh-label {
+    animation: none !important;
+    opacity: 1 !important;
+  }
 }
 
 /* ============================================================ *
@@ -38383,4 +38452,40 @@ html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.calendar-detail-v1 .moda
   line-height: 1 !important;
   margin: 0 !important;
   float: none !important;
+}
+
+/* ============================================================ *
+ * <style id="tasks-desktop-compact-rows-v240">
+ * Tasks desktop table: shrink each task row so more rows fit
+ * inside the scroll box without the next one being clipped.
+ * Cuts the tall 14px cell padding + 10px row gap roughly in
+ * half and tightens the title/sub/pills. Desktop only (the
+ * <=900px mobile card list is untouched).
+ * ============================================================ */
+@media (min-width: 901px) {
+  .tasks-screen-panel .tasks-scroll-list .table {
+    border-spacing: 0 6px !important;
+  }
+  .tasks-screen-panel .tasks-scroll-list .table td {
+    padding: 7px 12px !important;
+    font-size: 13px !important;
+  }
+  .tasks-screen-panel .tasks-scroll-list .table .row-title {
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+  }
+  .tasks-screen-panel .tasks-scroll-list .table .sub {
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    margin-top: 2px !important;
+  }
+  .tasks-screen-panel .tasks-scroll-list .table .task-status-badge,
+  .tasks-screen-panel .tasks-scroll-list .table .task-priority-badge {
+    padding: 3px 8px !important;
+    font-size: 11px !important;
+  }
+  .tasks-screen-panel .tasks-scroll-list .table .task-mini-action {
+    padding: 5px 9px !important;
+    font-size: 11px !important;
+  }
 }
