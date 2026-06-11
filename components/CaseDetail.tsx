@@ -20,6 +20,8 @@ import {
   fetchDocumentSummaryBoth,
   pickDocumentLanguageSummary,
   fetchDocumentDraft,
+  generateDocumentSummary,
+  generateDocumentDraft,
   fetchDecisionInfo,
   type DecisionInfo,
 } from '@/lib/summary';
@@ -1259,16 +1261,17 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // The language the "פענוח המסמך" box renders in — the DOCUMENT's own
   // language. The reply-draft card must match it (Arabic doc → Arabic draft).
   const [docLang, setDocLang] = useState<'ar' | 'he' | null>(null);
+  // Documents we've already TRIED to generate a summary / draft for, so a slow
+  // (and costly) Claude generation runs at most once per document per session.
+  const summaryGenRef = useRef<Set<string>>(new Set());
+  const draftGenRef = useRef<Set<string>>(new Set());
 
-  // The document the whole case-brain focuses on: the newest document the AI
-  // has ANALYZED (it carries a cached summary), so the "פענוח" + "טיוטת תגובה"
-  // boxes show real content instead of being empty for a freshly-filed,
-  // not-yet-analyzed document. Falls back to the newest filed document when
-  // none is analyzed. The header, summary box and draft box all use this same
-  // doc, so the label always matches the content.
+  // The case-brain ALWAYS focuses on the LAST filed document (newest first) —
+  // the header + "פענוח" + "טיוטת תגובה" boxes all use it. If it hasn't been
+  // analyzed yet, the boxes try to GENERATE its summary/draft on demand (see
+  // the effects below) so they aren't empty.
   const primaryDoc = useMemo(() => {
-    const list = caseDocumentsForCase(caseId, state.documentsArr);
-    return list.find((d) => d.summaryHe || d.summaryAr) || list[0];
+    return caseDocumentsForCase(caseId, state.documentsArr)[0];
   }, [caseId, state.documentsArr]);
 
   useEffect(() => {
@@ -1290,11 +1293,27 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     }
     let cancelled = false;
     setSummaryLoaded(false);
-    // NOTE: no `caseId` fallback — the box must show THIS document's own
-    // summary (matched by its renamed name / DOC-NNN id), not the newest
-    // summary in the case. Otherwise a last document with no summary shows a
-    // DIFFERENT (older) document's summary under its name.
-    fetchDocumentSummaryBoth({ renamed, original }).then((data) => {
+    (async () => {
+      // No `caseId` fallback — the box must show THIS document's own summary
+      // (matched by its renamed name / DOC-NNN id), never another document's.
+      let data = await fetchDocumentSummaryBoth({ renamed, original });
+      // The last document has no summary yet → GENERATE one on demand (PDF
+      // only, once per document). Needs ANTHROPIC_API_KEY on the Next server.
+      if (
+        !data &&
+        primary &&
+        /\.pdf$/i.test(original || '') &&
+        !summaryGenRef.current.has(primary.id)
+      ) {
+        summaryGenRef.current.add(primary.id);
+        const gen = await generateDocumentSummary({
+          relativePath: primary.relativePath,
+          fileName: renamed || original || '',
+          clientId: primary.clientId,
+          caseId,
+        });
+        if (gen) data = gen;
+      }
       if (cancelled) return;
       if (!data) {
         setDocSummary(null);
@@ -1313,7 +1332,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       setDocLang(dl);
       setDocSummary(pickDocumentLanguageSummary(data, lang));
       setSummaryLoaded(true);
-    });
+    })();
     return () => {
       cancelled = true;
     };
@@ -1333,21 +1352,54 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     }
     let cancelled = false;
     setDraftLoaded(false);
-    // preferLang = the "פענוח" box language, so the draft is copied verbatim
-    // from the matching column (draft_ar for an Arabic doc, draft_he for Hebrew).
-    fetchDocumentDraft(
-      { caseId, documentId: primary?.id, preferLang: docLang },
-      lang,
-    ).then((d) => {
+    (async () => {
+      // preferLang = the "פענוח" box language, so the draft is copied verbatim
+      // from the matching column (draft_ar for Arabic doc, draft_he for Hebrew).
+      let d = await fetchDocumentDraft(
+        { caseId, documentId: primary?.id, preferLang: docLang },
+        lang,
+      );
+      // The last document has no draft yet → GENERATE one on demand via the
+      // Worker's /api/draft (PDF only, once per document), then re-fetch it.
+      if (
+        !d &&
+        primary &&
+        /\.pdf$/i.test(primary.fileName || '') &&
+        !draftGenRef.current.has(primary.id)
+      ) {
+        draftGenRef.current.add(primary.id);
+        const caseObj = state.casesArr.find(
+          (x) => String(x.id) === String(caseId),
+        );
+        const client = caseObj
+          ? state.clients.find((x) => x.id === caseObj.clientId)
+          : undefined;
+        const renamed = primary.fileName
+          ? filingFileName(client, caseObj, primary.fileName, primary.id)
+          : primary.fileName;
+        const ok = await generateDocumentDraft({
+          relativePath: primary.relativePath,
+          fileName: renamed || primary.fileName || '',
+          clientId: primary.clientId,
+          caseId,
+          documentId: primary.id,
+        });
+        if (ok && !cancelled) {
+          d = await fetchDocumentDraft(
+            { caseId, documentId: primary.id, preferLang: docLang },
+            lang,
+          );
+        }
+      }
       if (!cancelled) {
         setReplyDraft(d);
         setDraftLoaded(true);
       }
-    });
+    })();
     return () => {
       cancelled = true;
     };
-  }, [primaryDoc, caseId, lang, docLang]);
+  }, [primaryDoc, caseId, lang, docLang, state.casesArr, state.clients]);
 
   // Decision-derived task + hearing for the latest (decision) document,
   // imported from Cloudflare and shown in the "משימה שנוצרה" card. The

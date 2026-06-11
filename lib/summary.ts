@@ -195,6 +195,41 @@ export async function fetchDocumentDraft(
   }
 }
 
+/** Generate a reply draft for a PDF document that has none yet: obtain a
+ *  temporary Dropbox link and hand it to /api/generate-draft (which fetches the
+ *  PDF server-side and forwards it to the Worker's /api/draft → Claude → saves
+ *  it in `drafts`). Returns true when a draft was produced. Used by the
+ *  case-brain to fill the "טיוטת תגובה" card for the last document on demand. */
+export async function generateDocumentDraft(opts: {
+  relativePath?: string;
+  fileName: string;
+  clientId?: string;
+  caseId?: string;
+  documentId?: string;
+}): Promise<boolean> {
+  const { relativePath, fileName, clientId, caseId, documentId } = opts;
+  if (!relativePath || !/\.pdf$/i.test(fileName)) return false;
+  let fileUrl: string | null = null;
+  try {
+    fileUrl = await getDropboxTemporaryLink(dropboxPathForRelative(relativePath));
+  } catch {
+    fileUrl = null;
+  }
+  if (!fileUrl) return false;
+  try {
+    const res = await fetch('/api/generate-draft/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileUrl, fileName, clientId, caseId, documentId }),
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { has_draft?: boolean };
+    return !!data.has_draft;
+  } catch {
+    return false;
+  }
+}
+
 export interface DecisionInfo {
   taskDescription: string;
   taskDueDate: string;
