@@ -2120,9 +2120,29 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                             {doc.title || doc.fileName || '-'}
                           </span>
                         </div>
-                        <div className="tw-text-xs tw-text-slate-600 tw-leading-snug">
-                          {T.docParseDesc}
-                        </div>
+                        {(() => {
+                          const sum =
+                            (lang === 'ar'
+                              ? doc.summaryAr || doc.summaryHe
+                              : doc.summaryHe || doc.summaryAr) || '';
+                          return (
+                            <div
+                              className="tw-text-xs tw-text-slate-600 tw-leading-snug"
+                              title={sum || undefined}
+                              style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {sum ||
+                                (lang === 'ar'
+                                  ? 'لا يوجد ملخص بعد.'
+                                  : 'אין סיכום עדיין.')}
+                            </div>
+                          );
+                        })()}
                         <span className="tw-rounded-full tw-bg-emerald-100 tw-px-2 tw-py-1 tw-text-[11px] tw-font-semibold tw-text-emerald-700 tw-whitespace-nowrap">
                           {T.aiAnalyzed}
                         </span>
