@@ -17,7 +17,8 @@ import { NewEventModal } from './NewEventModal';
 import { CaseDocumentsModal } from './CaseDocumentsModal';
 import { CalendarEventDetail } from './CalendarEventDetail';
 import {
-  fetchDocumentSummary,
+  fetchDocumentSummaryBoth,
+  pickDocumentLanguageSummary,
   fetchDocumentDraft,
   fetchDecisionInfo,
   type DecisionInfo,
@@ -1255,6 +1256,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // the static placeholder text when unavailable (see lib/summary.ts).
   const [docSummary, setDocSummary] = useState<string | null>(null);
   const [summaryLoaded, setSummaryLoaded] = useState(false);
+  // The language the "פענוח המסמך" box renders in — the DOCUMENT's own
+  // language. The reply-draft card must match it (Arabic doc → Arabic draft).
+  const [docLang, setDocLang] = useState<'ar' | 'he' | null>(null);
   useEffect(() => {
     // Newest filed document for the case — its summary fills the box, and it
     // updates whenever a more recent document is filed.
@@ -1270,16 +1274,31 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       : undefined;
     if (!original && !caseId) {
       setDocSummary(null);
+      setDocLang(null);
       setSummaryLoaded(true);
       return;
     }
     let cancelled = false;
     setSummaryLoaded(false);
-    fetchDocumentSummary({ renamed, original, caseId }, lang).then((s) => {
-      if (!cancelled) {
-        setDocSummary(s);
+    fetchDocumentSummaryBoth({ renamed, original, caseId }).then((data) => {
+      if (cancelled) return;
+      if (!data) {
+        setDocSummary(null);
+        setDocLang(null);
         setSummaryLoaded(true);
+        return;
       }
+      // Effective render language of the box: the document's own language,
+      // falling back to the app language only when it's unknown.
+      const dl: 'ar' | 'he' =
+        data.language === 'ar' || data.language === 'he'
+          ? data.language
+          : lang === 'ar'
+            ? 'ar'
+            : 'he';
+      setDocLang(dl);
+      setDocSummary(pickDocumentLanguageSummary(data, lang));
+      setSummaryLoaded(true);
     });
     return () => {
       cancelled = true;
@@ -1300,7 +1319,12 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     }
     let cancelled = false;
     setDraftLoaded(false);
-    fetchDocumentDraft({ caseId, documentId: primary?.id }, lang).then((d) => {
+    // preferLang = the "פענוח" box language, so the draft is copied verbatim
+    // from the matching column (draft_ar for an Arabic doc, draft_he for Hebrew).
+    fetchDocumentDraft(
+      { caseId, documentId: primary?.id, preferLang: docLang },
+      lang,
+    ).then((d) => {
       if (!cancelled) {
         setReplyDraft(d);
         setDraftLoaded(true);
@@ -1309,7 +1333,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [state.documentsArr, caseId, lang]);
+  }, [state.documentsArr, caseId, lang, docLang]);
 
   // Decision-derived task + hearing for the latest (decision) document,
   // imported from Cloudflare and shown in the "משימה שנוצרה" card. The

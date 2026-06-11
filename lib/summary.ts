@@ -141,13 +141,18 @@ export function pickDocumentLanguageSummary(
 /** Reply-draft text for a case's document, from the D1 `drafts` table (written
  *  by the Make pipeline). Fetches the case's drafts and prefers the one whose
  *  `document_source_id` matches the given document (the one shown in the
- *  "פענוח המסמך" box), falling back to the newest. Returns the draft in the
- *  document's own language. Used by the case-brain "טיוטת תגובה" card. */
+ *  "פענוח המסמך" box), falling back to the newest.
+ *
+ *  `preferLang` is the language the "פענוח המסמך" box renders in (the
+ *  document's language). When given, the draft is copied VERBATIM from the
+ *  matching column — `draft_ar` for an Arabic document, `draft_he` for a Hebrew
+ *  one (falling back to the other column only if the requested one is empty).
+ *  No transformation/translation — pure copy. Used by the "טיוטת תגובה" card. */
 export async function fetchDocumentDraft(
-  opts: { caseId?: string; documentId?: string },
+  opts: { caseId?: string; documentId?: string; preferLang?: 'ar' | 'he' | null },
   lang: Lang,
 ): Promise<string | null> {
-  const { caseId, documentId } = opts;
+  const { caseId, documentId, preferLang } = opts;
   if (!caseId && !documentId) return null;
   const params = new URLSearchParams();
   if (caseId) params.set('caseId', caseId);
@@ -176,12 +181,14 @@ export async function fetchDocumentDraft(
         )
       : undefined;
     const row = match || rows[0];
+    const he = (row.draft_he || '').trim();
+    const ar = (row.draft_ar || '').trim();
+    // Match the "פענוח" box language exactly: copy the matching column as-is.
+    if (preferLang === 'ar') return ar || he || null;
+    if (preferLang === 'he') return he || ar || null;
+    // Document language unknown — fall back to the draft row's own language.
     return pickDocumentLanguageSummary(
-      {
-        he: (row.draft_he || '').trim(),
-        ar: (row.draft_ar || '').trim(),
-        language: (row.language || '').toLowerCase(),
-      },
+      { he, ar, language: (row.language || '').toLowerCase() },
       lang,
     );
   } catch {
