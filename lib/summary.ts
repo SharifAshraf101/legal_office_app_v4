@@ -155,8 +155,11 @@ export async function fetchDocumentDraft(
   const { caseId, documentId, preferLang } = opts;
   if (!caseId && !documentId) return null;
   const params = new URLSearchParams();
-  if (caseId) params.set('caseId', caseId);
-  if (!caseId && documentId) params.set('documentId', documentId);
+  // Filter to THIS specific document when we know it, so the card shows the
+  // draft for the SAME document the "פענוח" box decodes — never another
+  // document's draft. Only fall back to the case scope when no document id.
+  if (documentId) params.set('documentId', documentId);
+  else if (caseId) params.set('caseId', caseId);
   try {
     const res = await fetch(WORKER_URL + '/api/drafts?' + params.toString(), {
       method: 'GET',
@@ -173,14 +176,10 @@ export async function fetchDocumentDraft(
     };
     const rows = data.drafts || [];
     if (rows.length === 0) return null;
-    const match = documentId
-      ? rows.find(
-          (r) =>
-            String(r.document_source_id || '').toUpperCase() ===
-            String(documentId).toUpperCase(),
-        )
-      : undefined;
-    const row = match || rows[0];
+    // The endpoint already filtered to this document (or the case when no
+    // document id), so the first row is the right one — no cross-document
+    // guessing.
+    const row = rows[0];
     const he = (row.draft_he || '').trim();
     const ar = (row.draft_ar || '').trim();
     // Match the "פענוח" box language exactly: copy the matching column as-is.

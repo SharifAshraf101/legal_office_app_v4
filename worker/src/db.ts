@@ -9,6 +9,7 @@ export interface Env {
   ALLOWED_ORIGIN: string;
   USER_ID: string;
   APP_TOKEN: string;
+  ANTHROPIC_API_KEY: string;
 }
 
 // The tables read by /api/load and written by /api/save, in the SAME key order

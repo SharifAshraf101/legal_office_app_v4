@@ -1280,7 +1280,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     }
     let cancelled = false;
     setSummaryLoaded(false);
-    fetchDocumentSummaryBoth({ renamed, original, caseId }).then((data) => {
+    // NOTE: no `caseId` fallback — the box must show THIS document's own
+    // summary (matched by its renamed name / DOC-NNN id), not the newest
+    // summary in the case. Otherwise a last document with no summary shows a
+    // DIFFERENT (older) document's summary under its name.
+    fetchDocumentSummaryBoth({ renamed, original }).then((data) => {
       if (cancelled) return;
       if (!data) {
         setDocSummary(null);

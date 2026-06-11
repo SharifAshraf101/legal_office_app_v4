@@ -7,6 +7,7 @@
 //                              cannot send an Authorization header)
 //   GET  /api/load          -> all rows for the configured user (auth)
 //   POST /api/save          -> upsert all tables            (auth)
+//   POST /api/draft         -> read a PDF, draft a reply with Claude, save it (auth)
 //   POST /api/upload-photo  -> store a client photo in R2   (auth)
 //
 // Auth is a shared bearer token (APP_TOKEN). CORS is locked to ALLOWED_ORIGIN.
@@ -54,6 +55,7 @@ export default {
       return handleStoreFileSummary(request, env);
     }
     if (method === 'POST' && path === '/api/save') return handleSave(request, env);
+    if (method === 'POST' && path === '/api/draft') return handleDraft(request, env);
     if (method === 'GET' && path === '/api/case-notes') {
       return handleCaseNotes(request, env);
     }
@@ -147,7 +149,8 @@ async function handleFileSummary(request: Request, env: Env): Promise<Response> 
 // POST /api/file-summary — store (upsert) an AI-generated summary for a file.
 // Body: { file_name, client_id?, case_id?, summary_he?, summary_ar?, language?,
 //         ai_model? }. Replaces any existing row with the same file_name so a
-// document keeps exactly one summary.
+// document keeps exactly one summary. Also mirrors the summary onto the
+// matching documents row (keyed by DOC-NNN).
 // ---------------------------------------------------------------------------
 async function handleStoreFileSummary(
   request: Request,
@@ -201,6 +204,25 @@ async function handleStoreFileSummary(
       str(body.ai_model),
     )
     .run();
+  // Mirror the summary onto the matching documents row (keyed by DOC-NNN) so
+  // summaries live on both file_summary and documents. COALESCE keeps an
+  // existing value if the incoming one is empty; no-op when no DOC id.
+  if (docId) {
+    await env.DB.prepare(
+      'UPDATE documents SET summary_he = COALESCE(?1, summary_he), ' +
+        'summary_ar = COALESCE(?2, summary_ar), updated_at = ?3 ' +
+        "WHERE user_id = ?4 AND (upper(source_id) = ?5 " +
+        "OR upper(file_name) LIKE '%' || ?5 || '.%' OR upper(file_name) LIKE '%' || ?5)",
+    )
+      .bind(
+        str(body.summary_he),
+        str(body.summary_ar),
+        new Date().toISOString(),
+        env.USER_ID,
+        docId,
+      )
+      .run();
+  }
   return json({ ok: true }, request, env);
 }
 
@@ -263,6 +285,221 @@ async function syncCaseNotes(env: Env): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// POST /api/draft — read an incoming PDF, fetch the drafting skill + case
+// notes from D1, ask Claude for a reply draft, and upsert it into `drafts`.
+// Body: { pdf_base64, client_source_id?, case_source_id?, file_name?, skill_key? }.
+// Builds the Anthropic request with JSON.stringify so multi-line skill/notes
+// text is always escaped. Derives a slash-free DRAFT-DOC-NNN source_id so the
+// row passes the buildUpsert slash guard and re-runs update instead of dupe.
+// ---------------------------------------------------------------------------
+async function handleDraft(request: Request, env: Env): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: 'invalid json' }, request, env, 400);
+  }
+  const pdfB64 = String(body.pdf_base64 || '').trim();
+  if (!pdfB64) return json({ error: 'pdf_base64 required' }, request, env, 400);
+
+  const clientSrc = String(body.client_source_id || '').trim();
+  const caseSrc = String(body.case_source_id || '').trim();
+  const fileName = String(body.file_name || '').trim();
+  const skillKey = String(body.skill_key || 'sharia-lawsuit').trim();
+
+  const docMatch =
+    /(DOC-\d+)/i.exec(fileName) ||
+    /(DOC-\d+)/i.exec(String(body.source_id || '')) ||
+    /(DOC-\d+)/i.exec(String(body.document_source_id || ''));
+  const docId = docMatch ? docMatch[1].toUpperCase() : '';
+  let sourceId = docId ? `DRAFT-${docId}` : '';
+  if (!sourceId && fileName) {
+    const base = fileName
+      .split('/')
+      .pop()!
+      .replace(/\.[^.]+$/, '')
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .slice(0, 120);
+    if (base) sourceId = `DRAFT-${base}`;
+  }
+  if (!sourceId) {
+    return json(
+      { error: 'cannot derive source_id (need file_name or DOC id)' },
+      request,
+      env,
+      400,
+    );
+  }
+  const documentSourceId = docId || sourceId;
+
+  const skillRow = await env.DB.prepare(
+    'SELECT content FROM skills WHERE user_id = ? AND skill_key = ? ' +
+      "AND lower(coalesce(status, 'active')) = 'active' ORDER BY updated_at DESC LIMIT 1",
+  )
+    .bind(env.USER_ID, skillKey)
+    .first<{ content?: string }>();
+  const skill = skillRow?.content || '';
+
+  const notes = await fetchDraftNotes(env, clientSrc, caseSrc);
+
+  const systemPrompt =
+    'أنت محامٍ خبير في الأحوال الشخصية للمسلمين في إسرائيل، تترافع أمام المحاكم الشرعية ومحاكم شؤون العائلة. مهمتك: قراءة المستند المرفق بالكامل (وهو مستند وارد مثل قرار محكمة أو لائحة دعوى أو طلب من الطرف الآخر) وصياغة مسودة رد قانوني عليه. القالب الحاكم للصياغة والتنسيق وتفاصيل المحامي وبنية الفقرات المرقّمة هو الوثيقة المرجعية التالية، والتزم بها حرفياً كمرجع للأسلوب والشكل:\n\n<skill>\n' +
+    skill +
+    '\n</skill>\n\nقاعدة اللغة الإلزامية: اكتشف لغة المستند المرفق. إذا كان بالعربية، اكتب المسودة بالعربية فقط واترك draft_he فارغاً (null). إذا كان بالعبرية، اكتب المسودة بالعبرية فقط واترك draft_ar فارغاً (null). لا تخلط اللغتين أبداً في مسودة واحدة. لا تختلق وقائع أو تواريخ أو أسماء غير موجودة في المستند أو في ملاحظات القضية. أعِد كائن JSON واحداً فقط، دون أي نص خارج JSON، ودون Markdown، وأول حرف في ردك يجب أن يكون القوس {.';
+
+  const userText =
+    'اقرأ المستند المرفق بالكامل كلمةً كلمةً. هذه ملاحظات المحامي على هذه القضية، استخدمها في توجيه الرد:\n<case_notes_he>\n' +
+    notes.he +
+    '\n</case_notes_he>\n<case_notes_ar>\n' +
+    notes.ar +
+    '\n</case_notes_ar>\n\nصُغ مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "ar or he", "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بالعبرية أو null", "title_ar": "عنوان المسودة بالعربية أو null", "draft_he": "نص المسودة الكامل بالعبرية أو null", "draft_ar": "نص المسودة الكامل بالعربية أو null"}. املأ فقط حقول اللغة المطابقة لِلغة المستند واترك الأخرى null. لا تكتب أي شيء خارج JSON.';
+
+  const anthropicBody = {
+    model: 'claude-sonnet-4-6',
+    max_tokens: 8000,
+    system: systemPrompt,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: { type: 'base64', media_type: 'application/pdf', data: pdfB64 },
+          },
+          { type: 'text', text: userText },
+        ],
+      },
+    ],
+  };
+
+  let resp: Response;
+  try {
+    resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': env.ANTHROPIC_API_KEY || '',
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(anthropicBody),
+    });
+  } catch (e) {
+    return json(
+      { error: 'anthropic_fetch_failed', detail: String(e).slice(0, 300) },
+      request,
+      env,
+      502,
+    );
+  }
+  if (!resp.ok) {
+    const errText = await resp.text();
+    return json(
+      { error: 'anthropic_error', status: resp.status, detail: errText.slice(0, 500) },
+      request,
+      env,
+      502,
+    );
+  }
+  const data = (await resp.json()) as {
+    content?: Array<{ type: string; text?: string }>;
+  };
+  const textOut = (data.content || [])
+    .filter((b) => b.type === 'text')
+    .map((b) => b.text || '')
+    .join('');
+  const cleaned = textOut
+    .trim()
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/, '')
+    .replace(/```\s*$/, '')
+    .trim();
+  let draft: Record<string, unknown>;
+  try {
+    draft = JSON.parse(cleaned) as Record<string, unknown>;
+  } catch {
+    return json(
+      { error: 'draft_parse_failed', raw: cleaned.slice(0, 600) },
+      request,
+      env,
+      502,
+    );
+  }
+
+  const row: Record<string, unknown> = {
+    source_id: sourceId,
+    document_source_id: documentSourceId,
+    client_source_id: clientSrc || null,
+    case_source_id: caseSrc || null,
+    file_name: fileName || null,
+    title: draft.title ?? null,
+    title_ar: draft.title_ar ?? null,
+    draft_he: draft.draft_he ?? null,
+    draft_ar: draft.draft_ar ?? null,
+    language: draft.detected_language ?? null,
+    doc_type: draft.doc_type ?? null,
+    status: 'draft',
+    date: new Date().toISOString().slice(0, 10),
+  };
+  let count = 0;
+  const built = buildUpsert('drafts', row, env.USER_ID);
+  if (built) {
+    await env.DB.prepare(built.sql)
+      .bind(...built.binds)
+      .run();
+    count = 1;
+  }
+
+  return json(
+    {
+      ok: true,
+      count,
+      source_id: sourceId,
+      document_source_id: documentSourceId,
+      detected_language: draft.detected_language || '',
+      doc_type: draft.doc_type || '',
+      title: draft.title || draft.title_ar || '',
+      has_draft: !!(draft.draft_he || draft.draft_ar),
+      notes_scope: notes.scope,
+      notes_count: notes.count,
+    },
+    request,
+    env,
+  );
+}
+
+// Fetch case notes for drafting: case-scoped first, client-wide fallback, all
+// matching notes concatenated. Reads the case_notes mirror.
+async function fetchDraftNotes(
+  env: Env,
+  clientSrc: string,
+  caseSrc: string,
+): Promise<{ he: string; ar: string; count: number; scope: string }> {
+  let rows: Array<{ note?: string; note_ar?: string }> = [];
+  let scope = 'none';
+  if (caseSrc) {
+    const rs = await env.DB.prepare(
+      'SELECT note, note_ar FROM case_notes WHERE user_id = ? AND upper(case_id) = upper(?) ORDER BY date ASC, created_at ASC',
+    )
+      .bind(env.USER_ID, caseSrc)
+      .all<{ note?: string; note_ar?: string }>();
+    rows = rs.results ?? [];
+    if (rows.length) scope = 'case';
+  }
+  if (!rows.length && clientSrc) {
+    const rs = await env.DB.prepare(
+      'SELECT note, note_ar FROM case_notes WHERE user_id = ? AND lower(client_id) = lower(?) ORDER BY date ASC, created_at ASC',
+    )
+      .bind(env.USER_ID, clientSrc)
+      .all<{ note?: string; note_ar?: string }>();
+    rows = rs.results ?? [];
+    if (rows.length) scope = 'client';
+  }
+  const he = rows.map((r) => r.note).filter(Boolean).join('\n\n');
+  const ar = rows.map((r) => r.note_ar).filter(Boolean).join('\n\n');
+  return { he, ar, count: rows.length, scope };
+}
+
+// ---------------------------------------------------------------------------
 // GET /api/case-notes?caseId=&clientId= — the dedicated per-client+case notes
 // list (mirror of the note-type timeline rows). Either filter is optional;
 // without filters it returns every note for the user. Newest first.
@@ -292,8 +529,7 @@ async function handleCaseNotes(request: Request, env: Env): Promise<Response> {
 
 // ---------------------------------------------------------------------------
 // GET /api/drafts?caseId=&clientId=&documentId= — pull AI-generated reply
-// drafts. All filters optional; newest first. Drafts are WRITTEN by the Make
-// pipeline via POST /api/save ({ drafts: [...] }) — this is the read side.
+// drafts. All filters optional; newest first.
 // ---------------------------------------------------------------------------
 async function handleDrafts(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -306,7 +542,7 @@ async function handleDrafts(request: Request, env: Env): Promise<Response> {
   let sql =
     'SELECT source_id, case_source_id, client_source_id, document_source_id, ' +
     'file_name, title, title_ar, draft_he, draft_ar, language, doc_type, ' +
-    "status, date, updated_at FROM drafts WHERE user_id = ?1 " +
+    'status, date, updated_at FROM drafts WHERE user_id = ?1 ' +
     "AND source_id NOT LIKE '%/%'";
   if (caseId) {
     binds.push(caseId);
