@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -1259,10 +1259,20 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // The language the "פענוח המסמך" box renders in — the DOCUMENT's own
   // language. The reply-draft card must match it (Arabic doc → Arabic draft).
   const [docLang, setDocLang] = useState<'ar' | 'he' | null>(null);
+
+  // The document the whole case-brain focuses on: the newest document the AI
+  // has ANALYZED (it carries a cached summary), so the "פענוח" + "טיוטת תגובה"
+  // boxes show real content instead of being empty for a freshly-filed,
+  // not-yet-analyzed document. Falls back to the newest filed document when
+  // none is analyzed. The header, summary box and draft box all use this same
+  // doc, so the label always matches the content.
+  const primaryDoc = useMemo(() => {
+    const list = caseDocumentsForCase(caseId, state.documentsArr);
+    return list.find((d) => d.summaryHe || d.summaryAr) || list[0];
+  }, [caseId, state.documentsArr]);
+
   useEffect(() => {
-    // Newest filed document for the case — its summary fills the box, and it
-    // updates whenever a more recent document is filed.
-    const primary = caseDocumentsForCase(caseId, state.documentsArr)[0];
+    const primary = primaryDoc;
     const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
     const client = caseObj
       ? state.clients.find((x) => x.id === caseObj.clientId)
@@ -1307,15 +1317,15 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [state.documentsArr, state.casesArr, state.clients, caseId, lang]);
+  }, [primaryDoc, state.casesArr, state.clients, caseId, lang]);
 
   // Reply draft for the "טיוטת תגובה" card — the draft prepared (by the Make
   // pipeline, stored in D1 `drafts`) for the SAME document the "פענוח המסמך"
-  // box decodes: the newest filed document for this case.
+  // box decodes (primaryDoc).
   const [replyDraft, setReplyDraft] = useState<string | null>(null);
   const [draftLoaded, setDraftLoaded] = useState(false);
   useEffect(() => {
-    const primary = caseDocumentsForCase(caseId, state.documentsArr)[0];
+    const primary = primaryDoc;
     if (!primary && !caseId) {
       setReplyDraft(null);
       setDraftLoaded(true);
@@ -1337,7 +1347,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [state.documentsArr, caseId, lang, docLang]);
+  }, [primaryDoc, caseId, lang, docLang]);
 
   // Decision-derived task + hearing for the latest (decision) document,
   // imported from Cloudflare and shown in the "משימה שנוצרה" card. The
@@ -1562,10 +1572,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     { key: 'notes', label: T.notes, icon: 'fa-comment-alt' },
   ];
 
-  // Primary document = first one (gets the expanded AI panel on
-  // both mobile + desktop). Remaining ones land in the
-  // "מסמכים נוספים בתיק" table below.
-  const [primaryDoc] = docs;
+  // primaryDoc (the newest ANALYZED document) is defined above and drives the
+  // expanded AI panel header + the summary/draft boxes. Remaining documents
+  // land in the "מסמכים נוספים בתיק" table below.
   // The "משימות שנוצרו" preview card shows only OPEN (not-done) tasks, so a
   // task disappears from it once it's marked done. (The Tasks tab still
   // lists all tasks incl. done — reached via "צפייה בכל המשימות".)
