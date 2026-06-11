@@ -2149,6 +2149,27 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         <button
                           type="button"
                           className="tw-rounded-full tw-border tw-border-blue-300 tw-bg-white tw-px-4 tw-py-1.5 tw-text-xs tw-font-bold tw-text-blue-600 hover:tw-bg-blue-50"
+                          // Open THIS document's reply draft as a new Word doc.
+                          onClick={async () => {
+                            const d = await fetchDocumentDraft(
+                              { caseId, documentId: doc.id },
+                              lang,
+                            );
+                            if (d) {
+                              openDraftInWord(
+                                d,
+                                doc.title ||
+                                  doc.fileName ||
+                                  (lang === 'ar' ? 'مسودة' : 'טיוטה'),
+                              );
+                            } else {
+                              window.alert(
+                                lang === 'ar'
+                                  ? 'لا توجد مسودة لهذا المستند.'
+                                  : 'אין טיוטה למסמך זה.',
+                              );
+                            }
+                          }}
                         >
                           {T.open}
                         </button>
