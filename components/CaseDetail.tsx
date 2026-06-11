@@ -1246,6 +1246,40 @@ function CaseTimelineSection({
  * now; real model output can be wired in later without touching
  * the layout.
  */
+
+/** Open the reply draft as a new Word document: build a Word-openable .doc
+ *  (HTML-based, RTL for Hebrew/Arabic, line breaks preserved) and download it.
+ *  Double-clicking the downloaded file opens Word with the draft text. */
+function openDraftInWord(text: string, title: string): void {
+  const esc = (s: string) =>
+    s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br/>');
+  const html =
+    '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+    'xmlns:w="urn:schemas-microsoft-com:office:word" ' +
+    'xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"/>' +
+    '<title>' +
+    esc(title) +
+    '</title></head><body dir="rtl" ' +
+    "style=\"font-family:'David','Times New Roman',Arial,sans-serif;" +
+    'font-size:12pt;line-height:1.5;text-align:right;">' +
+    esc(text) +
+    '</body></html>';
+  const blob = new Blob(['﻿', html], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download =
+    (title || 'draft').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80) + '.doc';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
 function CaseBrainScreen({ caseId }: { caseId: string }) {
   const { state, dispatch } = useAppState();
   const { lang } = useT();
@@ -1997,6 +2031,19 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                               : 'טוען טיוטה…')
                         }
                         btn={T.openDraft}
+                        // "פתח טיוטה" → open the draft text as a new Word
+                        // document (downloads a .doc that Word opens).
+                        onBtnClick={
+                          replyDraft
+                            ? () =>
+                                openDraftInWord(
+                                  replyDraft,
+                                  primaryDoc?.title ||
+                                    primaryDoc?.fileName ||
+                                    T.replyDraft,
+                                )
+                            : undefined
+                        }
                       />
                       <AIActionCard
                         color="orange"
