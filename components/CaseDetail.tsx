@@ -1788,9 +1788,21 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
           className="tw-flex tw-flex-col tw-gap-5 lg:tw-grid"
           style={{ gridTemplateColumns: '1fr 300px' }}
         >
-        {/* Tab row — mobile: order-2 (after sidebar). Desktop: order-1,
-         *  full width. */}
-        <div className="tw-flex tw-justify-around tw-border-b tw-border-slate-200 tw-order-2 lg:tw-order-1 lg:tw-col-span-2">
+        {/* MOBILE-ONLY "הצעה לפעולה" — moved ABOVE the tab row on mobile. The
+         *  same card also lives inside the 2×2 grid below, shown only on
+         *  desktop (lg). */}
+        <div className="tw-order-2 lg:tw-hidden">
+          <AIActionCard
+            color="emerald"
+            icon="fa-bullseye"
+            title={T.actionSuggestion}
+            desc={T.actionSuggestionDesc}
+            btn={T.viewSuggestion}
+          />
+        </div>
+        {/* Tab row — mobile: order-3 (after sidebar + הצעה לפעולה). Desktop:
+         *  order-1, full width. */}
+        <div className="tw-flex tw-justify-around tw-border-b tw-border-slate-200 tw-order-3 lg:tw-order-1 lg:tw-col-span-2">
           {tabsData.map((tabItem) => {
             const isActive = tab === tabItem.key;
             return (
@@ -1988,9 +2000,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
             </div>
           </aside>
 
-          {/* MAIN COLUMN — mobile: order-3 (after the sidebar + tab row).
+          {/* MAIN COLUMN — mobile: order-4 (after sidebar + הצעה לפעולה + tabs).
            *  Desktop: order-2 → col 1 (visual RIGHT in RTL grid). */}
-          <div className="tw-flex tw-flex-col tw-gap-4 tw-order-3 lg:tw-order-2">
+          <div className="tw-flex tw-flex-col tw-gap-4 tw-order-4 lg:tw-order-2">
             {/* Tab content */}
             {tab === 'documents' && (
               <>
@@ -2062,36 +2074,45 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                             : undefined
                         }
                       />
-                      <AIActionCard
-                        color="orange"
-                        icon="fa-check-square"
-                        title={T.taskCreated}
-                        // Show the case's own relevant (most urgent / open) task
-                        // here too, falling back to the AI-suggested decision
-                        // task, then a generic placeholder. "פתח משימה" opens the
-                        // real task when one exists.
-                        desc={
-                          firstUrgentTask?.title ||
-                          decisionInfo?.taskDescription ||
-                          T.taskCreatedDesc
-                        }
-                        btn={T.openTask}
-                        onBtnClick={
-                          firstUrgentTask
-                            ? () =>
-                                modalStack.open(
-                                  <TaskModal editTaskId={firstUrgentTask.id} />,
-                                )
-                            : onOpenDecisionTask
-                        }
-                      />
-                      <AIActionCard
-                        color="emerald"
-                        icon="fa-bullseye"
-                        title={T.actionSuggestion}
-                        desc={T.actionSuggestionDesc}
-                        btn={T.viewSuggestion}
-                      />
+                      {/* "משימה שנוצרה" — hidden on mobile, kept in the grid on
+                       *  desktop (lg:contents lets the card be a direct grid
+                       *  item). */}
+                      <div className="tw-hidden lg:tw-contents">
+                        <AIActionCard
+                          color="orange"
+                          icon="fa-check-square"
+                          title={T.taskCreated}
+                          // Show the case's own relevant (most urgent / open)
+                          // task here, falling back to the AI-suggested decision
+                          // task, then a generic placeholder. "פתח משימה" opens
+                          // the real task when one exists.
+                          desc={
+                            firstUrgentTask?.title ||
+                            decisionInfo?.taskDescription ||
+                            T.taskCreatedDesc
+                          }
+                          btn={T.openTask}
+                          onBtnClick={
+                            firstUrgentTask
+                              ? () =>
+                                  modalStack.open(
+                                    <TaskModal editTaskId={firstUrgentTask.id} />,
+                                  )
+                              : onOpenDecisionTask
+                          }
+                        />
+                      </div>
+                      {/* "הצעה לפעולה" — on mobile it's rendered above the tab
+                       *  row instead; here it shows only on desktop. */}
+                      <div className="tw-hidden lg:tw-contents">
+                        <AIActionCard
+                          color="emerald"
+                          icon="fa-bullseye"
+                          title={T.actionSuggestion}
+                          desc={T.actionSuggestionDesc}
+                          btn={T.viewSuggestion}
+                        />
+                      </div>
                     </div>
                   </div>
                 ) : (
