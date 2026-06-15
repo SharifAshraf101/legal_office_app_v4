@@ -1712,10 +1712,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
            *  left, "פעיל AI" on the right — wider, hence more right padding),
            *  so the centered title sits BETWEEN them. Small font + wrapping
            *  (no nowrap) guarantee it never overflows onto either button. */}
-          {/* Symmetric padding so the (narrow, two-line) title is centered on
-           *  the SCREEN, not shifted by asymmetric padding. The block is small
-           *  enough to clear the edge buttons. */}
-          <div className="tw-px-2 lg:tw-px-40 tw-text-center">
+          {/* Mobile: the title drops to its OWN ROW below the buttons
+           *  (tw-mt-8) so it has the full width to center on the screen with
+           *  no chance of slipping under "חזרה" or "פעיל AI". Desktop keeps it
+           *  on the buttons' row, centered between them (lg:mt-0 + lg:px-40). */}
+          <div className="tw-mt-8 lg:tw-mt-0 tw-px-2 lg:tw-px-40 tw-text-center">
             <h2 className="tw-m-0 tw-text-[11px] lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-tight lg:tw-leading-snug">
               {/* Mobile: forced TWO lines (split the title in half at a word
                *  boundary) so each line fits between the buttons without
