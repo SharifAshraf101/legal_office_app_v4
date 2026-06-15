@@ -1820,7 +1820,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
            *     are placed by order index, so the 1fr main lands
            *     in col 1 (visual RIGHT in RTL) and the 300px
            *     sidebar lands in col 2 (visual LEFT). */}
-          <aside className="tw-flex tw-flex-col tw-gap-3 tw-order-2">
+          <aside className="tw-flex tw-flex-col tw-gap-3 tw-order-1 lg:tw-order-2">
             {/* Created tasks card */}
             <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white tw-p-3">
               <h3 className="tw-flex tw-items-center tw-justify-between tw-text-sm tw-font-extrabold tw-text-slate-700 tw-mb-3">
@@ -1987,10 +1987,10 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
             </div>
           </aside>
 
-          {/* MAIN COLUMN — `tw-order-1` so it renders first on
-           *  mobile and lands in col 1 (visual RIGHT in RTL grid)
-           *  on desktop. */}
-          <div className="tw-flex tw-flex-col tw-gap-4 tw-order-1">
+          {/* MAIN COLUMN — on mobile it renders SECOND (tw-order-2) so the
+           *  sidebar sits right under the info cards; on desktop it's
+           *  tw-order-1 → col 1 (visual RIGHT in RTL grid). */}
+          <div className="tw-flex tw-flex-col tw-gap-4 tw-order-2 lg:tw-order-1">
             {/* Tab content */}
             {tab === 'documents' && (
               <>
