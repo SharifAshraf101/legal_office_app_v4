@@ -1711,7 +1711,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
            *  clear BOTH absolute buttons so the two-line title can never slip
            *  under either one. Desktop keeps its own px-40 centering. */}
           <div className="tw-px-20 lg:tw-px-40 tw-text-center">
-            <h2 className="tw-m-0 tw-text-[11px] lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-tight lg:tw-leading-snug">
+            <h2 className={`tw-m-0 ${lang === 'ar' ? 'tw-text-[9px]' : 'tw-text-[11px]'} lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-tight lg:tw-leading-snug`}>
               {/* Mobile: forced TWO lines (split the title in half at a word
                *  boundary) so each line fits between the buttons without
                *  spilling under them. Desktop: the full title, unchanged. */}
