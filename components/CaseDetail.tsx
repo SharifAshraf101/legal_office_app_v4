@@ -1712,8 +1712,8 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
            *  left, "פעיל AI" on the right — wider, hence more right padding),
            *  so the centered title sits BETWEEN them. Small font + wrapping
            *  (no nowrap) guarantee it never overflows onto either button. */}
-          <div className="tw-pl-20 tw-pr-28 lg:tw-px-40 tw-text-center">
-            <h2 className="tw-m-0 tw-text-[13px] lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-tight lg:tw-leading-snug">
+          <div className="tw-pl-16 tw-pr-28 lg:tw-px-40 tw-text-center">
+            <h2 className="tw-m-0 tw-text-[11px] lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-tight lg:tw-leading-snug">
               {/* Mobile: forced TWO lines (split the title in half at a word
                *  boundary) so each line fits between the buttons without
                *  spilling under them. Desktop: the full title, unchanged. */}
@@ -1722,7 +1722,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                 const mid = Math.ceil(w.length / 2);
                 return (
                   <>
-                    <span className="lg:tw-hidden">
+                    {/* nowrap on each half so neither line wraps further —
+                     *  guarantees EXACTLY two lines, not three. */}
+                    <span className="lg:tw-hidden tw-whitespace-nowrap">
                       {w.slice(0, mid).join(' ')}
                       <br />
                       {w.slice(mid).join(' ')}
