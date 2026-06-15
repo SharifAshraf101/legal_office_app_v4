@@ -1737,26 +1737,35 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         {/* SCROLL BODY — everything below the fixed header scrolls here, so
          *  no content can ever show through the pinned header. */}
         <div className="case-brain-body tw-flex tw-flex-col tw-gap-4">
-        {/* Info cards — 2 cols on mobile, 4 cols on desktop. */}
-        <div className="tw-grid tw-grid-cols-2 lg:tw-grid-cols-5 tw-gap-3">
+        {/* Info cards — desktop: 5 in one row. Mobile: a 6-col grid where the
+         *  first two cards span 3 (row 1) and the last three — סוג התביעה,
+         *  מספר תיק, בית משפט — span 2 each, so they sit together in ONE row.
+         *  Font is small and the value WRAPS (no mobile truncation) so all
+         *  text stays inside the box yet fully readable. */}
+        <div className="tw-grid tw-grid-cols-6 lg:tw-grid-cols-5 tw-gap-2 lg:tw-gap-3">
           {infoCards.map((card, i) => (
             <div
               key={i}
-              className="tw-flex tw-items-center tw-gap-3 tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-slate-50 tw-p-3 lg:tw-p-4"
+              className={
+                'tw-flex tw-items-center tw-gap-1.5 lg:tw-gap-3 tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-slate-50 tw-p-2 lg:tw-p-4 lg:tw-col-span-1 ' +
+                (i < 2 ? 'tw-col-span-3' : 'tw-col-span-2')
+              }
             >
               <i
                 className={
-                  'fas ' + card.icon + ' tw-text-slate-400 tw-text-lg lg:tw-text-2xl'
+                  'fas ' +
+                  card.icon +
+                  ' tw-text-slate-400 tw-text-xs lg:tw-text-2xl tw-flex-shrink-0'
                 }
                 aria-hidden="true"
               />
               <div className="tw-flex tw-flex-col tw-min-w-0">
-                <div className="tw-text-[11px] lg:tw-text-xs tw-text-slate-500">
+                <div className="tw-text-[9px] lg:tw-text-xs tw-text-slate-500 tw-leading-tight">
                   {card.label}
                 </div>
                 <div
                   className={
-                    'tw-truncate tw-text-sm lg:tw-text-base tw-font-extrabold ' +
+                    'tw-text-[11px] lg:tw-text-base lg:tw-truncate tw-font-extrabold tw-leading-tight tw-break-words ' +
                     (card.valueClass || 'tw-text-slate-900')
                   }
                 >
