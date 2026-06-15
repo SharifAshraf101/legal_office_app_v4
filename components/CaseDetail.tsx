@@ -1780,8 +1780,17 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
           ))}
         </div>
 
-        {/* Tab row — same on mobile + desktop. */}
-        <div className="tw-flex tw-justify-around tw-border-b tw-border-slate-200">
+        {/* One container holds the tab row + sidebar + main, so the tab row
+         *  can be ORDERED after the sidebar on mobile (under "פעולות מהירות")
+         *  while staying a full-width top row above the two columns on
+         *  desktop (tw-col-span-2). */}
+        <div
+          className="tw-flex tw-flex-col tw-gap-5 lg:tw-grid"
+          style={{ gridTemplateColumns: '1fr 300px' }}
+        >
+        {/* Tab row — mobile: order-2 (after sidebar). Desktop: order-1,
+         *  full width. */}
+        <div className="tw-flex tw-justify-around tw-border-b tw-border-slate-200 tw-order-2 lg:tw-order-1 lg:tw-col-span-2">
           {tabsData.map((tabItem) => {
             const isActive = tab === tabItem.key;
             return (
@@ -1803,18 +1812,6 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
           })}
         </div>
 
-        {/* Main content — single column on mobile (main first,
-         *  sidebar stacked below), sidebar+main grid on desktop
-         *  (sidebar on the visual LEFT in RTL via col 2 of the
-         *  grid). JSX order: main → sidebar; on mobile the flex
-         *  column stacks main above sidebar; on desktop the
-         *  grid places sidebar on the left and main on the
-         *  right (RTL: col 1 = visual right = main, col 2 =
-         *  visual left = sidebar). */}
-        <div
-          className="tw-flex tw-flex-col tw-gap-5 lg:tw-grid"
-          style={{ gridTemplateColumns: '1fr 300px' }}
-        >
           {/* SIDEBAR — visible on both mobile and desktop.
            *  `tw-order-2` on this aside + `tw-order-1` on the
            *  main column below means:
@@ -1824,7 +1821,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
            *     are placed by order index, so the 1fr main lands
            *     in col 1 (visual RIGHT in RTL) and the 300px
            *     sidebar lands in col 2 (visual LEFT). */}
-          <aside className="tw-flex tw-flex-col tw-gap-3 tw-order-1 lg:tw-order-2">
+          <aside className="tw-flex tw-flex-col tw-gap-3 tw-order-1 lg:tw-order-3">
             {/* Created tasks card */}
             <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white tw-p-3">
               <h3 className="tw-flex tw-items-center tw-justify-between tw-text-sm tw-font-extrabold tw-text-slate-700 tw-mb-3">
@@ -1991,10 +1988,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
             </div>
           </aside>
 
-          {/* MAIN COLUMN — on mobile it renders SECOND (tw-order-2) so the
-           *  sidebar sits right under the info cards; on desktop it's
-           *  tw-order-1 → col 1 (visual RIGHT in RTL grid). */}
-          <div className="tw-flex tw-flex-col tw-gap-4 tw-order-2 lg:tw-order-1">
+          {/* MAIN COLUMN — mobile: order-3 (after the sidebar + tab row).
+           *  Desktop: order-2 → col 1 (visual RIGHT in RTL grid). */}
+          <div className="tw-flex tw-flex-col tw-gap-4 tw-order-3 lg:tw-order-2">
             {/* Tab content */}
             {tab === 'documents' && (
               <>
