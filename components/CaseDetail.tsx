@@ -1741,17 +1741,19 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
               {T.subtitle}
             </p>
           </div>
+          {/* "פעיל AI" pill — compact on mobile (single line, smaller padding)
+           *  so it doesn't crowd the screen-centered title; full on desktop. */}
           <div
-            className="tw-absolute tw-top-0 tw-right-0 tw-flex tw-items-center tw-gap-2 tw-rounded-2xl tw-px-3 tw-py-2 lg:tw-px-4 lg:tw-py-3 tw-text-white"
+            className="tw-absolute tw-top-0 tw-right-0 tw-flex tw-items-center tw-gap-1 lg:tw-gap-2 tw-rounded-2xl tw-px-2 tw-py-1.5 lg:tw-px-4 lg:tw-py-3 tw-text-white"
             style={{
               background:
                 'linear-gradient(135deg, #4338ca 0%, #1e3a8a 100%)',
             }}
           >
-            <i className="fas fa-brain tw-text-base lg:tw-text-xl" aria-hidden="true" />
-            <div className="tw-flex tw-flex-col tw-text-[10px] lg:tw-text-xs tw-leading-tight">
+            <i className="fas fa-brain tw-text-sm lg:tw-text-xl" aria-hidden="true" />
+            <div className="tw-flex tw-flex-col tw-text-[9px] lg:tw-text-xs tw-leading-tight">
               <span className="tw-font-extrabold">{T.aiActive}</span>
-              <span className="tw-flex tw-items-center tw-gap-1">
+              <span className="tw-hidden lg:tw-flex tw-items-center tw-gap-1">
                 <span className="tw-h-1.5 tw-w-1.5 tw-rounded-full tw-bg-emerald-400" />
                 <span className="tw-opacity-90">{T.aiOn}</span>
               </span>
