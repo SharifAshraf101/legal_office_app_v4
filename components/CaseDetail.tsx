@@ -1708,8 +1708,8 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
            *  than the "פעיל AI" pill (right), so more right padding keeps the
            *  title visually centered BETWEEN the two. Subtitle is hidden on
            *  mobile (desktop keeps it). */}
-          <div className="tw-pl-16 tw-pr-24 lg:tw-px-40 tw-text-center">
-            <h2 className="tw-m-0 tw-text-sm lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-snug">
+          <div className="tw-pl-14 tw-pr-20 lg:tw-px-40 tw-text-center">
+            <h2 className="tw-m-0 tw-text-xs lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-snug tw-whitespace-nowrap lg:tw-whitespace-normal">
               {T.title}
             </h2>
             <p className="tw-mt-1 tw-hidden lg:tw-block tw-text-[11px] lg:tw-text-sm tw-text-slate-500 tw-leading-snug">
