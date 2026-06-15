@@ -1704,11 +1704,15 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
             <span className="tw-hidden sm:tw-inline">{T.backToCase}</span>
             <span className="sm:tw-hidden">{T.back}</span>
           </button>
-          <div className="tw-px-24 lg:tw-px-40 tw-text-center">
-            <h2 className="tw-m-0 tw-text-lg lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-snug">
+          {/* Asymmetric padding on mobile: the back button (left) is narrower
+           *  than the "פעיל AI" pill (right), so more right padding keeps the
+           *  title visually centered BETWEEN the two. Subtitle is hidden on
+           *  mobile (desktop keeps it). */}
+          <div className="tw-pl-16 tw-pr-24 lg:tw-px-40 tw-text-center">
+            <h2 className="tw-m-0 tw-text-sm lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-snug">
               {T.title}
             </h2>
-            <p className="tw-mt-1 tw-text-[11px] lg:tw-text-sm tw-text-slate-500 tw-leading-snug">
+            <p className="tw-mt-1 tw-hidden lg:tw-block tw-text-[11px] lg:tw-text-sm tw-text-slate-500 tw-leading-snug">
               {T.subtitle}
             </p>
           </div>
