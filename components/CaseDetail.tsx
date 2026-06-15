@@ -22,6 +22,8 @@ import {
   fetchDocumentDraft,
   generateDocumentSummary,
   generateDocumentDraft,
+  loadGenAttempts,
+  rememberGenAttempt,
   fetchDecisionInfo,
   type DecisionInfo,
 } from '@/lib/summary';
@@ -1296,9 +1298,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // language. The reply-draft card must match it (Arabic doc → Arabic draft).
   const [docLang, setDocLang] = useState<'ar' | 'he' | null>(null);
   // Documents we've already TRIED to generate a summary / draft for, so a slow
-  // (and costly) Claude generation runs at most once per document per session.
-  const summaryGenRef = useRef<Set<string>>(new Set());
-  const draftGenRef = useRef<Set<string>>(new Set());
+  // (and costly) Claude generation runs at most once per document — PERSISTED
+  // in localStorage so it isn't re-fired every time the brain modal re-opens.
+  const genAttemptRef = useRef<Set<string> | null>(null);
+  if (genAttemptRef.current === null) genAttemptRef.current = loadGenAttempts();
+  const genAttempts = genAttemptRef.current;
 
   // The case-brain ALWAYS focuses on the LAST filed document (newest first) —
   // the header + "פענוח" + "טיוטת תגובה" boxes all use it. If it hasn't been
@@ -1337,9 +1341,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         !data &&
         primary &&
         /\.pdf$/i.test(original || '') &&
-        !summaryGenRef.current.has(primary.id)
+        !genAttempts.has('summary:' + primary.id)
       ) {
-        summaryGenRef.current.add(primary.id);
+        rememberGenAttempt(genAttempts, 'summary:' + primary.id);
         const gen = await generateDocumentSummary({
           relativePath: primary.relativePath,
           fileName: renamed || original || '',
@@ -1399,9 +1403,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         !d &&
         primary &&
         /\.pdf$/i.test(primary.fileName || '') &&
-        !draftGenRef.current.has(primary.id)
+        !genAttempts.has('draft:' + primary.id)
       ) {
-        draftGenRef.current.add(primary.id);
+        rememberGenAttempt(genAttempts, 'draft:' + primary.id);
         const caseObj = state.casesArr.find(
           (x) => String(x.id) === String(caseId),
         );

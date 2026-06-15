@@ -18,6 +18,35 @@ import { dropboxPathForRelative, getDropboxTemporaryLink } from './dropbox';
 const WORKER_URL = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(/\/$/, '');
 const APP_TOKEN = process.env.NEXT_PUBLIC_APP_TOKEN || '';
 
+// Persisted "already attempted on-demand generation" set, so a slow/costly
+// Claude generation (summary or draft) for a given document is tried at most
+// ONCE per browser — not re-fired every time the case-brain modal re-opens.
+// Mirrors loadDecisionImportKeys/rememberDecisionImportKey in lib/tasks.ts.
+// Keys are `summary:<DOC-id>` / `draft:<DOC-id>`.
+const GEN_ATTEMPTS_LS = 'law_gen_attempts_v1';
+
+/** Load the persisted set of documents already attempted for generation. */
+export function loadGenAttempts(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(GEN_ATTEMPTS_LS);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/** Mark a generation key as attempted (in memory + persisted). */
+export function rememberGenAttempt(set: Set<string>, key: string): void {
+  set.add(key);
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(GEN_ATTEMPTS_LS, JSON.stringify([...set]));
+  } catch {
+    /* ignore quota / serialization errors */
+  }
+}
+
 export interface SummaryOpts {
   renamed?: string;
   original?: string;
