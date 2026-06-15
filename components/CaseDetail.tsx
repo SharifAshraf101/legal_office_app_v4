@@ -1708,8 +1708,12 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
            *  than the "פעיל AI" pill (right), so more right padding keeps the
            *  title visually centered BETWEEN the two. Subtitle is hidden on
            *  mobile (desktop keeps it). */}
-          <div className="tw-pl-14 tw-pr-20 lg:tw-px-40 tw-text-center">
-            <h2 className="tw-m-0 tw-text-xs lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-snug tw-whitespace-nowrap lg:tw-whitespace-normal">
+          {/* Padding reserves space for the absolute buttons (back on the
+           *  left, "פעיל AI" on the right — wider, hence more right padding),
+           *  so the centered title sits BETWEEN them. Small font + wrapping
+           *  (no nowrap) guarantee it never overflows onto either button. */}
+          <div className="tw-pl-20 tw-pr-28 lg:tw-px-40 tw-text-center">
+            <h2 className="tw-m-0 tw-text-[11px] lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-tight lg:tw-leading-snug">
               {T.title}
             </h2>
             <p className="tw-mt-1 tw-hidden lg:tw-block tw-text-[11px] lg:tw-text-sm tw-text-slate-500 tw-leading-snug">
