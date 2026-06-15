@@ -1713,8 +1713,24 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
            *  so the centered title sits BETWEEN them. Small font + wrapping
            *  (no nowrap) guarantee it never overflows onto either button. */}
           <div className="tw-pl-20 tw-pr-28 lg:tw-px-40 tw-text-center">
-            <h2 className="tw-m-0 tw-text-[9.35px] lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-tight lg:tw-leading-snug">
-              {T.title}
+            <h2 className="tw-m-0 tw-text-[13px] lg:tw-text-2xl tw-font-extrabold tw-text-slate-900 tw-leading-tight lg:tw-leading-snug">
+              {/* Mobile: forced TWO lines (split the title in half at a word
+               *  boundary) so each line fits between the buttons without
+               *  spilling under them. Desktop: the full title, unchanged. */}
+              {(() => {
+                const w = T.title.trim().split(/\s+/);
+                const mid = Math.ceil(w.length / 2);
+                return (
+                  <>
+                    <span className="lg:tw-hidden">
+                      {w.slice(0, mid).join(' ')}
+                      <br />
+                      {w.slice(mid).join(' ')}
+                    </span>
+                    <span className="tw-hidden lg:tw-inline">{T.title}</span>
+                  </>
+                );
+              })()}
             </h2>
             <p className="tw-mt-1 tw-hidden lg:tw-block tw-text-[11px] lg:tw-text-sm tw-text-slate-500 tw-leading-snug">
               {T.subtitle}
