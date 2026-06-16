@@ -38326,6 +38326,18 @@ body.dark .modal.case-brain-modal .case-brain-header {
   box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.5) !important;
 }
 
+/* The global ".modal-box h2:first-child { padding-left: 46px }" (which clears
+ * the close-X in other modals) also lands on the case-brain title and shoves
+ * the centered text ~23px to the right. The case-brain has no close-X there,
+ * so on DESKTOP neutralise that padding to truly center the title on screen.
+ * Mobile is intentionally left untouched. */
+@media (min-width: 1024px) {
+  html body .modal.case-brain-modal .case-brain-title {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
 /* Scrolling body — takes the remaining height and owns all scrolling. */
 html body .modal.case-brain-modal .case-brain-body {
   flex: 1 1 auto !important;
