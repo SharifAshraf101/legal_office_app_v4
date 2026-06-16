@@ -2047,6 +2047,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                      *  orange bottom-right, emerald bottom-left. */}
                     <div className="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 tw-gap-3 tw-p-3 lg:tw-p-4">
                       <AIActionCard
+                        // Desktop: this box sits BELOW "משימה שנוצרה" in its
+                        // column (order 3). Mobile keeps its DOM order.
+                        className="lg:tw-order-3"
                         color="purple"
                         icon="fa-file-alt"
                         title={T.docParse}
@@ -2062,6 +2065,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         }
                       />
                       <AIActionCard
+                        // Desktop: this box sits BELOW "הצעה לפעולה" in its
+                        // column (order 4). Mobile keeps its DOM order.
+                        className="lg:tw-order-4"
                         color="blue"
                         icon="fa-pen"
                         title={T.replyDraft}
@@ -2097,6 +2103,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                        *  item). */}
                       <div className="tw-hidden lg:tw-contents">
                         <AIActionCard
+                          // Desktop: moved ABOVE "פענוח המסמך" in its column
+                          // (order 1). Hidden on mobile (wrapper above).
+                          className="lg:tw-order-1"
                           color="orange"
                           icon="fa-check-square"
                           title={T.taskCreated}
@@ -2124,6 +2133,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                        *  row instead; here it shows only on desktop. */}
                       <div className="tw-hidden lg:tw-contents">
                         <AIActionCard
+                          // Desktop: moved ABOVE "טיוטת תגובה" in its column
+                          // (order 2). Hidden on mobile (wrapper above).
+                          className="lg:tw-order-2"
                           color="emerald"
                           icon="fa-bullseye"
                           title={T.actionSuggestion}
@@ -2348,6 +2360,7 @@ function AIActionCard({
   desc,
   btn,
   onBtnClick,
+  className,
 }: {
   color: 'blue' | 'purple' | 'emerald' | 'orange';
   icon: string;
@@ -2355,6 +2368,8 @@ function AIActionCard({
   desc: string;
   btn?: string;
   onBtnClick?: () => void;
+  /** Extra classes for the card's root (e.g. responsive grid `order`). */
+  className?: string;
 }) {
   const c = {
     blue: {
@@ -2384,7 +2399,7 @@ function AIActionCard({
   }[color];
 
   return (
-    <div className={'tw-flex tw-flex-col tw-gap-2 tw-rounded-2xl tw-p-3 ' + c.bg}>
+    <div className={'tw-flex tw-flex-col tw-gap-2 tw-rounded-2xl tw-p-3 ' + c.bg + (className ? ' ' + className : '')}>
       <div className="tw-flex tw-items-center tw-justify-between">
         <h4 className={'tw-text-sm tw-font-extrabold ' + c.titleC}>{title}</h4>
         <i className={'fas ' + icon + ' ' + c.iconC} aria-hidden="true" />
