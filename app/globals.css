@@ -38326,15 +38326,27 @@ body.dark .modal.case-brain-modal .case-brain-header {
   box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.5) !important;
 }
 
-/* The global ".modal-box h2:first-child { padding-left: 46px }" (which clears
- * the close-X in other modals) also lands on the case-brain title and shoves
- * the centered text ~23px to the right. The case-brain has no close-X there,
- * so on DESKTOP neutralise that padding to truly center the title on screen.
- * Mobile is intentionally left untouched. */
+/* Center the case-brain title + subtitle on the SCREEN (desktop only).
+ * Several global modal rules push them right (e.g. ".modal-box h2:first-child
+ * { padding-left: 46px }" for the close-X, plus inherited paddings). The whole
+ * title wrapper is forced to full width with zero side padding and centered
+ * text, so both the title and the subtitle sit dead-centre between the back
+ * button and the AI pill. Mobile is intentionally left untouched. */
 @media (min-width: 1024px) {
-  html body .modal.case-brain-modal .case-brain-title {
+  html body .modal.case-brain-modal .case-brain-title-wrap {
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
+    text-align: center !important;
+  }
+  html body .modal.case-brain-modal .case-brain-title-wrap > * {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    text-align: center !important;
   }
 }
 
