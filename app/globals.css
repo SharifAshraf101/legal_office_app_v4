@@ -38223,6 +38223,14 @@ html body .case-detail-floating-brain-btn {
   overflow: visible !important;
   -webkit-tap-highlight-color: transparent !important;
 }
+/* Mobile only: dock the floating brain button on the LEFT side of the screen
+ * instead of the right. Desktop keeps it on the right. */
+@media (max-width: 1023px) {
+  html body .case-detail-floating-brain-btn {
+    left: 20px !important;
+    right: auto !important;
+  }
+}
 html body .case-detail-floating-brain-btn:hover {
   transform: translateY(-50%) scale(1.08) !important;
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.28) !important;
