@@ -425,7 +425,19 @@ export async function legalOfficeLoadFromSupabaseV88(
     });
     return { loaded: true, state: applied.state };
   } catch (e) {
-    console.error('[LegalOffice Cloudflare load] failed', e);
+    // A transient network failure (laptop sleep/wake, worker cold start, brief
+    // connectivity drop) surfaces as `TypeError: Failed to fetch`. The poll loop
+    // recovers on its next tick and no data is lost, so log it at warn level —
+    // matching the !res.ok case above — instead of error. Next.js's dev overlay
+    // escalates any console.error into a full-screen modal, which is misleading
+    // for a self-recovering background poll. Genuine errors still log as error.
+    const isTransientNetwork =
+      e instanceof TypeError && /failed to fetch|networkerror|load failed/i.test(e.message);
+    if (isTransientNetwork) {
+      console.warn('[LegalOffice Cloudflare load] transient network error, will retry on next poll', e);
+    } else {
+      console.error('[LegalOffice Cloudflare load] failed', e);
+    }
     return { loaded: false };
   } finally {
     loading = false;

@@ -38238,14 +38238,19 @@ html body .case-detail-floating-brain-btn:hover {
 html body .case-detail-floating-brain-btn:active {
   transform: translateY(-50%) scale(1.02) !important;
 }
-/* Brain SVG — sized so it fills most of the 56×56 circle with
- * a small visual padding inside the white backdrop. */
-html body .case-detail-floating-brain-btn svg {
-  width: 40px !important;
-  height: 40px !important;
+/* Brain icon (photo at /case-brain.jpg) — fills the 56×56 circle and is
+ * clipped to a circle. The source image sits on a near-white background,
+ * so its white margins are cropped by `object-fit: cover` and the round
+ * clip, leaving the brain centred on the white button backdrop. */
+html body .case-detail-floating-brain-btn img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
   display: block !important;
   pointer-events: none !important;
   user-select: none !important;
+  -webkit-user-drag: none !important;
 }
 
 /* ============================================================ *

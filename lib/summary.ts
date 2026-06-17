@@ -224,6 +224,50 @@ export async function fetchDocumentDraft(
   }
 }
 
+/** Fetch the newest non-empty `suggested_action` for ONE exact case_id. */
+async function fetchSuggestedActionFor(id: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      WORKER_URL + '/api/suggested-actions/' + encodeURIComponent(id),
+      { method: 'GET', headers: { Authorization: 'Bearer ' + APP_TOKEN } },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      suggestions?: Array<{ suggested_action?: string }>;
+    };
+    // Endpoint returns rows ordered created_at DESC → the first non-empty
+    // suggested_action is the newest one.
+    for (const row of data.suggestions || []) {
+      const txt = (row.suggested_action || '').trim();
+      if (txt) return txt;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Latest AI "suggested action" for a case, from the D1 `case_suggested_actions`
+ *  table (written by the Make pipeline). Calls the Worker's
+ *  GET /api/suggested-actions/:case_id and returns the newest row's
+ *  `suggested_action` text, or null when there is none yet.
+ *  Used by the case-brain "הצעה לפעולה" card.
+ *
+ *  The Worker matches case_id with a case-SENSITIVE `=`, but the pipeline may
+ *  write the id in a different case than the app uses (e.g. it stores
+ *  `cs-1010` while the app's case id is `CS-1010`). So we try the id as-is,
+ *  then lower-case, then upper-case, and return the first match. */
+export async function fetchSuggestedAction(caseId: string): Promise<string | null> {
+  const id = (caseId || '').trim();
+  if (!id) return null;
+  const candidates = [...new Set([id, id.toLowerCase(), id.toUpperCase()])];
+  for (const candidate of candidates) {
+    const txt = await fetchSuggestedActionFor(candidate);
+    if (txt) return txt;
+  }
+  return null;
+}
+
 /** Generate a reply draft for a PDF document that has none yet: obtain a
  *  temporary Dropbox link and hand it to /api/generate-draft (which fetches the
  *  PDF server-side and forwards it to the Worker's /api/draft → Claude → saves

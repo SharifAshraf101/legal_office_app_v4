@@ -25,6 +25,7 @@ import {
   loadGenAttempts,
   rememberGenAttempt,
   fetchDecisionInfo,
+  fetchSuggestedAction,
   type DecisionInfo,
 } from '@/lib/summary';
 import { filingFileName } from '@/lib/filing';
@@ -389,9 +390,8 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
       hideCloseX={true}
     >
       {/* Floating action button — appears ONLY on the Case Detail
-       *  screen. The icon is a colorful inline SVG (left half
-       *  cyan→blue, right half pink→orange) so it's guaranteed
-       *  to render without needing any external image file.
+       *  screen. The icon is the supplied 3D "AI brain" image
+       *  (public/case-brain.jpg — blue left hemisphere, teal right).
        *  Click opens the placeholder CaseBrainScreen modal
        *  (to be designed). */}
       <button
@@ -401,59 +401,13 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
         aria-label={lang === 'ar' ? 'فتح شاشة الذكاء' : 'פתח מסך מוח התיק'}
         title={lang === 'ar' ? 'فتح شاشة الذكاء' : 'פתח מסך מוח התיק'}
       >
-        <svg
-          viewBox="0 0 64 64"
-          xmlns="http://www.w3.org/2000/svg"
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/case-brain.jpg"
+          alt=""
           aria-hidden="true"
-        >
-          <defs>
-            <linearGradient id="caseBrainLeft" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#22d3ee" />
-              <stop offset="100%" stopColor="#3b82f6" />
-            </linearGradient>
-            <linearGradient id="caseBrainRight" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#f472b6" />
-              <stop offset="100%" stopColor="#f97316" />
-            </linearGradient>
-          </defs>
-          {/* Sparkle dots around the brain */}
-          <circle cx="10" cy="14" r="1.5" fill="#22d3ee" />
-          <circle cx="54" cy="14" r="1.5" fill="#f472b6" />
-          <circle cx="6" cy="34" r="1.5" fill="#3b82f6" />
-          <circle cx="58" cy="34" r="1.5" fill="#f97316" />
-          <circle cx="12" cy="52" r="1.2" fill="#22d3ee" />
-          <circle cx="52" cy="52" r="1.2" fill="#f472b6" />
-          {/* Top stem (lightbulb base) */}
-          <rect x="28" y="6" width="8" height="6" rx="2" fill="#1e293b" />
-          <rect x="26" y="11" width="12" height="2" rx="1" fill="#475569" />
-          {/* Left brain hemisphere */}
-          <path
-            d="M32 18 C22 18, 14 26, 14 36 C14 44, 20 52, 28 54 C30 54, 32 53, 32 51 L32 18 Z"
-            fill="url(#caseBrainLeft)"
-          />
-          {/* Right brain hemisphere */}
-          <path
-            d="M32 18 C42 18, 50 26, 50 36 C50 44, 44 52, 36 54 C34 54, 32 53, 32 51 L32 18 Z"
-            fill="url(#caseBrainRight)"
-          />
-          {/* Curve detail lines for "brain folds" */}
-          <path
-            d="M22 28 Q26 32, 22 36 Q18 40, 22 44"
-            stroke="#ffffff"
-            strokeWidth="1.4"
-            fill="none"
-            opacity="0.55"
-            strokeLinecap="round"
-          />
-          <path
-            d="M42 28 Q38 32, 42 36 Q46 40, 42 44"
-            stroke="#ffffff"
-            strokeWidth="1.4"
-            fill="none"
-            opacity="0.55"
-            strokeLinecap="round"
-          />
-        </svg>
+          draggable={false}
+        />
       </button>
       {/* Sticky header: back + X + title + action buttons.
        *
@@ -1439,6 +1393,25 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     };
   }, [primaryDoc, caseId, lang, docLang, state.casesArr, state.clients]);
 
+  // "הצעה לפעולה" card content — the latest AI suggested action for this case,
+  // pulled from D1 `case_suggested_actions.suggested_action` (written by the
+  // Make pipeline) via the Worker. Falls back to the static placeholder text
+  // when the case has no suggested action yet.
+  const [suggestedAction, setSuggestedAction] = useState<string | null>(null);
+  useEffect(() => {
+    if (!caseId) {
+      setSuggestedAction(null);
+      return;
+    }
+    let cancelled = false;
+    fetchSuggestedAction(caseId).then((s) => {
+      if (!cancelled) setSuggestedAction(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [caseId]);
+
   // Decision-derived task + hearing for the latest (decision) document,
   // imported from Cloudflare and shown in the "משימה שנוצרה" card. The
   // import (creating the Task + hearing event) is shared with the main
@@ -1814,7 +1787,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
             color="emerald"
             icon="fa-bullseye"
             title={T.actionSuggestion}
-            desc={T.actionSuggestionDesc}
+            desc={suggestedAction || T.actionSuggestionDesc}
             btn={T.viewSuggestion}
           />
         </div>
@@ -2139,7 +2112,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                           color="emerald"
                           icon="fa-bullseye"
                           title={T.actionSuggestion}
-                          desc={T.actionSuggestionDesc}
+                          desc={suggestedAction || T.actionSuggestionDesc}
                           btn={T.viewSuggestion}
                         />
                       </div>
