@@ -10,6 +10,7 @@ import type { AppState, Case, Client, Lang } from '@/types';
 import { FILING_ROOT, filingFolderSegments, filingFileName } from './filing';
 import {
   dropboxPathForRelative,
+  downloadDropboxFileBlob,
   getDropboxTemporaryLink,
   isFileSystemAccessAvailable,
 } from './dropbox';
@@ -338,6 +339,42 @@ export async function openDocumentFromLegalOfficeFolder(
   return false;
 }
 
+/** Fetch a filing document's raw bytes as a Blob for INLINE preview (rendered
+ *  via a blob: URL, never downloaded). Tries the local synced copy first (no
+ *  network, no CORS), then falls back to pulling it from Dropbox. Returns null
+ *  when neither source has the file. */
+export async function getFilingFileBlob(
+  relativePath: string,
+  lang: 'he' | 'ar',
+): Promise<Blob | null> {
+  // 1. Cloud copy via the Dropbox content API (the primary store; matches the
+  //    Dropbox-first precedence of openDocumentFromLegalOfficeFolder). Returns
+  //    the bytes — CORS is allowed on the content endpoint.
+  try {
+    const blob = await downloadDropboxFileBlob(
+      dropboxPathForRelative(relativePath),
+    );
+    if (blob) return blob;
+  } catch (e) {
+    console.warn('[LegalOffice disk] dropbox blob fetch failed', e);
+  }
+  // 2. Local synced copy — ONLY if a folder was already granted. We never call
+  //    the folder picker here: this runs inside a render effect (no user
+  //    gesture), so a picker would just throw. Use the saved handle or skip.
+  if (isFileSystemAccessAvailable()) {
+    try {
+      const handle = await loadSavedLegalOfficeDirectoryHandle();
+      if (handle && (await verifyLegalOfficeDirectoryPermission(handle))) {
+        const localFile = await readLocalFilingFile(relativePath, lang);
+        if (localFile) return localFile;
+      }
+    } catch (e) {
+      console.warn('[LegalOffice disk] local blob read failed', e);
+    }
+  }
+  return null;
+}
+
 /** Read a saved filing file from the local picked folder, handling the
  *  duplicate-"Clients" cases. Returns null if not found / no folder. */
 async function readLocalFilingFile(
@@ -370,7 +407,7 @@ async function readLocalFilingFile(
 
 /** Types a browser renders inline in a tab. Everything else (Office docs, etc.)
  *  is opened through an online viewer or downloaded. */
-function isInlineViewable(name: string): boolean {
+export function isInlineViewable(name: string): boolean {
   const ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase();
   return [
     'pdf',
@@ -421,7 +458,7 @@ function openBlobInNewTab(file: File): boolean {
 }
 
 /** Best-effort mime type from a filename extension. */
-function mimeFromName(name: string): string {
+export function mimeFromName(name: string): string {
   const ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase();
   switch (ext) {
     case 'pdf':

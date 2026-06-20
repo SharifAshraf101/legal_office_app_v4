@@ -2036,6 +2036,23 @@ function BotChatScreen({
     );
   }, [client?.id]);
 
+  // Welcome splash: on mobile, show the greeting card for 5s on entry, then
+  // hide it so the questions/answers area fills the screen in its place.
+  // Desktop keeps the card (it has room alongside the conversation).
+  const [showWelcome, setShowWelcome] = useState(true);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // Only auto-hide on the mobile layout (where screen space is tight and
+    // the mobile nav shows). On wider screens the card stays put.
+    if (!window.matchMedia('(max-width: 1050px)').matches) {
+      setShowWelcome(true);
+      return;
+    }
+    setShowWelcome(true);
+    const id = window.setTimeout(() => setShowWelcome(false), 5000);
+    return () => window.clearTimeout(id);
+  }, [client?.id]);
+
   // Ask the bot a question on behalf of the current client.
   //
   // Path A (preferred): POST to /api/bot, which calls Claude Haiku with
@@ -2666,7 +2683,7 @@ function BotChatScreen({
       {/* Welcome card — greets the authenticated client by name and tells
           them what the bot can answer. Shown only when a real client is
           using the bot (non-lawyer mode), not in lawyer-view. */}
-      {isBotInteractive && client && (
+      {isBotInteractive && client && showWelcome && (
         <div className="tw-border-b tw-border-slate-100 tw-bg-indigo-50/40 tw-p-5">
           <div className="tw-mx-auto tw-max-w-3xl">
             <div className="tw-mb-2 tw-flex tw-items-center tw-gap-2 tw-text-base tw-font-bold tw-text-indigo-900">
@@ -3411,7 +3428,7 @@ function ChatComposer({
   };
 
   return (
-    <div className="tw-border-t tw-border-slate-200 tw-bg-[#FDFBF5] tw-p-4">
+    <div className="portal-chat-composer tw-border-t tw-border-slate-200 tw-bg-[#FDFBF5] tw-p-4">
       <div className="tw-flex tw-items-center tw-gap-2 tw-rounded-full tw-border tw-border-slate-200 tw-bg-[#FDFBF5] tw-p-2 tw-shadow-sm">
         {!bot && !readOnly && (
           <button

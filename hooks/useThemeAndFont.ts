@@ -25,8 +25,17 @@ export function useThemeAndFont(): void {
   // vs when it should fall back to the OS preference.
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    document.body.classList.toggle('dark', state.currentTheme === 'dark');
-    document.body.classList.toggle('light', state.currentTheme === 'light');
+    const theme = state.currentTheme;
+    // "professional" is a deep-blue/silver variant built ON TOP of the dark
+    // theme: it keeps `dark` (so all the dark component overrides apply) and
+    // adds `professional`, whose token block recolors bg → deep blue, text →
+    // silver. See `body.professional` in globals.css.
+    document.body.classList.toggle(
+      'dark',
+      theme === 'dark' || theme === 'professional',
+    );
+    document.body.classList.toggle('professional', theme === 'professional');
+    document.body.classList.toggle('light', theme === 'light');
   }, [state.currentTheme]);
 
   // <html lang>

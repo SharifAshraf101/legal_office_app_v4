@@ -541,6 +541,14 @@ export function caseStatusSummary(
       lang === 'ar'
         ? item.descriptionAr || item.description
         : item.description || item.descriptionAr;
+    // AI document summary — the SAME `summaryHe`/`summaryAr` the case-documents
+    // screen shows under the document. Lets the bot answer from the document's
+    // content, not just its title. Prefer the question's language, fall back to
+    // the other so a summary in only one language still surfaces.
+    const docSummary =
+      lang === 'ar'
+        ? item.summaryAr || item.summaryHe
+        : item.summaryHe || item.summaryAr;
     const docFileName =
       item.fileName ||
       (item as { storedFileName?: string }).storedFileName ||
@@ -561,6 +569,14 @@ export function caseStatusSummary(
           (lang === 'ar' ? 'الوصف' : 'תיאור') +
           ': ' +
           String(docDescription).trim(),
+      );
+    }
+    if (docSummary && String(docSummary).trim()) {
+      lines.push(
+        '   • ' +
+          (lang === 'ar' ? 'ملخص المستند' : 'תקציר המסמך') +
+          ': ' +
+          String(docSummary).trim(),
       );
     }
     lines.push('   • ' + (lang === 'ar' ? 'التاريخ' : 'תאריך') + ': ' + docDate);

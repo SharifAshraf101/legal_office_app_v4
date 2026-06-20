@@ -490,6 +490,25 @@ export async function uploadFileToDropbox(
   return { ok: true, path: finalPath, url };
 }
 
+/** Turn a Dropbox SHARE link (…?dl=0 or …?dl=1) into a RAW content URL the
+ *  browser renders INLINE — PDFs/images display in the tab instead of being
+ *  downloaded or shown on Dropbox's preview page. Sets `raw=1` and drops `dl`.
+ *  Non-Dropbox URLs are returned unchanged. */
+export function dropboxRawUrl(shareUrl: string): string {
+  try {
+    const u = new URL(shareUrl);
+    if (!/(^|\.)dropbox\.com$/i.test(u.hostname) &&
+        !/(^|\.)dropboxusercontent\.com$/i.test(u.hostname)) {
+      return shareUrl;
+    }
+    u.searchParams.delete('dl');
+    u.searchParams.set('raw', '1');
+    return u.toString();
+  } catch {
+    return shareUrl;
+  }
+}
+
 /** Convert a stored local filing path (e.g. "Clients/clt-108/CS-1009 - X/f.pdf"
  *  or a legacy "/clients/.../f.pdf") into the Dropbox API path inside the
  *  connected app folder, so a device with no local disk access (mobile) can
@@ -500,6 +519,37 @@ export function dropboxPathForRelative(relativePath: string): string {
   // Same double-"Clients" guard the uploader uses.
   base = base.replace(new RegExp('/' + FILING_ROOT + '$', 'i'), '');
   return `${base}/${rp}`.replace(/\/{2,}/g, '/');
+}
+
+/** Download a file's raw bytes from Dropbox as a Blob (via the content API the
+ *  uploader already uses, so CORS is allowed). Used to PREVIEW a document
+ *  inline — a blob: URL renders in the browser instead of downloading, unlike
+ *  the temporary link which Dropbox serves as an attachment. Returns null when
+ *  Dropbox isn't connected or the path isn't found. */
+export async function downloadDropboxFileBlob(path: string): Promise<Blob | null> {
+  const token = await getValidAccessToken();
+  if (!token) return null;
+  try {
+    const res = await fetch('https://content.dropboxapi.com/2/files/download', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Dropbox-API-Arg': toDropboxApiArgHeader({ path }),
+      },
+    });
+    if (!res.ok) {
+      console.warn(
+        '[Dropbox download] failed',
+        res.status,
+        await res.text().catch(() => ''),
+      );
+      return null;
+    }
+    return await res.blob();
+  } catch (e) {
+    console.warn('[Dropbox download] error', e);
+    return null;
+  }
 }
 
 /** Get a short-lived direct link to a file in Dropbox (used to open/download a

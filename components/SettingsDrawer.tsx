@@ -182,7 +182,7 @@ export function SettingsDrawer() {
       {/* Theme */}
       <Section title={t('theme')} icon="fa-sun" pillClass="theme">
         <div className="settings-actions">
-          {(['light', 'dark'] as Theme[]).map((th) => (
+          {(['light', 'dark', 'professional'] as Theme[]).map((th) => (
             <button
               key={th}
               type="button"

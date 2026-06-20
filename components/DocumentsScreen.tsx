@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -16,7 +16,7 @@ import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { CaseDetail } from './CaseDetail';
 import { MainScreenBackButton } from './MainScreenBackButton';
 import { NewEventModal } from './NewEventModal';
-import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
+import { DocumentPreviewModal } from './DocumentPreviewModal';
 import type { DocumentRecord } from '@/types';
 
 /**
@@ -70,9 +70,8 @@ export function DocumentsScreen() {
       ? 'لا توجد مستندات مطابقة للبحث'
       : 'לא נמצאו מסמכים התואמים לחיפוש';
 
-  const openDoc = async (doc: DocumentRecord) => {
-    const rp = doc.relativePath;
-    if (!rp) {
+  const openDoc = (doc: DocumentRecord) => {
+    if (!doc.relativePath) {
       window.alert(
         lang === 'ar'
           ? 'لم يتم حفظ ملف لهذا المستند.'
@@ -80,21 +79,10 @@ export function DocumentsScreen() {
       );
       return;
     }
-    // Mobile docs store the Dropbox share URL directly in relativePath —
-    // navigate to it so the browser (or Dropbox app) handles download.
-    if (rp.startsWith('http://') || rp.startsWith('https://')) {
-      window.open(rp, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    // Desktop path — read the file from the local Dropbox folder via FS Access
-    const ok = await openDocumentFromLegalOfficeFolder(rp, lang);
-    if (!ok) {
-      window.alert(
-        lang === 'ar'
-          ? 'تعذر فتح الملف من مجلد Dropbox.'
-          : 'פתיחת הקובץ מתיקיית Dropbox נכשלה.',
-      );
-    }
+    // PREVIEW the document on screen (no download). The modal fetches the
+    // bytes (local synced copy first, then Dropbox) and renders them inline
+    // via a blob URL — see DocumentPreviewModal.
+    modalStack.open(<DocumentPreviewModal doc={doc} />);
   };
   const openDocCase = (caseId: string) => {
     modalStack.open(<CaseDetail caseId={caseId} />);
@@ -191,6 +179,22 @@ function DocumentsTable({
 }) {
   const { state } = useAppState();
   const { t, lang } = useT();
+  // Manual double-tap/double-click detection. The native `dblclick` event does
+  // NOT fire on touch devices (a double-tap becomes zoom), so we count two
+  // quick `click`s on the same row instead — works on both mobile and desktop.
+  const lastTapRef = useRef<{ id: string; time: number }>({ id: '', time: 0 });
+  const handleRowActivate = (doc: DocumentRecord, target: EventTarget | null) => {
+    // Ignore taps on the action buttons (they have their own handlers).
+    if (target instanceof HTMLElement && target.closest('button')) return;
+    const now = Date.now();
+    const last = lastTapRef.current;
+    if (last.id === doc.id && now - last.time < 450) {
+      lastTapRef.current = { id: '', time: 0 };
+      onOpen(doc); // second quick tap → open the in-app preview
+    } else {
+      lastTapRef.current = { id: doc.id, time: now };
+    }
+  };
   return (
     <table className="table">
       <thead>
@@ -221,7 +225,13 @@ function DocumentsTable({
           const title = doc.title || doc.fileName || '';
           const path = doc.relativePath || '';
           return (
-            <tr key={doc.id} className="document-screen-row" data-doc-id={doc.id}>
+            <tr
+              key={doc.id}
+              className="document-screen-row"
+              data-doc-id={doc.id}
+              title={lang === 'ar' ? 'انقر مرتين للمعاينة' : 'לחיצה כפולה לתצוגה מקדימה'}
+              onClick={(e) => handleRowActivate(doc, e.target)}
+            >
               <td>
                 <div className="row-title document-desktop-title">
                   <i className="fas fa-file-lines" /> {title}

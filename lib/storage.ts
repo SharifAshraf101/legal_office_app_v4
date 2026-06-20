@@ -191,7 +191,8 @@ export function loadUserSettings(): LoadedSettings {
 
   let currentTheme: Theme = 'light';
   const savedTheme = lsGet(LS.THEME);
-  if (savedTheme === 'light' || savedTheme === 'dark') currentTheme = savedTheme;
+  if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'professional')
+    currentTheme = savedTheme;
 
   let currentFontSize: FontSize = 'normal';
   const savedFont = lsGet(LS.FONT_SIZE);
@@ -366,7 +367,7 @@ export function applyLegalOfficeData(data: Partial<LegalOfficeBackup> & {
       out.currentLang = s.lang;
       lsSet(LS.LANG, s.lang);
     }
-    if (s.theme === 'light' || s.theme === 'dark') {
+    if (s.theme === 'light' || s.theme === 'dark' || s.theme === 'professional') {
       out.currentTheme = s.theme;
       lsSet(LS.THEME, s.theme);
     }

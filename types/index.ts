@@ -4,7 +4,7 @@
 // localStorage payloads or backup JSON to still load.
 
 export type Lang = 'he' | 'ar';
-export type Theme = 'light' | 'dark';
+export type Theme = 'light' | 'dark' | 'professional';
 export type FontSize = 'small' | 'normal' | 'large';
 export type ShowUpcoming = '0' | '1';
 export type HomeStyle = 'modern' | 'classic' | 'minimalist';
