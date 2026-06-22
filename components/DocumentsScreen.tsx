@@ -35,7 +35,7 @@ import type { DocumentRecord } from '@/types';
 export function DocumentsScreen() {
   const { state, dispatch } = useAppState();
   const { lang } = useT();
-  const { isMobile } = useMobileGuard();
+  const { isMobile700: isMobile } = useMobileGuard();
   const modalStack = useModalStack();
   const confirmDelete = useDeleteConfirm();
   const [query, setQuery] = useState('');

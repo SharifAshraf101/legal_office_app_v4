@@ -93,7 +93,7 @@ export function PortalCommunication() {
                 <i className="fab fa-whatsapp" />
                 <span>{waLabel}</span>
               </button>
-              
+              <a
                 className="portal-phone-btn"
                 href={'tel:' + normalizePhoneForLinks(phone)}
               >

@@ -1014,7 +1014,7 @@ function ClientChatScreen({
   );// Poll D1 for WhatsApp messages every 5 seconds
 useEffect(() => {
 const fullClient = state.clients.find((c: any) => c.id === client.id);
-const rawPhone = ((fullClient?.phone || client.phone) || '').replace(/\D/g, '');
+const rawPhone = ((fullClient?.phone || (client as any).phone) || '').replace(/\D/g, '');
 const phone = rawPhone.startsWith('0') ? '972' + rawPhone.slice(1) : rawPhone;
 
 if (!phone) return;
@@ -1208,25 +1208,11 @@ if (!phone) return;
   const phone = normalizePhoneForLinks(clientRecord?.phone || '');
   if (phone) {
     try {
+     // The send route persists the outgoing message to D1 on success.
      await fetch('/api/whatsapp/send/', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ to: phone, message: text }),
-});
-// Save outgoing message to D1
-await fetch(`${WORKER_URL}/api/whatsapp-messages`, {
-  method: 'POST',
-  headers: { 
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${APP_TOKEN}`
-  },
-  body: JSON.stringify({ 
-    client_phone: phone, 
-    direction: 'outgoing', 
-    message_text: text,
-    timestamp: Date.now(),
-    status: 'sent'
-  }),
 });
     } catch (e) {
       console.error('WhatsApp send failed:', e);
