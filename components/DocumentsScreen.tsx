@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
+import { useMobileGuard } from '@/hooks/useMobileGuard';
 import { caseName } from '@/lib/cases';
 import { clientDisplayName } from '@/lib/clients';
 import {
@@ -12,6 +13,7 @@ import {
   formatDocumentDate,
   formatDocumentSize,
 } from '@/lib/documents';
+import { downloadDropboxFileBlob } from '@/lib/dropbox';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { CaseDetail } from './CaseDetail';
 import { MainScreenBackButton } from './MainScreenBackButton';
@@ -33,9 +35,11 @@ import type { DocumentRecord } from '@/types';
 export function DocumentsScreen() {
   const { state, dispatch } = useAppState();
   const { lang } = useT();
+  const { isMobile } = useMobileGuard();
   const modalStack = useModalStack();
   const confirmDelete = useDeleteConfirm();
   const [query, setQuery] = useState('');
+  const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
 
   const documents = state.documentsArr || [];
   const sorted = useMemo(() => {
@@ -70,7 +74,7 @@ export function DocumentsScreen() {
       ? 'لا توجد مستندات مطابقة للبحث'
       : 'לא נמצאו מסמכים התואמים לחיפוש';
 
-  const openDoc = (doc: DocumentRecord) => {
+  const openDoc = async (doc: DocumentRecord) => {
     if (!doc.relativePath) {
       window.alert(
         lang === 'ar'
@@ -79,9 +83,42 @@ export function DocumentsScreen() {
       );
       return;
     }
-    // PREVIEW the document on screen (no download). The modal fetches the
-    // bytes (local synced copy first, then Dropbox) and renders them inline
-    // via a blob URL — see DocumentPreviewModal.
+
+    // On mobile in a double-tap context: download the file from Dropbox/Cloud
+    // first, then show the preview
+    if (isMobile) {
+      setDownloadingDocId(doc.id);
+      try {
+        // Check if it's a cloud URL (Dropbox)
+        const rp = doc.relativePath || '';
+        if (rp.startsWith('http://') || rp.startsWith('https://')) {
+          // Download from Dropbox cloud
+          const blob = await downloadDropboxFileBlob(rp);
+          if (!blob) {
+            window.alert(
+              lang === 'ar'
+                ? 'فشل تنزيل الملف من Dropbox'
+                : 'הורדת הקובץ מ-Dropbox נכשלה',
+            );
+            setDownloadingDocId(null);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Download error:', error);
+        window.alert(
+          lang === 'ar'
+            ? 'خطأ في تنزيل الملف'
+            : 'שגיאה בהורדת הקובץ',
+        );
+        setDownloadingDocId(null);
+        return;
+      } finally {
+        setDownloadingDocId(null);
+      }
+    }
+
+    // Show the preview modal (works on both mobile and desktop)
     modalStack.open(<DocumentPreviewModal doc={doc} />);
   };
   const openDocCase = (caseId: string) => {
@@ -158,7 +195,13 @@ export function DocumentsScreen() {
           {filtered.length === 0 ? (
             <div className="case-empty">{emptyText}</div>
           ) : (
-            <DocumentsTable docs={filtered} onOpen={openDoc} onOpenCase={openDocCase} onDelete={deleteDoc} />
+            <DocumentsTable 
+              docs={filtered} 
+              onOpen={openDoc} 
+              onOpenCase={openDocCase} 
+              onDelete={deleteDoc}
+              downloadingDocId={downloadingDocId}
+            />
           )}
         </div>
       </div>
@@ -171,11 +214,13 @@ function DocumentsTable({
   onOpen,
   onOpenCase,
   onDelete,
+  downloadingDocId,
 }: {
   docs: DocumentRecord[];
   onOpen: (doc: DocumentRecord) => void;
   onOpenCase: (caseId: string) => void;
   onDelete: (id: string) => void;
+  downloadingDocId: string | null;
 }) {
   const { state } = useAppState();
   const { t, lang } = useT();
@@ -190,7 +235,7 @@ function DocumentsTable({
     const last = lastTapRef.current;
     if (last.id === doc.id && now - last.time < 450) {
       lastTapRef.current = { id: '', time: 0 };
-      onOpen(doc); // second quick tap → open the in-app preview
+      onOpen(doc); // second quick tap → download (on mobile) & open the in-app preview
     } else {
       lastTapRef.current = { id: doc.id, time: now };
     }
@@ -244,7 +289,14 @@ function DocumentsTable({
                   <div className="documents-path-hint document-desktop-path">{path}</div>
                 )}
                 <div className="mobile-document-card">
-                  <div className="mobile-document-file-name">{fileName}</div>
+                  <div className="mobile-document-file-name">
+                    {fileName}
+                    {downloadingDocId === doc.id && (
+                      <span style={{ marginLeft: '8px', fontSize: '0.9em' }}>
+                        ⏳ {lang === 'ar' ? 'جاري التحميل...' : 'מורידה...'}
+                      </span>
+                    )}
+                  </div>
                   <div className="mobile-document-top">
                     <div className="mobile-document-actions">
                       <button
@@ -252,6 +304,7 @@ function DocumentsTable({
                         className="document-mini-action open"
                         data-open-doc={doc.id}
                         aria-label="Dropbox"
+                        disabled={downloadingDocId === doc.id}
                         onClick={() => onOpen(doc)}
                       >
                         <i className="fab fa-dropbox" />
@@ -295,6 +348,7 @@ function DocumentsTable({
                     type="button"
                     className="document-mini-action open"
                     data-open-doc={doc.id}
+                    disabled={downloadingDocId === doc.id}
                     onClick={() => onOpen(doc)}
                   >
                     <i className="fas fa-folder-open" />

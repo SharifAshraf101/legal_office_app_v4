@@ -14,11 +14,13 @@ export function nextClientId(clients: Client[]): string {
   return 'CLT-' + (max + 1);
 }
 
-/** Source line 4199. Strip non-digits, replace leading 0 with country code 972. */
+/** Source line 4199. Strip non-digits, normalize to 972XXXXXXXXX format. */
 export function normalizePhoneForLinks(phone: string | undefined): string {
-  return String(phone || '')
-    .replace(/[^0-9+]/g, '')
-    .replace(/^0/, '972');
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (digits.startsWith('972')) return digits;
+  if (digits.startsWith('0')) return '972' + digits.slice(1);
+  if (digits.length >= 9 && digits.length <= 10) return '972' + digits;
+  return digits;
 }
 
 /** Source line 4200. */

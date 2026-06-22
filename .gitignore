@@ -19,3 +19,6 @@ worker/.wrangler
 .vercel
 
 .vercel
+
+# Local tunnel binary
+ngrok.exe

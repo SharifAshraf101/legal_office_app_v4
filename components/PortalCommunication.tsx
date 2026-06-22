@@ -4,21 +4,9 @@ import { useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useT } from '@/hooks/useT';
 import { caseName } from '@/lib/cases';
-import { normalizePhoneForLinks, whatsappUrl } from '@/lib/clients';
+import { normalizePhoneForLinks } from '@/lib/clients';
 import { portalDefaultMessage, portalLabel } from '@/lib/portal';
 import { PortalBot } from './PortalBot';
-
-/**
- * Port of renderPortalCommunication (source line 4946).
- *
- * Shows the chosen client's communication hub: avatar / meta, WhatsApp +
- * phone buttons, embedded WhatsApp panel, cases list, then the bot card.
- */
-
-function whatsappWebUrlLocal(phone: string, text: string): string {
-  const p = normalizePhoneForLinks(phone);
-  return 'https://web.whatsapp.com/send?phone=' + p + (text ? '&text=' + encodeURIComponent(text) : '');
-}
 
 export function PortalCommunication() {
   const { state, dispatch } = useAppState();
@@ -27,33 +15,49 @@ export function PortalCommunication() {
   const c = state.clients.find(
     (x) => String(x.id) === String(state.selectedPortalClientId),
   );
+
   const [waPanelOpen, setWaPanelOpen] = useState(false);
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
 
   if (!c) {
-    // selectedPortalClientId references a missing client → reset and fall back
-    // to search. Same effect as the source's check in renderPortalCommunication.
     dispatch({ type: 'SET_PORTAL_CLIENT', clientId: '' });
     return null;
   }
 
   const name = lang === 'ar' ? c.nameAr || c.name : c.name || c.nameAr || '';
   const phone = c.phone || '';
-  const msg = portalDefaultMessage(c, lang);
   const casesForClient = state.casesArr.filter((x) => x.clientId === c.id);
-  const noCases =
-    lang === 'ar' ? 'لا توجد ملفات مسجلة لهذا الموكل' : 'אין תיקים רשומים ללקוח זה';
-  const waLabel =
-    lang === 'ar' ? 'فتح واتساب داخل الشاشة' : 'פתיחת WhatsApp בתוך המסך';
+
+  const sendWhatsApp = async () => {
+    if (!message.trim()) return;
+    setSending(true);
+    setStatus(null);
+    try {
+      const normalized = normalizePhoneForLinks(phone);
+      const res = await fetch('/api/whatsapp/send/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: normalized, message }),
+      });
+      const data = await res.json();
+      if (data.messages) {
+        setStatus(lang === 'ar' ? '✅ تم الإرسال بنجاح' : '✅ נשלח בהצלחה');
+        setMessage('');
+      } else {
+        setStatus(lang === 'ar' ? '❌ فشل الإرسال' : '❌ שליחה נכשלה');
+      }
+    } catch {
+      setStatus(lang === 'ar' ? '❌ خطأ في الاتصال' : '❌ שגיאת חיבור');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const waLabel = lang === 'ar' ? 'واتساب' : 'WhatsApp';
   const callLabel = lang === 'ar' ? 'اتصال هاتفي' : 'שיחה טלפונית';
-  const waPanelTitle =
-    lang === 'ar' ? 'واتساب بزنس مدمج' : 'WhatsApp Business משולב';
-  const waPanelNote =
-    lang === 'ar'
-      ? 'سيتم عرض واتساب داخل هذا القسم قدر الإمكان. إذا منع المتصفح العرض الداخلي، استخدم زر الفتح المباشر أدناه.'
-      : 'WhatsApp יוצג בתוך אזור זה ככל שהדפדפן מאפשר. אם הדפדפן חוסם תצוגה פנימית, השתמש בכפתור הפתיחה הישירה למטה.';
-  const waExternalLabel =
-    lang === 'ar' ? 'فتح مباشر في واتساب' : 'פתיחה ישירה ב-WhatsApp';
-  const closeWaLabel = lang === 'ar' ? 'إغلاق' : 'סגירה';
+  const noCases = lang === 'ar' ? 'لا توجد ملفات' : 'אין תיקים';
 
   return (
     <section className="panel clients-screen-panel portal-screen-panel">
@@ -62,11 +66,10 @@ export function PortalCommunication() {
         <button
           type="button"
           className="portal-back-btn"
-          data-portal-back
           onClick={() => dispatch({ type: 'SET_PORTAL_CLIENT', clientId: '' })}
         >
           <i className="fas fa-arrow-right" />
-          <span>{lang === 'ar' ? 'رجوع للبحث' : 'חזרה לחיפוש'}</span>
+          <span>{lang === 'ar' ? 'رجوع' : 'חזרה'}</span>
         </button>
       </div>
       <div className="panel-body clients-panel-body">
@@ -77,8 +80,6 @@ export function PortalCommunication() {
               <div>
                 <div className="portal-client-name">{name}</div>
                 <div className="portal-client-meta">
-                  {lang === 'ar' ? 'رقم الهوية' : 'תעודת זהות'}: {c.idNumber || ''}
-                  <br />
                   {lang === 'ar' ? 'الهاتف' : 'טלפון'}: {phone}
                 </div>
               </div>
@@ -87,21 +88,14 @@ export function PortalCommunication() {
               <button
                 type="button"
                 className="portal-whatsapp-business-btn"
-                data-open-portal-whatsapp={c.id}
-                data-wa-url={whatsappWebUrlLocal(phone, msg)}
-                data-wa-direct={whatsappUrl(phone, msg)}
-                title={waLabel}
-                aria-label={waLabel}
-                onClick={() => setWaPanelOpen(true)}
+                onClick={() => setWaPanelOpen(!waPanelOpen)}
               >
                 <i className="fab fa-whatsapp" />
                 <span>{waLabel}</span>
               </button>
-              <a
+              
                 className="portal-phone-btn"
                 href={'tel:' + normalizePhoneForLinks(phone)}
-                title={callLabel}
-                aria-label={callLabel}
               >
                 <i className="fas fa-phone" />
                 <span>{callLabel}</span>
@@ -109,54 +103,36 @@ export function PortalCommunication() {
             </div>
           </div>
 
-          <div
-            className={'portal-wa-panel' + (waPanelOpen ? '' : ' is-hidden')}
-            id="portalWhatsappPanel"
-          >
-            <div className="portal-wa-head">
-              <div className="portal-wa-client">
-                <span className="portal-wa-client-icon">
-                  <i className="fab fa-whatsapp" />
-                </span>
-                <div>
-                  <strong>
-                    {waPanelTitle} — {name}
-                  </strong>
-                  <span>{phone}</span>
-                </div>
+          {waPanelOpen && (
+            <div className="portal-wa-panel">
+              <div className="portal-wa-head">
+                <strong>{name} — {phone}</strong>
+                <button type="button" onClick={() => setWaPanelOpen(false)}>
+                  <i className="fas fa-xmark" />
+                </button>
               </div>
-              <button
-                type="button"
-                className="portal-wa-close"
-                aria-label={closeWaLabel}
-                onClick={() => setWaPanelOpen(false)}
-              >
-                <i className="fas fa-xmark" />
-              </button>
-            </div>
-            <div className="portal-wa-body">
-              <div className="portal-wa-frame-wrap">
-                <iframe
-                  className="portal-wa-frame"
-                  id="portalWhatsappFrame"
-                  title={waPanelTitle}
-                  src={waPanelOpen ? whatsappWebUrlLocal(phone, msg) : undefined}
+              <div className="portal-wa-body" style={{ flexDirection: 'column', gap: '12px' }}>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder={lang === 'ar' ? 'اكتب رسالتك...' : 'כתוב הודעה...'}
+                  rows={4}
+                  style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #ccc' }}
                 />
-              </div>
-              <div className="portal-wa-side">
-                <div className="portal-wa-note">{waPanelNote}</div>
-                <a
-                  className="portal-wa-open-external"
-                  href={whatsappUrl(phone, msg)}
-                  target="_blank"
-                  rel="noopener"
+                <button
+                  type="button"
+                  onClick={sendWhatsApp}
+                  disabled={sending}
+                  style={{ background: '#25D366', color: 'white', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
                 >
-                  <i className="fab fa-whatsapp" />
-                  <span>{waExternalLabel}</span>
-                </a>
+                  {sending
+                    ? (lang === 'ar' ? 'جاري الإرسال...' : 'שולח...')
+                    : (lang === 'ar' ? 'إرسال عبر واتساب' : 'שלח ב-WhatsApp')}
+                </button>
+                {status && <div style={{ marginTop: '8px' }}>{status}</div>}
               </div>
             </div>
-          </div>
+          )}
 
           <div className="portal-message-preview">
             <strong>{lang === 'ar' ? 'ملفات الموكل' : 'תיקי הלקוח'}:</strong>

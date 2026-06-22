@@ -23,7 +23,7 @@ import {
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
-import { clientDisplayName } from '@/lib/clients';
+import { clientDisplayName, normalizePhoneForLinks } from '@/lib/clients';
 import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import {
   addPortalBotHistory,
@@ -1010,8 +1010,41 @@ function ClientChatScreen({
   // the lawyer attaches a document via the "new document" flow we append
   // a file message here so the new bubble shows up in the chat.
   const [messages, setMessages] = useState<ChatMessage[]>(
-    () => SAMPLE_MESSAGES.map((m) => ({ ...m })) as ChatMessage[],
-  );
+  () => [] as ChatMessage[],
+  );// Poll D1 for WhatsApp messages every 5 seconds
+useEffect(() => {
+const fullClient = state.clients.find((c: any) => c.id === client.id);
+const rawPhone = ((fullClient?.phone || client.phone) || '').replace(/\D/g, '');
+const phone = rawPhone.startsWith('0') ? '972' + rawPhone.slice(1) : rawPhone;
+
+if (!phone) return;
+  const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'https://legal-office-api.sharifashraf.workers.dev';
+  const APP_TOKEN = process.env.NEXT_PUBLIC_APP_TOKEN || '';
+
+  const poll = async () => {
+    try {
+      const res = await fetch(`${WORKER_URL}/api/whatsapp-messages/${phone}`, {
+        headers: { Authorization: `Bearer ${APP_TOKEN}` },
+      });
+      const data = await res.json();
+
+      const msgs = (data.messages || []).map((m: any) => ({
+        id: m.id,
+        side: m.direction === 'incoming' ? 'client' : 'office',
+        type: 'text' as const,
+        text: m.message_text,
+        time: new Date(m.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+      }));
+      if (msgs.length > 0) setMessages(msgs);
+    } catch (e) {
+      console.error('Poll error:', e);
+    }
+  };
+
+  poll();
+  const interval = setInterval(poll, 5000);
+  return () => clearInterval(interval);
+}, [client.id]);
 
   // All of this client's cases. The two-step quick-actions flow uses
   // this: "select case" picks one, then "new document" opens that
@@ -1157,21 +1190,50 @@ function ClientChatScreen({
   };
 
   // Send a typed text message (from the composer input or Enter key).
-  const sendChatText = (raw: string) => {
-    const text = raw.trim();
-    if (!text) return;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        side: 'office',
-        type: 'text',
-        text,
-        time: nowHHMM(),
-      },
-    ]);
-  };
-
+ const sendChatText = async (raw: string) => {
+  const text = raw.trim();
+  if (!text) return;
+  setMessages((prev) => [
+    ...prev,
+    {
+      id: Date.now(),
+      side: 'office',
+      type: 'text',
+      text,
+      time: nowHHMM(),
+    },
+  ]);
+  // שלוף את הטלפון מ-state.clients
+  const clientRecord = state.clients.find((c) => c.id === client.id);
+  const phone = normalizePhoneForLinks(clientRecord?.phone || '');
+  if (phone) {
+    try {
+     await fetch('/api/whatsapp/send/', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ to: phone, message: text }),
+});
+// Save outgoing message to D1
+await fetch(`${WORKER_URL}/api/whatsapp-messages`, {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${APP_TOKEN}`
+  },
+  body: JSON.stringify({ 
+    client_phone: phone, 
+    direction: 'outgoing', 
+    message_text: text,
+    timestamp: Date.now(),
+    status: 'sent'
+  }),
+});
+    } catch (e) {
+      console.error('WhatsApp send failed:', e);
+    }
+  }
+};
+   
   // Attach a file the lawyer picked via the paperclip button. The
   // File object is kept on the message so future flows (e.g. saving
   // it to the case docs list) can use the real bytes.

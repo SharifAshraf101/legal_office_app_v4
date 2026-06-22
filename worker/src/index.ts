@@ -9,6 +9,9 @@
 //   POST /api/save          -> upsert all tables            (auth)
 //   POST /api/draft         -> read a PDF, draft a reply with Claude, save it (auth)
 //   POST /api/upload-photo  -> store a client photo in R2   (auth)
+//   GET  /api/legal-actions -> legal actions by court type  (auth)
+//   POST /api/suggested-actions -> save AI suggested action (auth)
+//   GET  /api/suggested-actions/:case_id -> get suggestions (auth)
 //
 // Auth is a shared bearer token (APP_TOKEN). CORS is locked to ALLOWED_ORIGIN.
 
@@ -32,11 +35,6 @@ export default {
     }
 
     // ----- everything below requires a shared token -----
-    // APP_TOKEN may hold a COMMA-SEPARATED list of accepted tokens so the
-    // localhost/desktop build and the deployed (Vercel) build — which were
-    // generated with DIFFERENT NEXT_PUBLIC_APP_TOKEN values — both work at the
-    // same time. Previously only one matched, so whichever side was set last
-    // broke the other with a 401.
     const auth = request.headers.get('Authorization') || '';
     const provided = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
     const allowed = (env.APP_TOKEN || '')
@@ -68,22 +66,31 @@ export default {
     if (method === 'POST' && path === '/api/upload-photo') {
       return handleUploadPhoto(request, env);
     }
-
+    if (method === 'GET' && path === '/api/legal-actions') {
+      return handleLegalActions(request, env);
+    }
+    if (method === 'POST' && path === '/api/suggested-actions') {
+      return handleSaveSuggestedAction(request, env);
+    }
+    if (method === 'GET' && path.startsWith('/api/suggested-actions/')) {
+      return handleGetSuggestedActions(request, env);
+    }
+if (method === 'POST' && path === '/api/whatsapp-messages') {
+    return handleSaveWhatsAppMessage(request, env);
+  }
+  if (method === 'GET' && path.startsWith('/api/whatsapp-messages/')) {
+    return handleGetWhatsAppMessages(request, env);
+  }
     return json({ error: 'not found' }, request, env, 404);
   },
 };
 
 // ---------------------------------------------------------------------------
-// GET /api/load — one JSON object with every table's rows (snake_case, exactly
-// as PostgREST returned them) so the client's normalize* code is reused as-is.
+// GET /api/load
 // ---------------------------------------------------------------------------
 async function handleLoad(request: Request, env: Env): Promise<Response> {
   const out: Record<string, unknown> = {};
   for (const table of LOAD_TABLES) {
-    // Defensive: a reprocess pipeline can write a `documents` row keyed by the
-    // full Dropbox path instead of the DOC-NNN id (directly to D1, bypassing
-    // the /api/save guard), duplicating the real row. Never surface those — a
-    // real source_id never contains '/'.
     const extra = table === 'documents' ? " AND source_id NOT LIKE '%/%'" : '';
     const rs = await env.DB.prepare(
       `SELECT * FROM ${table} WHERE user_id = ?${extra}`,
@@ -92,7 +99,6 @@ async function handleLoad(request: Request, env: Env): Promise<Response> {
       .all();
     out[table] = rs.results ?? [];
   }
-  // Whole-app JSON fallback the loader reads when every table is empty.
   const asRow = await env.DB.prepare(
     `SELECT state, payload, data FROM app_state WHERE user_id = ?`,
   )
@@ -106,10 +112,7 @@ async function handleLoad(request: Request, env: Env): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/file-summary — look up a document's AI summary in the file_summary
-// table (the single source of truth for summaries; they are NOT stored on the
-// documents row). Matches the renamed file name, then the original name, then
-// a case-insensitive case_id prefix (newest first). Returns { he, ar, language }.
+// GET /api/file-summary
 // ---------------------------------------------------------------------------
 async function handleFileSummary(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -119,9 +122,6 @@ async function handleFileSummary(request: Request, env: Env): Promise<Response> 
   if (!file && !orig && !caseId) {
     return json({ he: '', ar: '', language: '' }, request, env);
   }
-  // Also match by the stable DOC-NNN id so a row stored under a slightly
-  // different path is still found (otherwise a "not found" triggers a
-  // regenerate → yet another duplicate). Ranked below the exact file matches.
   const docMatch = /(DOC-\d+)/i.exec(file) || /(DOC-\d+)/i.exec(orig);
   const docId = docMatch ? docMatch[1].toUpperCase() : '';
   const row = await env.DB.prepare(
@@ -146,11 +146,7 @@ async function handleFileSummary(request: Request, env: Env): Promise<Response> 
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/file-summary — store (upsert) an AI-generated summary for a file.
-// Body: { file_name, client_id?, case_id?, summary_he?, summary_ar?, language?,
-//         ai_model? }. Replaces any existing row with the same file_name so a
-// document keeps exactly one summary. Also mirrors the summary onto the
-// matching documents row (keyed by DOC-NNN).
+// POST /api/file-summary
 // ---------------------------------------------------------------------------
 async function handleStoreFileSummary(
   request: Request,
@@ -170,11 +166,6 @@ async function handleStoreFileSummary(
     const s = String(v ?? '').trim();
     return s || null;
   };
-  // Dedup by the STABLE DOC-NNN id embedded in the filing name, not by the
-  // exact file_name. A reprocess whose Dropbox path/name differs even slightly
-  // (different stem, casing, .docx→.pdf, folder prefix) would otherwise fail
-  // the exact match and INSERT a duplicate instead of replacing the old row.
-  // The token boundary ('DOC-12.' or end-of-string) avoids DOC-12 ≡ DOC-120.
   const docMatch = /(DOC-\d+)/i.exec(fileName);
   const docId = docMatch ? docMatch[1].toUpperCase() : '';
   if (docId) {
@@ -204,9 +195,6 @@ async function handleStoreFileSummary(
       str(body.ai_model),
     )
     .run();
-  // Mirror the summary onto the matching documents row (keyed by DOC-NNN) so
-  // summaries live on both file_summary and documents. COALESCE keeps an
-  // existing value if the incoming one is empty; no-op when no DOC id.
   if (docId) {
     await env.DB.prepare(
       'UPDATE documents SET summary_he = COALESCE(?1, summary_he), ' +
@@ -227,8 +215,7 @@ async function handleStoreFileSummary(
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/save — upsert every table in a single D1 batch (transaction).
-// Body shape matches the client's *ToRow() output, keyed by table name.
+// POST /api/save
 // ---------------------------------------------------------------------------
 async function handleSave(request: Request, env: Env): Promise<Response> {
   let body: Record<string, unknown>;
@@ -249,10 +236,6 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
   }
 
   if (statements.length) await env.DB.batch(statements);
-  // Keep the dedicated `case_notes` table in sync. It's a DERIVED MIRROR of the
-  // note-type timeline rows (joined to cases for the client id), so it can never
-  // drift out of sync the way an independently-edited copy would. Rebuilt only
-  // when notes or cases changed in this save.
   if (Array.isArray(body.timeline_items) || Array.isArray(body.cases)) {
     try {
       await syncCaseNotes(env);
@@ -263,9 +246,6 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
   return json({ ok: true, count: statements.length }, request, env);
 }
 
-// Rebuild `case_notes` for this user from the note-type timeline_items, joining
-// `cases` to resolve the client id. One row per note, keyed by the note's own
-// stable source_id — same document/note, any path. See /api/case-notes.
 async function syncCaseNotes(env: Env): Promise<void> {
   await env.DB.prepare('DELETE FROM case_notes WHERE user_id = ?')
     .bind(env.USER_ID)
@@ -285,12 +265,7 @@ async function syncCaseNotes(env: Env): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/draft — read an incoming PDF, fetch the drafting skill + case
-// notes from D1, ask Claude for a reply draft, and upsert it into `drafts`.
-// Body: { pdf_base64, client_source_id?, case_source_id?, file_name?, skill_key? }.
-// Builds the Anthropic request with JSON.stringify so multi-line skill/notes
-// text is always escaped. Derives a slash-free DRAFT-DOC-NNN source_id so the
-// row passes the buildUpsert slash guard and re-runs update instead of dupe.
+// POST /api/draft
 // ---------------------------------------------------------------------------
 async function handleDraft(request: Request, env: Env): Promise<Response> {
   let body: Record<string, unknown>;
@@ -467,8 +442,6 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
   );
 }
 
-// Fetch case notes for drafting: case-scoped first, client-wide fallback, all
-// matching notes concatenated. Reads the case_notes mirror.
 async function fetchDraftNotes(
   env: Env,
   clientSrc: string,
@@ -500,9 +473,7 @@ async function fetchDraftNotes(
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/case-notes?caseId=&clientId= — the dedicated per-client+case notes
-// list (mirror of the note-type timeline rows). Either filter is optional;
-// without filters it returns every note for the user. Newest first.
+// GET /api/case-notes
 // ---------------------------------------------------------------------------
 async function handleCaseNotes(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -528,8 +499,7 @@ async function handleCaseNotes(request: Request, env: Env): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/drafts?caseId=&clientId=&documentId= — pull AI-generated reply
-// drafts. All filters optional; newest first.
+// GET /api/drafts
 // ---------------------------------------------------------------------------
 async function handleDrafts(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -537,8 +507,6 @@ async function handleDrafts(request: Request, env: Env): Promise<Response> {
   const clientId = (url.searchParams.get('clientId') || '').trim();
   const documentId = (url.searchParams.get('documentId') || '').trim();
   const binds: unknown[] = [env.USER_ID];
-  // Never surface drafts a pipeline wrote keyed by the full Dropbox path
-  // instead of a DOC-NNN id (same defense as /api/load for documents).
   let sql =
     'SELECT source_id, case_source_id, client_source_id, document_source_id, ' +
     'file_name, title, title_ar, draft_he, draft_ar, language, doc_type, ' +
@@ -564,9 +532,7 @@ async function handleDrafts(request: Request, env: Env): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/skills?key=&all=1 — pull the global drafting "skill" document(s)
-// Claude reads before writing a draft. Default: only status='active' rows.
-// `key` filters to one skill_key; `all=1` includes inactive ones too.
+// GET /api/skills
 // ---------------------------------------------------------------------------
 async function handleSkills(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -589,8 +555,7 @@ async function handleSkills(request: Request, env: Env): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/upload-photo — multipart (file, clientId). Stores under the same
-// key layout the old Supabase Storage path used, returns a URL back at /api/photo.
+// POST /api/upload-photo
 // ---------------------------------------------------------------------------
 async function handleUploadPhoto(request: Request, env: Env): Promise<Response> {
   let form: FormData;
@@ -601,8 +566,6 @@ async function handleUploadPhoto(request: Request, env: Env): Promise<Response> 
   }
   const entry = form.get('file');
   const clientId = String(form.get('clientId') || 'misc');
-  // form.get() returns the uploaded file (a Blob/File) or a string; a real
-  // upload is the object branch. Cast to the Blob shape we use.
   if (!entry || typeof entry === 'string') {
     return json({ error: 'no file' }, request, env, 400);
   }
@@ -624,7 +587,77 @@ async function handleUploadPhoto(request: Request, env: Env): Promise<Response> 
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/photo/<key> — stream an R2 object back. Public so <img src> works.
+// GET /api/legal-actions?court_type=sharia
+// ---------------------------------------------------------------------------
+async function handleLegalActions(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const courtType = (url.searchParams.get('court_type') || '').trim();
+  if (!courtType) {
+    return json({ error: 'court_type parameter required' }, request, env, 400);
+  }
+  const rs = await env.DB.prepare(
+    `SELECT id, stage, action_name, responsible, deadline, deadline_from, legal_source, practical_notes
+     FROM legal_actions
+     WHERE court_type = ?
+     ORDER BY id ASC`,
+  )
+    .bind(courtType)
+    .all();
+  return json({ court_type: courtType, actions: rs.results ?? [] }, request, env);
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/suggested-actions
+// ---------------------------------------------------------------------------
+async function handleSaveSuggestedAction(request: Request, env: Env): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: 'invalid json' }, request, env, 400);
+  }
+  const str = (v: unknown) => String(v ?? '').trim() || null;
+  await env.DB.prepare(
+    `INSERT INTO case_suggested_actions
+     (client_id, case_id, document_name, court_type, suggested_action, deadline, legal_source, confidence, reasoning)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
+  )
+    .bind(
+      str(body.client_id),
+      str(body.case_id),
+      str(body.document_name),
+      str(body.court_type),
+      str(body.suggested_action),
+      str(body.deadline),
+      str(body.legal_source),
+      str(body.confidence),
+      str(body.reasoning),
+    )
+    .run();
+  return json({ ok: true }, request, env);
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/suggested-actions/:case_id
+// ---------------------------------------------------------------------------
+async function handleGetSuggestedActions(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const caseId = url.pathname.replace('/api/suggested-actions/', '').trim();
+  if (!caseId) {
+    return json({ error: 'case_id required' }, request, env, 400);
+  }
+  const rs = await env.DB.prepare(
+    `SELECT * FROM case_suggested_actions
+     WHERE case_id = ?
+     ORDER BY created_at DESC`,
+  )
+    .bind(caseId)
+    .all();
+  return json({ case_id: caseId, suggestions: rs.results ?? [] }, request, env);
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/photo/<key>
 // ---------------------------------------------------------------------------
 async function servePhoto(env: Env, rawKey: string): Promise<Response> {
   const key = decodeURIComponent(rawKey);
@@ -640,7 +673,48 @@ async function servePhoto(env: Env, rawKey: string): Promise<Response> {
   return new Response(obj.body, { headers });
 }
 
-// Mirror lib/supabase.ts safeStorageName: strip anything non-url-safe, keep dots.
 function safeName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 180) || 'file';
+}
+// -----------------------------------------------------------------------
+// POST /api/whatsapp-messages
+// -----------------------------------------------------------------------
+async function handleSaveWhatsAppMessage(request: Request, env: Env): Promise<Response> {
+  const body = await request.json() as { 
+    client_phone: string; 
+    direction: string; 
+    message_text: string; 
+    timestamp: number;
+    message_type?: string;
+    media_url?: string;
+    media_mime_type?: string;
+    media_id?: string;
+    file_name?: string;
+  };
+  await env.DB.prepare(
+    'INSERT INTO whatsapp_messages (client_phone, direction, message_text, timestamp, message_type, media_url, media_mime_type, media_id, file_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)'
+  ).bind(
+    body.client_phone, 
+    body.direction, 
+    body.message_text || '', 
+    body.timestamp,
+    body.message_type || 'text',
+    body.media_url || null,
+    body.media_mime_type || null,
+    body.media_id || null,
+    body.file_name || null
+  ).run();
+  return json({ ok: true }, request, env);
+}
+
+// -----------------------------------------------------------------------
+// GET /api/whatsapp-messages/:phone
+// -----------------------------------------------------------------------
+async function handleGetWhatsAppMessages(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const phone = url.pathname.split('/').pop() ?? '';
+  const rs = await env.DB.prepare(
+    'SELECT * FROM whatsapp_messages WHERE client_phone = ?1 ORDER BY timestamp ASC'
+  ).bind(phone).all();
+  return json({ messages: rs.results ?? [] }, request, env);
 }
