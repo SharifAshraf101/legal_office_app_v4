@@ -1175,19 +1175,23 @@ function ClientChatScreen({
   // a file message here so the new bubble shows up in the chat.
   const [messages, setMessages] = useState<ChatMessage[]>(
   () => [] as ChatMessage[],
-  );// Poll D1 for WhatsApp messages every 5 seconds
-useEffect(() => {
-const fullClient = state.clients.find((c: any) => c.id === client.id);
-const rawPhone = ((fullClient?.phone || (client as any).phone) || '').replace(/\D/g, '');
-const phone = rawPhone.startsWith('0') ? '972' + rawPhone.slice(1) : rawPhone;
-
-if (!phone) return;
+  );
+  // Resolve the client's phone (digits, normalized to 972…) in the component
+  // body so the poll effect can depend on a STABLE primitive. Depending on
+  // state.clients (an array) made the deps array change size/identity between
+  // renders → "useEffect changed size between renders", which broke polling.
+  const pollClient = state.clients.find((c: any) => c.id === client.id);
+  const pollRawPhone = ((pollClient?.phone || (client as any).phone) || '').replace(/\D/g, '');
+  const pollPhone = pollRawPhone.startsWith('0') ? '972' + pollRawPhone.slice(1) : pollRawPhone;
+  // Poll D1 for WhatsApp messages every 5 seconds
+  useEffect(() => {
+    if (!pollPhone) return;
   const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'https://legal-office-api.sharifashraf.workers.dev';
   const APP_TOKEN = process.env.NEXT_PUBLIC_APP_TOKEN || '';
 
   const poll = async () => {
     try {
-      const res = await fetch(`${WORKER_URL}/api/whatsapp-messages/${phone}`, {
+      const res = await fetch(`${WORKER_URL}/api/whatsapp-messages/${pollPhone}`, {
         headers: { Authorization: `Bearer ${APP_TOKEN}` },
       });
       const data = await res.json();
@@ -1231,7 +1235,7 @@ if (!phone) return;
   // the chat (the comment above always promised this; it was never wired).
   const intervalId = window.setInterval(() => void poll(), 5000);
   return () => window.clearInterval(intervalId);
-}, [client.id, state.clients]);
+}, [pollPhone]);
 
   // All of this client's cases. The two-step quick-actions flow uses
   // this: "select case" picks one, then "new document" opens that
