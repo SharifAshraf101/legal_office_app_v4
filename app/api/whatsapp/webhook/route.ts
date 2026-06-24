@@ -1,5 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { phonesMatch } from '@/lib/clients';
+
+export const runtime = 'nodejs';
+// Give the background routing work (full client load + outbound send) room
+// to finish after we've already acked Meta.
+export const maxDuration = 30;
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'sharif_law_office_2026';
 const WORKER_URL = 'https://legal-office-api.sharifashraf.workers.dev';
@@ -31,9 +36,15 @@ export async function GET(req: NextRequest) {
   return new NextResponse('Forbidden', { status: 403 });
 }
 
-// Latest message timestamp (ms, any direction) already stored for this phone,
-// or null when we've never spoken. Used to measure the conversation gap.
-async function lastConversationTs(phone: string): Promise<number | null> {
+// Most recent stored message timestamp (ms, any direction) for this phone
+// that is STRICTLY OLDER than the message we just saved — i.e. the previous
+// conversation. null when there was nothing before it. Used to measure the
+// 30-minute gap; runs in the background so its latency never delays the
+// Meta acknowledgement.
+async function priorConversationTs(
+  phone: string,
+  currentTs: number,
+): Promise<number | null> {
   try {
     const res = await fetch(
       `${WORKER_URL}/api/whatsapp-messages/${encodeURIComponent(phone)}`,
@@ -45,11 +56,11 @@ async function lastConversationTs(phone: string): Promise<number | null> {
     let max = 0;
     for (const m of msgs) {
       const t = Number(m?.timestamp) || 0;
-      if (t > max) max = t;
+      if (t < currentTs && t > max) max = t;
     }
     return max || null;
   } catch (e) {
-    console.error('lastConversationTs failed:', e);
+    console.error('priorConversationTs failed:', e);
     return null;
   }
 }
@@ -86,10 +97,8 @@ async function sendText(origin: string, to: string, message: string): Promise<vo
 
 // When a known client re-opens the conversation after a lull, hand them a
 // deep link into their own scoped bot; an unknown number gets a polite
-// "contact the office" note. Best-effort — never throws into the webhook.
-async function routeToBot(req: NextRequest, from: string): Promise<void> {
-  const origin = process.env.APP_BASE_URL || new URL(req.url).origin;
-
+// "contact the office" note. Best-effort — never throws.
+async function routeToBot(origin: string, from: string): Promise<void> {
   const clients = await loadClients();
   const matches = clients.filter((c) => phonesMatch(c.phone, from));
   const matched = matches.length === 1 ? matches[0] : null;
@@ -116,86 +125,108 @@ async function routeToBot(req: NextRequest, from: string): Promise<void> {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+  // Never let a malformed body throw a 500 back at Meta — that would also
+  // count as a failed delivery.
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ status: 'ok' });
+  }
+
+  const message = (body as {
+    entry?: Array<{ changes?: Array<{ value?: { messages?: unknown[] } }> }>;
+  })?.entry?.[0]?.changes?.[0]?.value?.messages?.[0] as
+    | Record<string, any>
+    | undefined;
 
   console.log('Webhook received:', JSON.stringify(body).slice(0, 200));
 
-  if (message) {
-    const from = message.from;
-    const timestamp = parseInt(message.timestamp) * 1000;
-
-    let messageType = 'text';
-    let messageText = '';
-    let mediaId: string | null = null;
-    let mediaMimeType: string | null = null;
-    let fileName: string | null = null;
-
-    if (message.text) {
-      messageType = 'text';
-      messageText = message.text.body || '';
-    } else if (message.audio) {
-      messageType = 'audio';
-      mediaId = message.audio.id;
-      mediaMimeType = message.audio.mime_type || 'audio/ogg';
-      messageText = '[הודעה קולית]';
-    } else if (message.image) {
-      messageType = 'image';
-      mediaId = message.image.id;
-      mediaMimeType = message.image.mime_type || 'image/jpeg';
-      messageText = '[תמונה]';
-    } else if (message.document) {
-      messageType = 'document';
-      mediaId = message.document.id;
-      mediaMimeType = message.document.mime_type || 'application/pdf';
-      fileName = message.document.filename || 'document';
-      messageText = `[מסמך: ${fileName}]`;
-    } else if (message.video) {
-      messageType = 'video';
-      mediaId = message.video.id;
-      mediaMimeType = message.video.mime_type || 'video/mp4';
-      messageText = '[וידאו]';
-    }
-
-    console.log('Message from:', from, 'type:', messageType);
-
-    // Measure the gap BEFORE storing this message, so a fresh insert doesn't
-    // reset its own clock. A null result (never spoken) also counts as a new
-    // session.
-    const lastTs = await lastConversationTs(from);
-    const isNewSession = lastTs == null || timestamp - lastTs >= SESSION_GAP_MS;
-
-    try {
-      const res = await fetch(`${WORKER_URL}/api/whatsapp-messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${APP_TOKEN}`,
-        },
-        body: JSON.stringify({
-          client_phone: from,
-          direction: 'incoming',
-          message_text: messageText,
-          timestamp,
-          message_type: messageType,
-          media_id: mediaId,
-          media_mime_type: mediaMimeType,
-          file_name: fileName,
-        }),
-      });
-      const data = await res.json();
-      console.log('Worker response:', res.status, JSON.stringify(data));
-    } catch (e) {
-      console.error('Worker fetch failed:', e);
-    }
-
-    // First message after a 30-min lull → route the sender to their bot.
-    // The reply we send is itself logged as outgoing, so it updates the
-    // conversation clock and prevents re-routing on every subsequent message.
-    if (isNewSession) {
-      await routeToBot(req, from);
-    }
+  if (!message) {
+    // Status callbacks (delivered/read) and other events — nothing to store.
+    return NextResponse.json({ status: 'ok' });
   }
+
+  const from = message.from as string;
+  const timestamp = parseInt(message.timestamp) * 1000;
+
+  let messageType = 'text';
+  let messageText = '';
+  let mediaId: string | null = null;
+  let mediaMimeType: string | null = null;
+  let fileName: string | null = null;
+
+  if (message.text) {
+    messageType = 'text';
+    messageText = message.text.body || '';
+  } else if (message.audio) {
+    messageType = 'audio';
+    mediaId = message.audio.id;
+    mediaMimeType = message.audio.mime_type || 'audio/ogg';
+    messageText = '[הודעה קולית]';
+  } else if (message.image) {
+    messageType = 'image';
+    mediaId = message.image.id;
+    mediaMimeType = message.image.mime_type || 'image/jpeg';
+    messageText = '[תמונה]';
+  } else if (message.document) {
+    messageType = 'document';
+    mediaId = message.document.id;
+    mediaMimeType = message.document.mime_type || 'application/pdf';
+    fileName = message.document.filename || 'document';
+    messageText = `[מסמך: ${fileName}]`;
+  } else if (message.video) {
+    messageType = 'video';
+    mediaId = message.video.id;
+    mediaMimeType = message.video.mime_type || 'video/mp4';
+    messageText = '[וידאו]';
+  }
+
+  console.log('Message from:', from, 'type:', messageType);
+
+  // Persist the incoming message synchronously — this is the only thing Meta
+  // needs us to do before we ack, and it's a single fast write.
+  try {
+    const res = await fetch(`${WORKER_URL}/api/whatsapp-messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${APP_TOKEN}`,
+      },
+      body: JSON.stringify({
+        client_phone: from,
+        direction: 'incoming',
+        message_text: messageText,
+        timestamp,
+        message_type: messageType,
+        media_id: mediaId,
+        media_mime_type: mediaMimeType,
+        file_name: fileName,
+      }),
+    });
+    const data = await res.json();
+    console.log('Worker response:', res.status, JSON.stringify(data));
+  } catch (e) {
+    console.error('Worker fetch failed:', e);
+  }
+
+  // The 30-min gap check + client lookup (a full /api/load) + sending the bot
+  // link all run AFTER we ack Meta. Doing them inline previously pushed the
+  // response past Meta's webhook timeout (~30s observed), so Meta treated
+  // deliveries as failed and stopped sending — incoming messages silently
+  // stopped arriving. after() keeps the response instant.
+  const origin = process.env.APP_BASE_URL || new URL(req.url).origin;
+  after(async () => {
+    try {
+      const lastTs = await priorConversationTs(from, timestamp);
+      const isNewSession = lastTs == null || timestamp - lastTs >= SESSION_GAP_MS;
+      if (isNewSession) {
+        await routeToBot(origin, from);
+      }
+    } catch (e) {
+      console.error('routeToBot (background) failed:', e);
+    }
+  });
 
   return NextResponse.json({ status: 'ok' });
 }
