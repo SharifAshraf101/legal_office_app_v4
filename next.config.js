@@ -10,6 +10,14 @@ const nextConfig = {
   // Trailing slash mirrors the previous static-site routing convention.
   trailingSlash: true,
 
+  // ...but DON'T 308-redirect the non-canonical form. Meta's WhatsApp
+  // webhook POSTs to `/api/whatsapp/webhook` (no slash) and does NOT follow
+  // redirects — a 308 there is a silent delivery failure (no function log,
+  // nothing saved). With this flag both `/api/whatsapp/webhook` and
+  // `/api/whatsapp/webhook/` are served by the handler directly, 200 either
+  // way, so the webhook is robust to however the URL is registered in Meta.
+  skipTrailingSlashRedirect: true,
+
   reactStrictMode: true,
 };
 
