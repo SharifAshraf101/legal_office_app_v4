@@ -40,6 +40,36 @@ export function clientInitials(c: Client, lang: Lang): string {
     .toUpperCase();
 }
 
+/**
+ * True when two phone numbers refer to the same line, regardless of how
+ * they were typed. Both are normalized to the canonical `972XXXXXXXXX`
+ * form first, so "050-123-4567", "0501234567" and the WhatsApp
+ * sender id "972501234567" all compare equal. Empty / unparseable
+ * numbers never match (guards against two blank phones matching).
+ */
+export function phonesMatch(
+  a: string | undefined,
+  b: string | undefined,
+): boolean {
+  const na = normalizePhoneForLinks(a);
+  const nb = normalizePhoneForLinks(b);
+  return Boolean(na && nb && na === nb);
+}
+
+/**
+ * Resolve a single client from a phone number (e.g. a WhatsApp sender id).
+ * Returns the matching client ONLY when exactly one client's phone matches
+ * — zero matches or an ambiguous multi-match both return null, so callers
+ * never auto-bind a WhatsApp sender to the wrong file.
+ */
+export function findClientByPhone(
+  clients: Client[],
+  phone: string | undefined,
+): Client | null {
+  const matches = clients.filter((c) => phonesMatch(c.phone, phone));
+  return matches.length === 1 ? matches[0] : null;
+}
+
 /** Source line 4203. */
 export function whatsappUrl(phone: string | undefined, text: string): string {
   const p = normalizePhoneForLinks(phone);

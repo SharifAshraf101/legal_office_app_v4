@@ -23,7 +23,11 @@ import {
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
-import { clientDisplayName, normalizePhoneForLinks } from '@/lib/clients';
+import {
+  clientDisplayName,
+  findClientByPhone,
+  normalizePhoneForLinks,
+} from '@/lib/clients';
 import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import {
   dropboxPathForRelative,
@@ -102,24 +106,54 @@ type Screen =
   | 'otp'
   | 'success'
   | 'bot'
-  | 'lawyer-search';
+  | 'lawyer-search'
+  // Deep-link ("kiosk") screens — used only when a client opens the
+  // WhatsApp portal link. 'gate' waits for app data to hydrate and the
+  // phone→client match to resolve; 'denied' is the dead-end shown when
+  // the number isn't recognized or the client logs out (it never exposes
+  // the all-clients hub).
+  | 'gate'
+  | 'denied';
 
 type HubMode = 'whatsapp' | 'bot';
 
 const cn = (...parts: Array<string | false | null | undefined>): string =>
   parts.filter(Boolean).join(' ');
 
-export default function PortalModern() {
+export default function PortalModern({
+  autoLoginPhone,
+  deepLink,
+}: {
+  /** The WhatsApp sender phone to auto-bind to a single client in
+   *  deep-link mode. */
+  autoLoginPhone?: string;
+  /** Forces client-facing "deep-link" (kiosk) mode: skips the
+   *  chooser/hub/login flow and locks the user inside their scoped bot,
+   *  so the all-clients screens are never reachable. Defaults to true
+   *  whenever a phone is supplied. The /portal route sets it explicitly
+   *  so a bare visit (no phone) still can't fall through to the hub. */
+  deepLink?: boolean;
+} = {}) {
   return (
     <div className="modern-portal-root" dir="rtl" style={{ minHeight: '100%' }}>
-      <PortalShell />
+      <PortalShell autoLoginPhone={autoLoginPhone} deepLink={deepLink} />
     </div>
   );
 }
 
-function PortalShell() {
+function PortalShell({
+  autoLoginPhone,
+  deepLink: deepLinkProp,
+}: {
+  autoLoginPhone?: string;
+  deepLink?: boolean;
+}) {
   const { state } = useAppState();
   const { lang, t } = useT();
+  // Deep-link mode: a client opened the WhatsApp portal link. We auto-bind
+  // them to their file by phone and lock them inside the bot — the
+  // chooser/hub/login screens (which list every client) are never reachable.
+  const deepLink = deepLinkProp ?? Boolean(autoLoginPhone);
 
   // One-shot demo seed: as soon as the app has hydrated and we have at
   // least one client with a case, drop a few sample Q+A pairs into the
@@ -171,13 +205,59 @@ function PortalShell() {
     });
   }, [state.clients, state.casesArr, lang]);
 
-  const [screen, setScreen] = useState<Screen>('chooser');
+  const [screen, setScreen] = useState<Screen>(deepLink ? 'gate' : 'chooser');
   const [hubMode, setHubMode] = useState<HubMode>('whatsapp');
   const [selectedClient, setSelectedClient] = useState<ClientRow | null>(null);
+  // Why the deep-link 'denied' dead-end is showing: 'unmatched' (phone not
+  // recognized) vs 'ended' (the client logged out of their bot session).
+  const [deniedReason, setDeniedReason] = useState<'unmatched' | 'ended'>(
+    'unmatched',
+  );
   // True when the lawyer enters the bot screen directly (bypassing the
   // client-side ID + phone verification). The bot screen then renders in
   // read-only mode so the lawyer can browse the conversation but not send.
   const [lawyerView, setLawyerView] = useState(false);
+
+  // Deep-link auto-login: once app data has hydrated, resolve the WhatsApp
+  // phone to exactly one client and drop them into their scoped bot. A
+  // zero/ambiguous match lands on the 'denied' screen instead — we never
+  // guess which file an unknown number belongs to. Runs once.
+  const autoMatchedRef = useRef(false);
+  useEffect(() => {
+    if (!deepLink || !state.hydrated || autoMatchedRef.current) return;
+    autoMatchedRef.current = true;
+    const matched = findClientByPhone(state.clients, autoLoginPhone);
+    if (!matched) {
+      setDeniedReason('unmatched');
+      setScreen('denied');
+      return;
+    }
+    // Build the bot's ClientRow directly from the matched client so we don't
+    // depend on the 30-row hub slice (the client could be further down the list).
+    const allCases = state.casesArr.filter((cs) => cs.clientId === matched.id);
+    const activeCases = allCases.filter((cs) => cs.status !== 'inactive');
+    const displayCases = activeCases.length > 0 ? activeCases : allCases;
+    const caseSummaries: ClientCaseSummary[] = displayCases.map((cs) => ({
+      id: cs.id,
+      caseNumber: cs.caseNumber || cs.id,
+      title: cs.title || cs.caseNumber || cs.id,
+    }));
+    const name = clientDisplayName(matched, lang);
+    setSelectedClient({
+      id: matched.id,
+      name: name || (lang === 'ar' ? 'موكل' : 'לקוח'),
+      caseNo: caseSummaries[0]?.caseNumber || '',
+      caseType: caseSummaries[0]?.title || (lang === 'ar' ? 'بدون قضية' : 'ללא תיק'),
+      cases: caseSummaries,
+      time: '',
+      unread: 0,
+      avatar: (name || '?').trim().charAt(0).toUpperCase(),
+      status: 'online',
+    });
+    setLawyerView(false);
+    setScreen('bot');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLink, state.hydrated, autoLoginPhone, state.clients, state.casesArr, lang]);
 
   const openChat = (client: ClientRow, caseId?: string) => {
     // If a specific case chip was clicked, surface that case's number/title
@@ -279,11 +359,22 @@ function PortalShell() {
           lang={lang}
         />
       )}
+      {screen === 'gate' && <GateScreen lang={lang} />}
+      {screen === 'denied' && (
+        <DeniedScreen reason={deniedReason} lang={lang} />
+      )}
       {screen === 'bot' && (
         <BotChatScreen
           onBack={() => {
             if (lawyerView) {
               setScreen('lawyer-search');
+            } else if (deepLink) {
+              // Deep-link client logout: end the session on a neutral
+              // dead-end. Never fall back to the login/hub screens — those
+              // would expose other clients.
+              setSelectedClient(null);
+              setDeniedReason('ended');
+              setScreen('denied');
             } else {
               // Client-mode "back" is a logout: clear the authenticated
               // identity and return to the login form. We deliberately
@@ -297,6 +388,12 @@ function PortalShell() {
           lawyerView={lawyerView}
           client={selectedClient}
           onOpenClientChat={
+            // In deep-link mode the "open WhatsApp chat" jump is disabled —
+            // ClientChatScreen dispatches global tab changes and lists other
+            // clients, which must never be reachable from a client link.
+            deepLink
+              ? undefined
+              :
             // "Open chat" jumps to the in-app WhatsApp screen
             // (ClientChatScreen) for the selected client — wired for
             // BOTH lawyer view AND authenticated client view per the
@@ -316,6 +413,64 @@ function PortalShell() {
           }
         />
       )}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────── *
+ * Deep-link (kiosk) screens
+ * ────────────────────────────────────────────────────────── */
+
+/** Shown while app data hydrates and the phone→client match resolves. */
+function GateScreen({ lang }: { lang: 'he' | 'ar' }) {
+  return (
+    <div className="tw-flex tw-min-h-[70vh] tw-flex-col tw-items-center tw-justify-center tw-gap-4 tw-px-6 tw-text-center">
+      <div className="tw-h-12 tw-w-12 tw-animate-spin tw-rounded-full tw-border-4 tw-border-slate-200 tw-border-t-slate-700" />
+      <p className="tw-text-base tw-font-semibold tw-text-slate-700">
+        {lang === 'ar' ? 'جارٍ التحقق من رقمك…' : 'מאמתים את המספר שלך…'}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Dead-end for deep-link sessions. 'unmatched' = the WhatsApp number isn't
+ * tied to any client; 'ended' = the client logged out. Neither path exposes
+ * the all-clients hub.
+ */
+function DeniedScreen({
+  reason,
+  lang,
+}: {
+  reason: 'unmatched' | 'ended';
+  lang: 'he' | 'ar';
+}) {
+  const title =
+    reason === 'ended'
+      ? lang === 'ar'
+        ? 'انتهت الجلسة'
+        : 'השיחה הסתיימה'
+      : lang === 'ar'
+        ? 'الرقم غير معروف'
+        : 'המספר אינו מזוהה';
+  const body =
+    reason === 'ended'
+      ? lang === 'ar'
+        ? 'لإعادة الفتح، اضغط مجدداً على الرابط في رسالة واتساب.'
+        : 'לפתיחה מחדש, לחץ שוב על הקישור שנשלח אליך בוואטסאפ.'
+      : lang === 'ar'
+        ? 'رقم هاتفك غير مسجّل في ملفاتنا. يرجى التواصل مع المكتب.'
+        : 'מספר הטלפון שלך אינו רשום במערכת. נא ליצור קשר עם המשרד.';
+  return (
+    <div className="tw-flex tw-min-h-[70vh] tw-flex-col tw-items-center tw-justify-center tw-gap-3 tw-px-6 tw-text-center">
+      <div className="tw-flex tw-h-14 tw-w-14 tw-items-center tw-justify-center tw-rounded-full tw-bg-slate-100">
+        <Lock className="tw-h-7 tw-w-7 tw-text-slate-500" />
+      </div>
+      <h1 className="tw-text-lg tw-font-[900] tw-text-slate-900">{title}</h1>
+      <p className="tw-max-w-sm tw-text-sm tw-text-slate-500">{body}</p>
+      <p className="tw-mt-2 tw-text-sm tw-font-semibold tw-text-slate-700" dir="ltr">
+        02-6288479
+      </p>
     </div>
   );
 }
