@@ -303,6 +303,14 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
   const [pendingDocId, setPendingDocId] = useState<string | null>(null);
   const confirmLabel = lang === 'ar' ? 'اختيار' : 'בחר';
   const cancelLabel = lang === 'ar' ? 'إلغاء' : 'בטל';
+  const uploadLabel = lang === 'ar' ? 'رفع المستند' : 'העלאת מסמך';
+  const selectedDoc = pendingDocId
+    ? docs.find((d) => String(d.id) === String(pendingDocId)) ?? null
+    : null;
+  const pickDoc = (doc: DocumentRecord) => {
+    close();
+    onPickDocument!(doc);
+  };
   const confirmPick = () => {
     if (!pendingDocId) return;
     const doc = docs.find((d) => String(d.id) === String(pendingDocId));
@@ -310,8 +318,7 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
     // Close first so the modal disappears immediately, then hand the
     // picked doc to the parent (which appends it to the chat).
     // `close()` is idempotent so the parent's own close() is harmless.
-    close();
-    onPickDocument!(doc);
+    pickDoc(doc);
   };
 
   return (
@@ -364,6 +371,50 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
         </div>
       )}
 
+      {pickMode && selectedDoc && (
+        <div
+          style={{
+            margin: '0 0 12px',
+            padding: '12px 14px',
+            borderRadius: 14,
+            background: '#ECFDF5',
+            border: '1px solid #A7F3D0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+            boxShadow: '0 8px 18px rgba(16, 185, 129, 0.12)',
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#047857' }}>
+              {selectedDoc.title || selectedDoc.fileName || uploadLabel}
+            </div>
+            <div style={{ fontSize: 12, color: '#065F46', marginTop: 2 }}>
+              {lang === 'ar' ? 'اضغط للإرسال إلى المحادثة' : 'לחץ כדי לשלוח לשיחה'}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => pickDoc(selectedDoc)}
+            style={{
+              border: '0',
+              borderRadius: 999,
+              padding: '10px 14px',
+              fontWeight: 900,
+              fontSize: 13,
+              cursor: 'pointer',
+              background: '#10B981',
+              color: '#fff',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <i className="fas fa-paper-plane" style={{ marginInlineEnd: 6 }} />
+            {uploadLabel}
+          </button>
+        </div>
+      )}
+
       {docs.length === 0 ? (
         <div className="case-docs-modal-empty">
           {lang === 'ar'
@@ -411,6 +462,7 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
                 className={
                   'case-docs-modal-row' + (isPending ? ' is-pending-pick' : '')
                 }
+                style={pickMode ? { position: 'relative', cursor: 'pointer' } : undefined}
                 data-case-doc-row={doc.id}
                 role={pickMode ? 'button' : undefined}
                 tabIndex={pickMode ? 0 : undefined}
@@ -426,9 +478,21 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
                       }
                     : undefined
                 }
-                style={pickMode ? { cursor: 'pointer' } : undefined}
                 aria-label={pickMode ? pickTitle + ' — ' + fileName : undefined}
               >
+                {pickMode && isPending && (
+                  <button
+                    type="button"
+                    className="case-docs-modal-row-upload"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      pickDoc(doc);
+                    }}
+                  >
+                    <i className="fas fa-paper-plane" />
+                    {uploadLabel}
+                  </button>
+                )}
                 <div>
                   <div className="case-docs-modal-title">
                     {fileExt && (

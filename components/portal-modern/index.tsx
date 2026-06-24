@@ -26,6 +26,11 @@ import { useT } from '@/hooks/useT';
 import { clientDisplayName, normalizePhoneForLinks } from '@/lib/clients';
 import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import {
+  dropboxPathForRelative,
+  getDropboxTemporaryLink,
+  isDropboxConfigured,
+} from '@/lib/dropbox';
+import {
   addPortalBotHistory,
   caseStatusSummary,
   downloadedDocIdsForClient,
@@ -48,7 +53,7 @@ import {
   financePaidItemsForCase,
   paymentTypeLabel,
 } from '@/lib/finance';
-import type { Case, Client } from '@/types';
+import type { Case, Client, DocumentRecord } from '@/types';
 import { MainScreenBackButton } from '../MainScreenBackButton';
 import { AddPaymentModal } from '../AddPaymentModal';
 import { CaseDetail } from '../CaseDetail';
@@ -988,6 +993,10 @@ type ChatMessage = {
   /** Object URL for a recorded voice clip — the play button on the
    *  bubble streams the audio from this URL. */
   voiceUrl?: string;
+  /** Direct URL for a document attachment, used by the open button. */
+  documentUrl?: string;
+  /** MIME type of the attached document, when available. */
+  mimeType?: string;
 };
 
 function ClientChatScreen({
@@ -1028,22 +1037,42 @@ if (!phone) return;
       });
       const data = await res.json();
 
-      const msgs = (data.messages || []).map((m: any) => ({
-        id: m.id,
-        side: m.direction === 'incoming' ? 'client' : 'office',
-        type: 'text' as const,
-        text: m.message_text,
-        time: new Date(m.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
-      }));
-      if (msgs.length > 0) setMessages(msgs);
+      const msgs = (data.messages || []).map((m: any) => {
+        const isDocument = Boolean(
+          m.message_type === 'document' || m.file_name || m.media_url || String(m.message_text || '').startsWith('📎')
+        );
+        const fileName = String(m.file_name || m.message_text || '').trim();
+        const label = fileName.replace(/^📎\s*/, '');
+        return {
+          id: m.id,
+          side: m.direction === 'incoming' ? 'client' : 'office',
+          type: isDocument ? 'file' : 'text',
+          text: label || (m.message_text || ''),
+          time: new Date(m.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+          documentUrl: isDocument ? m.media_url || undefined : undefined,
+          mimeType: m.media_mime_type || undefined,
+        };
+      });
+      if (msgs.length > 0) {
+        setMessages((prev) => {
+          const seen = new Set(prev.map((msg) => msg.id));
+          const merged = [...prev];
+          msgs.forEach((msg: ChatMessage) => {
+            if (!seen.has(msg.id)) {
+              merged.push(msg);
+              seen.add(msg.id);
+            }
+          });
+          return merged;
+        });
+      }
     } catch (e) {
       console.error('Poll error:', e);
     }
   };
 
-  poll();
-  const interval = setInterval(poll, 5000);
-  return () => clearInterval(interval);
+  void poll();
+  return undefined;
 }, [client.id]);
 
   // All of this client's cases. The two-step quick-actions flow uses
@@ -1175,7 +1204,7 @@ if (!phone) return;
 
   // Append an attached document as an outgoing file bubble in the chat.
   // Used by the "new document → pick from list" double-click flow.
-  const attachDocumentToChat = (doc: { fileName?: string; title?: string }) => {
+  const attachDocumentToChat = async (doc: DocumentRecord) => {
     const fileName = doc.fileName || doc.title || (lang === 'ar' ? 'مستند' : 'מסמך');
     setMessages((prev) => [
       ...prev,
@@ -1185,8 +1214,55 @@ if (!phone) return;
         type: 'file',
         text: fileName,
         time: nowHHMM(),
+        documentUrl: typeof doc.relativePath === 'string' && doc.relativePath.trim()
+          ? doc.relativePath
+          : undefined,
       },
     ]);
+
+    const clientRecord = state.clients.find((c) => c.id === client.id);
+    const phone = normalizePhoneForLinks(clientRecord?.phone || '');
+    const caption = (lang === 'ar' ? 'تم إرسال ملف: ' : 'נשלח מסמך: ') + fileName;
+
+    // Resolve a public/direct URL for the file HERE, in the browser, where the
+    // Dropbox tokens live in localStorage. The server-side send route cannot do
+    // this — it has no access to localStorage, so getDropboxTemporaryLink()
+    // always returns null there and the message falls back to plain text.
+    const relativePath =
+      typeof doc.relativePath === 'string' && doc.relativePath.trim()
+        ? doc.relativePath.trim()
+        : undefined;
+    let documentUrl: string | undefined;
+    if (relativePath && /^https?:\/\//i.test(relativePath)) {
+      documentUrl = relativePath;
+    } else if (relativePath && isDropboxConfigured()) {
+      try {
+        const link = await getDropboxTemporaryLink(dropboxPathForRelative(relativePath));
+        if (link) documentUrl = link;
+      } catch (e) {
+        console.error('Dropbox link resolve failed:', e);
+      }
+    }
+
+    if (phone) {
+      try {
+        await fetch('/api/whatsapp/send/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: phone,
+            message: caption,
+            document: {
+              name: fileName,
+              url: documentUrl,
+              relativePath,
+            },
+          }),
+        });
+      } catch (e) {
+        console.error('WhatsApp document send failed:', e);
+      }
+    }
   };
 
   // Send a typed text message (from the composer input or Enter key).
@@ -1334,8 +1410,8 @@ if (!phone) return;
     modalStack.open(
       <CaseDocumentsModal
         caseId={caseId}
-        onPickDocument={(doc) => {
-          attachDocumentToChat(doc);
+        onPickDocument={async (doc) => {
+          await attachDocumentToChat(doc);
           modalStack.close(modalStack.topId() ?? 0);
         }}
       />,
@@ -3320,7 +3396,7 @@ function MessageBubble({
         {message.type === 'file' && (
           <div
             className={cn(
-              'tw-flex tw-items-center tw-gap-3',
+              'tw-flex tw-items-center tw-gap-3 tw-rounded-2xl tw-border tw-border-slate-200/80 tw-bg-white/80 tw-p-3',
               isClientFile && onClientFileDoubleClick ? 'tw-cursor-pointer' : '',
             )}
             onDoubleClick={
@@ -3336,13 +3412,35 @@ function MessageBubble({
                 : undefined
             }
           >
-            <div className="tw-grid tw-h-10 tw-w-10 tw-place-items-center tw-rounded-2xl tw-bg-red-50 tw-text-red-600">
+            <div className="tw-grid tw-h-10 tw-w-10 tw-shrink-0 tw-place-items-center tw-rounded-2xl tw-bg-red-50 tw-text-red-600">
               <FileText className="tw-h-5 tw-w-5" />
             </div>
-            <div>
-              <div className="tw-font-semibold">{message.text}</div>
-              <div className="tw-text-xs tw-text-slate-400">PDF · 245 KB</div>
+            <div className="tw-min-w-0 tw-flex-1">
+              <div className="tw-font-semibold tw-truncate">{message.text}</div>
+              <div className="tw-mt-1 tw-text-xs tw-font-medium tw-text-slate-500">
+                {lang === 'ar' ? 'ملف مرفق' : 'קובץ מצורף'}
+              </div>
             </div>
+            <button
+              type="button"
+              className="tw-rounded-xl tw-bg-emerald-600 tw-px-3 tw-py-2 tw-text-xs tw-font-semibold tw-text-white hover:tw-bg-emerald-700"
+              onClick={(e) => {
+                e.stopPropagation();
+                const target = message.documentUrl || message.text;
+                if (!target) return;
+                const isAbsoluteUrl = /^https?:\/\//i.test(target) || /^data:/i.test(target);
+                if (isAbsoluteUrl) {
+                  window.open(target, '_blank', 'noopener,noreferrer');
+                } else {
+                  void openDocumentFromLegalOfficeFolder(
+                    target,
+                    lang === 'ar' ? 'ar' : 'he',
+                  );
+                }
+              }}
+            >
+              {lang === 'ar' ? 'فتح' : 'פתח'}
+            </button>
           </div>
         )}
         {message.type === 'voice' && <VoiceBubble message={message} />}
