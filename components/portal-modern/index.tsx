@@ -1227,8 +1227,11 @@ if (!phone) return;
   };
 
   void poll();
-  return undefined;
-}, [client.id]);
+  // Auto-refresh so newly-arrived incoming messages show without reopening
+  // the chat (the comment above always promised this; it was never wired).
+  const intervalId = window.setInterval(() => void poll(), 5000);
+  return () => window.clearInterval(intervalId);
+}, [client.id, state.clients]);
 
   // All of this client's cases. The two-step quick-actions flow uses
   // this: "select case" picks one, then "new document" opens that
