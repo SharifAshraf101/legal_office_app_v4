@@ -98,21 +98,31 @@ async function sendText(origin: string, to: string, message: string): Promise<vo
 // When a known client re-opens the conversation after a lull, hand them a
 // deep link into their own scoped bot; an unknown number gets a polite
 // "contact the office" note. Best-effort — never throws.
-async function routeToBot(origin: string, from: string): Promise<void> {
+//
+// `portalBase` = the public URL the CLIENT opens (must be internet-reachable).
+// `selfBase`   = base for our own call to /api/whatsapp/send (must reach THIS
+//                running server). These differ: behind ngrok the public base
+//                is the https tunnel URL, but the self-call must hit the local
+//                http loopback or TLS fails (ERR_SSL_PACKET_LENGTH_TOO_LONG).
+async function routeToBot(
+  portalBase: string,
+  selfBase: string,
+  from: string,
+): Promise<void> {
   const clients = await loadClients();
   const matches = clients.filter((c) => phonesMatch(c.phone, from));
   const matched = matches.length === 1 ? matches[0] : null;
 
   if (matched) {
     const name = (matched.full_name || matched.full_name_ar || '').trim();
-    const link = `${origin}/portal?phone=${encodeURIComponent(from)}&lang=he`;
+    const link = `${portalBase}/portal?phone=${encodeURIComponent(from)}&lang=he`;
     const message =
       `שלום${name ? ' ' + name : ''}, ` +
       `כדי לקבל מידע על התיק שלך — סטטוס, דיונים, תשלומים ומסמכים — ` +
       `היכנס/י לבוט הלקוחות:\n${link}\n\n` +
       `مرحباً، للاطلاع على معلومات ملفك (الحالة، الجلسات، المدفوعات والمستندات) ` +
       `ادخل إلى بوت الموكلين عبر الرابط أعلاه.`;
-    await sendText(origin, from, message);
+    await sendText(selfBase, from, message);
     return;
   }
 
@@ -121,7 +131,7 @@ async function routeToBot(origin: string, from: string): Promise<void> {
     `שלום, מספר הטלפון אינו מזוהה כלקוח במערכת. ` +
     `לפניות נא ליצור קשר עם המשרד: ${OFFICE_PHONE}.\n\n` +
     `مرحباً، رقم هاتفك غير مسجّل كموكل لدينا. للتواصل مع المكتب: ${OFFICE_PHONE}.`;
-  await sendText(origin, from, message);
+  await sendText(selfBase, from, message);
 }
 
 export async function POST(req: NextRequest) {
@@ -215,13 +225,37 @@ export async function POST(req: NextRequest) {
   // response past Meta's webhook timeout (~30s observed), so Meta treated
   // deliveries as failed and stopped sending — incoming messages silently
   // stopped arriving. after() keeps the response instant.
-  const origin = process.env.APP_BASE_URL || new URL(req.url).origin;
+  // The public host the request actually arrived through. Behind ngrok this
+  // is the tunnel URL (e.g. https://xxx.ngrok-free.dev); on Vercel it's the
+  // deployment host. We trust the forwarded headers because only our own
+  // tunnel/proxy sets them.
+  const fwdHost =
+    req.headers.get('x-forwarded-host') ||
+    req.headers.get('host') ||
+    new URL(req.url).host;
+  const fwdProto = (req.headers.get('x-forwarded-proto') || 'https')
+    .split(',')[0]
+    .trim();
+
+  // CLIENT link → must be internet-reachable: the tunnel/public host.
+  const portalBase = (process.env.PORTAL_BASE_URL || `${fwdProto}://${fwdHost}`)
+    .replace(/\/$/, '');
+  // INTERNAL send call → must reach THIS server. On Vercel the request origin
+  // works; locally (behind ngrok) the forwarded origin is https-onto-http and
+  // breaks TLS, so hit the loopback http port the dev server listens on.
+  const selfBase = (
+    process.env.SELF_BASE_URL ||
+    (process.env.VERCEL
+      ? `${fwdProto}://${fwdHost}`
+      : `http://127.0.0.1:${process.env.PORT || 3000}`)
+  ).replace(/\/$/, '');
+
   after(async () => {
     try {
       const lastTs = await priorConversationTs(from, timestamp);
       const isNewSession = lastTs == null || timestamp - lastTs >= SESSION_GAP_MS;
       if (isNewSession) {
-        await routeToBot(origin, from);
+        await routeToBot(portalBase, selfBase, from);
       }
     } catch (e) {
       console.error('routeToBot (background) failed:', e);
