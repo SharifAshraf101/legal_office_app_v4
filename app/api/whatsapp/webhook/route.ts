@@ -237,9 +237,14 @@ export async function POST(req: NextRequest) {
     .split(',')[0]
     .trim();
 
-  // CLIENT link → must be internet-reachable: the tunnel/public host.
-  const portalBase = (process.env.PORTAL_BASE_URL || `${fwdProto}://${fwdHost}`)
-    .replace(/\/$/, '');
+  // CLIENT link → the public, production portal. Must be a host the worker's
+  // CORS allowlist permits (so the portal can load the client's data) and that
+  // serves a clean build (no ngrok browser-warning / dev HMR). The local dev
+  // server behind ngrok is NOT CORS-allowed and renders blank on mobile, so we
+  // default to the deployed Vercel app. Override with PORTAL_BASE_URL.
+  const portalBase = (
+    process.env.PORTAL_BASE_URL || 'https://legal-office-app-v3.vercel.app'
+  ).replace(/\/$/, '');
   // INTERNAL send call → must reach THIS server. On Vercel the request origin
   // works; locally (behind ngrok) the forwarded origin is https-onto-http and
   // breaks TLS, so hit the loopback http port the dev server listens on.
