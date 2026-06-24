@@ -218,15 +218,19 @@ function PortalShell({
   // read-only mode so the lawyer can browse the conversation but not send.
   const [lawyerView, setLawyerView] = useState(false);
 
-  // Deep-link auto-login: once app data has hydrated, resolve the WhatsApp
-  // phone to exactly one client and drop them into their scoped bot. A
-  // zero/ambiguous match lands on the 'denied' screen instead — we never
-  // guess which file an unknown number belongs to. Runs once.
+  // Deep-link auto-login: resolve the WhatsApp phone to exactly one client and
+  // drop them into their scoped bot. CRUCIAL: wait until client data has
+  // actually LOADED before deciding. On a fresh phone, localStorage is empty,
+  // so `state.hydrated` flips true with an empty clients list a beat before the
+  // worker data lands — deciding then would wrongly show 'denied'. So we hold
+  // on the 'gate' spinner until `state.clients` is populated, then match (or,
+  // only once data exists, deny an unknown number).
   const autoMatchedRef = useRef(false);
   useEffect(() => {
-    if (!deepLink || !state.hydrated || autoMatchedRef.current) return;
-    autoMatchedRef.current = true;
+    if (!deepLink || autoMatchedRef.current) return;
+    if (!state.clients.length) return; // data not loaded yet → keep waiting
     const matched = findClientByPhone(state.clients, autoLoginPhone);
+    autoMatchedRef.current = true;
     if (!matched) {
       setDeniedReason('unmatched');
       setScreen('denied');
@@ -257,7 +261,21 @@ function PortalShell({
     setLawyerView(false);
     setScreen('bot');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deepLink, state.hydrated, autoLoginPhone, state.clients, state.casesArr, lang]);
+  }, [deepLink, autoLoginPhone, state.clients, state.casesArr, lang]);
+
+  // Safety net: if data never loads (network/CORS/token failure), don't spin
+  // forever — fall back to the 'denied' dead-end after a grace period.
+  useEffect(() => {
+    if (!deepLink) return;
+    const id = window.setTimeout(() => {
+      if (!autoMatchedRef.current) {
+        autoMatchedRef.current = true;
+        setDeniedReason('unmatched');
+        setScreen('denied');
+      }
+    }, 20000);
+    return () => window.clearTimeout(id);
+  }, [deepLink]);
 
   const openChat = (client: ClientRow, caseId?: string) => {
     // If a specific case chip was clicked, surface that case's number/title
