@@ -1255,6 +1255,15 @@ function ClientChatScreen({
   return () => window.clearInterval(intervalId);
 }, [pollPhone]);
 
+  // Keep the chat pinned to the newest message. Without this, a message added
+  // by the 5s poll lands below the fold and looks like it "didn't arrive" until
+  // a manual refresh re-lays-out the list.
+  const chatListRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = chatListRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
   // All of this client's cases. The two-step quick-actions flow uses
   // this: "select case" picks one, then "new document" opens that
   // case's docs modal in attach mode.
@@ -1772,7 +1781,7 @@ function ClientChatScreen({
            *  the chat content is centered to the same 896px max as
            *  the bot chat, giving bubbles identical inset from the
            *  visible chat area boundaries. */}
-          <div className="portal-wa-chat-list tw-flex-1 tw-space-y-4 tw-overflow-y-auto tw-p-5 tw-mx-auto tw-w-full tw-max-w-4xl">
+          <div ref={chatListRef} className="portal-wa-chat-list tw-flex-1 tw-space-y-4 tw-overflow-y-auto tw-p-5 tw-mx-auto tw-w-full tw-max-w-4xl">
             {/* "היום" pill — wrapped in a flex `justify-center` row
              *  so it lands at the true horizontal center of the
              *  chat area regardless of any padding asymmetry on
