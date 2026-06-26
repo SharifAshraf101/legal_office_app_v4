@@ -1522,52 +1522,10 @@ function ClientChatScreen({
     ]);
   };
 
-  // ──────────────────────────────────────────────────────────
-  // Bot-help auto-prompt.
-  //
-  // (1) Inject once when the chat opens — first message the client
-  //     sees offers a link to the secure bot login screen.
-  // (2) Re-inject after 60 minutes of zero chat activity (no messages
-  //     sent or received). The timer resets on every change to
-  //     `messages.length`.
-  //
-  // Both effects below de-dupe so back-to-back help bubbles never
-  // appear when the trailing message is already a bot-help one.
-  // ──────────────────────────────────────────────────────────
-  const injectBotHelp = useCallback(() => {
-    setMessages((prev) => {
-      const last = prev[prev.length - 1];
-      if (last && last.type === 'bot-help') return prev;
-      return [
-        ...prev,
-        {
-          id: Date.now(),
-          side: 'office',
-          type: 'bot-help',
-          text: '',
-          time: nowHHMM(),
-        },
-      ];
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lang]);
-
-  // (1) Show the help bubble once when the chat screen first mounts.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    injectBotHelp();
-    // Run exactly once per chat open. `client.id` keeps it stable
-    // even if the parent re-renders.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client.id]);
-
-  // (2) 60-minute idle re-prompt. Cleared and rescheduled on every
-  // message activity (which changes messages.length).
-  useEffect(() => {
-    const SIXTY_MIN_MS = 60 * 60 * 1000;
-    const id = window.setTimeout(injectBotHelp, SIXTY_MIN_MS);
-    return () => window.clearTimeout(id);
-  }, [messages.length, injectBotHelp]);
+  // The bot-help prompt is no longer injected into the scrolling message
+  // list. It's rendered as a FIXED banner pinned just above the composer
+  // (see the BotHelpBanner near the ChatComposer below), so it stays in view
+  // instead of scrolling away at the top of the chat.
 
   // Step 1: "Select case" — opens the case picker showing every case
   // linked to this client. Always opens (even for a single case) so the
@@ -1801,6 +1759,9 @@ function ClientChatScreen({
               />
             ))}
           </div>
+          {/* Fixed bot-help banner — pinned directly above the composer so it
+           *  stays in view instead of scrolling away at the top of the chat. */}
+          <BotHelpBanner lang={lang} onOpenBotLogin={onOpenBotLogin} />
           <div className="tw-mx-auto tw-w-full tw-max-w-4xl">
             <ChatComposer
               lang={lang}
@@ -3634,6 +3595,50 @@ function MessageBubble({
         )}
         {message.type === 'voice' && <VoiceBubble message={message} />}
         <div className="tw-mt-2 tw-text-left tw-text-xs tw-text-slate-400">{message.time}</div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Fixed bot-help banner shown in the WhatsApp client chat, pinned just above
+ * the composer (NOT scrolling with the message list). Replaces the old in-list
+ * 'bot-help' bubble. The CTA launches the secure bot-login flow.
+ */
+function BotHelpBanner({
+  lang,
+  onOpenBotLogin,
+}: {
+  lang: 'he' | 'ar';
+  onOpenBotLogin?: () => void;
+}) {
+  const title = lang === 'ar' ? 'بحاجة لمساعدة سريعة؟' : 'צריך עזרה מהירה?';
+  const sub =
+    lang === 'ar'
+      ? 'بوت الموكلين يجيب على الأسئلة الشائعة 24/7. اضغط لدخول آمن.'
+      : 'בוט הלקוחות עונה על שאלות נפוצות 24/7. לחץ לכניסה מאובטחת.';
+  const cta = lang === 'ar' ? 'دخول إلى البوت ←' : 'כניסה לבוט ←';
+  return (
+    <div className="tw-mx-auto tw-w-full tw-max-w-4xl tw-px-4 tw-pt-2">
+      <div className="tw-flex tw-items-center tw-gap-3 tw-rounded-2xl tw-border tw-border-indigo-200 tw-bg-indigo-50/70 tw-px-4 tw-py-2.5 tw-shadow-sm">
+        <div
+          className="tw-grid tw-h-9 tw-w-9 tw-shrink-0 tw-place-items-center tw-rounded-xl tw-bg-indigo-500 tw-text-white"
+          aria-label="Bot"
+        >
+          <Bot className="tw-h-5 tw-w-5" />
+        </div>
+        <div className="tw-min-w-0 tw-flex-1">
+          <div className="tw-text-sm tw-font-bold tw-text-indigo-900">{title}</div>
+          <div className="tw-truncate tw-text-xs tw-text-slate-600">{sub}</div>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenBotLogin}
+          disabled={!onOpenBotLogin}
+          className="tw-shrink-0 tw-inline-flex tw-items-center tw-gap-2 tw-rounded-xl tw-bg-indigo-600 tw-px-4 tw-py-2 tw-text-xs tw-font-semibold tw-text-white tw-shadow-sm tw-transition hover:tw-bg-indigo-700 disabled:tw-cursor-not-allowed disabled:tw-opacity-50"
+        >
+          {cta}
+        </button>
       </div>
     </div>
   );
