@@ -206,7 +206,6 @@ function PortalShell({
   }, [state.clients, state.casesArr, lang]);
 
   const [screen, setScreen] = useState<Screen>(deepLink ? 'gate' : 'chooser');
-  const [hubMode, setHubMode] = useState<HubMode>('whatsapp');
   const [selectedClient, setSelectedClient] = useState<ClientRow | null>(null);
   // Why the deep-link 'denied' dead-end is showing: 'unmatched' (phone not
   // recognized) vs 'ended' (the client logged out of their bot session).
@@ -300,30 +299,22 @@ function PortalShell({
       {screen === 'chooser' && (
         <ChooserScreen
           onPickWhatsApp={() => {
-            setHubMode('whatsapp');
             setScreen('hub');
           }}
           onPickBot={() => {
-            setHubMode('bot');
-            setScreen('hub');
+            // Bot → straight into the lawyer's "search client bot
+            // conversations" screen. The old bot hub is removed.
+            setLawyerView(true);
+            setSelectedClient(null);
+            setScreen('lawyer-search');
           }}
           lang={lang}
         />
       )}
       {screen === 'hub' && (
         <HubScreen
-          mode={hubMode}
           clients={clients}
           onOpenChat={openChat}
-          onOpenBotLogin={() => {
-            setLawyerView(false);
-            setScreen('login');
-          }}
-          onOpenBotAsLawyer={() => {
-            setLawyerView(true);
-            setSelectedClient(null);
-            setScreen('lawyer-search');
-          }}
           onBack={() => setScreen('chooser')}
           lang={lang}
         />
@@ -373,7 +364,7 @@ function PortalShell({
             setSelectedClient(c);
             setScreen('bot');
           }}
-          onBack={() => setScreen('hub')}
+          onBack={() => setScreen('chooser')}
           lang={lang}
         />
       )}
@@ -550,162 +541,57 @@ function TopBar({
  * ────────────────────────────────────────────────────────── */
 
 function HubScreen({
-  mode,
   clients,
   onOpenChat,
-  onOpenBotLogin,
-  onOpenBotAsLawyer,
   onBack,
   lang,
 }: {
-  mode: HubMode;
   clients: ClientRow[];
   onOpenChat: (c: ClientRow, caseId?: string) => void;
-  onOpenBotLogin: () => void;
-  onOpenBotAsLawyer: () => void;
   onBack: () => void;
   lang: 'he' | 'ar';
 }) {
   const T = {
     title:
-      mode === 'bot'
-        ? lang === 'ar'
-          ? 'مركز التواصل مع بوت الموكلين'
-          : 'מרכז תקשורת עם בוט לקוחות'
-        : lang === 'ar'
-          ? 'مركز التواصل مع الموكلين'
-          : 'מרכז תקשורת עם לקוחות',
-    // Subtitle moved out of the header per user request — now
-    // rendered as a centered caption ABOVE the FeatureRow pills
-    // in the bot panel below, sitting directly atop "כניסה
-    // מאובטחת ללקוח".
-    subtitle: '',
+      lang === 'ar' ? 'مركز التواصل مع الموكلين' : 'מרכז תקשורת עם לקוחות',
     searchPh:
       lang === 'ar' ? 'ابحث عن موكل أو رقم ملف...' : 'חיפוש לקוח או מספר תיק...',
     recent: lang === 'ar' ? 'محادثات أخيرة' : 'שיחות אחרונות',
-    bot: lang === 'ar' ? 'بوت الموكلين' : 'בוט הלקוחות',
-    botSub: lang === 'ar' ? 'إجابات تلقائية للموكلين' : 'מענה אוטומטי ללקוחות',
-    bullets: [
-      lang === 'ar' ? 'دخول آمن للموكل' : 'כניסה מאובטחת ללקוח',
-      lang === 'ar' ? 'إجابات تلقائية على الأسئلة' : 'מענה אוטומטי לשאלות',
-      lang === 'ar' ? 'تحديثات بشأن القضية' : 'עדכונים על התיק',
-      lang === 'ar' ? 'فتح محادثة عاجلة' : 'פתיחת פנייה דחופה',
-    ],
-    enter: lang === 'ar' ? 'دخول إلى بوت الموكلين' : 'כניסה לבוט הלקוחות',
-    viewAsLawyer:
-      lang === 'ar'
-        ? 'عرض المحادثات (محامي)'
-        : 'צפייה בשיחות (עורך דין)',
     caseLabel: lang === 'ar' ? 'ملف' : 'תיק',
-    online: lang === 'ar' ? 'متصل' : 'מחובר',
   };
 
   const backLabel = lang === 'ar' ? 'رجوع' : 'חזרה';
   return (
     <div className="modern-portal-hub">
-      {/* WhatsApp-mode back arrow — visually identical to the
-       *  Global Search `.main-screen-back-btn` (white pill, slate
-       *  border, dark text + arrow, hover inverts to dark slate).
-       *  Position is anchored to the hub via the `portal-hub-wa-back`
-       *  CSS hook (0.25cm from the top-left on mobile, see globals.css).
-       *  Returns to the parent chooser screen ("שער תקשורת"). */}
-      {mode === 'whatsapp' && (
-        <button
-          type="button"
-          className="main-screen-back-btn portal-hub-wa-back"
-          aria-label={backLabel}
-          title={backLabel}
-          onClick={onBack}
-        >
-          <i className="fas fa-arrow-left" />
-          <span>{backLabel}</span>
-        </button>
-      )}
-      {/* Bot-mode back arrow — same look + position as the WhatsApp
-       *  version (Global Search `.main-screen-back-btn` styling,
-       *  0.25cm from top-left on mobile, returns to chooser). */}
-      {mode === 'bot' && (
-        <button
-          type="button"
-          className="main-screen-back-btn portal-hub-bot-back"
-          aria-label={backLabel}
-          title={backLabel}
-          onClick={onBack}
-        >
-          <i className="fas fa-arrow-left" />
-          <span>{backLabel}</span>
-        </button>
-      )}
+      {/* Back arrow — white pill (Global Search `.main-screen-back-btn`
+       *  styling), anchored 0.25cm from the top-left on mobile. Returns
+       *  to the parent chooser screen. */}
+      <button
+        type="button"
+        className="main-screen-back-btn portal-hub-wa-back"
+        aria-label={backLabel}
+        title={backLabel}
+        onClick={onBack}
+      >
+        <i className="fas fa-arrow-left" />
+        <span>{backLabel}</span>
+      </button>
       <TopBar
-        title={
-          mode === 'bot' ? (
-            // 3-column flex: bot icon on the visual RIGHT (first
-            // child in RTL), title text centered in the middle,
-            // spacer matching the back-button width on the visual
-            // LEFT so the centering reference is balanced.
-            <span className="portal-hub-bot-title tw-flex tw-w-full tw-items-center tw-justify-between tw-gap-2">
-              <span
-                className="tw-grid tw-h-9 tw-w-9 tw-shrink-0 tw-place-items-center tw-rounded-2xl tw-bg-indigo-500 tw-text-white tw-shadow-sm"
-                aria-label="Bot"
-              >
-                <Bot className="tw-h-5 tw-w-5" />
-              </span>
-              <span className="portal-hub-bot-title-text tw-flex-1 tw-min-w-0 tw-text-center">
-                {T.title}
-              </span>
-              {/* Spacer matching the back button's width (~84px = 38px
-               *  height button + ~14px H padding × 2 + arrow + label
-               *  + 0.25cm inset). Equalising the side reservations
-               *  makes the centered title sit visually mid-way
-               *  between the back button (left) and the bot icon
-               *  (right) on the SCREEN — not just on the row. */}
-              <span
-                className="portal-hub-bot-title-spacer tw-h-9 tw-shrink-0"
-                aria-hidden="true"
-              />
-            </span>
-          ) : (
-            T.title
-          )
-        }
-        subtitle={T.subtitle}
+        title={T.title}
+        subtitle=""
         lang={lang}
         leadingIcon={
-          mode === 'whatsapp' ? (
-            <div
-              className="tw-grid tw-h-11 tw-w-11 tw-place-items-center tw-rounded-2xl tw-bg-emerald-500 tw-text-white tw-shadow-sm"
-              style={{ transform: 'translateY(-6px)' }}
-              aria-label="WhatsApp"
-            >
-              <MessageCircle className="tw-h-6 tw-w-6" />
-            </div>
-          ) : undefined
+          <div
+            className="tw-grid tw-h-11 tw-w-11 tw-place-items-center tw-rounded-2xl tw-bg-emerald-500 tw-text-white tw-shadow-sm"
+            style={{ transform: 'translateY(-6px)' }}
+            aria-label="WhatsApp"
+          >
+            <MessageCircle className="tw-h-6 tw-w-6" />
+          </div>
         }
       />
-      {/* Action row — WhatsApp gets back button + search box. Bot
-       *  gets just the back button on the LEFT side (sitting
-       *  directly under the bell that lives in the top-left of the
-       *  TopBar above). `flex-row-reverse` in RTL puts the first
-       *  JSX child on the visual LEFT. */}
-      {mode === 'whatsapp' && (
-        // Search box rendered directly — no wrapping row/flex
-        // containers. The SearchBox component renders its own
-        // pill-shaped div; styling lives on the
-        // `.portal-hub-wa-search` CSS hook (see globals.css).
-        <SearchBox
-          placeholder={T.searchPh}
-          className="portal-hub-wa-search"
-        />
-      )}
-      {/* Bot-mode back button removed per user request. Back nav
-       *  is handled at the parent chooser-screen level. */}
-      <div
-        className={
-          'tw-grid tw-flex-1 tw-gap-5 tw-px-5 tw-pb-5 tw-pt-3 lg:tw-px-10 lg:tw-pb-10 ' +
-          (mode === 'whatsapp' ? 'tw-grid-cols-1' : 'tw-grid-cols-1')
-        }
-      >
-        {mode === 'whatsapp' && (
+      <SearchBox placeholder={T.searchPh} className="portal-hub-wa-search" />
+      <div className="tw-grid tw-flex-1 tw-grid-cols-1 tw-gap-5 tw-px-5 tw-pb-5 tw-pt-3 lg:tw-px-10 lg:tw-pb-10">
         <Panel className="tw-min-h-[520px]">
           <div>
             <div className="tw-mb-3 tw-text-sm tw-font-semibold tw-text-slate-500">
@@ -730,37 +616,6 @@ function HubScreen({
             </div>
           </div>
         </Panel>
-        )}
-
-        {mode === 'bot' && (
-        <Panel className="tw-min-h-[520px]">
-          {/* Caption that moved here from the TopBar — sits
-           *  directly above the first FeatureRow per user request. */}
-          <div className="tw-mb-3 tw-text-center tw-text-sm tw-font-medium tw-text-slate-500">
-            {lang === 'ar' ? 'إجابات تلقائية للموكلين' : 'מענה אוטומטי ללקוחות'}
-          </div>
-          <div className="tw-space-y-5 tw-text-slate-600">
-            <FeatureRow icon={<Lock className="tw-h-5 tw-w-5" />} title={T.bullets[0]} />
-            <FeatureRow icon={<Users className="tw-h-5 tw-w-5" />} title={T.bullets[1]} />
-            <FeatureRow icon={<FileText className="tw-h-5 tw-w-5" />} title={T.bullets[2]} />
-            <FeatureRow icon={<MessageCircle className="tw-h-5 tw-w-5" />} title={T.bullets[3]} />
-          </div>
-          <button
-            onClick={onOpenBotLogin}
-            className="tw-mt-12 tw-flex tw-w-full tw-items-center tw-justify-center tw-gap-3 tw-rounded-2xl tw-bg-slate-950 tw-px-5 tw-py-4 tw-text-sm tw-font-semibold tw-text-white tw-shadow-sm tw-transition hover:tw-bg-slate-800"
-          >
-            {T.enter}
-            <MessageCircle className="tw-h-5 tw-w-5" />
-          </button>
-          <button
-            onClick={onOpenBotAsLawyer}
-            className="tw-mt-3 tw-flex tw-w-full tw-items-center tw-justify-center tw-gap-2 tw-rounded-2xl tw-border tw-border-slate-200 tw-px-5 tw-py-3 tw-text-sm tw-font-semibold tw-text-slate-700 tw-transition hover:tw-bg-[#F8F2E4]"
-          >
-            <ShieldCheck className="tw-h-4 tw-w-4 tw-text-indigo-600" />
-            {T.viewAsLawyer}
-          </button>
-        </Panel>
-        )}
       </div>
     </div>
   );
