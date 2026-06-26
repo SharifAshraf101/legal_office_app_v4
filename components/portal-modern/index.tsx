@@ -102,9 +102,6 @@ type Screen =
   | 'chooser'
   | 'hub'
   | 'chat'
-  | 'login'
-  | 'otp'
-  | 'success'
   | 'bot'
   | 'lawyer-search'
   // Deep-link ("kiosk") screens — used only when a client opens the
@@ -216,6 +213,10 @@ function PortalShell({
   // client-side ID + phone verification). The bot screen then renders in
   // read-only mode so the lawyer can browse the conversation but not send.
   const [lawyerView, setLawyerView] = useState(false);
+  // Where the bot screen's back button returns to: 'lawyer-search' when a
+  // client was picked from the search list, or 'chat' when the bot was opened
+  // from a specific client's WhatsApp conversation.
+  const [botReturnScreen, setBotReturnScreen] = useState<Screen>('lawyer-search');
 
   // Deep-link auto-login: resolve the WhatsApp phone to exactly one client and
   // drop them into their scoped bot. CRUCIAL: wait until client data has
@@ -324,44 +325,21 @@ function PortalShell({
           client={selectedClient}
           onBack={() => setScreen('hub')}
           onOpenBotLogin={() => {
+            // Jump straight into THIS client's bot — no secure-login screen.
+            // `selectedClient` is already the chat's client.
             setLawyerView(false);
-            setScreen('login');
+            setBotReturnScreen('chat');
+            setScreen('bot');
           }}
           lang={lang}
         />
-      )}
-      {screen === 'login' && (
-        <BotLoginScreen
-          onSubmit={(matched) => {
-            // BotLoginScreen has already verified ID + phone against
-            // state.clients and refuses to call this unless a real
-            // client matches — so we're guaranteed an authenticated
-            // identity here. We just need to find the ClientRow for
-            // it (built earlier from the same id) so the bot screen
-            // gets the avatar/name shape it expects.
-            const row = clients.find((c) => c.id === matched.id) ?? null;
-            setSelectedClient(row);
-            setScreen('otp');
-          }}
-          onBack={() => setScreen('hub')}
-          lang={lang}
-        />
-      )}
-      {screen === 'otp' && (
-        <OtpScreen
-          onSubmit={() => setScreen('success')}
-          onBack={() => setScreen('login')}
-          lang={lang}
-        />
-      )}
-      {screen === 'success' && (
-        <SuccessScreen onContinue={() => setScreen('bot')} lang={lang} />
       )}
       {screen === 'lawyer-search' && (
         <LawyerSearchScreen
           clients={clients}
           onPick={(c) => {
             setSelectedClient(c);
+            setBotReturnScreen('lawyer-search');
             setScreen('bot');
           }}
           onBack={() => setScreen('chooser')}
@@ -375,23 +353,18 @@ function PortalShell({
       {screen === 'bot' && (
         <BotChatScreen
           onBack={() => {
-            if (lawyerView) {
-              setScreen('lawyer-search');
-            } else if (deepLink) {
+            if (deepLink) {
               // Deep-link client logout: end the session on a neutral
-              // dead-end. Never fall back to the login/hub screens — those
+              // dead-end. Never fall back to the hub/search screens — those
               // would expose other clients.
               setSelectedClient(null);
               setDeniedReason('ended');
               setScreen('denied');
-            } else {
-              // Client-mode "back" is a logout: clear the authenticated
-              // identity and return to the login form. We deliberately
-              // don't drop the client back into the hub — that screen
-              // lists every client and would defeat the access guard.
-              setSelectedClient(null);
-              setScreen('login');
+              return;
             }
+            // Return to wherever the bot was opened from — the lawyer's
+            // search list, or the client's WhatsApp chat.
+            setScreen(botReturnScreen);
           }}
           lang={lang}
           lawyerView={lawyerView}
@@ -1635,183 +1608,7 @@ function ClientChatScreen({
 }
 
 /* ────────────────────────────────────────────────────────── *
- * Auth: bot login / OTP / success / bot chat
- * ────────────────────────────────────────────────────────── */
-
-function BotLoginScreen({
-  onSubmit,
-  onBack,
-  lang,
-}: {
-  onSubmit: (matched: Client) => void;
-  onBack: () => void;
-  lang: 'he' | 'ar';
-}) {
-  const { state } = useAppState();
-  const [idNumber, setIdNumber] = useState('');
-  const [phone, setPhone] = useState('');
-  const [error, setError] = useState('');
-  const T = {
-    title: lang === 'ar' ? 'دخول آمن' : 'כניסה מאובטחת',
-    sub:
-      lang === 'ar'
-        ? 'أدخل رقم الهوية ورقم الهاتف لاستلام رمز عبر WhatsApp'
-        : 'הכנס מספר תעודת זהות ומספר טלפון לקבלת קוד דרך WhatsApp',
-    id: lang === 'ar' ? 'رقم الهوية' : 'מספר תעודת זהות',
-    idPh: lang === 'ar' ? 'أدخل رقم الهوية' : 'הזן מספר ת״ז',
-    phone: lang === 'ar' ? 'رقم الهاتف' : 'מספר טלפון',
-    phonePh: lang === 'ar' ? 'أدخل رقم الهاتف' : 'הזן מספר טלפון',
-    send: lang === 'ar' ? 'إرسال رمز' : 'שלח קוד אבטחה',
-    safe: lang === 'ar' ? 'معلومات مشفرة وآمنة' : 'מידע מוצפן ומאובטח',
-    missing:
-      lang === 'ar'
-        ? 'يرجى إدخال رقم الهوية ورقم الهاتف.'
-        : 'נא להזין מספר תעודת זהות ומספר טלפון.',
-  };
-  const handleSubmit = () => {
-    setError('');
-    if (!idNumber.trim() || !phone.trim()) {
-      setError(T.missing);
-      return;
-    }
-    const matched = state.clients.find((c) =>
-      portalClientMatchesCredentials(c, idNumber, phone),
-    );
-    if (!matched) {
-      // Wrong credentials: do NOT proceed to OTP/bot. This is the gate
-      // that keeps the bot screen from ever being reached without a
-      // verified client identity.
-      setError(portalAccessText('bad', lang));
-      return;
-    }
-    onSubmit(matched);
-  };
-  return (
-    <AuthShell
-      title={T.title}
-      subtitle={T.sub}
-      icon={<Bot className="tw-h-8 tw-w-8" />}
-      /* Back button removed from the secure-login screen per
-       *  user request — pass no `onBack` so AuthShell skips it. */
-    >
-      <Field
-        label={T.id}
-        placeholder={T.idPh}
-        value={idNumber}
-        onChange={setIdNumber}
-      />
-      <Field
-        label={T.phone}
-        placeholder={T.phonePh}
-        value={phone}
-        onChange={setPhone}
-        type="tel"
-      />
-      {error && (
-        <div
-          role="alert"
-          className="tw-mt-2 tw-rounded-2xl tw-border tw-border-red-200 tw-bg-red-50 tw-px-4 tw-py-3 tw-text-xs tw-font-medium tw-text-red-700"
-        >
-          {error}
-        </div>
-      )}
-      <button
-        type="button"
-        onClick={handleSubmit}
-        className="tw-mt-4 tw-w-full tw-rounded-2xl tw-bg-slate-950 tw-px-5 tw-py-4 tw-text-sm tw-font-semibold tw-text-white tw-shadow-sm hover:tw-bg-slate-800"
-      >
-        {T.send}
-      </button>
-      <div className="tw-mt-5 tw-flex tw-items-center tw-justify-center tw-gap-2 tw-text-xs tw-text-slate-400">
-        <Lock className="tw-h-4 tw-w-4" />
-        {T.safe}
-      </div>
-    </AuthShell>
-  );
-}
-
-function OtpScreen({
-  onSubmit,
-  onBack,
-  lang,
-}: {
-  onSubmit: () => void;
-  onBack: () => void;
-  lang: 'he' | 'ar';
-}) {
-  const T = {
-    title: lang === 'ar' ? 'أدخل رمز التحقق' : 'הזן קוד אבטחה',
-    sub:
-      lang === 'ar'
-        ? 'تم إرسال الرمز عبر WhatsApp إلى 054-1234567'
-        : 'נשלח קוד ל-WhatsApp במספר 054-1234567',
-    timer: lang === 'ar' ? 'لم يصل الرمز؟ 00:45' : 'לא קיבלת קוד? 00:45',
-    confirm: lang === 'ar' ? 'تأكيد الرمز' : 'אישור קוד',
-    resend: lang === 'ar' ? 'إرسال رمز جديد' : 'שלח קוד מחדש',
-  };
-  return (
-    <AuthShell
-      title={T.title}
-      subtitle={T.sub}
-      icon={<MessageCircle className="tw-h-8 tw-w-8" />}
-      onBack={onBack}
-    >
-      <div className="tw-mt-6 tw-flex tw-justify-center tw-gap-2" dir="ltr">
-        {[0, 1, 2, 3, 4, 5].map((n) => (
-          <input
-            key={n}
-            maxLength={1}
-            className="tw-h-14 tw-w-12 tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white tw-text-center tw-text-xl tw-font-bold tw-outline-none focus:tw-border-indigo-500 focus:tw-ring-4 focus:tw-ring-indigo-100"
-          />
-        ))}
-      </div>
-      <div className="tw-mt-5 tw-text-center tw-text-sm tw-text-slate-500">{T.timer}</div>
-      <button
-        onClick={onSubmit}
-        className="tw-mt-6 tw-w-full tw-rounded-2xl tw-bg-slate-950 tw-px-5 tw-py-4 tw-text-sm tw-font-semibold tw-text-white tw-shadow-sm hover:tw-bg-slate-800"
-      >
-        {T.confirm}
-      </button>
-      <button className="tw-mt-4 tw-w-full tw-text-sm tw-font-semibold tw-text-indigo-700">
-        {T.resend}
-      </button>
-    </AuthShell>
-  );
-}
-
-function SuccessScreen({
-  onContinue,
-  lang,
-}: {
-  onContinue: () => void;
-  lang: 'he' | 'ar';
-}) {
-  const T = {
-    title: lang === 'ar' ? 'تم الدخول بنجاح' : 'הכניסה הצליחה',
-    sub:
-      lang === 'ar'
-        ? 'تم التحقق بنجاح. ننتقل الآن لبوت الموكلين.'
-        : 'האימות הצליח. עוברים כעת לבוט הלקוחות.',
-    cont: lang === 'ar' ? 'متابعة' : 'המשך',
-  };
-  return (
-    <AuthShell
-      title={T.title}
-      subtitle={T.sub}
-      icon={<Check className="tw-h-8 tw-w-8" />}
-    >
-      <button
-        onClick={onContinue}
-        className="tw-mt-8 tw-w-full tw-rounded-2xl tw-bg-slate-950 tw-px-5 tw-py-4 tw-text-sm tw-font-semibold tw-text-white tw-shadow-sm hover:tw-bg-slate-800"
-      >
-        {T.cont}
-      </button>
-    </AuthShell>
-  );
-}
-
-/* ────────────────────────────────────────────────────────── *
- * Lawyer-view: client search before opening a client's bot chat
+ * Lawyer-view: client search + bot chat
  * ────────────────────────────────────────────────────────── */
 
 function LawyerSearchScreen({
