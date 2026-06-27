@@ -1406,7 +1406,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
             tasks: [
               ...state.tasksArr,
               {
-                id: 'TASK-' + String(Date.now()),
+                // Stable id per case-decision so it's idempotent with the
+                // server-side batch (same source_id → upsert, never duplicated).
+                id: 'TASK-DEC-' + caseId,
                 title,
                 caseId,
                 clientId,
