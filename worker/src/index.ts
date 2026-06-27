@@ -875,7 +875,15 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
   const court = String(body.court ?? '').trim();
   const docSummary = String(body.doc_summary ?? '').trim();
   const docName = String(body.document_name ?? '').trim();
+  const lang = String(body.lang ?? 'he').trim().toLowerCase();
   if (!caseId) return json({ error: 'case_id required' }, request, env, 400);
+
+  // Shown when the case is at a stage with no proactive step for the office
+  // (awaiting the court's decision or the other side's move).
+  const waitMsg =
+    lang === 'ar'
+      ? 'في هذه المرحلة لا يوجد إجراء مبادر مطلوب من المكتب وفق أصول المحاكمات — يجب انتظار قرارات وتوجيهات جديدة في الملف.'
+      : 'בשלב זה אין פעולה יזומה הנדרשת מהמשרד לפי סדרי הדין — יש להמתין להחלטות ולהנחיות חדשות בתיק.';
 
   const courtTypes = mapCourtTypes(court);
   const placeholders = courtTypes.map((_, i) => '?' + (i + 1)).join(', ');
@@ -913,7 +921,9 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
     '\n\nהקשר/המסמך האחרון בתיק:\n' +
     (docSummary ||
       '(אין סיכום מסמך — הצע את הפעולה ההגיונית הבאה לפי שלבי ההליך)') +
-    '\n\nהחזר JSON: {"suggested_action":"שם הפעולה והסבר קצר מה לעשות","deadline":"המועד מתוך הרשימה","legal_source":"התקנה/המקור מתוך הרשימה","reasoning":"נימוק קצר בעברית","confidence":"high או medium או low"}.';
+    '\n\nאם בשלב הנוכחי אין פעולה יזומה שעל המשרד לנקוט לפי סדרי הדין (התיק ממתין להחלטת בית הדין/בית המשפט או לצעד מצד שכנגד), החזר את suggested_action בדיוק כך: "' +
+    waitMsg +
+    '" והשאר deadline ו-legal_source ריקים.\n\nהחזר JSON: {"suggested_action":"שם הפעולה והסבר קצר מה לעשות","deadline":"המועד מתוך הרשימה","legal_source":"התקנה/המקור מתוך הרשימה","reasoning":"נימוק קצר בעברית","confidence":"high או medium או low"}.';
 
   let suggested = '';
   let deadline = '';
@@ -961,12 +971,13 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
   }
 
   if (!suggested) {
-    return json(
-      { ok: false, error: 'suggestion_failed', court_types: courtTypes },
-      request,
-      env,
-      502,
-    );
+    // No proactive step at this stage (or the model returned nothing) → tell
+    // the office to wait for new decisions/instructions instead of failing.
+    suggested = waitMsg;
+    deadline = '';
+    legalSource = '';
+    if (!reasoning) reasoning = waitMsg;
+    confidence = confidence || 'low';
   }
 
   await env.DB.prepare(

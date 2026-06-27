@@ -1454,8 +1454,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       // legal_actions track ("שלום/מחוזי"→אזרחי, "משפחה"→משפחה+אזרחי,
       // "עבודה/ביטוח לאומי"→עבודה, "שרעי"→שרעי, "עליון/בג״ץ"→בג״ץ) and picks the
       // next step from THAT list — replacing a possibly court-mismatched one.
-      if (summaryLoaded && !genAttempts.has('suggest:' + caseId)) {
-        rememberGenAttempt(genAttempts, 'suggest:' + caseId);
+      // Key by the LATEST document too, so a newly-filed document (e.g. a
+      // defense just added) regenerates the suggestion for the new stage.
+      const suggestKey = 'suggest:' + caseId + ':' + (primaryDoc?.id || 'none');
+      if (summaryLoaded && !genAttempts.has(suggestKey)) {
+        rememberGenAttempt(genAttempts, suggestKey);
         const caseObj = state.casesArr.find(
           (x) => String(x.id) === String(caseId),
         );
