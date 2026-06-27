@@ -1257,6 +1257,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // the plain summary; for a court DECISION/PROTOCOL it's the split form —
   // the operative decision first, then a separator, then the rest.
   const [decodeText, setDecodeText] = useState<string | null>(null);
+  // Per-document cache of the composed decision split ('' = checked, no split),
+  // so re-renders / language toggles restore it without re-calling the AI.
+  const splitCacheRef = useRef<Map<string, string>>(new Map());
   // The language the "פענוח המסמך" box renders in — the DOCUMENT's own
   // language. The reply-draft card must match it (Arabic doc → Arabic draft).
   const [docLang, setDocLang] = useState<'ar' | 'he' | null>(null);
@@ -1339,38 +1342,88 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     };
   }, [primaryDoc, state.casesArr, state.clients, caseId, lang]);
 
-  // For a court DECISION / PROTOCOL document, split the summary so the decode
-  // box shows the operative DECISION first, then a separator, then the rest.
-  // Other documents show the plain summary. Runs once per document.
+  // For a court DECISION / PROTOCOL document (detected by type/title/file name
+  // OR by decision markers in the summary — a decision is often written ON a
+  // defense, so the file is named "כתב הגנה" but the summary says "החלטה…"),
+  // split the summary so the decode box shows the operative DECISION first, a
+  // separator, then the rest. Also create the TASK the decision imposes
+  // (action + deadline) in the tasks table, deduped so it's added once.
   useEffect(() => {
+    const primary = primaryDoc;
     if (docSummary == null) {
       setDecodeText(null);
       return;
     }
-    const primary = primaryDoc;
-    // Show the plain summary immediately (and for non-decision docs, keep it).
-    setDecodeText(docSummary);
-    if (!primary || !isDecisionOrProtocol(primary)) return;
-    const key = 'split:' + primary.id;
-    if (genAttempts.has(key)) return; // split at most once per document
-    rememberGenAttempt(genAttempts, key);
+    if (!primary) {
+      setDecodeText(docSummary);
+      return;
+    }
+    const cached = splitCacheRef.current.get(primary.id);
+    if (cached) {
+      setDecodeText(cached); // restore composed split (no re-call)
+      return;
+    }
+    setDecodeText(docSummary); // plain summary by default
+    if (cached === '') return; // already checked: this document has no decision
+    if (!isDecisionOrProtocol(primary, docSummary)) {
+      splitCacheRef.current.set(primary.id, '');
+      return;
+    }
     let cancelled = false;
     (async () => {
       const split = await splitDecisionSummary(docSummary, docLang || lang);
-      if (cancelled || !split) return;
+      if (cancelled) return;
+      if (!split || !split.decision) {
+        splitCacheRef.current.set(primary.id, '');
+        return;
+      }
+      // 1. Decode box: decision on top, separator, then the rest.
       const hl = docLang || lang;
       const dHead = hl === 'ar' ? '🔷 القرار:' : '🔷 ההחלטה:';
       const rHead = hl === 'ar' ? '📄 مضمون المستند:' : '📄 תוכן המסמך:';
-      const sep = '──────────';
-      const parts: string[] = [];
-      if (split.decision) parts.push(dHead + '\n' + split.decision);
-      if (split.rest) parts.push(rHead + '\n' + split.rest);
-      const composed = parts.join('\n\n' + sep + '\n\n');
-      if (!cancelled && composed.trim()) setDecodeText(composed);
+      const composed = [dHead + '\n' + split.decision]
+        .concat(split.rest ? [rHead + '\n' + split.rest] : [])
+        .join('\n\n──────────\n\n');
+      splitCacheRef.current.set(primary.id, composed);
+      setDecodeText(composed);
+      // 2. Create the decision's task (e.g. "respond within 20 days"), deduped
+      //    against existing tasks + the persisted import-keys (so a deleted
+      //    task isn't resurrected and it's never duplicated).
+      const title = split.taskTitle.trim();
+      if (title) {
+        const caseObj = state.casesArr.find(
+          (x) => String(x.id) === String(caseId),
+        );
+        const clientId = caseObj?.clientId || '';
+        const taskKey = decisionTaskKey(caseId, title);
+        const exists = state.tasksArr.some(
+          (t) => String(t.caseId) === String(caseId) && t.title === title,
+        );
+        if (!decisionImportKeys.has(taskKey) && !exists) {
+          rememberDecisionImportKey(decisionImportKeys, taskKey);
+          dispatch({
+            type: 'SET_TASKS',
+            tasks: [
+              ...state.tasksArr,
+              {
+                id: 'TASK-' + String(Date.now()),
+                title,
+                caseId,
+                clientId,
+                dueDate: split.taskDueDate || '',
+                status: 'open',
+                priority: 'normal',
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          });
+        }
+      }
     })();
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docSummary, primaryDoc, docLang, lang]);
 
   // Reply draft for the "טיוטת תגובה" card — the draft prepared (by the Make

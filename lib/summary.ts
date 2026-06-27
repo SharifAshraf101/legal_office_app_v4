@@ -268,32 +268,49 @@ export async function fetchSuggestedAction(caseId: string): Promise<string | nul
   return null;
 }
 
-/** True when a document is a court DECISION or PROTOCOL (by type/title/file
- *  name), in Hebrew or Arabic. Those get the split decode (decision first,
+/** True when a document is (or contains) a court DECISION / PROTOCOL — checked
+ *  against the document's type/title/file name AND, when provided, its summary
+ *  text. The summary check matters because a decision is often written ON
+ *  another document (e.g. a defense), so the file is named "כתב הגנה" while the
+ *  summary says "קיימת החלטה…". Those get the split decode (decision first,
  *  then the rest). */
-export function isDecisionOrProtocol(doc: {
-  type?: string;
-  title?: string;
-  titleAr?: string;
-  fileName?: string;
-}): boolean {
-  const hay = [doc.type, doc.title, doc.titleAr, doc.fileName]
+export function isDecisionOrProtocol(
+  doc: { type?: string; title?: string; titleAr?: string; fileName?: string },
+  summary?: string | null,
+): boolean {
+  const meta = [doc.type, doc.title, doc.titleAr, doc.fileName]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
-  if (!hay) return false;
-  return /החלטה|פרוטוקול|פסק[\s-]?דין|قرار|محضر|حكم|protocol|decision|ruling/.test(
-    hay,
+  const inMeta =
+    !!meta &&
+    /החלטה|פרוטוקול|פסק[\s-]?דין|قرار|محضر|حكم|protocol|decision|ruling/.test(
+      meta,
+    );
+  if (inMeta) return true;
+  const sum = (summary || '').toLowerCase();
+  // Strong decision markers inside the summary text.
+  return (
+    !!sum &&
+    /החלטה|פסק[\s-]?דין|פרוטוקול|בית\s*(הדין|המשפט)\s*(מורה|קובע|מחייב|דוחה|הורה|פסק)|נדרש[הת]?\s*להגיב|צו\b|قرار|حكم|محضر|تقرر|يُلزم|أمرت/.test(
+      sum,
+    )
   );
 }
 
 /** Split a court decision/protocol SUMMARY (the one stored in Cloudflare) into
- *  the operative DECISION part and the REST, via the Worker. Returns null on
- *  failure (caller shows the plain summary). */
+ *  the operative DECISION part, the REST, and any TASK the decision imposes on
+ *  the office (action + due date). Returns null on failure (caller shows the
+ *  plain summary). */
 export async function splitDecisionSummary(
   summary: string,
   lang: Lang,
-): Promise<{ decision: string; rest: string } | null> {
+): Promise<{
+  decision: string;
+  rest: string;
+  taskTitle: string;
+  taskDueDate: string;
+} | null> {
   const text = (summary || '').trim();
   if (!text) return null;
   try {
@@ -310,11 +327,15 @@ export async function splitDecisionSummary(
       ok?: boolean;
       decision?: string;
       rest?: string;
+      task_title?: string;
+      task_due_date?: string;
     };
     if (!data.ok) return null;
     return {
       decision: (data.decision || '').trim(),
       rest: (data.rest || '').trim(),
+      taskTitle: (data.task_title || '').trim(),
+      taskDueDate: (data.task_due_date || '').trim(),
     };
   } catch {
     return null;
