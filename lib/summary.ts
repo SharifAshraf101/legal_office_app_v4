@@ -268,6 +268,59 @@ export async function fetchSuggestedAction(caseId: string): Promise<string | nul
   return null;
 }
 
+/** True when a document is a court DECISION or PROTOCOL (by type/title/file
+ *  name), in Hebrew or Arabic. Those get the split decode (decision first,
+ *  then the rest). */
+export function isDecisionOrProtocol(doc: {
+  type?: string;
+  title?: string;
+  titleAr?: string;
+  fileName?: string;
+}): boolean {
+  const hay = [doc.type, doc.title, doc.titleAr, doc.fileName]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  if (!hay) return false;
+  return /החלטה|פרוטוקול|פסק[\s-]?דין|قرار|محضر|حكم|protocol|decision|ruling/.test(
+    hay,
+  );
+}
+
+/** Split a court decision/protocol SUMMARY (the one stored in Cloudflare) into
+ *  the operative DECISION part and the REST, via the Worker. Returns null on
+ *  failure (caller shows the plain summary). */
+export async function splitDecisionSummary(
+  summary: string,
+  lang: Lang,
+): Promise<{ decision: string; rest: string } | null> {
+  const text = (summary || '').trim();
+  if (!text) return null;
+  try {
+    const res = await fetch(WORKER_URL + '/api/split-decision', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + APP_TOKEN,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ summary: text, lang }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      ok?: boolean;
+      decision?: string;
+      rest?: string;
+    };
+    if (!data.ok) return null;
+    return {
+      decision: (data.decision || '').trim(),
+      rest: (data.rest || '').trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Generate a COURT-MATCHED suggested next action for a case: the Worker maps
  *  the case's court ("שלום/מחוזי"→civil, "משפחה"→family+civil, "עבודה/ביטוח
  *  לאומי"→labor, "שרעי"→sharia, "עליון/בג״ץ"→hcj) to the relevant

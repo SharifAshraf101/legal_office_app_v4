@@ -29,6 +29,8 @@ import {
   fetchDecisionInfo,
   fetchSuggestedAction,
   generateSuggestedAction,
+  isDecisionOrProtocol,
+  splitDecisionSummary,
   type DecisionInfo,
 } from '@/lib/summary';
 import { filingFileName } from '@/lib/filing';
@@ -1251,6 +1253,10 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // the static placeholder text when unavailable (see lib/summary.ts).
   const [docSummary, setDocSummary] = useState<string | null>(null);
   const [summaryLoaded, setSummaryLoaded] = useState(false);
+  // The text actually shown in the "פענוח המסמך" box. For most documents it's
+  // the plain summary; for a court DECISION/PROTOCOL it's the split form —
+  // the operative decision first, then a separator, then the rest.
+  const [decodeText, setDecodeText] = useState<string | null>(null);
   // The language the "פענוח המסמך" box renders in — the DOCUMENT's own
   // language. The reply-draft card must match it (Arabic doc → Arabic draft).
   const [docLang, setDocLang] = useState<'ar' | 'he' | null>(null);
@@ -1332,6 +1338,40 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       cancelled = true;
     };
   }, [primaryDoc, state.casesArr, state.clients, caseId, lang]);
+
+  // For a court DECISION / PROTOCOL document, split the summary so the decode
+  // box shows the operative DECISION first, then a separator, then the rest.
+  // Other documents show the plain summary. Runs once per document.
+  useEffect(() => {
+    if (docSummary == null) {
+      setDecodeText(null);
+      return;
+    }
+    const primary = primaryDoc;
+    // Show the plain summary immediately (and for non-decision docs, keep it).
+    setDecodeText(docSummary);
+    if (!primary || !isDecisionOrProtocol(primary)) return;
+    const key = 'split:' + primary.id;
+    if (genAttempts.has(key)) return; // split at most once per document
+    rememberGenAttempt(genAttempts, key);
+    let cancelled = false;
+    (async () => {
+      const split = await splitDecisionSummary(docSummary, docLang || lang);
+      if (cancelled || !split) return;
+      const hl = docLang || lang;
+      const dHead = hl === 'ar' ? '🔷 القرار:' : '🔷 ההחלטה:';
+      const rHead = hl === 'ar' ? '📄 مضمون المستند:' : '📄 תוכן המסמך:';
+      const sep = '──────────';
+      const parts: string[] = [];
+      if (split.decision) parts.push(dHead + '\n' + split.decision);
+      if (split.rest) parts.push(rHead + '\n' + split.rest);
+      const composed = parts.join('\n\n' + sep + '\n\n');
+      if (!cancelled && composed.trim()) setDecodeText(composed);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [docSummary, primaryDoc, docLang, lang]);
 
   // Reply draft for the "טיוטת תגובה" card — the draft prepared (by the Make
   // pipeline, stored in D1 `drafts`) for the SAME document the "פענוח המסמך"
@@ -2098,7 +2138,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         icon="fa-file-alt"
                         title={T.docParse}
                         desc={
-                          docSummary ||
+                          decodeText ||
                           (summaryLoaded
                             ? lang === 'ar'
                               ? 'لا يوجد ملخص لهذا المستند بعد.'
@@ -2454,7 +2494,7 @@ function AIActionCard({
         <h4 className={'tw-text-sm tw-font-extrabold ' + c.titleC}>{title}</h4>
         <i className={'fas ' + icon + ' ' + c.iconC} aria-hidden="true" />
       </div>
-      <p className="tw-text-[11px] tw-text-slate-600 tw-leading-snug">{desc}</p>
+      <p className="tw-whitespace-pre-line tw-text-[11px] tw-text-slate-600 tw-leading-snug">{desc}</p>
       {btn && (
         <button
           type="button"

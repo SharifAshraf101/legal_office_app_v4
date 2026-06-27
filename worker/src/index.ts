@@ -83,6 +83,9 @@ export default {
     if (method === 'POST' && path === '/api/suggest-action') {
       return handleSuggestAction(request, env);
     }
+    if (method === 'POST' && path === '/api/split-decision') {
+      return handleSplitDecision(request, env);
+    }
     if (method === 'GET' && path.startsWith('/api/suggested-actions/')) {
       return handleGetSuggestedActions(request, env);
     }
@@ -1011,6 +1014,76 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
     request,
     env,
   );
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/split-decision
+// For a court DECISION / PROTOCOL document, split its (Cloudflare) summary into
+// the operative DECISION/ruling part and the REST, so the decode box can show
+// the decision first and the rest after a separator. Pure text (uses the
+// existing summary — no PDF). On any failure returns the whole text as `rest`.
+// ---------------------------------------------------------------------------
+async function handleSplitDecision(request: Request, env: Env): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: 'invalid json' }, request, env, 400);
+  }
+  const summary = String(body.summary ?? '').trim();
+  const lang = String(body.lang ?? 'he').trim().toLowerCase();
+  if (!summary) return json({ ok: false, decision: '', rest: '' }, request, env);
+
+  const systemPrompt =
+    'אתה עוזר משפטי. קיבלת סיכום של מסמך מבית משפט/בית דין מסוג החלטה או פרוטוקול. הפרד בבירור בין ההחלטה/ההוראה האופרטיבית של בית המשפט (מה הוחלט, נקבע או הורה) לבין שאר תוכן המסמך (רקע, עובדות, נימוקים, מהלך הדיון). אל תמציא תוכן שאינו בסיכום. החזר אובייקט JSON אחד בלבד, ללא טקסט נוסף, ותו ראשון {.';
+  const userText =
+    'סיכום המסמך:\n' +
+    summary +
+    '\n\nהחזר JSON בשפת הסיכום: {"decision":"ההחלטה/ההוראה האופרטיבית של בית המשפט בלשון תמציתית; אם אין החלטה אופרטיבית ברורה השאר מחרוזת ריקה","rest":"שאר תוכן המסמך (רקע/עובדות/נימוקים/מהלך הדיון) בתמצית"}.';
+
+  let decision = '';
+  let rest = '';
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': env.ANTHROPIC_API_KEY || '',
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 2000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userText }],
+      }),
+    });
+    if (resp.ok) {
+      const data = (await resp.json()) as {
+        content?: Array<{ type: string; text?: string }>;
+      };
+      const textOut = (data.content || [])
+        .filter((b) => b.type === 'text')
+        .map((b) => b.text || '')
+        .join('');
+      const cleaned = textOut
+        .trim()
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/, '')
+        .replace(/```\s*$/, '')
+        .trim();
+      const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+      decision = String(parsed.decision ?? '').trim();
+      rest = String(parsed.rest ?? '').trim();
+    }
+  } catch {
+    // fall through
+  }
+  // Never lose the content: if the split failed, show everything as `rest`.
+  if (!decision && !rest) rest = summary;
+  void lang;
+
+  return json({ ok: true, decision, rest }, request, env);
 }
 
 // ---------------------------------------------------------------------------
