@@ -20,12 +20,15 @@ import {
   fetchDocumentSummaryBoth,
   pickDocumentLanguageSummary,
   fetchDocumentDraft,
+  fetchDraftState,
+  classifyDraftDecision,
   generateDocumentSummary,
   generateDocumentDraft,
   loadGenAttempts,
   rememberGenAttempt,
   fetchDecisionInfo,
   fetchSuggestedAction,
+  generateSuggestedAction,
   type DecisionInfo,
 } from '@/lib/summary';
 import { filingFileName } from '@/lib/filing';
@@ -1335,58 +1338,96 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // box decodes (primaryDoc).
   const [replyDraft, setReplyDraft] = useState<string | null>(null);
   const [draftLoaded, setDraftLoaded] = useState(false);
+  // Gate: a reply draft is only shown when it's actually needed — i.e. the
+  // document was authored by the OTHER side, or the court ordered a reply. Our
+  // own document with no court order → no draft (the "הצעה לפעולה" card covers
+  // that case). `draftNeeded` drives whether the "טיוטת תגובה" card renders.
+  const [draftNeeded, setDraftNeeded] = useState(true);
   useEffect(() => {
     const primary = primaryDoc;
     if (!primary && !caseId) {
       setReplyDraft(null);
+      setDraftNeeded(true);
       setDraftLoaded(true);
       return;
     }
     let cancelled = false;
     setDraftLoaded(false);
     (async () => {
+      const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
+      const client = caseObj
+        ? state.clients.find((x) => x.id === caseObj.clientId)
+        : undefined;
+      const renamed =
+        primary && primary.fileName
+          ? filingFileName(client, caseObj, primary.fileName, primary.id)
+          : primary?.fileName;
+      const isPdf = /\.pdf$/i.test(primary?.fileName || '');
+
       // preferLang = the "פענוח" box language, so the draft is copied verbatim
       // from the matching column (draft_ar for Arabic doc, draft_he for Hebrew).
-      let d = await fetchDocumentDraft(
+      const state0 = await fetchDraftState(
         { caseId, documentId: primary?.id, preferLang: docLang },
         lang,
       );
-      // The last document has no draft yet → GENERATE one on demand via the
-      // Worker's /api/draft (PDF only, once per document), then re-fetch it.
-      if (
-        !d &&
-        primary &&
-        /\.pdf$/i.test(primary.fileName || '') &&
-        !genAttempts.has('draft:' + primary.id)
-      ) {
-        rememberGenAttempt(genAttempts, 'draft:' + primary.id);
-        const caseObj = state.casesArr.find(
-          (x) => String(x.id) === String(caseId),
+
+      const apply = (text: string | null, needed: boolean) => {
+        if (cancelled) return;
+        setDraftNeeded(needed);
+        setReplyDraft(needed ? text : null);
+        setDraftLoaded(true);
+      };
+
+      // 1. Already classified.
+      if (state0.status === 'not_needed') return apply(null, false);
+      if (state0.status === 'approved') return apply(state0.text, true);
+
+      // 2. Unclassified Make draft (status='draft', has text) → classify ONCE
+      //    (cheap, no regeneration). Keep the existing text when still needed.
+      if (state0.status === 'draft' && state0.text) {
+        if (!isPdf) return apply(state0.text, true); // can't classify → show
+        if (genAttempts.has('draftcheck:' + primary!.id)) {
+          return apply(state0.text, true);
+        }
+        rememberGenAttempt(genAttempts, 'draftcheck:' + primary!.id);
+        const { draftNeeded: needed } = await classifyDraftDecision({
+          relativePath: primary!.relativePath,
+          fileName: renamed || primary!.fileName || '',
+          clientId: primary!.clientId,
+          caseId,
+          documentId: primary!.id,
+        });
+        if (!needed) return apply(null, false);
+        const re = await fetchDraftState(
+          { caseId, documentId: primary!.id, preferLang: docLang },
+          lang,
         );
-        const client = caseObj
-          ? state.clients.find((x) => x.id === caseObj.clientId)
-          : undefined;
-        const renamed = primary.fileName
-          ? filingFileName(client, caseObj, primary.fileName, primary.id)
-          : primary.fileName;
-        const ok = await generateDocumentDraft({
+        return apply(re.text ?? state0.text, true);
+      }
+
+      // 3. No draft row yet → GENERATE on demand (PDF only, once per document).
+      //    Generation also classifies + gates: if not needed it writes a
+      //    'not_needed' marker and returns no draft.
+      if (primary && isPdf && !genAttempts.has('draft:' + primary.id)) {
+        rememberGenAttempt(genAttempts, 'draft:' + primary.id);
+        const { draftNeeded: needed } = await generateDocumentDraft({
           relativePath: primary.relativePath,
           fileName: renamed || primary.fileName || '',
           clientId: primary.clientId,
           caseId,
           documentId: primary.id,
         });
-        if (ok && !cancelled) {
-          d = await fetchDocumentDraft(
-            { caseId, documentId: primary.id, preferLang: docLang },
-            lang,
-          );
-        }
+        if (!needed) return apply(null, false);
+        const re = await fetchDraftState(
+          { caseId, documentId: primary.id, preferLang: docLang },
+          lang,
+        );
+        return apply(re.text, true);
       }
-      if (!cancelled) {
-        setReplyDraft(d);
-        setDraftLoaded(true);
-      }
+
+      // 4. Nothing to classify (non-PDF, or already attempted) → show whatever
+      //    we have without hiding.
+      return apply(state0.text, true);
     })();
     return () => {
       cancelled = true;
@@ -1404,13 +1445,40 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       return;
     }
     let cancelled = false;
-    fetchSuggestedAction(caseId).then((s) => {
-      if (!cancelled) setSuggestedAction(s);
-    });
+    (async () => {
+      // Show any existing suggestion immediately.
+      const existing = await fetchSuggestedAction(caseId);
+      if (!cancelled && existing) setSuggestedAction(existing);
+      // Once the document summary is ready, generate a COURT-MATCHED suggestion
+      // (once per case): the worker maps the case's court to the right
+      // legal_actions track ("שלום/מחוזי"→אזרחי, "משפחה"→משפחה+אזרחי,
+      // "עבודה/ביטוח לאומי"→עבודה, "שרעי"→שרעי, "עליון/בג״ץ"→בג״ץ) and picks the
+      // next step from THAT list — replacing a possibly court-mismatched one.
+      if (summaryLoaded && !genAttempts.has('suggest:' + caseId)) {
+        rememberGenAttempt(genAttempts, 'suggest:' + caseId);
+        const caseObj = state.casesArr.find(
+          (x) => String(x.id) === String(caseId),
+        );
+        const court = caseObj
+          ? (lang === 'ar'
+              ? caseObj.courtAr || caseObj.court
+              : caseObj.court || caseObj.courtAr) || ''
+          : '';
+        const gen = await generateSuggestedAction({
+          caseId,
+          clientId: caseObj?.clientId,
+          court,
+          docSummary: docSummary || '',
+          documentName: primaryDoc?.fileName,
+        });
+        if (!cancelled && gen) setSuggestedAction(gen);
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [caseId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseId, lang, summaryLoaded, docSummary, primaryDoc, state.casesArr]);
 
   // Decision-derived task + hearing for the latest (decision) document,
   // imported from Cloudflare and shown in the "משימה שנוצרה" card. The
@@ -2037,6 +2105,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                               : 'טוען סיכום…')
                         }
                       />
+                      {/* "טיוטת תגובה" — only when a reply is actually needed
+                       *  (the other side authored the document, or the court
+                       *  ordered a reply). Otherwise the "הצעה לפעולה" card
+                       *  covers the next step instead. */}
+                      {draftNeeded && (
                       <AIActionCard
                         // Desktop: this box sits BELOW "הצעה לפעולה" in its
                         // column (order 4). Mobile keeps its DOM order.
@@ -2071,6 +2144,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                             : undefined
                         }
                       />
+                      )}
                       {/* "משימה שנוצרה" — hidden on mobile, kept in the grid on
                        *  desktop (lg:contents lets the card be a direct grid
                        *  item). */}

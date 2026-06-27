@@ -18,6 +18,11 @@
 import { corsHeaders, json, preflight } from './cors';
 import { buildUpsert, LOAD_TABLES, safeParse, type Env } from './db';
 
+// The office's own registered lawyer. Used to decide whether an incoming
+// document was authored by US (no draft needed) vs. the other side / court.
+// Overridable per-request via the `lawyer_name` body field.
+const DEFAULT_LAWYER_NAME = 'أشرف شريف / אשרף שריף / Ashraf Sharif';
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -54,6 +59,9 @@ export default {
     }
     if (method === 'POST' && path === '/api/save') return handleSave(request, env);
     if (method === 'POST' && path === '/api/draft') return handleDraft(request, env);
+    if (method === 'POST' && path === '/api/draft-decision') {
+      return handleDraftDecision(request, env);
+    }
     if (method === 'GET' && path === '/api/case-notes') {
       return handleCaseNotes(request, env);
     }
@@ -71,6 +79,9 @@ export default {
     }
     if (method === 'POST' && path === '/api/suggested-actions') {
       return handleSaveSuggestedAction(request, env);
+    }
+    if (method === 'POST' && path === '/api/suggest-action') {
+      return handleSuggestAction(request, env);
     }
     if (method === 'GET' && path.startsWith('/api/suggested-actions/')) {
       return handleGetSuggestedActions(request, env);
@@ -281,6 +292,11 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
   const caseSrc = String(body.case_source_id || '').trim();
   const fileName = String(body.file_name || '').trim();
   const skillKey = String(body.skill_key || 'sharia-lawsuit').trim();
+  // The registered lawyer / our office. A draft is only needed when the
+  // document is from the OTHER side or the court orders a reply — never for
+  // documents our own office authored (unless the court ordered a reply).
+  const lawyerName =
+    String(body.lawyer_name || '').trim() || DEFAULT_LAWYER_NAME;
 
   const docMatch =
     /(DOC-\d+)/i.exec(fileName) ||
@@ -323,11 +339,17 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
     '\n</skill>\n\nقاعدة اللغة الإلزامية: اكتشف لغة المستند المرفق. إذا كان بالعربية، اكتب المسودة بالعربية فقط واترك draft_he فارغاً (null). إذا كان بالعبرية، اكتب المسودة بالعبرية فقط واترك draft_ar فارغاً (null). لا تخلط اللغتين أبداً في مسودة واحدة. لا تختلق وقائع أو تواريخ أو أسماء غير موجودة في المستند أو في ملاحظات القضية. أعِد كائن JSON واحداً فقط، دون أي نص خارج JSON، ودون Markdown، وأول حرف في ردك يجب أن يكون القوس {.';
 
   const userText =
-    'اقرأ المستند المرفق بالكامل كلمةً كلمةً. هذه ملاحظات المحامي على هذه القضية، استخدمها في توجيه الرد:\n<case_notes_he>\n' +
+    'اقرأ المستند المرفق بالكامل كلمةً كلمةً. مكتبنا/المحامي صاحب الملف هو: ' +
+    lawyerName +
+    '.\n\nأولاً صنِّف المستند:\n' +
+    '- author_side = من حرّر/قدّم هذا المستند؟ "ours" إذا حرّره مكتبنا/المحامي المذكور أعلاه، أو "opposing" إذا قدّمه الطرف الآخر/الخصم، أو "court" إذا كان صادراً عن المحكمة/القاضي.\n' +
+    '- court_requires_response = true إذا كان المستند يأمر أو يطلب تقديم رد/جواب/تعقيب، وإلا false.\n\n' +
+    'قاعدة إعداد المسودة (مهمة جداً): أعِدّ نص مسودة الرد فقط إذا كان المستند من الطرف الآخر (author_side = "opposing") أو إذا أمرت المحكمة بالرد (court_requires_response = true). أما إذا كان المستند من مكتبنا (author_side = "ours") ولم تأمر المحكمة بالرد، فلا حاجة لمسودة: اترك draft_he و draft_ar = null.\n\n' +
+    'هذه ملاحظات المحامي على هذه القضية، استخدمها في توجيه الرد:\n<case_notes_he>\n' +
     notes.he +
     '\n</case_notes_he>\n<case_notes_ar>\n' +
     notes.ar +
-    '\n</case_notes_ar>\n\nصُغ مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "ar or he", "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بالعبرية أو null", "title_ar": "عنوان المسودة بالعربية أو null", "draft_he": "نص المسودة الكامل بالعبرية أو null", "draft_ar": "نص المسودة الكامل بالعربية أو null"}. املأ فقط حقول اللغة المطابقة لِلغة المستند واترك الأخرى null. لا تكتب أي شيء خارج JSON.';
+    '\n</case_notes_ar>\n\nصُغ (عند الحاجة فقط) مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "ar or he", "author_side": "ours or opposing or court", "court_requires_response": true or false, "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بالعبرية أو null", "title_ar": "عنوان المسودة بالعربية أو null", "draft_he": "نص المسودة الكامل بالعبرية أو null", "draft_ar": "نص المسودة الكامل بالعربية أو null"}. املأ فقط حقول اللغة المطابقة لِلغة المستند واترك الأخرى null. لا تكتب أي شيء خارج JSON.';
 
   const anthropicBody = {
     model: 'claude-sonnet-4-6',
@@ -400,6 +422,26 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
     );
   }
 
+  // Gate: a draft is needed only when the document is from the OTHER side, or
+  // the court ordered a reply. Our own document with no court order → no draft
+  // (the case's suggested-action/recommendation covers that case instead).
+  const authorSide = String(draft.author_side ?? '').toLowerCase().trim();
+  const courtRequiresResponse =
+    draft.court_requires_response === true ||
+    String(draft.court_requires_response ?? '').toLowerCase() === 'true';
+  // A draft is needed ONLY when the OTHER side authored the document, or the
+  // court ordered a reply. Our own document → no draft; a court document that
+  // does NOT order a reply → no draft (the suggested-action card covers those).
+  // Unknown/unclassified author defaults to needing a draft — never silently
+  // drop a reply that might be required (a missed deadline is far worse than an
+  // extra draft).
+  const draftNeeded =
+    authorSide === 'opposing' ||
+    courtRequiresResponse ||
+    (authorSide !== 'ours' && authorSide !== 'court');
+  const draftHe = draftNeeded ? (draft.draft_he ?? null) : null;
+  const draftAr = draftNeeded ? (draft.draft_ar ?? null) : null;
+
   const row: Record<string, unknown> = {
     source_id: sourceId,
     document_source_id: documentSourceId,
@@ -408,11 +450,14 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
     file_name: fileName || null,
     title: draft.title ?? null,
     title_ar: draft.title_ar ?? null,
-    draft_he: draft.draft_he ?? null,
-    draft_ar: draft.draft_ar ?? null,
+    draft_he: draftHe,
+    draft_ar: draftAr,
     language: draft.detected_language ?? null,
     doc_type: draft.doc_type ?? null,
-    status: 'draft',
+    // 'approved' = classified, draft needed; 'not_needed' = classified, no
+    // draft (Make writes 'draft' for unclassified rows — the app re-checks
+    // those via /api/draft-decision).
+    status: draftNeeded ? 'approved' : 'not_needed',
     date: new Date().toISOString().slice(0, 10),
   };
   let count = 0;
@@ -433,9 +478,168 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
       detected_language: draft.detected_language || '',
       doc_type: draft.doc_type || '',
       title: draft.title || draft.title_ar || '',
-      has_draft: !!(draft.draft_he || draft.draft_ar),
+      draft_needed: draftNeeded,
+      author_side: authorSide || 'unknown',
+      court_requires_response: courtRequiresResponse,
+      has_draft: !!(draftHe || draftAr),
       notes_scope: notes.scope,
       notes_count: notes.count,
+    },
+    request,
+    env,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/draft-decision
+// Cheap classification-only check for an EXISTING document (typically a
+// Make-written draft still marked status='draft'): reads the PDF with a small
+// model, decides whether a reply draft is actually needed, and updates the
+// draft row's status to 'approved' (needed) or 'not_needed' — WITHOUT
+// regenerating the draft text (any existing draft is preserved). On any
+// failure it defaults to 'approved' so a possibly-required reply is never
+// silently hidden.
+// ---------------------------------------------------------------------------
+async function handleDraftDecision(request: Request, env: Env): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: 'invalid json' }, request, env, 400);
+  }
+  const pdfB64 = String(body.pdf_base64 || '').trim();
+  if (!pdfB64) return json({ error: 'pdf_base64 required' }, request, env, 400);
+
+  const clientSrc = String(body.client_source_id || '').trim();
+  const caseSrc = String(body.case_source_id || '').trim();
+  const fileName = String(body.file_name || '').trim();
+  const lawyerName =
+    String(body.lawyer_name || '').trim() || DEFAULT_LAWYER_NAME;
+
+  const docMatch =
+    /(DOC-\d+)/i.exec(fileName) ||
+    /(DOC-\d+)/i.exec(String(body.source_id || '')) ||
+    /(DOC-\d+)/i.exec(String(body.document_source_id || ''));
+  const docId = docMatch ? docMatch[1].toUpperCase() : '';
+  let sourceId = docId ? `DRAFT-${docId}` : '';
+  if (!sourceId && fileName) {
+    const base = fileName
+      .split('/')
+      .pop()!
+      .replace(/\.[^.]+$/, '')
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .slice(0, 120);
+    if (base) sourceId = `DRAFT-${base}`;
+  }
+  if (!sourceId) {
+    return json(
+      { error: 'cannot derive source_id (need file_name or DOC id)' },
+      request,
+      env,
+      400,
+    );
+  }
+  const documentSourceId = docId || sourceId;
+
+  const systemPrompt =
+    'أنت مصنِّف مستندات قانونية لمكتب المحامي: ' +
+    lawyerName +
+    '. اقرأ المستند المرفق وأعِد كائن JSON واحداً فقط، دون أي نص آخر، وأول حرف {.';
+  const userText =
+    'صنِّف هذا المستند:\n' +
+    '- author_side = "ours" إذا حرّره مكتبنا/المحامي ' +
+    lawyerName +
+    '، أو "opposing" إذا قدّمه الطرف الآخر/الخصم، أو "court" إذا صدر عن المحكمة/القاضي.\n' +
+    '- court_requires_response = true إذا كان المستند يأمر أو يطلب تقديم رد/جواب/تعقيب، وإلا false.\n' +
+    'أعِد JSON فقط: {"author_side":"ours or opposing or court","court_requires_response":true or false}.';
+
+  let draftNeeded = true; // safe default on any failure
+  let authorSide = 'unknown';
+  let courtRequiresResponse = false;
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': env.ANTHROPIC_API_KEY || '',
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 200,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'document',
+                source: {
+                  type: 'base64',
+                  media_type: 'application/pdf',
+                  data: pdfB64,
+                },
+              },
+              { type: 'text', text: userText },
+            ],
+          },
+        ],
+      }),
+    });
+    if (resp.ok) {
+      const data = (await resp.json()) as {
+        content?: Array<{ type: string; text?: string }>;
+      };
+      const textOut = (data.content || [])
+        .filter((b) => b.type === 'text')
+        .map((b) => b.text || '')
+        .join('');
+      const cleaned = textOut
+        .trim()
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/, '')
+        .replace(/```\s*$/, '')
+        .trim();
+      const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+      authorSide =
+        String(parsed.author_side ?? '').toLowerCase().trim() || 'unknown';
+      courtRequiresResponse =
+        parsed.court_requires_response === true ||
+        String(parsed.court_requires_response ?? '').toLowerCase() === 'true';
+      draftNeeded =
+        authorSide === 'opposing' ||
+        courtRequiresResponse ||
+        (authorSide !== 'ours' && authorSide !== 'court');
+    }
+  } catch {
+    // keep safe defaults (draftNeeded = true)
+  }
+
+  // Update ONLY the status (+ ids when provided) so any existing draft text,
+  // title and language are preserved by buildUpsert (absent columns are not
+  // written on conflict).
+  const row: Record<string, unknown> = {
+    source_id: sourceId,
+    document_source_id: documentSourceId,
+    status: draftNeeded ? 'approved' : 'not_needed',
+  };
+  if (clientSrc) row.client_source_id = clientSrc;
+  if (caseSrc) row.case_source_id = caseSrc;
+  const built = buildUpsert('drafts', row, env.USER_ID);
+  if (built) {
+    await env.DB.prepare(built.sql)
+      .bind(...built.binds)
+      .run();
+  }
+
+  return json(
+    {
+      ok: true,
+      source_id: sourceId,
+      document_source_id: documentSourceId,
+      draft_needed: draftNeeded,
+      author_side: authorSide,
+      court_requires_response: courtRequiresResponse,
     },
     request,
     env,
@@ -635,6 +839,167 @@ async function handleSaveSuggestedAction(request: Request, env: Env): Promise<Re
     )
     .run();
   return json({ ok: true }, request, env);
+}
+
+// Map a case's free-text court ("שלום ירושלים", "משפחה חיפה", "עבודה...",
+// "שרעי יפו", "עליון" / "בג\"ץ") to the legal_actions court_type(s) to suggest
+// from. Family also gets the civil track as a secondary option, per the
+// office's rule. Falls back to civil.
+function mapCourtTypes(court: string): string[] {
+  const c = (court || '').toLowerCase();
+  if (/שרע|شرع/.test(c)) return ['sharia'];
+  if (/משפח|عائل|أسر|family/.test(c)) return ['family', 'civil'];
+  if (/עבוד|ביטוח לאומי|عمل|تأمين وطني|labor/.test(c)) return ['labor'];
+  if (/עליון|בג["”']?ץ|בגץ|عليا|عدل عليا|high court|hcj/.test(c)) return ['hcj'];
+  if (/פליל|جزائ|جناي|criminal/.test(c)) return ['criminal'];
+  return ['civil']; // שלום / מחוזי / default
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/suggest-action
+// Generate a court-MATCHED suggested next action for a case: maps the case's
+// court to the right legal_actions court_type(s) (family also includes civil),
+// then asks a small model to pick the most relevant next step FROM that list
+// given the latest document/context. Saves it to case_suggested_actions (so
+// the existing GET still serves it) and returns it.
+// ---------------------------------------------------------------------------
+async function handleSuggestAction(request: Request, env: Env): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: 'invalid json' }, request, env, 400);
+  }
+  const caseId = String(body.case_id ?? '').trim();
+  const clientId = String(body.client_id ?? '').trim();
+  const court = String(body.court ?? '').trim();
+  const docSummary = String(body.doc_summary ?? '').trim();
+  const docName = String(body.document_name ?? '').trim();
+  if (!caseId) return json({ error: 'case_id required' }, request, env, 400);
+
+  const courtTypes = mapCourtTypes(court);
+  const placeholders = courtTypes.map((_, i) => '?' + (i + 1)).join(', ');
+  const rs = await env.DB.prepare(
+    `SELECT court_type, stage, action_name, responsible, deadline, deadline_from, legal_source, practical_notes
+     FROM legal_actions WHERE court_type IN (${placeholders}) ORDER BY court_type, id`,
+  )
+    .bind(...courtTypes)
+    .all();
+  const actions = (rs.results ?? []) as Array<Record<string, unknown>>;
+  if (actions.length === 0) {
+    return json(
+      { ok: false, error: 'no_actions_for_court_type', court_types: courtTypes },
+      request,
+      env,
+    );
+  }
+
+  const actionsText = actions
+    .map(
+      (a) =>
+        `- [${a.court_type} | ${a.stage}] ${a.action_name} | אחראי: ${a.responsible || '-'} | מועד: ${a.deadline || '-'} (${a.deadline_from || '-'}) | מקור: ${a.legal_source || '-'}${a.practical_notes ? ' | הערה: ' + a.practical_notes : ''}`,
+    )
+    .join('\n');
+
+  const systemPrompt =
+    'אתה עוזר משפטי במשרד עורכי דין בישראל. בהינתן רשימת הפעולות האפשריות לפי סדרי הדין של הערכאה הרלוונטית, ובהינתן הקשר התיק/המסמך האחרון, בחר את הפעולה הבאה שעל המשרד לנקוט — אך ורק מתוך הרשימה שסופקה. אל תמציא פעולות, מועדים או מקורות שאינם ברשימה. החזר אובייקט JSON אחד בלבד, ללא טקסט נוסף, ותו ראשון {.';
+  const userText =
+    'הערכאה: ' +
+    (court || '-') +
+    ' (court_type: ' +
+    courtTypes.join(' + ') +
+    ').\n\nרשימת הפעולות האפשריות בערכאה זו (בחר אך ורק מתוכה):\n' +
+    actionsText +
+    '\n\nהקשר/המסמך האחרון בתיק:\n' +
+    (docSummary ||
+      '(אין סיכום מסמך — הצע את הפעולה ההגיונית הבאה לפי שלבי ההליך)') +
+    '\n\nהחזר JSON: {"suggested_action":"שם הפעולה והסבר קצר מה לעשות","deadline":"המועד מתוך הרשימה","legal_source":"התקנה/המקור מתוך הרשימה","reasoning":"נימוק קצר בעברית","confidence":"high או medium או low"}.';
+
+  let suggested = '';
+  let deadline = '';
+  let legalSource = '';
+  let reasoning = '';
+  let confidence = '';
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': env.ANTHROPIC_API_KEY || '',
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 900,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userText }],
+      }),
+    });
+    if (resp.ok) {
+      const data = (await resp.json()) as {
+        content?: Array<{ type: string; text?: string }>;
+      };
+      const textOut = (data.content || [])
+        .filter((b) => b.type === 'text')
+        .map((b) => b.text || '')
+        .join('');
+      const cleaned = textOut
+        .trim()
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/, '')
+        .replace(/```\s*$/, '')
+        .trim();
+      const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+      suggested = String(parsed.suggested_action ?? '').trim();
+      deadline = String(parsed.deadline ?? '').trim();
+      legalSource = String(parsed.legal_source ?? '').trim();
+      reasoning = String(parsed.reasoning ?? '').trim();
+      confidence = String(parsed.confidence ?? '').trim();
+    }
+  } catch {
+    // fall through — suggested stays empty, handled below
+  }
+
+  if (!suggested) {
+    return json(
+      { ok: false, error: 'suggestion_failed', court_types: courtTypes },
+      request,
+      env,
+      502,
+    );
+  }
+
+  await env.DB.prepare(
+    `INSERT INTO case_suggested_actions
+     (client_id, case_id, document_name, court_type, suggested_action, deadline, legal_source, confidence, reasoning)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
+  )
+    .bind(
+      clientId || null,
+      caseId,
+      docName || null,
+      courtTypes.join(','),
+      suggested,
+      deadline || null,
+      legalSource || null,
+      confidence || null,
+      reasoning || null,
+    )
+    .run();
+
+  return json(
+    {
+      ok: true,
+      court_types: courtTypes,
+      suggested_action: suggested,
+      deadline,
+      legal_source: legalSource,
+      reasoning,
+      confidence,
+    },
+    request,
+    env,
+  );
 }
 
 // ---------------------------------------------------------------------------

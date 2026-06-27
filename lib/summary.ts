@@ -268,6 +268,56 @@ export async function fetchSuggestedAction(caseId: string): Promise<string | nul
   return null;
 }
 
+/** Generate a COURT-MATCHED suggested next action for a case: the Worker maps
+ *  the case's court ("שלום/מחוזי"→civil, "משפחה"→family+civil, "עבודה/ביטוח
+ *  לאומי"→labor, "שרעי"→sharia, "עליון/בג״ץ"→hcj) to the relevant
+ *  `legal_actions`, then picks the next step from THAT list given the latest
+ *  document context. Saves it to `case_suggested_actions` and returns the
+ *  formatted text. Returns null on failure (caller falls back to the existing
+ *  suggestion). Used by the case-brain "הצעה לפעולה" card. */
+export async function generateSuggestedAction(opts: {
+  caseId: string;
+  clientId?: string;
+  court?: string;
+  docSummary?: string;
+  documentName?: string;
+}): Promise<string | null> {
+  const { caseId, clientId, court, docSummary, documentName } = opts;
+  if (!caseId) return null;
+  try {
+    const res = await fetch(WORKER_URL + '/api/suggest-action', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + APP_TOKEN,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        case_id: caseId,
+        client_id: clientId || '',
+        court: court || '',
+        doc_summary: docSummary || '',
+        document_name: documentName || '',
+      }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      ok?: boolean;
+      suggested_action?: string;
+      deadline?: string;
+      legal_source?: string;
+    };
+    if (!data.ok || !data.suggested_action) return null;
+    let txt = data.suggested_action.trim();
+    const extras: string[] = [];
+    if (data.deadline) extras.push('מועד: ' + data.deadline);
+    if (data.legal_source) extras.push('מקור: ' + data.legal_source);
+    if (extras.length) txt += ' — ' + extras.join(' · ');
+    return txt;
+  } catch {
+    return null;
+  }
+}
+
 /** Generate a reply draft for a PDF document that has none yet: obtain a
  *  temporary Dropbox link and hand it to /api/generate-draft (which fetches the
  *  PDF server-side and forwards it to the Worker's /api/draft → Claude → saves
@@ -279,27 +329,119 @@ export async function generateDocumentDraft(opts: {
   clientId?: string;
   caseId?: string;
   documentId?: string;
-}): Promise<boolean> {
-  const { relativePath, fileName, clientId, caseId, documentId } = opts;
-  if (!relativePath || !/\.pdf$/i.test(fileName)) return false;
+  lawyerName?: string;
+}): Promise<{ draftNeeded: boolean; hasDraft: boolean }> {
+  const { relativePath, fileName, clientId, caseId, documentId, lawyerName } = opts;
+  // Non-PDF can't be read/classified — default to "needed" so we never hide a
+  // possibly-required reply.
+  if (!relativePath || !/\.pdf$/i.test(fileName)) {
+    return { draftNeeded: true, hasDraft: false };
+  }
   let fileUrl: string | null = null;
   try {
     fileUrl = await getDropboxTemporaryLink(dropboxPathForRelative(relativePath));
   } catch {
     fileUrl = null;
   }
-  if (!fileUrl) return false;
+  if (!fileUrl) return { draftNeeded: true, hasDraft: false };
   try {
     const res = await fetch('/api/generate-draft/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileUrl, fileName, clientId, caseId, documentId }),
+      body: JSON.stringify({ fileUrl, fileName, clientId, caseId, documentId, lawyerName }),
     });
-    if (!res.ok) return false;
-    const data = (await res.json()) as { has_draft?: boolean };
-    return !!data.has_draft;
+    if (!res.ok) return { draftNeeded: true, hasDraft: false };
+    const data = (await res.json()) as { has_draft?: boolean; draft_needed?: boolean };
+    // draft_needed defaults to true unless the worker explicitly says false.
+    return { draftNeeded: data.draft_needed !== false, hasDraft: !!data.has_draft };
   } catch {
-    return false;
+    return { draftNeeded: true, hasDraft: false };
+  }
+}
+
+/** Like {@link fetchDocumentDraft} but also returns the draft row's `status`,
+ *  so the case-brain can gate the "טיוטת תגובה" card:
+ *   - 'approved'   → a draft IS needed; show the text.
+ *   - 'not_needed' → no draft needed; hide the card (show the suggested action).
+ *   - 'draft'      → unclassified (written by the Make pipeline for every
+ *                    document) → re-check once via {@link classifyDraftDecision}.
+ *   - null         → no draft row yet.
+ */
+export async function fetchDraftState(
+  opts: { caseId?: string; documentId?: string; preferLang?: 'ar' | 'he' | null },
+  lang: Lang,
+): Promise<{ text: string | null; status: string | null }> {
+  const { caseId, documentId, preferLang } = opts;
+  if (!caseId && !documentId) return { text: null, status: null };
+  const params = new URLSearchParams();
+  if (documentId) params.set('documentId', documentId);
+  else if (caseId) params.set('caseId', caseId);
+  try {
+    const res = await fetch(WORKER_URL + '/api/drafts?' + params.toString(), {
+      method: 'GET',
+      headers: { Authorization: 'Bearer ' + APP_TOKEN },
+    });
+    if (!res.ok) return { text: null, status: null };
+    const data = (await res.json()) as {
+      drafts?: Array<{
+        draft_he?: string;
+        draft_ar?: string;
+        language?: string;
+        status?: string;
+      }>;
+    };
+    const rows = data.drafts || [];
+    if (rows.length === 0) return { text: null, status: null };
+    const row = rows[0];
+    const he = (row.draft_he || '').trim();
+    const ar = (row.draft_ar || '').trim();
+    let text: string | null;
+    if (preferLang === 'ar') text = ar || he || null;
+    else if (preferLang === 'he') text = he || ar || null;
+    else
+      text = pickDocumentLanguageSummary(
+        { he, ar, language: (row.language || '').toLowerCase() },
+        lang,
+      );
+    return { text, status: (row.status || '').toLowerCase() || null };
+  } catch {
+    return { text: null, status: null };
+  }
+}
+
+/** Ask the Worker whether a reply draft is actually needed for a document:
+ *  true when the OTHER side authored it or the court ordered a reply; false for
+ *  our own document with no court order. Updates the draft row's status as a
+ *  side effect (caches the decision). Non-PDF or any failure → defaults to
+ *  `true` so a possibly-required reply is never hidden. */
+export async function classifyDraftDecision(opts: {
+  relativePath?: string;
+  fileName: string;
+  clientId?: string;
+  caseId?: string;
+  documentId?: string;
+  lawyerName?: string;
+}): Promise<{ draftNeeded: boolean }> {
+  const { relativePath, fileName, clientId, caseId, documentId, lawyerName } = opts;
+  if (!relativePath || !/\.pdf$/i.test(fileName)) return { draftNeeded: true };
+  let fileUrl: string | null = null;
+  try {
+    fileUrl = await getDropboxTemporaryLink(dropboxPathForRelative(relativePath));
+  } catch {
+    fileUrl = null;
+  }
+  if (!fileUrl) return { draftNeeded: true };
+  try {
+    const res = await fetch('/api/classify-draft/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileUrl, fileName, clientId, caseId, documentId, lawyerName }),
+    });
+    if (!res.ok) return { draftNeeded: true };
+    const data = (await res.json()) as { draft_needed?: boolean };
+    return { draftNeeded: data.draft_needed !== false };
+  } catch {
+    return { draftNeeded: true };
   }
 }
 
