@@ -112,8 +112,6 @@ type Screen =
   | 'gate'
   | 'denied';
 
-type HubMode = 'whatsapp' | 'bot';
-
 const cn = (...parts: Array<string | false | null | undefined>): string =>
   parts.filter(Boolean).join(' ');
 
@@ -2735,54 +2733,6 @@ function BotChatScreen({
  * Reusable parts
  * ────────────────────────────────────────────────────────── */
 
-function AuthShell({
-  title,
-  subtitle,
-  icon,
-  onBack,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  icon: ReactNode;
-  onBack?: () => void;
-  children: ReactNode;
-}) {
-  const { lang } = useT();
-  const backLabel = lang === 'ar' ? 'رجوع' : 'חזרה';
-  return (
-    // `tw-relative` on the outer container so the absolutely-
-    // positioned back button anchors to the SCREEN's top-left
-    // corner (not the centered card's top-left). That matches the
-    // global-search screen behavior where the back button sits at
-    // the panel's left edge — here the "panel" is the full screen.
-    <div className="modern-portal-auth-shell tw-relative tw-grid tw-min-h-full tw-place-items-center tw-p-5">
-      {onBack && (
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label={backLabel}
-          title={backLabel}
-          className="main-screen-back-btn"
-        >
-          <i className="fas fa-arrow-left" />
-          <span>{backLabel}</span>
-        </button>
-      )}
-      <div className="modern-portal-auth-card tw-w-full tw-max-w-md tw-rounded-[32px] tw-border tw-border-slate-200 tw-bg-[#FDFBF5] tw-p-7 tw-shadow-sm">
-        <div className="tw-mx-auto tw-mb-6 tw-grid tw-h-20 tw-w-20 tw-place-items-center tw-rounded-full tw-bg-indigo-50 tw-text-indigo-600">
-          {icon}
-        </div>
-        <div className="tw-text-center">
-          <h2 className="tw-text-2xl tw-font-bold">{title}</h2>
-          <p className="tw-mt-2 tw-text-sm tw-leading-6 tw-text-slate-500">{subtitle}</p>
-        </div>
-        <div className="tw-mt-7 tw-space-y-4">{children}</div>
-      </div>
-    </div>
-  );
-}
-
 function Panel({
   children,
   className,
@@ -2935,18 +2885,6 @@ function ClientChatCard({
           </span>
         )}
       </div>
-    </div>
-  );
-}
-
-function FeatureRow({ icon, title }: { icon: ReactNode; title: string }) {
-  return (
-    // Vertical padding halved from `tw-py-4` (16 px each side, ~32 px
-    // total) to `tw-py-2` (8 px each side, ~16 px total) per user
-    // request — cuts the pill height by roughly 50%.
-    <div className="tw-flex tw-items-center tw-justify-between tw-rounded-2xl tw-bg-[#F8F2E4] tw-px-4 tw-py-2">
-      <div className="tw-text-sm tw-font-medium tw-leading-tight">{title}</div>
-      <div className="tw-text-indigo-600">{icon}</div>
     </div>
   );
 }
@@ -3697,36 +3635,6 @@ function ActionPanel({
         )}
       </Panel>
     </div>
-  );
-}
-
-function Field({
-  label,
-  placeholder,
-  value,
-  onChange,
-  type = 'text',
-}: {
-  label: string;
-  placeholder: string;
-  value?: string;
-  onChange?: (v: string) => void;
-  type?: string;
-}) {
-  return (
-    <label className="tw-block">
-      <span className="tw-mb-2 tw-block tw-text-sm tw-font-semibold tw-text-slate-700">
-        {label}
-      </span>
-      <input
-        type={type}
-        value={value}
-        onChange={onChange ? (e) => onChange(e.target.value) : undefined}
-        autoComplete="off"
-        className="tw-h-12 tw-w-full tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-white tw-px-4 tw-text-sm tw-outline-none placeholder:tw-text-slate-400 focus:tw-border-indigo-500 focus:tw-ring-4 focus:tw-ring-indigo-100"
-        placeholder={placeholder}
-      />
-    </label>
   );
 }
 
