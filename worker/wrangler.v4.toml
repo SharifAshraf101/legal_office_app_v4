@@ -1,0 +1,33 @@
+# v4 stack — parallel to the v3 Worker (wrangler.toml), built during the
+# v4 migration. Same code (src/index.ts), NEW Cloudflare resources:
+#   D1   legal-office-v4            (clone of legal-office-v3, all 15 tables)
+#   R2   legal-office-photos-v4     (client photos; empty at cutover)
+# Deploy with:
+#   npx wrangler deploy -c wrangler.v4.toml
+# The old Worker (legal-office-api) stays live and untouched as rollback.
+#
+# ANTHROPIC_API_KEY is a secret (not here). Set it once after first deploy:
+#   npx wrangler secret put ANTHROPIC_API_KEY -c wrangler.v4.toml
+
+name = "legal-office-api-v4"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+
+# --- D1 database (relational data) — v4 clone ---
+[[d1_databases]]
+binding = "DB"
+database_name = "legal-office-v4"
+database_id = "18463aa2-b472-48a3-9169-8983c5cd3d54"
+
+# --- R2 bucket (client photos) — v4 ---
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "legal-office-photos-v4"
+
+# --- Non-secret config (committed) ---
+[vars]
+ALLOWED_ORIGIN = "http://localhost:3000,http://localhost:3001,https://legal-office-app-v4.vercel.app"
+USER_ID = "c0307382-5fd2-4a2b-88df-40b22bb9ad26"
+# Fresh token for the v4 stack (kept separate from v3). The app (.env.local)
+# and the make.com scenarios must send THIS token to the v4 Worker.
+APP_TOKEN = "ecd403f741827b30fcd7018ebaf5bc8fdf87b974b30ce8af"

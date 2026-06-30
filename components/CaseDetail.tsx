@@ -213,7 +213,9 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
   };
 
   const onNewEvent = () => {
-    modalStack.open(<NewEventModal preselectedCaseId={caseId} />);
+    modalStack.open(
+      <NewEventModal preselectedCaseId={caseId} preselectedType="document" />,
+    );
   };
 
   const onShowDocs = () => {
