@@ -23,6 +23,18 @@ delete from tasks;
 delete from cases;
 delete from clients;
 
+-- Feature tables that also accumulate per-case user data (added by later
+-- migrations, NOT in worker/schema.sql — easy to forget). Clear them too.
+delete from case_notes;
+delete from case_suggested_actions;
+delete from drafts;
+delete from file_summary;
+delete from whatsapp_messages;
+
 -- Whole-app JSON snapshot fallback — must be cleared too, or a device would
 -- re-hydrate the app from it even after the per-table rows are gone.
 delete from app_state;
+
+-- NOTE: `legal_actions` (court-procedure catalog) and `skills` (app
+-- knowledge/config) are REFERENCE data the app needs to function — they are
+-- intentionally NOT deleted here. Wipe them manually only for a bare DB.
