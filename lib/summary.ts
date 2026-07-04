@@ -53,11 +53,20 @@ export interface SummaryOpts {
   caseId?: string;
 }
 
-/** Raw { he, ar, language } summary for a document, or null when nothing
- *  matches. `language` is the document's own language ("ar" / "he" / ""). */
+/** A document summary in three forms: `orig` is the summary in the document's
+ *  OWN language (any language); `he`/`ar` are the Hebrew/Arabic translations
+ *  used by the bilingual screens. `language` is the document's language code. */
+export interface DocSummaryData {
+  he: string;
+  ar: string;
+  orig: string;
+  language: string;
+}
+
+/** Raw summary for a document, or null when nothing matches. */
 export async function fetchDocumentSummaryBoth(
   opts: SummaryOpts,
-): Promise<{ he: string; ar: string; language: string } | null> {
+): Promise<DocSummaryData | null> {
   const { renamed, original, caseId } = opts;
   if (!renamed && !original && !caseId) return null;
   const params = new URLSearchParams();
@@ -76,12 +85,14 @@ export async function fetchDocumentSummaryBoth(
     const data = (await res.json()) as {
       he?: string;
       ar?: string;
+      orig?: string;
       language?: string;
     };
     const he = (data.he || '').trim();
     const ar = (data.ar || '').trim();
-    if (!he && !ar) return null;
-    return { he, ar, language: (data.language || '').toLowerCase() };
+    const orig = (data.orig || '').trim();
+    if (!he && !ar && !orig) return null;
+    return { he, ar, orig, language: (data.language || '').toLowerCase() };
   } catch {
     return null;
   }
@@ -101,7 +112,7 @@ export async function generateDocumentSummary(opts: {
   fileName: string;
   clientId?: string;
   caseId?: string;
-}): Promise<{ he: string; ar: string; language: string } | null> {
+}): Promise<DocSummaryData | null> {
   const { relativePath, fileName, clientId, caseId } = opts;
   if (!relativePath || !/\.pdf$/i.test(fileName)) return null;
   let fileUrl: string | null = null;
@@ -122,12 +133,14 @@ export async function generateDocumentSummary(opts: {
     const data = (await res.json()) as {
       he?: string;
       ar?: string;
+      orig?: string;
       language?: string;
     };
     const he = (data.he || '').trim();
     const ar = (data.ar || '').trim();
-    if (!he && !ar) return null;
-    return { he, ar, language: (data.language || '').toLowerCase() };
+    const orig = (data.orig || '').trim();
+    if (!he && !ar && !orig) return null;
+    return { he, ar, orig, language: (data.language || '').toLowerCase() };
   } catch {
     return null;
   }
@@ -145,26 +158,109 @@ export async function fetchDocumentSummary(
   return pickDocumentLanguageSummary(data, lang);
 }
 
-/** Choose the summary in the document's own language. */
+/** Normalize a stored / AI-returned language value to 'ar' | 'he' | ''.
+ *  Tolerant of the many shapes the value arrives in: the bare codes, full
+ *  words in English ("arabic"/"hebrew"), locale tags ("ar-EG"), or the value
+ *  itself written in Arabic/Hebrew script ("عربية"/"עברית"). This is why an
+ *  Arabic document could wrongly render in Hebrew before — the old code only
+ *  matched the exact string 'ar'. */
+export function normalizeDocLang(raw?: string | null): 'ar' | 'he' | '' {
+  const v = (raw || '').trim().toLowerCase();
+  if (!v) return '';
+  if (
+    v === 'ar' ||
+    v.startsWith('ar') ||
+    v.includes('arab') ||
+    v.includes('عرب') ||
+    /[؀-ۿ]/.test(v) // any Arabic-script letter in the value
+  ) {
+    return 'ar';
+  }
+  if (
+    v === 'he' ||
+    v.startsWith('he') ||
+    v.includes('hebr') ||
+    v.includes('עבר') ||
+    /[֐-׿]/.test(v) // any Hebrew-script letter in the value
+  ) {
+    return 'he';
+  }
+  return '';
+}
+
+/** Detect the dominant script of a piece of text: 'ar' when it has more
+ *  Arabic letters than Hebrew, 'he' when the reverse, '' when neither. */
+export function detectScriptLang(text?: string | null): 'ar' | 'he' | '' {
+  const s = text || '';
+  const ar = (s.match(/[؀-ۿ]/g) || []).length;
+  const he = (s.match(/[֐-׿]/g) || []).length;
+  if (ar === 0 && he === 0) return '';
+  return ar >= he ? 'ar' : 'he';
+}
+
+/** Resolve the effective language a document's boxes should render in. Order:
+ *   1. the stored `language` field, normalized (handles variants); then
+ *   2. when only ONE of the summaries is present, that summary's script (an
+ *      Arabic-only summary ⇒ Arabic document); then
+ *   3. the app language as a last resort.
+ *  Never returns '' — the caller always gets a concrete language. */
+export function resolveDocLang(
+  data: { he: string; ar: string; language?: string },
+  appLang: Lang,
+): 'ar' | 'he' {
+  const norm = normalizeDocLang(data.language);
+  if (norm) return norm;
+  const he = (data.he || '').trim();
+  const ar = (data.ar || '').trim();
+  if (ar && !he) return 'ar';
+  if (he && !ar) return 'he';
+  return appLang === 'ar' ? 'ar' : 'he';
+}
+
+/** Choose the summary in the document's own language (he/ar pair). */
 export function pickDocumentLanguageSummary(
   data: { he: string; ar: string; language?: string },
   appLang: Lang,
 ): string | null {
-  const docLang = (data.language || '').toLowerCase();
-  let primary: string;
-  let fallback: string;
-  if (docLang === 'ar') {
-    primary = data.ar;
-    fallback = data.he;
-  } else if (docLang === 'he') {
-    primary = data.he;
-    fallback = data.ar;
-  } else {
-    // Unknown document language — fall back to the app language.
-    primary = appLang === 'ar' ? data.ar : data.he;
-    fallback = appLang === 'ar' ? data.he : data.ar;
-  }
+  const docLang = resolveDocLang(data, appLang);
+  const primary = docLang === 'ar' ? data.ar : data.he;
+  const fallback = docLang === 'ar' ? data.he : data.ar;
   return (primary || fallback || '').trim() || null;
+}
+
+/** Text direction of a string: 'rtl' when it contains Hebrew or Arabic-script
+ *  letters (covering Arabic-script languages like Farsi/Urdu and the Arabic
+ *  presentation forms), otherwise 'ltr'. Detected from the TEXT itself, so it's
+ *  correct no matter the app language or any stored language code. */
+export function isRtlText(text?: string | null): boolean {
+  const s = text || '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (
+      (c >= 0x0590 && c <= 0x05ff) || // Hebrew
+      (c >= 0x0600 && c <= 0x06ff) || // Arabic
+      (c >= 0x0750 && c <= 0x077f) || // Arabic Supplement
+      (c >= 0x08a0 && c <= 0x08ff) || // Arabic Extended-A
+      (c >= 0xfb1d && c <= 0xfdff) || // Hebrew + Arabic presentation forms A
+      (c >= 0xfe70 && c <= 0xfeff)    // Arabic presentation forms B
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Summary text in the document's OWN language, for ANY language. Prefers the
+ *  native `orig` column (Arabic doc → Arabic, English doc → English, French →
+ *  French, …). Falls back to the he/ar translation (document-language aware)
+ *  for rows written before the native column existed. */
+export function pickNativeSummary(
+  data: { he: string; ar: string; orig?: string; language?: string },
+  appLang: Lang,
+): string | null {
+  const orig = (data.orig || '').trim();
+  if (orig) return orig;
+  return pickDocumentLanguageSummary(data, appLang);
 }
 
 /** Reply-draft text for a case's document, from the D1 `drafts` table (written
@@ -200,6 +296,7 @@ export async function fetchDocumentDraft(
         document_source_id?: string;
         draft_he?: string;
         draft_ar?: string;
+        draft_orig?: string;
         language?: string;
       }>;
     };
@@ -209,9 +306,13 @@ export async function fetchDocumentDraft(
     // document id), so the first row is the right one — no cross-document
     // guessing.
     const row = rows[0];
+    // Native-language draft (any language) wins — it's already written in the
+    // document's own language, matching the "פענוח" box.
+    const orig = (row.draft_orig || '').trim();
+    if (orig) return orig;
     const he = (row.draft_he || '').trim();
     const ar = (row.draft_ar || '').trim();
-    // Match the "פענוח" box language exactly: copy the matching column as-is.
+    // Legacy he/ar-only rows: copy the matching column as-is.
     if (preferLang === 'ar') return ar || he || null;
     if (preferLang === 'he') return he || ar || null;
     // Document language unknown — fall back to the draft row's own language.
@@ -460,6 +561,7 @@ export async function fetchDraftState(
       drafts?: Array<{
         draft_he?: string;
         draft_ar?: string;
+        draft_orig?: string;
         language?: string;
         status?: string;
       }>;
@@ -467,6 +569,9 @@ export async function fetchDraftState(
     const rows = data.drafts || [];
     if (rows.length === 0) return { text: null, status: null };
     const row = rows[0];
+    const status = (row.status || '').toLowerCase() || null;
+    const orig = (row.draft_orig || '').trim();
+    if (orig) return { text: orig, status };
     const he = (row.draft_he || '').trim();
     const ar = (row.draft_ar || '').trim();
     let text: string | null;
@@ -477,7 +582,7 @@ export async function fetchDraftState(
         { he, ar, language: (row.language || '').toLowerCase() },
         lang,
       );
-    return { text, status: (row.status || '').toLowerCase() || null };
+    return { text, status };
   } catch {
     return { text: null, status: null };
   }

@@ -22,17 +22,22 @@ export const maxDuration = 60;
 
 const MODEL = 'claude-haiku-4-5';
 
-const PROMPT = `You are a legal assistant for a law office. The attached file is a legal document (a court filing, motion, ruling, claim, etc.), usually written in Hebrew or Arabic.
+const PROMPT = `You are a legal assistant for a law office. The attached file is a legal document (a court filing, motion, ruling, claim, etc.), written in any language (Hebrew, Arabic, English, French, Russian, …).
 
 Write a CONCISE, factual summary (3–6 sentences) covering, when present: the document type, the parties, the main request/claim, key dates and deadlines, and any decision/ruling. No preamble, no opinions — just the facts from the document.
 
 Return ONLY valid JSON (no markdown, no code fences) with EXACTLY these keys:
-{"language":"he or ar — the language the document ITSELF is written in","he":"the summary in Hebrew","ar":"the summary in Arabic"}
+{"language":"the ISO code of the language the document ITSELF is written in, e.g. he, ar, en, fr, ru","orig":"the summary in the document's OWN language","he":"the summary in Hebrew","ar":"the summary in Arabic"}
 
-Both "he" and "ar" must be filled — translate the summary so both are present.`;
+"orig" must be written in the document's own language. "he" and "ar" must always be filled too (translate the summary so both are present) — they power the bilingual screens.`;
 
 /** Pull a JSON object out of the model's reply, tolerating code fences. */
-function extractJson(text: string): { he?: string; ar?: string; language?: string } {
+function extractJson(text: string): {
+  he?: string;
+  ar?: string;
+  orig?: string;
+  language?: string;
+} {
   const cleaned = text.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
@@ -89,9 +94,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'fetch_error' }, { status: 502 });
   }
 
-  // 2. Summarize with Claude (PDF in, bilingual JSON out).
+  // 2. Summarize with Claude (PDF in, native + bilingual JSON out).
   let he = '';
   let ar = '';
+  let orig = '';
   let language = '';
   try {
     const client = new Anthropic({ apiKey });
@@ -123,6 +129,7 @@ export async function POST(req: Request) {
     const parsed = extractJson(text);
     he = (parsed.he || '').trim();
     ar = (parsed.ar || '').trim();
+    orig = (parsed.orig || '').trim();
     language = (parsed.language || '').toLowerCase();
   } catch (e) {
     return NextResponse.json(
@@ -130,9 +137,12 @@ export async function POST(req: Request) {
       { status: 502 },
     );
   }
-  if (!he && !ar) {
+  if (!he && !ar && !orig) {
     return NextResponse.json({ error: 'empty_summary' }, { status: 502 });
   }
+  // For a Hebrew/Arabic document the native summary IS the he/ar one — mirror
+  // it so `orig` is always populated even if the model left it blank.
+  if (!orig) orig = language.startsWith('ar') ? ar : language.startsWith('he') ? he : '';
 
   // 3. Persist into file_summary (via the Worker) so future loads just fetch it.
   try {
@@ -154,6 +164,7 @@ export async function POST(req: Request) {
           case_id: caseId || '',
           summary_he: he,
           summary_ar: ar,
+          summary_orig: orig,
           language,
           ai_model: MODEL,
         }),
@@ -163,5 +174,5 @@ export async function POST(req: Request) {
     // Non-fatal: still return the summary so the UI can show it now.
   }
 
-  return NextResponse.json({ he, ar, language });
+  return NextResponse.json({ he, ar, orig, language });
 }

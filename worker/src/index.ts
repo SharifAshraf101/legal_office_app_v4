@@ -134,12 +134,12 @@ async function handleFileSummary(request: Request, env: Env): Promise<Response> 
   const orig = (url.searchParams.get('orig') || '').trim();
   const caseId = (url.searchParams.get('caseId') || '').trim();
   if (!file && !orig && !caseId) {
-    return json({ he: '', ar: '', language: '' }, request, env);
+    return json({ he: '', ar: '', orig: '', language: '' }, request, env);
   }
   const docMatch = /(DOC-\d+)/i.exec(file) || /(DOC-\d+)/i.exec(orig);
   const docId = docMatch ? docMatch[1].toUpperCase() : '';
   const row = await env.DB.prepare(
-    'SELECT summary_he, summary_ar, language FROM file_summary ' +
+    'SELECT summary_he, summary_ar, summary_orig, language FROM file_summary ' +
       'WHERE file_name = ?1 OR file_name = ?2 ' +
       "OR (?4 <> '' AND (upper(file_name) LIKE '%' || ?4 || '.%' OR upper(file_name) LIKE '%' || ?4)) " +
       "OR (?3 <> '' AND lower(case_id) LIKE lower(?3) || '%') " +
@@ -147,11 +147,19 @@ async function handleFileSummary(request: Request, env: Env): Promise<Response> 
       "(?4 <> '' AND upper(file_name) LIKE '%' || ?4 || '.%') DESC, id DESC LIMIT 1",
   )
     .bind(file, orig, caseId, docId)
-    .first<{ summary_he?: string; summary_ar?: string; language?: string }>();
+    .first<{
+      summary_he?: string;
+      summary_ar?: string;
+      summary_orig?: string;
+      language?: string;
+    }>();
   return json(
     {
       he: row?.summary_he || '',
       ar: row?.summary_ar || '',
+      // The summary in the document's OWN language (any language). Falls back
+      // to '' for rows written before this column existed.
+      orig: row?.summary_orig || '',
       language: String(row?.language || '').toLowerCase(),
     },
     request,
@@ -196,8 +204,8 @@ async function handleStoreFileSummary(
       .run();
   }
   await env.DB.prepare(
-    'INSERT INTO file_summary (client_id, case_id, file_name, summary_he, summary_ar, language, ai_model) ' +
-      'VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)',
+    'INSERT INTO file_summary (client_id, case_id, file_name, summary_he, summary_ar, summary_orig, language, ai_model) ' +
+      'VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)',
   )
     .bind(
       str(String(body.client_id ?? '').toLowerCase()),
@@ -205,6 +213,7 @@ async function handleStoreFileSummary(
       fileName,
       str(body.summary_he),
       str(body.summary_ar),
+      str(body.summary_orig),
       str(String(body.language ?? '').toLowerCase()),
       str(body.ai_model),
     )
@@ -257,7 +266,20 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
       // never fail the save because the mirror rebuild hiccuped
     }
   }
-  return json({ ok: true, count: statements.length }, request, env);
+  const submitted = LOAD_TABLES.reduce(
+    (n, t) => n + (Array.isArray(body[t]) ? (body[t] as unknown[]).length : 0),
+    0,
+  );
+  return json(
+    {
+      ok: true,
+      count: statements.length,
+      submitted,
+      skipped: submitted - statements.length,
+    },
+    request,
+    env,
+  );
 }
 
 async function syncCaseNotes(env: Env): Promise<void> {
@@ -339,7 +361,7 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
   const systemPrompt =
     'أنت محامٍ خبير في الأحوال الشخصية للمسلمين في إسرائيل، تترافع أمام المحاكم الشرعية ومحاكم شؤون العائلة. مهمتك: قراءة المستند المرفق بالكامل (وهو مستند وارد مثل قرار محكمة أو لائحة دعوى أو طلب من الطرف الآخر) وصياغة مسودة رد قانوني عليه. القالب الحاكم للصياغة والتنسيق وتفاصيل المحامي وبنية الفقرات المرقّمة هو الوثيقة المرجعية التالية، والتزم بها حرفياً كمرجع للأسلوب والشكل:\n\n<skill>\n' +
     skill +
-    '\n</skill>\n\nقاعدة اللغة الإلزامية: اكتشف لغة المستند المرفق. إذا كان بالعربية، اكتب المسودة بالعربية فقط واترك draft_he فارغاً (null). إذا كان بالعبرية، اكتب المسودة بالعبرية فقط واترك draft_ar فارغاً (null). لا تخلط اللغتين أبداً في مسودة واحدة. لا تختلق وقائع أو تواريخ أو أسماء غير موجودة في المستند أو في ملاحظات القضية. أعِد كائن JSON واحداً فقط، دون أي نص خارج JSON، ودون Markdown، وأول حرف في ردك يجب أن يكون القوس {.';
+    '\n</skill>\n\nقاعدة اللغة الإلزامية: اكتشف لغة المستند المرفق أياً كانت (عربية، عبرية، إنجليزية، فرنسية، روسية، أو أي لغة أخرى). اكتب المسودة بلغة المستند نفسها فقط، ولا تخلط لغتين في مسودة واحدة. ضع رمز اللغة في الحقل detected_language (مثل ar أو he أو en أو fr أو ru) وضع نص المسودة الكامل في الحقل draft بلغة المستند. لا تختلق وقائع أو تواريخ أو أسماء غير موجودة في المستند أو في ملاحظات القضية. أعِد كائن JSON واحداً فقط، دون أي نص خارج JSON، ودون Markdown، وأول حرف في ردك يجب أن يكون القوس {.';
 
   const userText =
     'اقرأ المستند المرفق بالكامل كلمةً كلمةً. مكتبنا/المحامي صاحب الملف هو: ' +
@@ -352,7 +374,7 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
     notes.he +
     '\n</case_notes_he>\n<case_notes_ar>\n' +
     notes.ar +
-    '\n</case_notes_ar>\n\nصُغ (عند الحاجة فقط) مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "ar or he", "author_side": "ours or opposing or court", "court_requires_response": true or false, "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بالعبرية أو null", "title_ar": "عنوان المسودة بالعربية أو null", "draft_he": "نص المسودة الكامل بالعبرية أو null", "draft_ar": "نص المسودة الكامل بالعربية أو null"}. املأ فقط حقول اللغة المطابقة لِلغة المستند واترك الأخرى null. لا تكتب أي شيء خارج JSON.';
+    '\n</case_notes_ar>\n\nصُغ (عند الحاجة فقط) مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم، بلغة المستند نفسها. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "رمز لغة المستند مثل ar أو he أو en أو fr أو ru", "author_side": "ours or opposing or court", "court_requires_response": true or false, "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بلغة المستند أو null", "draft": "نص المسودة الكامل بلغة المستند أو null"}. لا تكتب أي شيء خارج JSON.';
 
   const anthropicBody = {
     model: 'claude-sonnet-4-6',
@@ -442,8 +464,23 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
     authorSide === 'opposing' ||
     courtRequiresResponse ||
     (authorSide !== 'ours' && authorSide !== 'court');
-  const draftHe = draftNeeded ? (draft.draft_he ?? null) : null;
-  const draftAr = draftNeeded ? (draft.draft_ar ?? null) : null;
+  // The model now returns ONE `draft` field written in the document's own
+  // language (any language). `draft_orig` always holds it; `draft_he`/`draft_ar`
+  // mirror it ONLY for Hebrew/Arabic documents so the existing bilingual screens
+  // and the he/ar fallback keep working. `draft_he`/`draft_ar` older keys are
+  // still honored when a caller (e.g. the Make pipeline) sends them instead.
+  const langCode = String(draft.detected_language ?? '').toLowerCase().trim();
+  const draftNative =
+    draft.draft ??
+    (langCode.startsWith('he')
+      ? draft.draft_he
+      : langCode.startsWith('ar')
+        ? draft.draft_ar
+        : null) ??
+    null;
+  const draftText = draftNeeded ? draftNative : null;
+  const draftHe = draftText != null && langCode.startsWith('he') ? draftText : null;
+  const draftAr = draftText != null && langCode.startsWith('ar') ? draftText : null;
 
   const row: Record<string, unknown> = {
     source_id: sourceId,
@@ -455,6 +492,7 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
     title_ar: draft.title_ar ?? null,
     draft_he: draftHe,
     draft_ar: draftAr,
+    draft_orig: draftText,
     language: draft.detected_language ?? null,
     doc_type: draft.doc_type ?? null,
     // 'approved' = classified, draft needed; 'not_needed' = classified, no
@@ -716,7 +754,7 @@ async function handleDrafts(request: Request, env: Env): Promise<Response> {
   const binds: unknown[] = [env.USER_ID];
   let sql =
     'SELECT source_id, case_source_id, client_source_id, document_source_id, ' +
-    'file_name, title, title_ar, draft_he, draft_ar, language, doc_type, ' +
+    'file_name, title, title_ar, draft_he, draft_ar, draft_orig, language, doc_type, ' +
     'status, date, updated_at FROM drafts WHERE user_id = ?1 ' +
     "AND source_id NOT LIKE '%/%'";
   if (caseId) {

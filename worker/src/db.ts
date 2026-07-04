@@ -46,8 +46,8 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
   // the pipeline UPDATES the draft instead of inserting a duplicate.
   drafts: [
     'source_id', 'case_source_id', 'client_source_id', 'document_source_id',
-    'file_name', 'title', 'title_ar', 'draft_he', 'draft_ar', 'language',
-    'doc_type', 'status', 'date',
+    'file_name', 'title', 'title_ar', 'draft_he', 'draft_ar', 'draft_orig',
+    'language', 'doc_type', 'status', 'date',
   ],
   // GLOBAL drafting "skills" / guideline documents that Claude reads BEFORE
   // writing a draft (the lawyer's how-to-respond methodology). Not per-case.
@@ -72,7 +72,7 @@ export const LOAD_TABLES = Object.keys(TABLE_COLUMNS);
 // Cache-like columns that must never be wiped to null by a client whose copy is
 // empty — on update they keep the existing value unless a real value arrives.
 const COALESCE_ON_UPDATE = new Set([
-  'summary_he', 'summary_ar', 'draft_he', 'draft_ar',
+  'summary_he', 'summary_ar', 'draft_he', 'draft_ar', 'draft_orig',
 ]);
 
 export interface BuiltStatement {
@@ -100,7 +100,7 @@ export function buildUpsert(
   // Reject a corrupted source_id that is a file PATH instead of an id (the
   // external pipeline has written document rows keyed by the Dropbox path,
   // which then show up as duplicate junk rows). Real ids never contain '/'.
-  if (String(row.source_id ?? '').includes('/')) return null;
+ if (table === "documents" && String(row.source_id ?? "").includes("/")) return null;
 
   const now = new Date().toISOString();
   const id = typeof row.id === 'string' && row.id ? row.id : crypto.randomUUID();

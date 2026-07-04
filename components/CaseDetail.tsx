@@ -18,7 +18,9 @@ import { CaseDocumentsModal } from './CaseDocumentsModal';
 import { CalendarEventDetail } from './CalendarEventDetail';
 import {
   fetchDocumentSummaryBoth,
-  pickDocumentLanguageSummary,
+  pickNativeSummary,
+  isRtlText,
+  resolveDocLang,
   fetchDocumentDraft,
   fetchDraftState,
   classifyDraftDecision,
@@ -1327,16 +1329,16 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         setSummaryLoaded(true);
         return;
       }
-      // Effective render language of the box: the document's own language,
-      // falling back to the app language only when it's unknown.
-      const dl: 'ar' | 'he' =
-        data.language === 'ar' || data.language === 'he'
-          ? data.language
-          : lang === 'ar'
-            ? 'ar'
-            : 'he';
+      // Effective render language of the box: the document's own language
+      // (normalized, tolerant of variant/empty `language` values), falling
+      // back to the app language only when it's genuinely undetectable. The
+      // "טיוטת תגובה" card reuses this via `docLang` so an Arabic document
+      // gets an Arabic draft too.
+      const dl = resolveDocLang(data, lang);
       setDocLang(dl);
-      setDocSummary(pickDocumentLanguageSummary(data, lang));
+      // Show the summary in the document's OWN language (any language) — the
+      // native `orig` when present, else the he/ar translation.
+      setDocSummary(pickNativeSummary(data, lang));
       setSummaryLoaded(true);
     })();
     return () => {
@@ -1366,6 +1368,13 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       return;
     }
     setDecodeText(docSummary); // plain summary by default
+    // The decision split (operative-decision header + Hebrew/Arabic labels) is
+    // meaningful only for Hebrew/Arabic documents. For any other language
+    // (English, French, …) show the plain native summary as-is.
+    if (!isRtlText(docSummary)) {
+      splitCacheRef.current.set(primary.id, '');
+      return;
+    }
     if (cached === '') return; // already checked: this document has no decision
     if (!isDecisionOrProtocol(primary, docSummary)) {
       splitCacheRef.current.set(primary.id, '');
@@ -2545,13 +2554,26 @@ function AIActionCard({
     },
   }[color];
 
+  // Direction follows the CONTENT: an English (or any Latin/Cyrillic) summary
+  // or draft renders left-to-right; Hebrew/Arabic renders right-to-left. The
+  // card title stays in the app language, only the body flips.
+  const descDir: 'rtl' | 'ltr' = isRtlText(desc) ? 'rtl' : 'ltr';
+
   return (
     <div className={'tw-flex tw-flex-col tw-gap-2 tw-rounded-2xl tw-p-3 ' + c.bg + (className ? ' ' + className : '')}>
       <div className="tw-flex tw-items-center tw-justify-between">
         <h4 className={'tw-text-sm tw-font-extrabold ' + c.titleC}>{title}</h4>
         <i className={'fas ' + icon + ' ' + c.iconC} aria-hidden="true" />
       </div>
-      <p className="tw-whitespace-pre-line tw-text-[11px] tw-text-slate-600 tw-leading-snug">{desc}</p>
+      <p
+        dir={descDir}
+        className={
+          'tw-whitespace-pre-line tw-text-[11px] tw-text-slate-600 tw-leading-snug ' +
+          (descDir === 'ltr' ? 'tw-text-left' : 'tw-text-right')
+        }
+      >
+        {desc}
+      </p>
       {btn && (
         <button
           type="button"
