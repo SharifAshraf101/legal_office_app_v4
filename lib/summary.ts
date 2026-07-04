@@ -496,8 +496,11 @@ export async function generateSuggestedAction(opts: {
   court?: string;
   docSummary?: string;
   documentName?: string;
+  /** Language the suggestion text should be written in. 'ar' forces Arabic
+   *  (used for Sharia / Druze / Christian ecclesiastical courts). */
+  lang?: 'he' | 'ar';
 }): Promise<string | null> {
-  const { caseId, clientId, court, docSummary, documentName } = opts;
+  const { caseId, clientId, court, docSummary, documentName, lang } = opts;
   if (!caseId) return null;
   try {
     const res = await fetch(WORKER_URL + '/api/suggest-action', {
@@ -512,6 +515,7 @@ export async function generateSuggestedAction(opts: {
         court: court || '',
         doc_summary: docSummary || '',
         document_name: documentName || '',
+        lang: lang || 'he',
       }),
     });
     if (!res.ok) return null;
@@ -524,8 +528,10 @@ export async function generateSuggestedAction(opts: {
     if (!data.ok || !data.suggested_action) return null;
     let txt = data.suggested_action.trim();
     const extras: string[] = [];
-    if (data.deadline) extras.push('מועד: ' + data.deadline);
-    if (data.legal_source) extras.push('מקור: ' + data.legal_source);
+    if (data.deadline)
+      extras.push((lang === 'ar' ? 'الموعد: ' : 'מועד: ') + data.deadline);
+    if (data.legal_source)
+      extras.push((lang === 'ar' ? 'المصدر: ' : 'מקור: ') + data.legal_source);
     if (extras.length) txt += ' — ' + extras.join(' · ');
     return txt;
   } catch {
@@ -583,10 +589,16 @@ export async function generateDocumentDraft(opts: {
  *   - null         → no draft row yet.
  */
 export async function fetchDraftState(
-  opts: { caseId?: string; documentId?: string; preferLang?: 'ar' | 'he' | null },
+  opts: {
+    caseId?: string;
+    documentId?: string;
+    preferLang?: 'ar' | 'he' | null;
+    /** Sharia / Druze / Christian court → return the Arabic draft only. */
+    forceArabic?: boolean;
+  },
   lang: Lang,
 ): Promise<{ text: string | null; status: string | null }> {
-  const { caseId, documentId, preferLang } = opts;
+  const { caseId, documentId, preferLang, forceArabic } = opts;
   if (!caseId && !documentId) return { text: null, status: null };
   const params = new URLSearchParams();
   if (documentId) params.set('documentId', documentId);
@@ -611,11 +623,12 @@ export async function fetchDraftState(
     const row = rows[0];
     const status = (row.status || '').toLowerCase() || null;
     const orig = (row.draft_orig || '').trim();
-    if (orig) return { text: orig, status };
     const he = (row.draft_he || '').trim();
     const ar = (row.draft_ar || '').trim();
     let text: string | null;
-    if (preferLang === 'ar') text = ar || he || null;
+    if (forceArabic) text = ar || orig || he || null;
+    else if (orig) text = orig;
+    else if (preferLang === 'ar') text = ar || he || null;
     else if (preferLang === 'he') text = he || ar || null;
     else
       text = pickDocumentLanguageSummary(

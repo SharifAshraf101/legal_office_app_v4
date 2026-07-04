@@ -971,7 +971,11 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
       '(אין סיכום מסמך — הצע את הפעולה ההגיונית הבאה לפי שלבי ההליך)') +
     '\n\nאם בשלב הנוכחי אין פעולה יזומה שעל המשרד לנקוט לפי סדרי הדין (התיק ממתין להחלטת בית הדין/בית המשפט או לצעד מצד שכנגד), החזר את suggested_action בדיוק כך: "' +
     waitMsg +
-    '" והשאר deadline ו-legal_source ריקים.\n\nהחזר JSON: {"suggested_action":"שם הפעולה והסבר קצר מה לעשות","deadline":"המועד מתוך הרשימה","legal_source":"התקנה/המקור מתוך הרשימה","reasoning":"נימוק קצר בעברית","confidence":"high או medium או low"}.';
+    '" והשאר deadline ו-legal_source ריקים.\n\n' +
+    (lang === 'ar'
+      ? 'اكتب النص في الحقلين suggested_action و reasoning باللغة العربية فقط (رغم أن قائمة الإجراءات بالعبرية). '
+      : 'כתוב את suggested_action ואת reasoning בעברית. ') +
+    'החזר JSON: {"suggested_action":"שם הפעולה והסבר קצר מה לעשות","deadline":"המועד מתוך הרשימה","legal_source":"התקנה/המקור מתוך הרשימה","reasoning":"נימוק קצר","confidence":"high או medium או low"}.';
 
   let suggested = '';
   let deadline = '';

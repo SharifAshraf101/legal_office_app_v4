@@ -20,6 +20,7 @@ import {
   fetchDocumentSummaryBoth,
   pickNativeSummary,
   isRtlText,
+  isArabicOnlyCourt,
   caseCourtTrackLabel,
   resolveDocLang,
   fetchDocumentDraft,
@@ -1309,6 +1310,14 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     return all[0];
   }, [caseId, state.documentsArr, selectedDocId]);
 
+  // Sharia / Druze / Christian ecclesiastical case → every box (decode, draft,
+  // suggested action, task) must render in Arabic only, regardless of the app
+  // language or an individual document's own language.
+  const forceArabicCourt = useMemo(() => {
+    const co = state.casesArr.find((x) => String(x.id) === String(caseId));
+    return isArabicOnlyCourt(co?.court || co?.courtAr);
+  }, [caseId, state.casesArr]);
+
   useEffect(() => {
     const primary = primaryDoc;
     const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
@@ -1361,11 +1370,15 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       // back to the app language only when it's genuinely undetectable. The
       // "טיוטת תגובה" card reuses this via `docLang` so an Arabic document
       // gets an Arabic draft too.
-      const dl = resolveDocLang(data, lang);
+      // Sharia / Druze / Christian court → force Arabic (use the ar summary,
+      // which is always populated); otherwise the document's own language.
+      const dl = forceArabicCourt ? 'ar' : resolveDocLang(data, lang);
       setDocLang(dl);
-      // Show the summary in the document's OWN language (any language) — the
-      // native `orig` when present, else the he/ar translation.
-      setDocSummary(pickNativeSummary(data, lang));
+      setDocSummary(
+        forceArabicCourt
+          ? (data.ar || data.orig || data.he || '').trim() || null
+          : pickNativeSummary(data, lang),
+      );
       setSummaryLoaded(true);
     })();
     return () => {
@@ -1548,7 +1561,12 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       // preferLang = the "פענוח" box language, so the draft is copied verbatim
       // from the matching column (draft_ar for Arabic doc, draft_he for Hebrew).
       const state0 = await fetchDraftState(
-        { caseId, documentId: primary?.id, preferLang: docLang },
+        {
+          caseId,
+          documentId: primary?.id,
+          preferLang: docLang,
+          forceArabic: forceArabicCourt,
+        },
         lang,
       );
 
@@ -1580,7 +1598,12 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         });
         if (!needed) return apply(null, false);
         const re = await fetchDraftState(
-          { caseId, documentId: primary!.id, preferLang: docLang },
+          {
+            caseId,
+            documentId: primary!.id,
+            preferLang: docLang,
+            forceArabic: forceArabicCourt,
+          },
           lang,
         );
         return apply(re.text ?? state0.text, true);
@@ -1600,7 +1623,12 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         });
         if (!needed) return apply(null, false);
         const re = await fetchDraftState(
-          { caseId, documentId: primary.id, preferLang: docLang },
+          {
+            caseId,
+            documentId: primary.id,
+            preferLang: docLang,
+            forceArabic: forceArabicCourt,
+          },
           lang,
         );
         return apply(re.text, true);
@@ -1645,16 +1673,24 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
             ? caseObj.courtAr || caseObj.court
             : caseObj.court || caseObj.courtAr) || ''
         : '';
-      // Include the court in the key so that setting or CHANGING the case's
-      // court regenerates a court-matched suggestion (family/sharia/labor/…)
-      // instead of keeping a stale civil-defaulted one.
+      // Sharia / Druze / Christian court → the suggestion text must be Arabic.
+      const suggestLang: 'he' | 'ar' = forceArabicCourt
+        ? 'ar'
+        : lang === 'ar'
+          ? 'ar'
+          : 'he';
+      // Include the court AND the target language in the key so that setting or
+      // CHANGING the case's court (or its Arabic-only status) regenerates a
+      // court-matched suggestion in the right language instead of a stale one.
       const suggestKey =
         'suggest:' +
         caseId +
         ':' +
         (primaryDoc?.id || 'none') +
         ':' +
-        court.trim().toLowerCase();
+        court.trim().toLowerCase() +
+        ':' +
+        suggestLang;
       if (summaryLoaded && !genAttempts.has(suggestKey)) {
         rememberGenAttempt(genAttempts, suggestKey);
         const gen = await generateSuggestedAction({
@@ -1663,6 +1699,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
           court,
           docSummary: docSummary || '',
           documentName: primaryDoc?.fileName,
+          lang: suggestLang,
         });
         if (!cancelled && gen) setSuggestedAction(gen);
       }
@@ -2369,7 +2406,12 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                               color="orange"
                               icon="fa-check-square"
                               title={T.taskCreated}
-                              desc={taskText || T.noTaskToDo}
+                              desc={
+                                taskText ||
+                                (forceArabicCourt
+                                  ? 'لا توجد مهمة للتنفيذ'
+                                  : T.noTaskToDo)
+                              }
                               btn={hasTask ? T.openTask : undefined}
                               onBtnClick={
                                 firstUrgentTask
