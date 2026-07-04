@@ -1827,6 +1827,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     showMoreDocs: (n: number) =>
       lang === 'ar' ? `عرض ${n} مستندات إضافية` : `הצג עוד מסמכים (${n})`,
     noTasks: lang === 'ar' ? 'لا توجد مهام' : 'אין משימות',
+    noTaskToDo: lang === 'ar' ? 'لا توجد مهمة للتنفيذ' : 'אין משימה לביצוע',
     noNotes: lang === 'ar' ? 'لا توجد ملاحظات' : 'אין הערות',
     noDocs: lang === 'ar' ? 'لا توجد مستندات' : 'אין מסמכים',
     // Sidebar cards
@@ -2328,32 +2329,43 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                        *  desktop (lg:contents lets the card be a direct grid
                        *  item). */}
                       <div className="tw-hidden lg:tw-contents">
-                        <AIActionCard
-                          // Desktop: moved ABOVE "פענוח המסמך" in its column
-                          // (order 1). Hidden on mobile (wrapper above).
-                          className="lg:tw-order-1"
-                          color="orange"
-                          icon="fa-check-square"
-                          title={T.taskCreated}
+                        {(() => {
                           // Show the case's own relevant (most urgent / open)
-                          // task here, falling back to the AI-suggested decision
-                          // task, then a generic placeholder. "פתח משימה" opens
-                          // the real task when one exists.
-                          desc={
+                          // task, falling back to the AI-imported decision task.
+                          // When the case has NEITHER a real open task NOR an
+                          // AI-pulled one, say so explicitly ("אין משימה לביצוע")
+                          // and hide the "פתח משימה" button — there's nothing to
+                          // open.
+                          const taskText =
                             firstUrgentTask?.title ||
                             decisionInfo?.taskDescription ||
-                            T.taskCreatedDesc
-                          }
-                          btn={T.openTask}
-                          onBtnClick={
-                            firstUrgentTask
-                              ? () =>
-                                  modalStack.open(
-                                    <TaskModal editTaskId={firstUrgentTask.id} />,
-                                  )
-                              : onOpenDecisionTask
-                          }
-                        />
+                            '';
+                          const hasTask = !!taskText;
+                          return (
+                            <AIActionCard
+                              // Desktop: moved ABOVE "פענוח המסמך" in its column
+                              // (order 1). Hidden on mobile (wrapper above).
+                              className="lg:tw-order-1"
+                              color="orange"
+                              icon="fa-check-square"
+                              title={T.taskCreated}
+                              desc={taskText || T.noTaskToDo}
+                              btn={hasTask ? T.openTask : undefined}
+                              onBtnClick={
+                                firstUrgentTask
+                                  ? () =>
+                                      modalStack.open(
+                                        <TaskModal
+                                          editTaskId={firstUrgentTask.id}
+                                        />,
+                                      )
+                                  : hasTask
+                                    ? onOpenDecisionTask
+                                    : undefined
+                              }
+                            />
+                          );
+                        })()}
                       </div>
                       {/* "הצעה לפעולה" — on mobile it's rendered above the tab
                        *  row instead; here it shows only on desktop. */}
