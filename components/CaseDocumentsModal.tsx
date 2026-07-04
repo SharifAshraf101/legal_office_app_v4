@@ -10,6 +10,9 @@ import { filingFileName } from '@/lib/filing';
 import {
   fetchDocumentSummaryBoth,
   generateDocumentSummary,
+  normalizeDocLang,
+  isRtlText,
+  type DocSummaryData,
 } from '@/lib/summary';
 import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
@@ -119,11 +122,25 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
       prep.forEach((x) => attemptedRef.current.add(x.d.id));
 
       // Summary kept in the DOCUMENT's own language (Arabic doc → Arabic
-      // summary only, Hebrew doc → Hebrew only).
-      const toEntry = (both: { he: string; ar: string; language: string }) => ({
-        he: both.language === 'ar' ? '' : both.he,
-        ar: both.language === 'he' ? '' : both.ar,
-      });
+      // summary only, Hebrew doc → Hebrew only, any other language → its native
+      // `orig` text). `normalizeDocLang` tolerates variant/empty language values
+      // (e.g. a Sharia-court claim whose language is correctly detected as ar
+      // even when its first page is a Hebrew filing receipt).
+      const toEntry = (both: DocSummaryData) => {
+        const dl = normalizeDocLang(both.language);
+        const native = (
+          both.orig ||
+          (dl === 'ar' ? both.ar : dl === 'he' ? both.he : '') ||
+          both.he ||
+          both.ar ||
+          ''
+        ).trim();
+        if (dl === 'ar') return { he: '', ar: both.ar || native };
+        if (dl === 'he') return { he: both.he || native, ar: '' };
+        // Any other language: keep the native text in both fallbacks so it
+        // shows regardless of app language; direction is handled at render.
+        return { he: native, ar: native };
+      };
 
       const persistUpdates: Record<string, { he: string; ar: string }> = {};
 
@@ -135,7 +152,7 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
         prep.map((x) =>
           fetchDocumentSummaryBoth({ renamed: x.renamed, original: x.original })
             .then((both) => ({ x, both }))
-            .catch(() => ({ x, both: null as null | { he: string; ar: string; language: string } })),
+            .catch(() => ({ x, both: null as DocSummaryData | null })),
         ),
       );
       if (cancelled) return;
@@ -164,7 +181,7 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
               caseId: x.d.caseId,
             })
               .then((both) => ({ x, both }))
-              .catch(() => ({ x, both: null as null | { he: string; ar: string; language: string } })),
+              .catch(() => ({ x, both: null as DocSummaryData | null })),
           ),
         );
         if (cancelled) return;
@@ -558,14 +575,20 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
                     const ar = local?.ar || doc.summaryAr;
                     const summaryText =
                       lang === 'ar' ? ar || he : he || ar;
+                    // Direction follows the summary CONTENT so an Arabic
+                    // (e.g. Sharia-court) or Hebrew summary reads right-to-left
+                    // and an English/Latin one reads left-to-right.
+                    const dir = isRtlText(summaryText) ? 'rtl' : 'ltr';
                     return summaryText ? (
                       <div
                         className="case-docs-modal-summary"
+                        dir={dir}
                         style={{
                           marginTop: 4,
                           fontSize: 12,
                           lineHeight: 1.45,
                           color: 'var(--muted)',
+                          textAlign: dir === 'ltr' ? 'left' : 'right',
                         }}
                       >
                         {summaryText}

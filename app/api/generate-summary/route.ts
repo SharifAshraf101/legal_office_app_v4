@@ -26,8 +26,10 @@ const PROMPT = `You are a legal assistant for a law office. The attached file is
 
 Write a CONCISE, factual summary (3–6 sentences) covering, when present: the document type, the parties, the main request/claim, key dates and deadlines, and any decision/ruling. No preamble, no opinions — just the facts from the document.
 
+LANGUAGE RULE — decide "language" from the SUBSTANTIVE legal document (the actual claim/defense/motion/ruling), NOT from an automatic court e-filing cover page. Many filings begin with a single auto-generated Hebrew "אישור הגשה"/submission-receipt page produced by the court system; IGNORE that page when detecting the language and base "language" and "orig" on the main body that follows. In particular: if the document is filed to or addressed to the Sharia court (בית הדין השרעי / المحكمة الشرعية) OR its main body is written in Arabic, then "language" is "ar" and "orig" MUST be written in Arabic — even when the first (receipt) page is in Hebrew.
+
 Return ONLY valid JSON (no markdown, no code fences) with EXACTLY these keys:
-{"language":"the ISO code of the language the document ITSELF is written in, e.g. he, ar, en, fr, ru","orig":"the summary in the document's OWN language","he":"the summary in Hebrew","ar":"the summary in Arabic"}
+{"language":"the ISO code of the language the SUBSTANTIVE document is written in, e.g. he, ar, en, fr, ru","orig":"the summary in the document's OWN language","he":"the summary in Hebrew","ar":"the summary in Arabic"}
 
 "orig" must be written in the document's own language. "he" and "ar" must always be filled too (translate the summary so both are present) — they power the bilingual screens.`;
 
