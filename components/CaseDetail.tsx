@@ -20,6 +20,7 @@ import {
   fetchDocumentSummaryBoth,
   pickNativeSummary,
   isRtlText,
+  caseCourtTrackLabel,
   resolveDocLang,
   fetchDocumentDraft,
   fetchDraftState,
@@ -1684,6 +1685,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   const clientLabel = client ? clientDisplayName(client, lang) : '-';
   const courtLabel =
     (lang === 'ar' ? c.courtAr || c.court : c.court || c.courtAr) || '-';
+  // Court track the "הצעה לפעולה" suggestion is drawn from (e.g. "שרעי"/"משפחה"),
+  // shown as a small pill on the card — only when there IS a real suggestion.
+  const courtTrackBadge = suggestedAction
+    ? caseCourtTrackLabel(c.court || c.courtAr, lang)
+    : '';
 
   // "פתח משימה" on the decision card: ensure the decision's task exists as a
   // real Task under this case/client (so it appears in the tasks screen and
@@ -2048,6 +2054,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
             color="emerald"
             icon="fa-bullseye"
             title={T.actionSuggestion}
+            badge={courtTrackBadge || undefined}
             desc={suggestedAction || T.actionSuggestionDesc}
             btn={T.viewSuggestion}
           />
@@ -2390,6 +2397,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                           color="emerald"
                           icon="fa-bullseye"
                           title={T.actionSuggestion}
+                          badge={courtTrackBadge || undefined}
                           desc={suggestedAction || T.actionSuggestionDesc}
                           btn={T.viewSuggestion}
                         />
@@ -2648,6 +2656,7 @@ function AIActionCard({
   btn,
   onBtnClick,
   className,
+  badge,
 }: {
   color: 'blue' | 'purple' | 'emerald' | 'orange';
   icon: string;
@@ -2657,6 +2666,8 @@ function AIActionCard({
   onBtnClick?: () => void;
   /** Extra classes for the card's root (e.g. responsive grid `order`). */
   className?: string;
+  /** Small pill shown next to the title (e.g. the court track "שרעי"). */
+  badge?: string;
 }) {
   const c = {
     blue: {
@@ -2692,8 +2703,20 @@ function AIActionCard({
 
   return (
     <div className={'tw-flex tw-flex-col tw-gap-2 tw-rounded-2xl tw-p-3 ' + c.bg + (className ? ' ' + className : '')}>
-      <div className="tw-flex tw-items-center tw-justify-between">
-        <h4 className={'tw-text-sm tw-font-extrabold ' + c.titleC}>{title}</h4>
+      <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+        <div className="tw-flex tw-items-center tw-gap-1.5 tw-min-w-0">
+          <h4 className={'tw-text-sm tw-font-extrabold ' + c.titleC}>{title}</h4>
+          {badge && (
+            <span
+              className={
+                'tw-flex-shrink-0 tw-rounded-full tw-border tw-bg-white tw-px-2 tw-py-0.5 tw-text-[10px] tw-font-bold tw-whitespace-nowrap ' +
+                c.btnC
+              }
+            >
+              {badge}
+            </span>
+          )}
+        </div>
         <i className={'fas ' + icon + ' ' + c.iconC} aria-hidden="true" />
       </div>
       <p

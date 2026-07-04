@@ -898,7 +898,7 @@ function mapCourtTypes(court: string): string[] {
   if (/שרע|شرع/.test(c)) return ['sharia'];
   if (/משפח|عائل|أسر|family/.test(c)) return ['family', 'civil'];
   if (/עבוד|ביטוח לאומי|عمل|تأمين وطني|labor/.test(c)) return ['labor'];
-  if (/עליון|בג["”']?ץ|בגץ|عليا|عدل عليا|high court|hcj/.test(c)) return ['hcj'];
+  if (/עליון|בג["”'׳״]?ץ|בגץ|عليا|عدل عليا|high court|hcj/.test(c)) return ['hcj'];
   if (/פליל|جزائ|جناي|criminal/.test(c)) return ['criminal'];
   return ['civil']; // שלום / מחוזי / default
 }

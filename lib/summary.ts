@@ -264,6 +264,24 @@ export function isArabicOnlyCourt(court?: string | null): boolean {
   );
 }
 
+/** Short label of the court track a case's suggested action is drawn from —
+ *  mirrors the worker's mapCourtTypes — for the "הצעה לפעולה" badge (e.g.
+ *  "שרעי" / "משפחה" / "אזרחי"). Returns '' when the case has no court text.
+ *  Druze / Christian ecclesiastical courts fall back to the civil track (the
+ *  table has no dedicated legal_actions for them), matching the worker. */
+export function caseCourtTrackLabel(court: string | null | undefined, lang: Lang): string {
+  const c = (court || '').toLowerCase();
+  if (!c) return '';
+  if (/שרע|شرع/.test(c)) return lang === 'ar' ? 'شرعي' : 'שרעי';
+  if (/משפח|عائل|أسر|family/.test(c)) return lang === 'ar' ? 'أحوال شخصية' : 'משפחה';
+  if (/עבוד|ביטוח לאומי|عمل|تأمين وطني|labor/.test(c))
+    return lang === 'ar' ? 'عمل' : 'עבודה';
+  if (/עליון|בג["”'׳״]?ץ|בגץ|عليا|عدل عليا|high court|hcj/.test(c))
+    return lang === 'ar' ? 'العليا' : 'בג״ץ';
+  if (/פליל|جزائ|جناي|criminal/.test(c)) return lang === 'ar' ? 'جزائي' : 'פלילי';
+  return lang === 'ar' ? 'مدني' : 'אזרחי'; // שלום / מחוזי + default
+}
+
 /** Summary text in the document's OWN language, for ANY language. Prefers the
  *  native `orig` column (Arabic doc → Arabic, English doc → English, French →
  *  French, …). Falls back to the he/ar translation (document-language aware)
