@@ -1264,6 +1264,14 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   const modalStack = useModalStack();
   const close = () => modalStack.close(modalStack.topId() ?? 0);
   const [tab, setTab] = useState<'notes' | 'tasks' | 'documents'>('documents');
+  // Which document the "פענוח" + "טיוטת תגובה" boxes focus on. null = default
+  // (the newest filed document). Clicking a row in "מסמכים נוספים בתיק" sets it.
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  // A different case is opened → forget any previous selection so the boxes fall
+  // back to that case's newest document.
+  useEffect(() => {
+    setSelectedDocId(null);
+  }, [caseId]);
 
   // Document summary for the "פענוח המסמך" card — fetched from Cloudflare by
   // the primary document's file name, in the active language. Falls back to
@@ -1287,13 +1295,18 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   if (genAttemptRef.current === null) genAttemptRef.current = loadGenAttempts();
   const genAttempts = genAttemptRef.current;
 
-  // The case-brain ALWAYS focuses on the LAST filed document (newest first) —
-  // the header + "פענוח" + "טיוטת תגובה" boxes all use it. If it hasn't been
-  // analyzed yet, the boxes try to GENERATE its summary/draft on demand (see
-  // the effects below) so they aren't empty.
+  // The document the header + "פענוח" + "טיוטת תגובה" boxes focus on: the one
+  // picked from "מסמכים נוספים בתיק", or — by default — the LAST filed document
+  // (newest first). If it hasn't been analyzed yet, the boxes try to GENERATE
+  // its summary/draft on demand (see the effects below) so they aren't empty.
   const primaryDoc = useMemo(() => {
-    return caseDocumentsForCase(caseId, state.documentsArr)[0];
-  }, [caseId, state.documentsArr]);
+    const all = caseDocumentsForCase(caseId, state.documentsArr);
+    if (selectedDocId) {
+      const picked = all.find((d) => String(d.id) === String(selectedDocId));
+      if (picked) return picked;
+    }
+    return all[0];
+  }, [caseId, state.documentsArr, selectedDocId]);
 
   useEffect(() => {
     const primary = primaryDoc;
@@ -2392,10 +2405,15 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                 {/* Additional documents table */}
                 {docs.length > 0 && (
                   <div className="tw-rounded-2xl tw-border tw-border-slate-200 tw-overflow-hidden">
-                    <div className="tw-flex tw-items-center tw-justify-between tw-bg-slate-50 tw-px-4 tw-py-3">
+                    <div className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-flex-wrap tw-bg-slate-50 tw-px-4 tw-py-3">
                       <h3 className="tw-text-sm lg:tw-text-base tw-font-extrabold tw-text-slate-700">
                         {T.additionalDocs}
                       </h3>
+                      <span className="tw-text-[11px] tw-text-slate-500">
+                        {lang === 'ar'
+                          ? 'اضغط على مستند لعرض تحليله ومسودته'
+                          : 'לחץ על מסמך כדי להציג את הפענוח והטיוטה שלו'}
+                      </span>
                     </div>
                     <div
                       className="tw-hidden lg:tw-grid tw-gap-3 tw-bg-slate-50 tw-px-4 tw-py-2 tw-text-xs tw-font-bold tw-text-slate-500"
@@ -2409,10 +2427,32 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                       <div>{T.action}</div>
                       <div />
                     </div>
-                    {docs.map((doc) => (
+                    {docs.map((doc) => {
+                      const isActive =
+                        !!primaryDoc &&
+                        String(doc.id) === String(primaryDoc.id);
+                      return (
                       <div
                         key={doc.id}
-                        className="tw-grid tw-items-center tw-gap-3 tw-border-t tw-border-slate-100 tw-px-4 tw-py-3 tw-text-sm"
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isActive}
+                        onClick={() => setSelectedDocId(doc.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedDocId(doc.id);
+                          }
+                        }}
+                        title={
+                          lang === 'ar'
+                            ? 'اعرض تحليل هذا المستند'
+                            : 'הצג את הפענוח של מסמך זה'
+                        }
+                        className={
+                          'tw-grid tw-items-center tw-gap-3 tw-border-t tw-border-slate-100 tw-px-4 tw-py-3 tw-text-sm tw-cursor-pointer hover:tw-bg-slate-50' +
+                          (isActive ? ' tw-bg-blue-50' : '')
+                        }
                         style={{
                           gridTemplateColumns: '1fr 1.6fr auto auto auto',
                         }}
@@ -2425,6 +2465,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                           <span className="tw-truncate tw-font-medium tw-text-slate-900">
                             {doc.title || doc.fileName || '-'}
                           </span>
+                          {isActive && (
+                            <span className="tw-flex-shrink-0 tw-rounded-full tw-bg-blue-100 tw-px-2 tw-py-0.5 tw-text-[10px] tw-font-bold tw-text-blue-700 tw-whitespace-nowrap">
+                              {lang === 'ar' ? 'معروض الآن' : 'מוצג כעת'}
+                            </span>
+                          )}
                         </div>
                         {(() => {
                           const sum =
@@ -2456,7 +2501,10 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                           type="button"
                           className="tw-rounded-full tw-border tw-border-blue-300 tw-bg-white tw-px-4 tw-py-1.5 tw-text-xs tw-font-bold tw-text-blue-600 hover:tw-bg-blue-50"
                           // Open THIS document's reply draft as a new Word doc.
-                          onClick={async () => {
+                          // stopPropagation so opening the draft doesn't also
+                          // select the row.
+                          onClick={async (e) => {
+                            e.stopPropagation();
                             const d = await fetchDocumentDraft(
                               { caseId, documentId: doc.id },
                               lang,
@@ -2484,7 +2532,8 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                           aria-hidden="true"
                         />
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </>
