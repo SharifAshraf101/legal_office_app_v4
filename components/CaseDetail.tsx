@@ -1422,7 +1422,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     }
     let cancelled = false;
     (async () => {
-      const split = await splitDecisionSummary(docSummary, docLang || lang);
+      const split = await splitDecisionSummary(
+        docSummary,
+        docLang || lang,
+        state.officeName || undefined,
+      );
       if (cancelled) return;
       if (!split || !split.decision) {
         splitCacheRef.current.set(primary.id, '');

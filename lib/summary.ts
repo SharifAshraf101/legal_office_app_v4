@@ -438,6 +438,9 @@ export function isDecisionOrProtocol(
 export async function splitDecisionSummary(
   summary: string,
   lang: Lang,
+  /** Our office/lawyer name — a task is only created when the decision
+   *  obligates OUR client (this lawyer's client) to a procedural response. */
+  lawyerName?: string,
 ): Promise<{
   decision: string;
   rest: string;
@@ -457,7 +460,7 @@ export async function splitDecisionSummary(
         Authorization: 'Bearer ' + APP_TOKEN,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ summary: text, lang }),
+      body: JSON.stringify({ summary: text, lang, lawyer_name: lawyerName }),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as {
