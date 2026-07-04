@@ -1579,7 +1579,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
 
       // 1. Already classified.
       if (state0.status === 'not_needed') return apply(null, false);
-      if (state0.status === 'approved') return apply(state0.text, true);
+      // Approved WITH text → show it. Approved but EMPTY (e.g. an older
+      // generation that produced no draft) falls through to (3) to regenerate,
+      // so an opposing document always ends up with a counter-draft.
+      if (state0.status === 'approved' && state0.text)
+        return apply(state0.text, true);
 
       // 2. Unclassified Make draft (status='draft', has text) → classify ONCE
       //    (cheap, no regeneration). Keep the existing text when still needed.
@@ -1595,6 +1599,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
           clientId: primary!.clientId,
           caseId,
           documentId: primary!.id,
+          // Our office/lawyer name from Settings → the worker treats documents
+          // NOT authored by us as the opposing side (→ counter-draft required).
+          lawyerName: state.officeName || undefined,
         });
         if (!needed) return apply(null, false);
         const re = await fetchDraftState(
@@ -1609,17 +1616,23 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         return apply(re.text ?? state0.text, true);
       }
 
-      // 3. No draft row yet → GENERATE on demand (PDF only, once per document).
-      //    Generation also classifies + gates: if not needed it writes a
-      //    'not_needed' marker and returns no draft.
-      if (primary && isPdf && !genAttempts.has('draft:' + primary.id)) {
-        rememberGenAttempt(genAttempts, 'draft:' + primary.id);
+      // 3. No usable draft text yet (no row, or an approved/draft row that came
+      //    back empty) → GENERATE on demand (PDF only, once per document). The
+      //    worker now MUST return a full counter-draft for any opposing /
+      //    court-ordered document, so an opposing-party document is never left
+      //    without a draft. `draftv2` key so documents attempted before this
+      //    mandate get one fresh regeneration.
+      if (primary && isPdf && !genAttempts.has('draftv2:' + primary.id)) {
+        rememberGenAttempt(genAttempts, 'draftv2:' + primary.id);
         const { draftNeeded: needed } = await generateDocumentDraft({
           relativePath: primary.relativePath,
           fileName: renamed || primary.fileName || '',
           clientId: primary.clientId,
           caseId,
           documentId: primary.id,
+          // Our office/lawyer name from Settings → a document NOT authored by us
+          // is the opposing side, so a counter-draft is generated.
+          lawyerName: state.officeName || undefined,
         });
         if (!needed) return apply(null, false);
         const re = await fetchDraftState(

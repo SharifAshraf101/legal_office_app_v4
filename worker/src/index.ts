@@ -321,7 +321,10 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
   // document is from the OTHER side or the court orders a reply — never for
   // documents our own office authored (unless the court ordered a reply).
   const lawyerName =
-    String(body.lawyer_name || '').trim() || DEFAULT_LAWYER_NAME;
+    DEFAULT_LAWYER_NAME +
+    (String(body.lawyer_name || '').trim()
+      ? ' / ' + String(body.lawyer_name).trim()
+      : '');
 
   const docMatch =
     /(DOC-\d+)/i.exec(fileName) ||
@@ -367,9 +370,11 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
     'اقرأ المستند المرفق بالكامل كلمةً كلمةً. مكتبنا/المحامي صاحب الملف هو: ' +
     lawyerName +
     '.\n\nأولاً صنِّف المستند:\n' +
-    '- author_side = من حرّر/قدّم هذا المستند؟ "ours" إذا حرّره مكتبنا/المحامي المذكور أعلاه، أو "opposing" إذا قدّمه الطرف الآخر/الخصم، أو "court" إذا كان صادراً عن المحكمة/القاضي.\n' +
+    '- author_side = من حرّر/قدّم هذا المستند فعلياً (المحامي الموقّع عليه أو الطرف الذي قدّمه)، وليس بالضرورة من ذُكر اسمه داخله: "ours" فقط إذا حرّره أو قدّمه مكتبنا/المحامي المذكور أعلاه ('  +
+    lawyerName +
+    ')، أو "opposing" إذا قدّمه الطرف الآخر/الخصم أو محاميه، أو "court" إذا كان صادراً عن المحكمة/القاضي. إذا لم يكن المستند صادراً عن مكتبنا بوضوح، فاعتبره "opposing".\n' +
     '- court_requires_response = true إذا كان المستند يأمر أو يطلب تقديم رد/جواب/تعقيب، وإلا false.\n\n' +
-    'قاعدة إعداد المسودة (مهمة جداً): أعِدّ نص مسودة الرد فقط إذا كان المستند من الطرف الآخر (author_side = "opposing") أو إذا أمرت المحكمة بالرد (court_requires_response = true). أما إذا كان المستند من مكتبنا (author_side = "ours") ولم تأمر المحكمة بالرد، فلا حاجة لمسودة: اترك draft_he و draft_ar = null.\n\n' +
+    'قاعدة إعداد المسودة (مهمة جداً وإلزامية): إذا كان author_side = "opposing" أو court_requires_response = true، فيجب عليك إلزامياً ملء الحقل draft بنص مسودة رد قانونية كاملة على هذا المستند وفق القالب الحاكم — ولا تتركه null أبداً في هذه الحالة. أما إذا كان المستند من مكتبنا (author_side = "ours") ولم تأمر المحكمة بالرد، فلا حاجة لمسودة: اترك draft = null.\n\n' +
     'هذه ملاحظات المحامي على هذه القضية، استخدمها في توجيه الرد:\n<case_notes_he>\n' +
     notes.he +
     '\n</case_notes_he>\n<case_notes_ar>\n' +
@@ -555,7 +560,10 @@ async function handleDraftDecision(request: Request, env: Env): Promise<Response
   const caseSrc = String(body.case_source_id || '').trim();
   const fileName = String(body.file_name || '').trim();
   const lawyerName =
-    String(body.lawyer_name || '').trim() || DEFAULT_LAWYER_NAME;
+    DEFAULT_LAWYER_NAME +
+    (String(body.lawyer_name || '').trim()
+      ? ' / ' + String(body.lawyer_name).trim()
+      : '');
 
   const docMatch =
     /(DOC-\d+)/i.exec(fileName) ||
@@ -587,10 +595,10 @@ async function handleDraftDecision(request: Request, env: Env): Promise<Response
     lawyerName +
     '. اقرأ المستند المرفق وأعِد كائن JSON واحداً فقط، دون أي نص آخر، وأول حرف {.';
   const userText =
-    'صنِّف هذا المستند:\n' +
-    '- author_side = "ours" إذا حرّره مكتبنا/المحامي ' +
+    'صنِّف هذا المستند حسب من حرّره/قدّمه فعلياً (المحامي الموقّع أو الطرف مقدّم الطلب)، لا حسب من ذُكر اسمه داخله:\n' +
+    '- author_side = "ours" فقط إذا حرّره أو قدّمه مكتبنا/المحامي ' +
     lawyerName +
-    '، أو "opposing" إذا قدّمه الطرف الآخر/الخصم، أو "court" إذا صدر عن المحكمة/القاضي.\n' +
+    '، أو "opposing" إذا قدّمه الطرف الآخر/الخصم أو محاميه، أو "court" إذا صدر عن المحكمة/القاضي. إذا لم يكن صادراً عن مكتبنا بوضوح فاعتبره "opposing".\n' +
     '- court_requires_response = true إذا كان المستند يأمر أو يطلب تقديم رد/جواب/تعقيب، وإلا false.\n' +
     'أعِد JSON فقط: {"author_side":"ours or opposing or court","court_requires_response":true or false}.';
 
