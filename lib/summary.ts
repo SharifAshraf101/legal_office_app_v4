@@ -250,6 +250,20 @@ export function isRtlText(text?: string | null): boolean {
   return false;
 }
 
+/** True when a case's court is a religious court whose proceedings are conducted
+ *  in Arabic — the Sharia (Muslim), Druze, or Christian ecclesiastical courts.
+ *  Documents filed there are summarized in Arabic regardless of the language of
+ *  any individual page (e.g. an automatic Hebrew filing-receipt cover page). */
+export function isArabicOnlyCourt(court?: string | null): boolean {
+  const c = (court || '').toLowerCase();
+  if (!c) return false;
+  return (
+    /שרע|شرع/.test(c) || // Sharia / بيت الدين الشرعي
+    /דרוז|درز/.test(c) || // Druze / درزي
+    /כנסיי|כנסייה|כנסיה|נוצר|كنسي|كنيسة|مسيح/.test(c) // Christian ecclesiastical
+  );
+}
+
 /** Summary text in the document's OWN language, for ANY language. Prefers the
  *  native `orig` column (Arabic doc → Arabic, English doc → English, French →
  *  French, …). Falls back to the he/ar translation (document-language aware)

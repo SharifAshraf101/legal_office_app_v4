@@ -12,6 +12,7 @@ import {
   generateDocumentSummary,
   normalizeDocLang,
   isRtlText,
+  isArabicOnlyCourt,
   type DocSummaryData,
 } from '@/lib/summary';
 import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
@@ -94,6 +95,9 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
       attemptedRef.current.clear();
     }
     const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
+    // Sharia / Druze / Christian ecclesiastical case → summaries are shown in
+    // Arabic only, regardless of each document's own language.
+    const forceArabic = isArabicOnlyCourt(caseObj?.court || caseObj?.courtAr);
     const client = caseObj
       ? state.clients.find((x) => x.id === caseObj.clientId)
       : undefined;
@@ -127,6 +131,12 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
       // (e.g. a Sharia-court claim whose language is correctly detected as ar
       // even when its first page is a Hebrew filing receipt).
       const toEntry = (both: DocSummaryData) => {
+        // Arabic-only religious court: always keep the Arabic summary (the `ar`
+        // translation is always populated), never the Hebrew one.
+        if (forceArabic) {
+          const ar = (both.ar || both.orig || both.he || '').trim();
+          return { he: '', ar };
+        }
         const dl = normalizeDocLang(both.language);
         const native = (
           both.orig ||
@@ -224,6 +234,10 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
 
   const c = state.casesArr.find((x) => String(x.id) === String(caseId));
   if (!c) return null;
+
+  // Sharia / Druze / Christian ecclesiastical case → show every document summary
+  // in Arabic only, whatever the app language or the document's own language.
+  const forceArabicSummary = isArabicOnlyCourt(c.court || c.courtAr);
 
   const docs = caseDocumentsForCase(caseId, state.documentsArr, state.tasksArr);
   const close = () => modalStack.close(modalStack.topId() ?? 0);
@@ -573,8 +587,13 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
                     const local = summaries[doc.id];
                     const he = local?.he || doc.summaryHe;
                     const ar = local?.ar || doc.summaryAr;
-                    const summaryText =
-                      lang === 'ar' ? ar || he : he || ar;
+                    // Arabic-only religious court → prefer Arabic; otherwise show
+                    // the document's own language / app language as before.
+                    const summaryText = forceArabicSummary
+                      ? ar || he
+                      : lang === 'ar'
+                        ? ar || he
+                        : he || ar;
                     // Direction follows the summary CONTENT so an Arabic
                     // (e.g. Sharia-court) or Hebrew summary reads right-to-left
                     // and an English/Latin one reads left-to-right.
