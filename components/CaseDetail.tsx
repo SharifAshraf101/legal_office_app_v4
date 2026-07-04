@@ -2363,10 +2363,10 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         desc={
                           decodeText ||
                           (summaryLoaded
-                            ? lang === 'ar'
+                            ? forceArabicCourt || lang === 'ar'
                               ? 'لا يوجد ملخص لهذا المستند بعد.'
                               : 'אין סיכום זמין למסמך זה עדיין.'
-                            : lang === 'ar'
+                            : forceArabicCourt || lang === 'ar'
                               ? 'جارٍ تحميل الملخص…'
                               : 'טוען סיכום…')
                         }
@@ -2388,10 +2388,10 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         desc={
                           replyDraft ||
                           (draftLoaded
-                            ? lang === 'ar'
+                            ? forceArabicCourt || lang === 'ar'
                               ? 'لا توجد مسودة لهذا المستند بعد.'
                               : 'אין טיוטה זמינה למסמך זה עדיין.'
-                            : lang === 'ar'
+                            : forceArabicCourt || lang === 'ar'
                               ? 'جارٍ تحميل المسودة…'
                               : 'טוען טיוטה…')
                         }
