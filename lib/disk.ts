@@ -249,10 +249,11 @@ export async function saveDocumentToLegalOfficeFolder(
     docId?: string;
   },
 ): Promise<{ relativePath: string } | null> {
-  try {
-    const root = await ensureLegalOfficeFolder(options.lang);
-    if (!root) return null;
-
+  // The actual write into a given folder. Factored out so we can retry it with
+  // a freshly-picked folder when the saved handle turns out to be stale.
+  const writeInto = async (
+    root: DirectoryHandle,
+  ): Promise<{ relativePath: string }> => {
     let segments: string[];
     let filename: string;
     if (options.client || options.caseObj) {
@@ -276,8 +277,31 @@ export async function saveDocumentToLegalOfficeFolder(
     return {
       relativePath: `${FILING_ROOT}/${segments.join('/')}/${finalName}`,
     };
+  };
+
+  // 1. Try with the saved/ensured folder handle.
+  const root = await ensureLegalOfficeFolder(options.lang);
+  if (!root) return null;
+  try {
+    return await writeInto(root);
   } catch (e) {
-    console.warn('[LegalOffice disk] save failed', e);
+    // The saved handle is stale — the folder was moved, renamed or deleted (a
+    // common case after the user "changes the path" on disk), or the write was
+    // otherwise refused. Fall through to recovery.
+    console.warn('[LegalOffice disk] save failed on saved folder, re-picking', e);
+  }
+
+  // 2. Recovery: forget the stale handle so it can't be reused, then prompt the
+  //    folder picker again so the user can point the app at the NEW location,
+  //    and retry the write once. If the picker is cancelled or the retry fails,
+  //    give up (the caller shows "not saved") — but the stale handle is already
+  //    cleared, so the next save attempt will prompt the picker straight away.
+  try {
+    await resetLegalOfficeDataFolder();
+    const fresh = await pickAndSaveDirectory(options.lang);
+    return await writeInto(fresh);
+  } catch (e) {
+    console.warn('[LegalOffice disk] save failed after re-pick', e);
     return null;
   }
 }

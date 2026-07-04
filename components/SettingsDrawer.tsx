@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -8,7 +8,14 @@ import {
   exportLegalOfficeBackupFile,
   importLegalOfficeBackupFile,
 } from '@/lib/storage';
+import {
+  loadSavedLegalOfficeDirectoryHandle,
+  pickAndSaveDirectory,
+  resetLegalOfficeDataFolder,
+} from '@/lib/disk';
+import { isFileSystemAccessAvailable } from '@/lib/dropbox';
 import { availableFontsForLang } from '@/lib/translations';
+import { DropboxConnectModal } from './DropboxConnectModal';
 import { Modal } from './Modal';
 import type { FontSize, Lang, Theme } from '@/types';
 
@@ -32,6 +39,55 @@ export function SettingsDrawer() {
   const close = () => modalStack.close(modalStack.topId() ?? 0);
 
   const fonts = availableFontsForLang(lang);
+
+  // --- Document save location -------------------------------------------
+  // On desktop the app writes each document into a local folder that the
+  // Dropbox desktop app then syncs to the cloud. The chosen folder is stored
+  // as a File System Access handle in IndexedDB and reused silently, so the
+  // only way to point it at a DIFFERENT location (or fix a stale one after the
+  // folder was moved/renamed) is to re-pick or reset it here.
+  const fsaAvailable = isFileSystemAccessAvailable();
+  const [docFolderName, setDocFolderName] = useState('');
+  useEffect(() => {
+    if (!fsaAvailable) return;
+    let cancelled = false;
+    loadSavedLegalOfficeDirectoryHandle()
+      .then((h) => {
+        if (!cancelled) setDocFolderName(h?.name || '');
+      })
+      .catch(() => {
+        /* no saved handle yet */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fsaAvailable]);
+
+  const onChooseDocFolder = async () => {
+    try {
+      const handle = await pickAndSaveDirectory(lang);
+      setDocFolderName(handle.name || '');
+      window.alert(
+        settingsText(
+          `תיקיית שמירת המסמכים עודכנה: "${handle.name}". מסמכים חדשים יישמרו כאן ויסונכרנו ל-Dropbox דרך אפליקציית שולחן העבודה.`,
+          `تم تحديث مجلد حفظ المستندات: "${handle.name}". المستندات الجديدة ستُحفظ هنا وتُزامَن مع Dropbox عبر تطبيق سطح المكتب.`,
+        ),
+      );
+    } catch {
+      /* picker cancelled — leave the current folder as-is */
+    }
+  };
+
+  const onResetDocFolder = async () => {
+    await resetLegalOfficeDataFolder();
+    setDocFolderName('');
+    window.alert(
+      settingsText(
+        'תיקיית שמירת המסמכים אופסה. בשמירת המסמך הבא תתבקש לבחור את התיקייה הנכונה מחדש.',
+        'تمت إعادة ضبط مجلد حفظ المستندات. عند حفظ المستند التالي سيُطلب منك اختيار المجلد الصحيح من جديد.',
+      ),
+    );
+  };
 
   const onExport = () => {
     exportLegalOfficeBackupFile(state);
@@ -320,6 +376,72 @@ export function SettingsDrawer() {
             'تشمل النسخة الاحتياطية أيضاً اسم المكتب، عنوان المكتب، اللغة، العرض والخط.',
           )}
         </div>
+      </Section>
+
+      {/* Document save location (local folder synced to Dropbox / Dropbox API) */}
+      <Section
+        title={settingsText('מיקום שמירת מסמכים', 'موقع حفظ المستندات')}
+        icon="fa-folder-tree"
+        pillClass="docs"
+      >
+        {fsaAvailable ? (
+          <>
+            <div className="settings-save-hint">
+              {docFolderName
+                ? settingsText(
+                    `התיקייה הנוכחית: "${docFolderName}"`,
+                    `المجلد الحالي: "${docFolderName}"`,
+                  )
+                : settingsText(
+                    'לא נבחרה תיקייה עדיין.',
+                    'لم يتم اختيار مجلد بعد.',
+                  )}
+            </div>
+            <div className="settings-actions">
+              <button
+                type="button"
+                className="mini-btn"
+                data-doc-folder-choose
+                onClick={onChooseDocFolder}
+              >
+                {settingsText('בחר / שנה תיקייה', 'اختر / غيّر المجلد')}
+              </button>
+              <button
+                type="button"
+                className="mini-btn"
+                data-doc-folder-reset
+                onClick={onResetDocFolder}
+              >
+                {settingsText('אפס תיקייה', 'إعادة ضبط المجلد')}
+              </button>
+            </div>
+            <div className="settings-save-hint">
+              {settingsText(
+                'בחר את התיקייה שבתוך Dropbox (למשל Dropbox/Clients) כדי שכל מסמך יישמר שם ויסונכרן אוטומטית לענן. "אפס תיקייה" מוחק את הבחירה כך שבשמירה הבאה תתבקש לבחור מחדש.',
+                'اختر المجلد داخل Dropbox (مثل Dropbox/Clients) ليُحفظ كل مستند هناك ويُزامَن تلقائياً إلى السحابة. "إعادة ضبط المجلد" يمسح الاختيار فيُطلب منك اختياره من جديد عند الحفظ التالي.',
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="settings-save-hint">
+              {settingsText(
+                'במכשיר זה המסמכים נשמרים ישירות ל-Dropbox. פתח את הגדרות Dropbox כדי להתחבר או לשנות את תיקיית השמירה.',
+                'على هذا الجهاز تُحفظ المستندات مباشرة إلى Dropbox. افتح إعدادات Dropbox للاتصال أو لتغيير مجلد الحفظ.',
+              )}
+            </div>
+            <div className="settings-actions">
+              <button
+                type="button"
+                className="mini-btn"
+                data-doc-folder-dropbox
+                onClick={() => modalStack.open(<DropboxConnectModal />)}
+              >
+                {settingsText('הגדרות Dropbox / שנה תיקייה', 'إعدادات Dropbox / تغيير المجلد')}
+              </button>
+            </div>
+          </>
+        )}
       </Section>
     </Modal>
   );
