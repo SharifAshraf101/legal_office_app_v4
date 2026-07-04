@@ -862,23 +862,30 @@ async function handleSaveSuggestedAction(request: Request, env: Env): Promise<Re
     return json({ error: 'invalid json' }, request, env, 400);
   }
   const str = (v: unknown) => String(v ?? '').trim() || null;
-  await env.DB.prepare(
-    `INSERT INTO case_suggested_actions
-     (client_id, case_id, document_name, court_type, suggested_action, deadline, legal_source, confidence, reasoning)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
-  )
-    .bind(
-      str(body.client_id),
-      str(body.case_id),
-      str(body.document_name),
-      str(body.court_type),
-      str(body.suggested_action),
-      str(body.deadline),
-      str(body.legal_source),
-      str(body.confidence),
-      str(body.reasoning),
+  // client_id and case_id are NOT NULL — bind '' (never null) so an empty value
+  // can't throw a constraint error (which would surface as HTTP 1101).
+  const req = (v: unknown) => String(v ?? '').trim();
+  try {
+    await env.DB.prepare(
+      `INSERT INTO case_suggested_actions
+       (client_id, case_id, document_name, court_type, suggested_action, deadline, legal_source, confidence, reasoning)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
     )
-    .run();
+      .bind(
+        req(body.client_id),
+        req(body.case_id),
+        str(body.document_name),
+        str(body.court_type),
+        str(body.suggested_action),
+        str(body.deadline),
+        str(body.legal_source),
+        str(body.confidence),
+        str(body.reasoning),
+      )
+      .run();
+  } catch (e) {
+    return json({ error: 'persist_failed', detail: String(e).slice(0, 200) }, request, env, 500);
+  }
   return json({ ok: true }, request, env);
 }
 
@@ -1021,23 +1028,32 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
     confidence = confidence || 'low';
   }
 
-  await env.DB.prepare(
-    `INSERT INTO case_suggested_actions
-     (client_id, case_id, document_name, court_type, suggested_action, deadline, legal_source, confidence, reasoning)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
-  )
-    .bind(
-      clientId || null,
-      caseId,
-      docName || null,
-      courtTypes.join(','),
-      suggested,
-      deadline || null,
-      legalSource || null,
-      confidence || null,
-      reasoning || null,
+  // `client_id` is NOT NULL in the table — bind '' (never null) so a case
+  // without a resolved client can't crash the INSERT (which, being outside the
+  // AI try/catch, would surface as a Worker exception / HTTP 1101 and leave the
+  // "הצעה לפעולה" card empty). Wrap the write too, so a suggestion is still
+  // returned even if persistence hiccups.
+  try {
+    await env.DB.prepare(
+      `INSERT INTO case_suggested_actions
+       (client_id, case_id, document_name, court_type, suggested_action, deadline, legal_source, confidence, reasoning)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
     )
-    .run();
+      .bind(
+        clientId || '',
+        caseId,
+        docName || null,
+        courtTypes.join(','),
+        suggested,
+        deadline || null,
+        legalSource || null,
+        confidence || null,
+        reasoning || null,
+      )
+      .run();
+  } catch (e) {
+    console.warn('[suggest-action] persist failed', String(e).slice(0, 200));
+  }
 
   return json(
     {

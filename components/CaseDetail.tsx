@@ -1623,17 +1623,26 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       // next step from THAT list — replacing a possibly court-mismatched one.
       // Key by the LATEST document too, so a newly-filed document (e.g. a
       // defense just added) regenerates the suggestion for the new stage.
-      const suggestKey = 'suggest:' + caseId + ':' + (primaryDoc?.id || 'none');
+      const caseObj = state.casesArr.find(
+        (x) => String(x.id) === String(caseId),
+      );
+      const court = caseObj
+        ? (lang === 'ar'
+            ? caseObj.courtAr || caseObj.court
+            : caseObj.court || caseObj.courtAr) || ''
+        : '';
+      // Include the court in the key so that setting or CHANGING the case's
+      // court regenerates a court-matched suggestion (family/sharia/labor/…)
+      // instead of keeping a stale civil-defaulted one.
+      const suggestKey =
+        'suggest:' +
+        caseId +
+        ':' +
+        (primaryDoc?.id || 'none') +
+        ':' +
+        court.trim().toLowerCase();
       if (summaryLoaded && !genAttempts.has(suggestKey)) {
         rememberGenAttempt(genAttempts, suggestKey);
-        const caseObj = state.casesArr.find(
-          (x) => String(x.id) === String(caseId),
-        );
-        const court = caseObj
-          ? (lang === 'ar'
-              ? caseObj.courtAr || caseObj.court
-              : caseObj.court || caseObj.courtAr) || ''
-          : '';
         const gen = await generateSuggestedAction({
           caseId,
           clientId: caseObj?.clientId,
