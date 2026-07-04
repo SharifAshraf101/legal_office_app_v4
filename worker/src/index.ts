@@ -1145,7 +1145,11 @@ async function handleSplitDecision(request: Request, env: Env): Promise<Response
   const userText =
     'סיכום המסמך:\n' +
     summary +
-    '\n\nהחזר JSON בשפת הסיכום: {"decision":"ההחלטה/ההוראה האופרטיבית של בית המשפט בלשון תמציתית; אם אין החלטה אופרטיבית ברורה השאר מחרוזת ריקה","rest":"שאר תוכן המסמך (רקע/עובדות/נימוקים/מהלך הדיון) בתמצית","task_title":"רק אם ההחלטה מחייבת אותנו בפעולת תגובה דיונית (להגיב/להשיב/לנמק/להגיש תגובה) — נסח את הפעולה שעלינו לבצע; אחרת (כולל חיוב כספי או חובה על הצד שכנגד) השאר ריק","task_due_date":"תאריך היעד לביצוע המשימה בפורמט YYYY-MM-DD אם מצוין, אחרת ריק","hearing_date":"תאריך מועד הדיון/הישיבה הבא בפורמט YYYY-MM-DD אם נקבע בהחלטה, אחרת ריק","hearing_time":"שעת הדיון בפורמט HH:MM אם צוינה, אחרת ריק"}.';
+    '\n\n' +
+    (lang === 'ar'
+      ? 'اكتب قيم الحقول decision و rest و task_title باللغة العربية فقط. '
+      : 'כתוב את הערכים בשדות decision, rest, task_title בעברית בלבד. ') +
+    'החזר JSON: {"decision":"ההחלטה/ההוראה האופרטיבית של בית המשפט בלשון תמציתית; אם אין החלטה אופרטיבית ברורה השאר מחרוזת ריקה","rest":"שאר תוכן המסמך (רקע/עובדות/נימוקים/מהלך הדיון) בתמצית","task_title":"רק אם ההחלטה מחייבת אותנו בפעולת תגובה דיונית (להגיב/להשיב/לנמק/להגיש תגובה) — נסח את הפעולה שעלינו לבצע; אחרת (כולל חיוב כספי או חובה על הצד שכנגד) השאר ריק","task_due_date":"תאריך היעד לביצוע המשימה בפורמט YYYY-MM-DD אם מצוין, אחרת ריק","hearing_date":"תאריך מועד הדיון/הישיבה הבא בפורמט YYYY-MM-DD אם נקבע בהחלטה, אחרת ריק","hearing_time":"שעת הדיון בפורמט HH:MM אם צוינה, אחרת ריק"}.';
 
   let decision = '';
   let rest = '';
@@ -1195,7 +1199,6 @@ async function handleSplitDecision(request: Request, env: Env): Promise<Response
   }
   // Never lose the content: if the split failed, show everything as `rest`.
   if (!decision && !rest) rest = summary;
-  void lang;
 
   return json(
     {
