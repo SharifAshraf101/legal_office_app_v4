@@ -411,6 +411,10 @@ export async function splitDecisionSummary(
   rest: string;
   taskTitle: string;
   taskDueDate: string;
+  /** Next hearing/session date the decision sets (YYYY-MM-DD), or ''. */
+  hearingDate: string;
+  /** Hearing time (HH:MM), or '' when the decision gives only a date. */
+  hearingTime: string;
 } | null> {
   const text = (summary || '').trim();
   if (!text) return null;
@@ -430,6 +434,8 @@ export async function splitDecisionSummary(
       rest?: string;
       task_title?: string;
       task_due_date?: string;
+      hearing_date?: string;
+      hearing_time?: string;
     };
     if (!data.ok) return null;
     return {
@@ -437,6 +443,8 @@ export async function splitDecisionSummary(
       rest: (data.rest || '').trim(),
       taskTitle: (data.task_title || '').trim(),
       taskDueDate: (data.task_due_date || '').trim(),
+      hearingDate: (data.hearing_date || '').trim(),
+      hearingTime: (data.hearing_time || '').trim(),
     };
   } catch {
     return null;

@@ -1073,16 +1073,18 @@ async function handleSplitDecision(request: Request, env: Env): Promise<Response
   if (!summary) return json({ ok: false, decision: '', rest: '' }, request, env);
 
   const systemPrompt =
-    'אתה עוזר משפטי. קיבלת סיכום של מסמך מבית משפט/בית דין מסוג החלטה או פרוטוקול. הפרד בבירור בין ההחלטה/ההוראה האופרטיבית של בית המשפט (מה הוחלט, נקבע או הורה) לבין שאר תוכן המסמך (רקע, עובדות, נימוקים, מהלך הדיון). אם ההחלטה מטילה פעולה עם מועד (למשל "להגיב תוך X ימים" או "עד תאריך"), חלץ אותה כמשימה. אל תמציא תוכן שאינו בסיכום. החזר אובייקט JSON אחד בלבד, ללא טקסט נוסף, ותו ראשון {.';
+    'אתה עוזר משפטי. קיבלת סיכום של מסמך מבית משפט/בית דין מסוג החלטה או פרוטוקול. הפרד בבירור בין ההחלטה/ההוראה האופרטיבית של בית המשפט (מה הוחלט, נקבע או הורה) לבין שאר תוכן המסמך (רקע, עובדות, נימוקים, מהלך הדיון). אם ההחלטה מטילה פעולה עם מועד (למשל "להגיב תוך X ימים" או "עד תאריך"), חלץ אותה כמשימה עם מועד היעד. אם ההחלטה קובעת מועד דיון/ישיבה הבא, חלץ את תאריך הדיון (והשעה אם צוינה). אל תמציא תוכן, תאריכים או שעות שאינם בסיכום. החזר אובייקט JSON אחד בלבד, ללא טקסט נוסף, ותו ראשון {.';
   const userText =
     'סיכום המסמך:\n' +
     summary +
-    '\n\nהחזר JSON בשפת הסיכום: {"decision":"ההחלטה/ההוראה האופרטיבית של בית המשפט בלשון תמציתית; אם אין החלטה אופרטיבית ברורה השאר מחרוזת ריקה","rest":"שאר תוכן המסמך (רקע/עובדות/נימוקים/מהלך הדיון) בתמצית","task_title":"הפעולה שעל המשרד לבצע לפי ההחלטה (למשל: להגיש תגובה להחלטה), או ריק אם אין","task_due_date":"תאריך היעד בפורמט YYYY-MM-DD אם מצוין בהחלטה, אחרת ריק"}.';
+    '\n\nהחזר JSON בשפת הסיכום: {"decision":"ההחלטה/ההוראה האופרטיבית של בית המשפט בלשון תמציתית; אם אין החלטה אופרטיבית ברורה השאר מחרוזת ריקה","rest":"שאר תוכן המסמך (רקע/עובדות/נימוקים/מהלך הדיון) בתמצית","task_title":"הפעולה שעל המשרד לבצע לפי ההחלטה (למשל: להגיש תגובה להחלטה), או ריק אם אין","task_due_date":"תאריך היעד להגשה בפורמט YYYY-MM-DD אם מצוין בהחלטה, אחרת ריק","hearing_date":"תאריך מועד הדיון/הישיבה הבא בפורמט YYYY-MM-DD אם נקבע בהחלטה, אחרת ריק","hearing_time":"שעת הדיון בפורמט HH:MM אם צוינה, אחרת ריק"}.';
 
   let decision = '';
   let rest = '';
   let taskTitle = '';
   let taskDueDate = '';
+  let hearingDate = '';
+  let hearingTime = '';
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -1117,6 +1119,8 @@ async function handleSplitDecision(request: Request, env: Env): Promise<Response
       rest = String(parsed.rest ?? '').trim();
       taskTitle = String(parsed.task_title ?? '').trim();
       taskDueDate = String(parsed.task_due_date ?? '').trim();
+      hearingDate = String(parsed.hearing_date ?? '').trim();
+      hearingTime = String(parsed.hearing_time ?? '').trim();
     }
   } catch {
     // fall through
@@ -1126,7 +1130,15 @@ async function handleSplitDecision(request: Request, env: Env): Promise<Response
   void lang;
 
   return json(
-    { ok: true, decision, rest, task_title: taskTitle, task_due_date: taskDueDate },
+    {
+      ok: true,
+      decision,
+      rest,
+      task_title: taskTitle,
+      task_due_date: taskDueDate,
+      hearing_date: hearingDate,
+      hearing_time: hearingTime,
+    },
     request,
     env,
   );

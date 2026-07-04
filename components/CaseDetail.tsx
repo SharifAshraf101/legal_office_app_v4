@@ -90,6 +90,14 @@ export interface CaseDetailProps {
 // Persisted across reloads so a deleted AI task is never resurrected.
 const decisionImportKeys = loadDecisionImportKeys();
 
+// Marker attached to any date/task the AI extracts from a court decision, so
+// the user can tell an auto-imported hearing/deadline from one they entered.
+// Kept bilingual (single-field task notes) or split across the he/ar event
+// description fields.
+const AI_IMPORT_NOTE_HE = 'הובא אוטומטית על ידי הבינה המלאכותית מתוך ההחלטה';
+const AI_IMPORT_NOTE_AR = 'أُدرج تلقائياً بواسطة الذكاء الاصطناعي من القرار';
+const AI_IMPORT_NOTE_BILINGUAL = `${AI_IMPORT_NOTE_HE} · ${AI_IMPORT_NOTE_AR}`;
+
 /**
  * Fetches the case's decision from Cloudflare D1 and imports its derived
  * items into the case, deduped against existing data:
@@ -144,13 +152,16 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
               dueDate: d.taskDueDate || '',
               status: 'open',
               priority: 'normal',
+              notes: AI_IMPORT_NOTE_BILINGUAL,
               createdAt: new Date().toISOString(),
             },
           ],
         });
       }
 
-      // Hearing → calendar event on the decision's hearing date.
+      // Hearing → calendar event on the decision's hearing date. Only the date
+      // is filed (title "מועד דיון" — no decision content), tagged as
+      // AI-imported in the description.
       if (d.hearingDate) {
         const hd = new Date(d.hearingDate + 'T09:00:00');
         const hearingIso = isNaN(hd.getTime()) ? '' : hd.toISOString();
@@ -177,6 +188,8 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
                 title: 'מועד דיון',
                 titleAr: 'موعد جلسة',
                 dateTime: hearingIso,
+                description: AI_IMPORT_NOTE_HE,
+                descriptionAr: AI_IMPORT_NOTE_AR,
                 type: 'hearingMeeting',
               },
             ],
@@ -1400,12 +1413,16 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       // 2. Create the decision's task (e.g. "respond within 20 days"), deduped
       //    against existing tasks + the persisted import-keys (so a deleted
       //    task isn't resurrected and it's never duplicated).
+      const caseObj = state.casesArr.find(
+        (x) => String(x.id) === String(caseId),
+      );
+      const clientId = caseObj?.clientId || '';
+
+      // 2a. The decision's TASK (e.g. "respond within 20 days") → a real Task
+      //     with its deadline, tagged as AI-imported in the notes (so the
+      //     imported deadline is marked as coming from the AI).
       const title = split.taskTitle.trim();
       if (title) {
-        const caseObj = state.casesArr.find(
-          (x) => String(x.id) === String(caseId),
-        );
-        const clientId = caseObj?.clientId || '';
         const taskKey = decisionTaskKey(caseId, title);
         const exists = state.tasksArr.some(
           (t) => String(t.caseId) === String(caseId) && t.title === title,
@@ -1426,7 +1443,51 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                 dueDate: split.taskDueDate || '',
                 status: 'open',
                 priority: 'normal',
+                notes: AI_IMPORT_NOTE_BILINGUAL,
                 createdAt: new Date().toISOString(),
+              },
+            ],
+          });
+        }
+      }
+
+      // 2b. The decision's HEARING DATE → a calendar event carrying ONLY the
+      //     date (title "מועד דיון" — no decision content), tagged as
+      //     AI-imported. Deduped by day against existing hearings + the
+      //     persisted import keys (shared with the /api/decision importer so
+      //     the two paths never double-file the same hearing).
+      const hearingDay = (split.hearingDate || '').slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(hearingDay)) {
+        const time = /^\d{2}:\d{2}$/.test(split.hearingTime)
+          ? split.hearingTime
+          : '09:00';
+        const hd = new Date(`${hearingDay}T${time}:00`);
+        const hearingIso = isNaN(hd.getTime()) ? '' : hd.toISOString();
+        const hearingKey = 'hearing:' + caseId + ':' + hearingDay;
+        const hearingExists = state.eventsList.some(
+          (e) =>
+            String(e.caseId) === String(caseId) &&
+            String(e.type) === 'hearingMeeting' &&
+            String(e.dateTime).slice(0, 10) === hearingDay,
+        );
+        if (hearingIso && !decisionImportKeys.has(hearingKey) && !hearingExists) {
+          rememberDecisionImportKey(decisionImportKeys, hearingKey);
+          dispatch({
+            type: 'SET_EVENTS',
+            events: [
+              ...state.eventsList,
+              {
+                id: 'EV-DEC-' + caseId,
+                caseId,
+                clientId,
+                client_source_id: clientId,
+                case_source_id: caseId,
+                title: 'מועד דיון',
+                titleAr: 'موعد جلسة',
+                dateTime: hearingIso,
+                description: AI_IMPORT_NOTE_HE,
+                descriptionAr: AI_IMPORT_NOTE_AR,
+                type: 'hearingMeeting',
               },
             ],
           });
