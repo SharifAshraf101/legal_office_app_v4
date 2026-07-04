@@ -934,6 +934,32 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
   const lang = String(body.lang ?? 'he').trim().toLowerCase();
   if (!caseId) return json({ error: 'case_id required' }, request, env, 400);
 
+  // The full CHAIN of documents already filed in this case, read straight from
+  // the Cloudflare `documents` table, oldest → newest. The model uses it to
+  // infer the CURRENT procedural stage (what has already been filed vs. what is
+  // missing) and propose the next logical step accordingly.
+  let docsChain = '';
+  try {
+    const dRs = await env.DB.prepare(
+      `SELECT title, title_ar, file_name, date, created_at
+       FROM documents
+       WHERE user_id = ?1 AND upper(case_source_id) = upper(?2)
+       ORDER BY COALESCE(NULLIF(date, ''), created_at) ASC, created_at ASC`,
+    )
+      .bind(env.USER_ID, caseId)
+      .all();
+    const caseDocs = (dRs.results ?? []) as Array<Record<string, unknown>>;
+    docsChain = caseDocs
+      .map((d, i) => {
+        const name = String(d.title || d.title_ar || d.file_name || '-').trim();
+        const when = String(d.date || '').trim();
+        return `${i + 1}. ${name}${when ? ' — ' + when : ''}`;
+      })
+      .join('\n');
+  } catch {
+    docsChain = '';
+  }
+
   // Shown when the case is at a stage with no proactive step for the office
   // (awaiting the court's decision or the other side's move).
   const waitMsg =
@@ -966,17 +992,19 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
     .join('\n');
 
   const systemPrompt =
-    'אתה עוזר משפטי במשרד עורכי דין בישראל. בהינתן רשימת הפעולות האפשריות לפי סדרי הדין של הערכאה הרלוונטית, ובהינתן הקשר התיק/המסמך האחרון, בחר את הפעולה הבאה שעל המשרד לנקוט — אך ורק מתוך הרשימה שסופקה. אל תמציא פעולות, מועדים או מקורות שאינם ברשימה. החזר אובייקט JSON אחד בלבד, ללא טקסט נוסף, ותו ראשון {.';
+    'אתה עוזר משפטי במשרד עורכי דין בישראל. בהינתן שרשרת המסמכים שכבר הוגשו בתיק ורשימת הפעולות האפשריות לפי סדרי הדין של הערכאה הרלוונטית, קבע תחילה מהו השלב הנוכחי של ההליך לפי המסמכים שכבר קיימים, ואז בחר את הפעולה הבאה ההגיונית שעל המשרד לנקוט — אך ורק מתוך הרשימה שסופקה, ובהתאם לשלב שנגזר משרשרת המסמכים. אל תציע פעולה ששלבה כבר חלף (מסמך שכבר הוגש), ואל תמציא פעולות, מועדים או מקורות שאינם ברשימה. החזר אובייקט JSON אחד בלבד, ללא טקסט נוסף, ותו ראשון {.';
   const userText =
     'הערכאה: ' +
     (court || '-') +
     ' (court_type: ' +
     courtTypes.join(' + ') +
-    ').\n\nרשימת הפעולות האפשריות בערכאה זו (בחר אך ורק מתוכה):\n' +
+    ').\n\nשרשרת המסמכים שכבר הוגשו/מצויים בתיק, לפי סדר הזמן (מהישן לחדש):\n' +
+    (docsChain || '(אין עדיין מסמכים בתיק)') +
+    '\n\nקבע לפי שרשרת המסמכים הזו מה כבר בוצע ומה השלב הנוכחי, והצע את הפעולה הבאה ההגיונית התואמת לשלב זה לפי סדר הדין.\n\nרשימת הפעולות האפשריות בערכאה זו (בחר אך ורק מתוכה):\n' +
     actionsText +
-    '\n\nהקשר/המסמך האחרון בתיק:\n' +
+    '\n\nפירוט המסמך האחרון בתיק (להקשר נוסף):\n' +
     (docSummary ||
-      '(אין סיכום מסמך — הצע את הפעולה ההגיונית הבאה לפי שלבי ההליך)') +
+      '(אין סיכום מסמך — הסתמך על שרשרת המסמכים לעיל)') +
     '\n\nאם בשלב הנוכחי אין פעולה יזומה שעל המשרד לנקוט לפי סדרי הדין (התיק ממתין להחלטת בית הדין/בית המשפט או לצעד מצד שכנגד), החזר את suggested_action בדיוק כך: "' +
     waitMsg +
     '" והשאר deadline ו-legal_source ריקים.\n\n' +

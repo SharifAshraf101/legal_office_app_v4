@@ -1692,9 +1692,15 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         : lang === 'ar'
           ? 'ar'
           : 'he';
-      // Include the court AND the target language in the key so that setting or
-      // CHANGING the case's court (or its Arabic-only status) regenerates a
-      // court-matched suggestion in the right language instead of a stale one.
+      // Number of documents in the case → part of the key so ADDING or REMOVING
+      // any document regenerates the suggestion against the new document chain.
+      const caseDocCount = caseDocumentsForCase(
+        caseId,
+        state.documentsArr,
+      ).length;
+      // Include the court, target language AND the document count in the key so
+      // that changing the court/language, or the set of filed documents,
+      // regenerates a stage-appropriate suggestion instead of a stale one.
       const suggestKey =
         'suggest:' +
         caseId +
@@ -1703,7 +1709,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         ':' +
         court.trim().toLowerCase() +
         ':' +
-        suggestLang;
+        suggestLang +
+        ':n' +
+        caseDocCount;
       if (summaryLoaded && !genAttempts.has(suggestKey)) {
         rememberGenAttempt(genAttempts, suggestKey);
         const gen = await generateSuggestedAction({
@@ -1721,7 +1729,15 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caseId, lang, summaryLoaded, docSummary, primaryDoc, state.casesArr]);
+  }, [
+    caseId,
+    lang,
+    summaryLoaded,
+    docSummary,
+    primaryDoc,
+    state.casesArr,
+    state.documentsArr,
+  ]);
 
   // Decision-derived task + hearing for the latest (decision) document,
   // imported from Cloudflare and shown in the "משימה שנוצרה" card. The
