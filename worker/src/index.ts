@@ -270,10 +270,9 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
   // pipeline may have created for the same case + day.
   if (Array.isArray(body.calendar_events)) {
     try {
-      await dedupeHearings(env);
-      await annotateHearingSource(env);
+      await consolidateHearings(env);
     } catch {
-      // never fail the save because the dedup/annotation hiccuped
+      // never fail the save because the consolidation hiccuped
     }
   }
   const submitted = LOAD_TABLES.reduce(
@@ -292,17 +291,36 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
   );
 }
 
-// Remove ONLY same-document duplicate HEARING events. The make.com pipeline can
-// write the SAME document's hearing more than once — e.g. both
-// "…_doc-004.pdf-hearing" and "…_doc-004.pdf" (different source_ids never
-// collide on the (user_id, source_id) upsert key). We collapse those to ONE,
-// keyed by the DOC-NNN id embedded in the source_id (+ case + day). Hearings
-// that come from DIFFERENT documents are KEPT even when they fall on the same
-// day — they are NOT considered duplicates. Only hearing-type events are
-// touched; meetings, reminders and other types are left alone.
-async function dedupeHearings(env: Env): Promise<void> {
+// Source type of a hearing event, inferred from its source document name /
+// title / existing note: an invitation to a hearing, a judicial decision, or
+// unknown.
+function hearingSourceType(
+  r: { source_id?: string; title?: string; description?: string },
+): 'invitation' | 'decision' | 'other' {
+  const hay = (
+    String(r.source_id ?? '') +
+    ' ' +
+    String(r.title ?? '') +
+    ' ' +
+    String(r.description ?? '')
+  ).toLowerCase();
+  if (/הזמנ|זימון|تبليغ|دعوة|إحضار|احضار/.test(hay)) return 'invitation';
+  if (/החלט|פסק|פרוטוקול|قرار|حكم|محضر/.test(hay)) return 'decision';
+  return 'other';
+}
+
+// Consolidate AI-imported HEARING events so that each (case, calendar day) has a
+// SINGLE calendar event, and annotate WHERE it came from:
+//   • same day, one source (e.g. only a decision, or a document duplicated by
+//     the pipeline) → keep one, note the source ("מהחלטה שיפוטית" / "מהזמנה
+//     לדיון"); for a decision the note is the source ONLY, never its summary.
+//   • same day, MULTIPLE sources (e.g. an invitation to a hearing AND a decision
+//     that both point to the same hearing) → MERGE into one event with a clear
+//     note that it was merged from those sources.
+// Only hearing-type events are touched; meetings, reminders, etc. are left alone.
+async function consolidateHearings(env: Env): Promise<void> {
   const rs = await env.DB.prepare(
-    `SELECT id, source_id, case_source_id, date_time
+    `SELECT id, source_id, title, description, case_source_id, date_time
      FROM calendar_events
      WHERE user_id = ?1 AND lower(type) IN ('hearing', 'hearingmeeting')
      ORDER BY created_at ASC, id ASC`,
@@ -312,23 +330,60 @@ async function dedupeHearings(env: Env): Promise<void> {
   const rows = (rs.results ?? []) as Array<{
     id: string;
     source_id?: string;
+    title?: string;
+    description?: string;
     case_source_id?: string;
     date_time?: string;
   }>;
-  const seen = new Set<string>();
-  const toDelete: string[] = [];
+  // Group by (case, calendar day). Insertion order = created_at ASC, so the
+  // first in each group is the earliest — the one we keep.
+  const groups = new Map<string, typeof rows>();
   for (const r of rows) {
-    const sid = String(r.source_id ?? '');
-    const docMatch = /doc-\d+/i.exec(sid);
-    // Same-document identity: the DOC-NNN id when the source_id carries one (so
-    // a single document's repeated events collapse), otherwise the source_id
-    // itself (app events keep their own stable ids and never merge together).
-    const docKey = docMatch ? docMatch[0].toLowerCase() : sid;
     const day = String(r.date_time ?? '').slice(0, 10);
-    const key =
-      String(r.case_source_id ?? '').toLowerCase() + '|' + docKey + '|' + day;
-    if (seen.has(key)) toDelete.push(r.id);
-    else seen.add(key);
+    if (!day) continue;
+    const key = String(r.case_source_id ?? '').toLowerCase() + '|' + day;
+    const g = groups.get(key);
+    if (g) g.push(r);
+    else groups.set(key, [r]);
+  }
+  const now = new Date().toISOString();
+  const toDelete: string[] = [];
+  for (const group of groups.values()) {
+    const keep = group[0];
+    for (let i = 1; i < group.length; i++) toDelete.push(group[i].id);
+    const sources = new Set(group.map(hearingSourceType));
+    sources.delete('other');
+    const hasInv = sources.has('invitation');
+    const hasDec = sources.has('decision');
+    let he = '';
+    let ar = '';
+    if (sources.size >= 2) {
+      const he_parts: string[] = [];
+      const ar_parts: string[] = [];
+      if (hasInv) { he_parts.push('הזמנה לדיון'); ar_parts.push('دعوة لجلسة'); }
+      if (hasDec) { he_parts.push('החלטה שיפוטית'); ar_parts.push('قرار قضائي'); }
+      he =
+        'מועד זה אוחד על ידי הבינה המלאכותית (AI) ממספר מסמכים לאותו דיון: ' +
+        he_parts.join(' + ') +
+        '.';
+      ar =
+        'دُمج هذا الموعد بواسطة الذكاء الاصطناعي (AI) من عدة مستندات لنفس الجلسة: ' +
+        ar_parts.join(' + ') +
+        '.';
+    } else if (hasInv) {
+      he = 'מועד זה יובא מהזמנה לדיון על ידי הבינה המלאכותית (AI).';
+      ar = 'أُدرج هذا الموعد من دعوة/تبليغ لجلسة بواسطة الذكاء الاصطناعي (AI).';
+    } else if (hasDec) {
+      he = 'מועד זה יובא מהחלטה שיפוטית על ידי הבינה המלאכותית (AI).';
+      ar = 'أُدرج هذا الموعد من قرار قضائي بواسطة الذكاء الاصطناعي (AI).';
+    }
+    if (he && String(keep.description ?? '') !== he) {
+      await env.DB.prepare(
+        'UPDATE calendar_events SET description = ?2, description_ar = ?3, updated_at = ?4 WHERE user_id = ?1 AND id = ?5',
+      )
+        .bind(env.USER_ID, he, ar, now, keep.id)
+        .run();
+    }
   }
   for (let i = 0; i < toDelete.length; i += 50) {
     const chunk = toDelete.slice(i, i + 50);
@@ -337,55 +392,6 @@ async function dedupeHearings(env: Env): Promise<void> {
       `DELETE FROM calendar_events WHERE user_id = ?1 AND id IN (${ph})`,
     )
       .bind(env.USER_ID, ...chunk)
-      .run();
-  }
-}
-
-// Note in the calendar WHERE each AI-imported hearing came from: an invitation
-// to a hearing ("הזמנה לדיון") vs. a judicial decision ("החלטה שיפוטית"),
-// detected from the source document name / title / existing note. For a
-// decision, the note is ONLY the source marker — never the decision's summary
-// (per the office's request "בלי קיצור ההחלטה"). Runs after a save that
-// includes calendar events; idempotent (skips rows already annotated).
-async function annotateHearingSource(env: Env): Promise<void> {
-  const rs = await env.DB.prepare(
-    `SELECT id, source_id, title, description
-     FROM calendar_events
-     WHERE user_id = ?1 AND lower(type) IN ('hearing', 'hearingmeeting')`,
-  )
-    .bind(env.USER_ID)
-    .all();
-  const rows = (rs.results ?? []) as Array<{
-    id: string;
-    source_id?: string;
-    title?: string;
-    description?: string;
-  }>;
-  const now = new Date().toISOString();
-  for (const r of rows) {
-    const hay = (
-      String(r.source_id ?? '') +
-      ' ' +
-      String(r.title ?? '') +
-      ' ' +
-      String(r.description ?? '')
-    ).toLowerCase();
-    let he = '';
-    let ar = '';
-    if (/הזמנ|זימון|تبليغ|دعوة|إحضار|احضار/.test(hay)) {
-      he = 'מועד זה יובא מהזמנה לדיון על ידי הבינה המלאכותית (AI).';
-      ar = 'أُدرج هذا الموعد من دعوة/تبليغ لجلسة بواسطة الذكاء الاصطناعي (AI).';
-    } else if (/החלט|פסק|פרוטוקול|قرار|حكم|محضر/.test(hay)) {
-      he = 'מועד זה יובא מהחלטה שיפוטית על ידי הבינה המלאכותית (AI).';
-      ar = 'أُدرج هذا الموعد من قرار قضائي بواسطة الذكاء الاصطناعي (AI).';
-    } else {
-      continue;
-    }
-    if (String(r.description ?? '') === he) continue; // already annotated
-    await env.DB.prepare(
-      'UPDATE calendar_events SET description = ?2, description_ar = ?3, updated_at = ?4 WHERE user_id = ?1 AND id = ?5',
-    )
-      .bind(env.USER_ID, he, ar, now, r.id)
       .run();
   }
 }
