@@ -266,6 +266,15 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
       // never fail the save because the mirror rebuild hiccuped
     }
   }
+  // When calendar events were saved, collapse any duplicate hearings a document
+  // pipeline may have created for the same case + day.
+  if (Array.isArray(body.calendar_events)) {
+    try {
+      await dedupeHearings(env);
+    } catch {
+      // never fail the save because the dedup hiccuped
+    }
+  }
   const submitted = LOAD_TABLES.reduce(
     (n, t) => n + (Array.isArray(body[t]) ? (body[t] as unknown[]).length : 0),
     0,
@@ -280,6 +289,36 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
     request,
     env,
   );
+}
+
+// Collapse duplicate HEARING events (same case + same calendar day) into one.
+// The make.com pipeline writes one calendar_event per document that references
+// a hearing, using the document's Dropbox PATH as source_id — so the SAME
+// hearing can be inserted several times (different source_ids never collide on
+// the (user_id, source_id) upsert key). Keep the earliest-created row per
+// (case, day) and delete the rest. Only touches hearing-type events; meetings,
+// reminders and other types are left untouched.
+async function dedupeHearings(env: Env): Promise<void> {
+  await env.DB.prepare(
+    `DELETE FROM calendar_events
+     WHERE user_id = ?1
+       AND lower(type) IN ('hearing', 'hearingmeeting')
+       AND id NOT IN (
+         SELECT id FROM (
+           SELECT id,
+             ROW_NUMBER() OVER (
+               PARTITION BY lower(coalesce(case_source_id, '')),
+                            substr(coalesce(date_time, ''), 1, 10)
+               ORDER BY created_at ASC, id ASC
+             ) AS rn
+           FROM calendar_events
+           WHERE user_id = ?1
+             AND lower(type) IN ('hearing', 'hearingmeeting')
+         ) WHERE rn = 1
+       )`,
+  )
+    .bind(env.USER_ID)
+    .run();
 }
 
 async function syncCaseNotes(env: Env): Promise<void> {
