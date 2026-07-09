@@ -8,6 +8,7 @@ import {
   calendarItemTitle,
   calendarLocale,
   eventTypeLabel,
+  isHearingImportNote,
 } from '@/lib/calendar';
 import { Modal } from './Modal';
 import { CaseDetail } from './CaseDetail';
@@ -50,6 +51,15 @@ export function CalendarEventDetail({ source, id }: CalendarEventDetailProps) {
 
   // calendarItemTitle handles the generic-title fallback to a nature string.
   const titleText = calendarItemTitle(item, lang) || eventTypeLabel(String(item.type ?? ''), lang, t);
+  // For AI-imported hearings the "title" is really the import note. Show the
+  // event nature (e.g. "מועד דיון") as מהות המועד, and the note in its own row.
+  const isImport = isHearingImportNote(titleText);
+  const rawTitle =
+    lang === 'ar' ? item.titleAr || item.title : item.title || item.titleAr;
+  const natureText = isImport
+    ? rawTitle || eventTypeLabel(String(item.type ?? ''), lang, t)
+    : titleText;
+  const importNote = isImport ? titleText : '';
   const parts = calendarCaseParts(item.caseId, state.casesArr, state.clients, lang);
   const rawDate =
     source === 'task'
@@ -70,6 +80,7 @@ export function CalendarEventDetail({ source, id }: CalendarEventDetailProps) {
 
   const title = lang === 'ar' ? 'تفاصيل الموعد' : 'פרטי יומן';
   const natureLabel = lang === 'ar' ? 'ماهية الموعد' : 'מהות המועד';
+  const noteLabel = lang === 'ar' ? 'ملاحظة' : 'הערה';
 
   return (
     <Modal onClose={close} className="calendar-detail-v1" hideBackBtn={true}>
@@ -95,12 +106,13 @@ export function CalendarEventDetail({ source, id }: CalendarEventDetailProps) {
         </button>
       </div>
       <div className="detail-grid">
-        <DetailRow label={natureLabel} value={titleText} />
+        <DetailRow label={natureLabel} value={natureText} />
         <DetailRow label={t('clientName')} value={parts.client} />
         <DetailRow label={t('caseType')} value={parts.caseType} />
         <DetailRow label={t('court')} value={parts.court} />
         <DetailRow label={t('caseNumber')} value={parts.caseNumber} />
         <DetailRow label={t('date')} value={dateText} />
+        {importNote && <DetailRow label={noteLabel} value={importNote} />}
       </div>
     </Modal>
   );
