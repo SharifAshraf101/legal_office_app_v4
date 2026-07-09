@@ -1558,20 +1558,18 @@ html body .modal.case-docs-modal.ls.ls.ls.ls.ls .modal-box > .modal-mobile-back-
 .clients-scroll-list .clients-table td{height:60px!important;padding:14px 12px!important;vertical-align:middle!important;}
 .clients-scroll-list .clients-table .client-row{cursor:pointer!important;}
 .clients-scroll-list .clients-table .status{min-width:42px!important;}
+/* Client unique number (CLT-NNN) shown in the first column, before the name. */
+.clients-scroll-list .clients-table .client-code{
+  font-weight:800;direction:ltr;unicode-bidi:plaintext;color:var(--primary);
+  white-space:nowrap;letter-spacing:.01em;
+}
 @media(max-width:620px){
-  .clients-scroll-list .clients-table th:nth-child(2),
-  .clients-scroll-list .clients-table td:nth-child(2){display:none!important;}
   .clients-scroll-list .clients-table td{height:56px!important;padding:12px 10px!important;}
-  /* The generic rule `.table th:nth-child(3) { display: none }` at the
-   * very top of the file (line ~34) hides the 3rd column on every
-   * .table at ≤620px. For the clients table that's the GREEN "active
-   * cases" badge — re-enable it here so both the active (green) and
-   * closed (red) columns show side-by-side on mobile. Higher
-   * specificity than the generic rule + !important wins. */
-  .clients-scroll-list .clients-table th:nth-child(3),
-  .clients-scroll-list .clients-table td:nth-child(3){
-    display: table-cell !important;
-  }
+  /* Columns are now: 1 number, 2 name, 3 phone, 4 active, 5 closed. The generic
+   * rule `.table th:nth-child(3){display:none}` (top of file, ≤620px) hides the
+   * 3rd column — now the PHONE — which is exactly what we want on mobile, so the
+   * mobile list shows: number, name, active, closed. No per-column override
+   * needed here anymore. */
 }
 
 /* ============================================================ *

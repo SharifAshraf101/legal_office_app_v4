@@ -52,6 +52,7 @@ export function ClientsScreen() {
     );
   }, [state.clients, query]);
 
+  const numberHead = lang === 'ar' ? 'رقم الموكل' : 'מספר לקוח';
   const clientHead = lang === 'ar' ? 'اسم الموكل' : 'שם לקוח';
   const phoneHead = lang === 'ar' ? 'الهاتف' : 'טלפון';
   const activeHead = lang === 'ar' ? 'ملفات نشطة' : 'תיקים פעילים';
@@ -86,6 +87,7 @@ export function ClientsScreen() {
           <table className="table clients-table">
             <thead>
               <tr>
+                <th>{numberHead}</th>
                 <th>{clientHead}</th>
                 <th>{phoneHead}</th>
                 <th>{activeHead}</th>
@@ -103,6 +105,11 @@ export function ClientsScreen() {
                     data-id={c.id}
                     onClick={() => openClient(c.id)}
                   >
+                    <td data-col="number" data-label={numberHead}>
+                      <span className="client-code" dir="ltr">
+                        {c.id}
+                      </span>
+                    </td>
                     <td data-col="client">
                       <div className="row-title">{displayName}</div>
                       <div className="sub">
