@@ -100,9 +100,58 @@ export function calendarHearingNatureFallback(
  *  render the note as a SECONDARY line and put the case details on top instead
  *  of letting the note become the event's bold title. */
 export function isHearingImportNote(text: string | undefined | null): boolean {
-  return /מועד זה יובא|מועד זה אוחד|أُدرج هذا الموعد|دُمج هذا الموعد/.test(
+  return /מועד זה יובא|מועד הדיון יובא|מועד זה אוחד|أُدرج هذا الموعد|أُدرج موعد الجلسة|دُمج هذا الموعد/.test(
     String(text ?? ''),
   );
+}
+
+/** True when a piece of text looks like the CONTENT / summary of a judicial
+ *  decision or protocol (as opposed to one of our clean import notes). Used as a
+ *  display guard so a hearing's calendar line NEVER shows decision content even
+ *  if a stale event still carries it — we show a clean "imported from a decision
+ *  by the AI" note instead. */
+function looksLikeDecisionContent(text: string | undefined | null): boolean {
+  const t = String(text ?? '').trim();
+  if (!t || isHearingImportNote(t)) return false;
+  return (
+    t.length > 60 ||
+    /החלט|בית המשפט|בית הדין|פסק[- ]?דין|פרוטוקול|قرر|المحكمة|المحكمه|حكم|محضر/.test(t)
+  );
+}
+
+/** The calendar's SECOND line for an event. For an AI-imported hearing it is the
+ *  clean import note; if a hearing still carries the decision's content/summary
+ *  it is replaced with a canonical "imported from a judicial decision by the AI"
+ *  note — the decision content is never shown in the calendar. Other events show
+ *  their nature/title. */
+export function calendarSecondaryLine(
+  item: CalendarEvent | TimelineItem,
+  lang: Lang,
+): string {
+  const title = calendarItemTitle(item, lang);
+  const type = String(item.type ?? '');
+  if (!['hearing', 'hearingMeeting', 'meeting'].includes(type)) return title;
+  const descHe = String((item as CalendarEvent).description ?? '');
+  const descAr = String((item as CalendarEvent).descriptionAr ?? '');
+  // A clean import/merge note is already present → show it as-is.
+  if (
+    isHearingImportNote(title) ||
+    isHearingImportNote(descHe) ||
+    isHearingImportNote(descAr)
+  ) {
+    return title;
+  }
+  // Decision/protocol content leaked into the event → show a clean note instead.
+  if (
+    looksLikeDecisionContent(title) ||
+    looksLikeDecisionContent(descHe) ||
+    looksLikeDecisionContent(descAr)
+  ) {
+    return lang === 'ar'
+      ? 'أُدرج موعد الجلسة من قرار قضائي بواسطة الذكاء الاصطناعي (AI).'
+      : 'מועד הדיון יובא מהחלטה שיפוטית על ידי הבינה המלאכותית (AI).';
+  }
+  return title;
 }
 
 export function calendarItemTitle(

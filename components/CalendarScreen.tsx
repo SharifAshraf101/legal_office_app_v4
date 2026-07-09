@@ -11,6 +11,7 @@ import {
   calendarCaseParts,
   calendarDateValue,
   calendarItemTitle,
+  calendarSecondaryLine,
   calendarLocale,
   calendarRangeTitle,
   calendarText,
@@ -240,7 +241,9 @@ function WeekView({ focus, items }: { focus: Date; items: ReturnType<typeof cale
                         })}{' '}
                         · {calendarCaseLine(parts, title)}
                       </div>
-                      <div className="calendar-week-event-details">{title}</div>
+                      <div className="calendar-week-event-details">
+                        {calendarSecondaryLine(entry.item, lang)}
+                      </div>
                     </div>
                   );
                 })
@@ -310,7 +313,9 @@ function MonthView({ focus, items }: { focus: Date; items: ReturnType<typeof cal
                     <span className="cal-event-title">
                       {calendarCaseLine(parts, title)}
                     </span>
-                    <span className="cal-event-details">{title}</span>
+                    <span className="cal-event-details">
+                      {calendarSecondaryLine(entry.item, lang)}
+                    </span>
                   </div>
                 );
               })}

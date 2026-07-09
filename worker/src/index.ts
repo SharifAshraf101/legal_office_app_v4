@@ -312,15 +312,6 @@ function hearingSourceType(
   return 'other';
 }
 
-// True when a description is one of OUR own AI import/merge notes (safe to
-// replace), as opposed to real content transferred by the make.com pipeline
-// (e.g. a decision summary) — which must be PRESERVED, never overwritten.
-function isOurHearingNote(desc: string | undefined | null): boolean {
-  return /מועד זה יובא|מועד זה אוחד|הובא אוטומטית על ידי הבינה|أُدرج هذا الموعد|دُمج هذا الموعد|أُدرج تلقائياً/.test(
-    String(desc ?? ''),
-  );
-}
-
 // Consolidate AI-imported HEARING events so that each (case, calendar day) has a
 // SINGLE calendar event, and annotate WHERE it came from:
 //   • same day, one source (e.g. only a decision, or a document duplicated by
@@ -361,24 +352,21 @@ async function consolidateHearings(env: Env): Promise<void> {
   const now = new Date().toISOString();
   const toDelete: string[] = [];
   for (const group of groups.values()) {
-    // Prefer keeping an event that carries REAL pipeline content (a description
-    // that isn't one of our own notes) so a decision summary transferred from
-    // make.com is never lost when we merge same-day events. Otherwise keep the
-    // earliest.
-    const keep =
-      group.find((r) => {
-        const d = String(r.description ?? '').trim();
-        return d && !isOurHearingNote(d);
-      }) ?? group[0];
-    for (const r of group) if (r.id !== keep.id) toDelete.push(r.id);
-    // Never overwrite pipeline content: if the kept event already has a real
-    // description (e.g. the decision summary), leave it as-is.
-    const cur = String(keep.description ?? '').trim();
-    if (cur && !isOurHearingNote(cur)) continue;
+    // Determine the source(s) of this same-day hearing FIRST — a hearing that
+    // came from a judicial decision/protocol must NEVER carry the decision's
+    // content/summary in the calendar; it shows ONLY the date + a clean note.
     const sources = new Set(group.map(hearingSourceType));
     sources.delete('other');
     const hasInv = sources.has('invitation');
     const hasDec = sources.has('decision');
+    const isImported = hasInv || hasDec;
+    // Keep the earliest event (stable). We deliberately do NOT prefer the event
+    // that carries the decision text — for a decision/protocol hearing that text
+    // must be discarded from the calendar (it still lives in file_summary /
+    // documents). Manual hearings (source 'other') are left completely alone.
+    const keep = group[0];
+    for (const r of group) if (r.id !== keep.id) toDelete.push(r.id);
+    if (!isImported) continue;
     let he = '';
     let ar = '';
     if (sources.size >= 2) {
@@ -398,14 +386,17 @@ async function consolidateHearings(env: Env): Promise<void> {
       he = 'מועד זה יובא מהזמנה לדיון על ידי הבינה המלאכותית (AI).';
       ar = 'أُدرج هذا الموعد من دعوة/تبليغ لجلسة بواسطة الذكاء الاصطناعي (AI).';
     } else if (hasDec) {
-      he = 'מועד זה יובא מהחלטה שיפוטית על ידי הבינה המלאכותית (AI).';
-      ar = 'أُدرج هذا الموعد من قرار قضائي بواسطة الذكاء الاصطناعي (AI).';
+      he = 'מועד הדיון יובא מהחלטה שיפוטית על ידי הבינה המלאכותית (AI).';
+      ar = 'أُدرج موعد الجلسة من قرار قضائي بواسطة الذكاء الاصطناعي (AI).';
     }
+    // ALWAYS overwrite the description for an imported hearing — even if it
+    // currently holds the decision summary — so the calendar shows only the
+    // clean note, never the decision content or its abridgement.
     if (he && String(keep.description ?? '') !== he) {
       await env.DB.prepare(
-        'UPDATE calendar_events SET description = ?2, description_ar = ?3, updated_at = ?4 WHERE user_id = ?1 AND id = ?5',
+        'UPDATE calendar_events SET description = ?2, description_ar = ?3, title = ?6, title_ar = ?7, updated_at = ?4 WHERE user_id = ?1 AND id = ?5',
       )
-        .bind(env.USER_ID, he, ar, now, keep.id)
+        .bind(env.USER_ID, he, ar, now, keep.id, 'דיון', 'جلسة')
         .run();
     }
   }

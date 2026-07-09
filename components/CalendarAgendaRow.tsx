@@ -6,8 +6,8 @@ import { useT } from '@/hooks/useT';
 import {
   calendarCaseLine,
   calendarCaseParts,
-  calendarItemTitle,
   calendarLocale,
+  calendarSecondaryLine,
   eventTypeLabel,
   type CalendarItem,
 } from '@/lib/calendar';
@@ -37,15 +37,16 @@ export function CalendarAgendaRow({ entry }: { entry: CalendarItem }) {
     minute: '2-digit',
   });
 
-  const title = calendarItemTitle(item, lang) || eventTypeLabel(type, lang, t);
   const parts = calendarCaseParts(item.caseId, state.casesArr, state.clients, lang);
 
   // ALWAYS show the CASE DETAILS (client · case type · court · case number) as
   // the bold first line for every event, and the event nature / AI-import note
-  // on the second line (per the office's request). For AI-imported hearings the
-  // "title" is the import note — never the decision content — so the second
-  // line naturally states that the date was imported from a decision by the AI.
+  // on the second line (per the office's request). For a hearing imported from a
+  // judicial decision/protocol the second line is a clean "imported by the AI"
+  // note — never the decision content — via calendarSecondaryLine.
   const caseLine = calendarCaseLine(parts, eventTypeLabel(type, lang, t));
+  const secondary =
+    calendarSecondaryLine(item, lang) || eventTypeLabel(type, lang, t);
 
   return (
     <div
@@ -77,7 +78,7 @@ export function CalendarAgendaRow({ entry }: { entry: CalendarItem }) {
           {caseLine}
         </div>
         <div className="calendar-agenda-details">
-          <span>{title}</span>
+          <span>{secondary}</span>
         </div>
       </div>
     </div>

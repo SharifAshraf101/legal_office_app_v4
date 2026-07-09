@@ -5,8 +5,8 @@ import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import {
   calendarCaseParts,
-  calendarItemTitle,
   calendarLocale,
+  calendarSecondaryLine,
   eventTypeLabel,
   isHearingImportNote,
 } from '@/lib/calendar';
@@ -49,17 +49,18 @@ export function CalendarEventDetail({ source, id }: CalendarEventDetailProps) {
     modalStack.open(<CalendarEventEdit source={source} id={id} />);
   };
 
-  // calendarItemTitle handles the generic-title fallback to a nature string.
-  const titleText = calendarItemTitle(item, lang) || eventTypeLabel(String(item.type ?? ''), lang, t);
-  // For AI-imported hearings the "title" is really the import note. Show the
-  // event nature (e.g. "מועד דיון") as מהות המועד, and the note in its own row.
-  const isImport = isHearingImportNote(titleText);
-  const rawTitle =
-    lang === 'ar' ? item.titleAr || item.title : item.title || item.titleAr;
+  // The second line: for an AI-imported hearing (or one that still carries the
+  // decision's content) this is a clean "imported from a judicial decision by
+  // the AI" note — never the decision content itself.
+  const secondary =
+    calendarSecondaryLine(item, lang) || eventTypeLabel(String(item.type ?? ''), lang, t);
+  // When that line is an import note, show a generic nature (e.g. "מועד דיון")
+  // as מהות המועד and the note in its own row — never the decision content.
+  const isImport = isHearingImportNote(secondary);
   const natureText = isImport
-    ? rawTitle || eventTypeLabel(String(item.type ?? ''), lang, t)
-    : titleText;
-  const importNote = isImport ? titleText : '';
+    ? eventTypeLabel(String(item.type ?? ''), lang, t)
+    : secondary;
+  const importNote = isImport ? secondary : '';
   const parts = calendarCaseParts(item.caseId, state.casesArr, state.clients, lang);
   const rawDate =
     source === 'task'
