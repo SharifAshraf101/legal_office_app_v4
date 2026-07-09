@@ -309,6 +309,15 @@ function hearingSourceType(
   return 'other';
 }
 
+// True when a description is one of OUR own AI import/merge notes (safe to
+// replace), as opposed to real content transferred by the make.com pipeline
+// (e.g. a decision summary) — which must be PRESERVED, never overwritten.
+function isOurHearingNote(desc: string | undefined | null): boolean {
+  return /מועד זה יובא|מועד זה אוחד|הובא אוטומטית על ידי הבינה|أُدرج هذا الموعد|دُمج هذا الموعد|أُدرج تلقائياً/.test(
+    String(desc ?? ''),
+  );
+}
+
 // Consolidate AI-imported HEARING events so that each (case, calendar day) has a
 // SINGLE calendar event, and annotate WHERE it came from:
 //   • same day, one source (e.g. only a decision, or a document duplicated by
@@ -349,8 +358,20 @@ async function consolidateHearings(env: Env): Promise<void> {
   const now = new Date().toISOString();
   const toDelete: string[] = [];
   for (const group of groups.values()) {
-    const keep = group[0];
-    for (let i = 1; i < group.length; i++) toDelete.push(group[i].id);
+    // Prefer keeping an event that carries REAL pipeline content (a description
+    // that isn't one of our own notes) so a decision summary transferred from
+    // make.com is never lost when we merge same-day events. Otherwise keep the
+    // earliest.
+    const keep =
+      group.find((r) => {
+        const d = String(r.description ?? '').trim();
+        return d && !isOurHearingNote(d);
+      }) ?? group[0];
+    for (const r of group) if (r.id !== keep.id) toDelete.push(r.id);
+    // Never overwrite pipeline content: if the kept event already has a real
+    // description (e.g. the decision summary), leave it as-is.
+    const cur = String(keep.description ?? '').trim();
+    if (cur && !isOurHearingNote(cur)) continue;
     const sources = new Set(group.map(hearingSourceType));
     sources.delete('other');
     const hasInv = sources.has('invitation');
@@ -1239,7 +1260,12 @@ async function handleSplitDecision(request: Request, env: Env): Promise<Response
     return json({ error: 'invalid json' }, request, env, 400);
   }
   const summary = String(body.summary ?? '').trim();
-  const lang = String(body.lang ?? 'he').trim().toLowerCase();
+  // Distinguish "no language requested" (e.g. the make.com pipeline) from an
+  // explicit 'he'/'ar'. The app forces a language; the pipeline sends none, and
+  // must get the decision summary back in the SUMMARY'S OWN language (regression
+  // fix: previously the missing lang defaulted to 'he' and translated Arabic
+  // decision summaries into Hebrew).
+  const langSent = String(body.lang ?? '').trim().toLowerCase();
   const lawyerName =
     DEFAULT_LAWYER_NAME +
     (String(body.lawyer_name || '').trim()
@@ -1260,9 +1286,11 @@ async function handleSplitDecision(request: Request, env: Env): Promise<Response
     'סיכום המסמך:\n' +
     summary +
     '\n\n' +
-    (lang === 'ar'
+    (langSent === 'ar'
       ? 'اكتب قيم الحقول decision و rest و task_title باللغة العربية فقط. '
-      : 'כתוב את הערכים בשדות decision, rest, task_title בעברית בלבד. ') +
+      : langSent === 'he'
+        ? 'כתוב את הערכים בשדות decision, rest, task_title בעברית בלבד. '
+        : 'כתוב את הערכים בשדות decision, rest ו-task_title באותה שפה שבה כתוב הסיכום שקיבלת — אל תתרגם לשפה אחרת. ') +
     'החזר JSON: {"decision":"ההחלטה/ההוראה האופרטיבית של בית המשפט בלשון תמציתית; אם אין החלטה אופרטיבית ברורה השאר מחרוזת ריקה","rest":"שאר תוכן המסמך (רקע/עובדות/נימוקים/מהלך הדיון) בתמצית","task_title":"רק אם ההחלטה מחייבת אותנו בפעולת תגובה דיונית (להגיב/להשיב/לנמק/להגיש תגובה) — נסח את הפעולה שעלינו לבצע; אחרת (כולל חיוב כספי או חובה על הצד שכנגד) השאר ריק","task_due_date":"תאריך היעד לביצוע המשימה בפורמט YYYY-MM-DD אם מצוין, אחרת ריק","hearing_date":"תאריך מועד הדיון/הישיבה הבא בפורמט YYYY-MM-DD אם נקבע בהחלטה, אחרת ריק","hearing_time":"שעת הדיון בפורמט HH:MM אם צוינה, אחרת ריק"}.';
 
   let decision = '';
