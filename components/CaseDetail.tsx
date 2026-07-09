@@ -1295,6 +1295,12 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // Per-document cache of the composed decision split ('' = checked, no split),
   // so re-renders / language toggles restore it without re-calling the AI.
   const splitCacheRef = useRef<Map<string, string>>(new Map());
+  // For Sharia / Christian / Druze courts (forceArabicCourt) the "משימה שנוצרה"
+  // box must read in Arabic ONLY. The decision split runs in Arabic for these
+  // courts, so we capture its Arabic task title here (cached per document) and
+  // prefer it over the stored task / D1 description, which may be Hebrew.
+  const taskArCacheRef = useRef<Map<string, string>>(new Map());
+  const [decisionTaskAr, setDecisionTaskAr] = useState<string | null>(null);
   // The language the "פענוח המסמך" box renders in — the DOCUMENT's own
   // language. The reply-draft card must match it (Arabic doc → Arabic draft).
   const [docLang, setDocLang] = useState<'ar' | 'he' | null>(null);
@@ -1404,12 +1410,16 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     const primary = primaryDoc;
     if (docSummary == null) {
       setDecodeText(null);
+      setDecisionTaskAr(null);
       return;
     }
     if (!primary) {
       setDecodeText(docSummary);
+      setDecisionTaskAr(null);
       return;
     }
+    // Restore the cached Arabic task title (if any) for this document.
+    setDecisionTaskAr(taskArCacheRef.current.get(primary.id) || null);
     const cached = splitCacheRef.current.get(primary.id);
     if (cached) {
       setDecodeText(cached); // restore composed split (no re-call)
@@ -1461,6 +1471,13 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       //     with its deadline, tagged as AI-imported in the notes (so the
       //     imported deadline is marked as coming from the AI).
       const title = split.taskTitle.trim();
+      // For Arabic-only courts the split ran in Arabic, so `title` is Arabic —
+      // remember it (cached per document) as the text the "משימה שנוצרה" box
+      // must show, overriding any Hebrew stored task / D1 description.
+      if (forceArabicCourt) {
+        taskArCacheRef.current.set(primary.id, title);
+        setDecisionTaskAr(title || null);
+      }
       if (title) {
         const taskKey = decisionTaskKey(caseId, title);
         const exists = state.tasksArr.some(
@@ -2434,10 +2451,17 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                           // AI-pulled one, say so explicitly ("אין משימה לביצוע")
                           // and hide the "פתח משימה" button — there's nothing to
                           // open.
-                          const taskText =
-                            firstUrgentTask?.title ||
-                            decisionInfo?.taskDescription ||
-                            '';
+                          // Sharia / Christian / Druze courts → the box reads in
+                          // Arabic ONLY: prefer the Arabic decision-task title,
+                          // then any Arabic stored/D1 text, never Hebrew.
+                          const taskText = forceArabicCourt
+                            ? decisionTaskAr ||
+                              decisionInfo?.taskDescription ||
+                              firstUrgentTask?.title ||
+                              ''
+                            : firstUrgentTask?.title ||
+                              decisionInfo?.taskDescription ||
+                              '';
                           const hasTask = !!taskText;
                           return (
                             <AIActionCard
