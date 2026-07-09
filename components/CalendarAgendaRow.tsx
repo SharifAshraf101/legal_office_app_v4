@@ -8,6 +8,7 @@ import {
   calendarItemTitle,
   calendarLocale,
   eventTypeLabel,
+  isHearingImportNote,
   type CalendarItem,
 } from '@/lib/calendar';
 import { CalendarEventDetail } from './CalendarEventDetail';
@@ -39,6 +40,15 @@ export function CalendarAgendaRow({ entry }: { entry: CalendarItem }) {
   const title = calendarItemTitle(item, lang) || eventTypeLabel(type, lang, t);
   const parts = calendarCaseParts(item.caseId, state.casesArr, state.clients, lang);
 
+  // For AI-imported hearings the "title" is really the import note. Show the
+  // CASE DETAILS as the bold first line and the note as the second line
+  // (per the office's request), instead of the note as the title.
+  const isImport = isHearingImportNote(title);
+  const caseLine =
+    [parts.client, parts.caseType, parts.court, parts.caseNumber]
+      .filter((p) => p && p !== '-')
+      .join(' · ') || eventTypeLabel(type, lang, t);
+
   return (
     <div
       className="calendar-agenda-row"
@@ -66,13 +76,19 @@ export function CalendarAgendaRow({ entry }: { entry: CalendarItem }) {
           >
             <i className={'fas ' + (isTask ? 'fa-list-check' : 'fa-calendar-check')} />
           </span>
-          {title}
+          {isImport ? caseLine : title}
         </div>
         <div className="calendar-agenda-details">
-          <span>{parts.client}</span>
-          <span>{parts.caseType}</span>
-          <span>{parts.court}</span>
-          <span>{parts.caseNumber}</span>
+          {isImport ? (
+            <span>{title}</span>
+          ) : (
+            <>
+              <span>{parts.client}</span>
+              <span>{parts.caseType}</span>
+              <span>{parts.court}</span>
+              <span>{parts.caseNumber}</span>
+            </>
+          )}
         </div>
       </div>
     </div>

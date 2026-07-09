@@ -95,6 +95,16 @@ export function calendarHearingNatureFallback(
 }
 
 /** Source line 4079. */
+/** True when a piece of text is one of the AI import/merge notes we attach to
+ *  hearings ("מועד זה יובא…" / "מועד זה אוחד…"). Used so the calendar row can
+ *  render the note as a SECONDARY line and put the case details on top instead
+ *  of letting the note become the event's bold title. */
+export function isHearingImportNote(text: string | undefined | null): boolean {
+  return /מועד זה יובא|מועד זה אוחד|أُدرج هذا الموعد|دُمج هذا الموعد/.test(
+    String(text ?? ''),
+  );
+}
+
 export function calendarItemTitle(
   item: CalendarEvent | TimelineItem,
   lang: Lang,
