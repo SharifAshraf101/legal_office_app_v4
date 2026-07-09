@@ -82,6 +82,7 @@ export function CasesScreen() {
           <table className="table">
             <thead>
               <tr>
+                <th>{lang === 'ar' ? 'الرقم المميز' : 'מספר ייחודי'}</th>
                 <th>{t('caseType')}</th>
                 <th>{t('clientName')}</th>
                 <th>{t('court')}</th>
@@ -105,6 +106,14 @@ export function CasesScreen() {
                     data-id={c.id}
                     onClick={() => openCase(c.id)}
                   >
+                    <td
+                      data-col="number"
+                      data-label={lang === 'ar' ? 'الرقم المميز' : 'מספר ייחודי'}
+                    >
+                      <span className="case-code" dir="ltr">
+                        {c.id}
+                      </span>
+                    </td>
                     <td data-col="case">
                       <div className="row-title">{caseName(c, lang)}</div>
                       <div className="sub">

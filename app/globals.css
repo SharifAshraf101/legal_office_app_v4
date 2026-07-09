@@ -1563,6 +1563,11 @@ html body .modal.case-docs-modal.ls.ls.ls.ls.ls .modal-box > .modal-mobile-back-
   font-weight:800;direction:ltr;unicode-bidi:plaintext;color:var(--primary);
   white-space:nowrap;letter-spacing:.01em;
 }
+/* Case unique number (CS-NNN) shown in the first column, before the case type. */
+.cases-scroll-list .table .case-code{
+  font-weight:800;direction:ltr;unicode-bidi:plaintext;color:var(--primary);
+  white-space:nowrap;letter-spacing:.01em;
+}
 @media(max-width:620px){
   .clients-scroll-list .clients-table td{height:56px!important;padding:12px 10px!important;}
   /* Columns are now: 1 number, 2 name, 3 phone, 4 active, 5 closed. The generic
@@ -41442,3 +41447,30 @@ html body.professional.dark.dark .tasks-screen-panel .tasks-quick-filters .tasks
 html body.professional.dark .portal-bot-bubble.bot{color: #c0c0c0 !important;background: #143a63 !important;background-color: #143a63 !important}
 body.professional.dark .modal.case-brain-modal .case-brain-header{background: #06152c !important;background-color: #06152c !important}
 /* === END generated professional-theme overrides === */
+
+/* ============================================================ *
+ * Cases screen (mobile card): show the case UNIQUE number (CS-NNN).
+ * The mobile view is a compact grid card keyed by data-col, and any
+ * cell not explicitly placed collapses (grid-auto-rows:0). So we add
+ * a 2nd grid row and pin the number cell there, under the case type.
+ * Appended at end-of-file so it wins the ordering vs. the card grid
+ * rule (same specificity, later wins).
+ * ============================================================ */
+@media (max-width: 620px) {
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row.case-row.case-row.case-row.case-row {
+    grid-template-rows: auto auto !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="number"] {
+    grid-row: 2 !important;
+    grid-column: 2 !important;
+    display: flex !important;
+    align-items: center !important;
+    height: auto !important;
+    min-height: 0 !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    color: var(--primary) !important;
+  }
+}
