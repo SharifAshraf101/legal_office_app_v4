@@ -441,6 +441,10 @@ export async function splitDecisionSummary(
   /** Our office/lawyer name — a task is only created when the decision
    *  obligates OUR client (this lawyer's client) to a procedural response. */
   lawyerName?: string,
+  /** The case's client — the party WE represent. Lets the model tell which
+   *  side (plaintiff/defendant) is ours, so the task is the one imposed on our
+   *  client, not the opposing party. */
+  clientName?: string,
 ): Promise<{
   decision: string;
   rest: string;
@@ -460,7 +464,12 @@ export async function splitDecisionSummary(
         Authorization: 'Bearer ' + APP_TOKEN,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ summary: text, lang, lawyer_name: lawyerName }),
+      body: JSON.stringify({
+        summary: text,
+        lang,
+        lawyer_name: lawyerName,
+        client_name: clientName,
+      }),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as {

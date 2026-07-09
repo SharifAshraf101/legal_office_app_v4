@@ -1439,11 +1439,27 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       return;
     }
     let cancelled = false;
+    // The party WE represent (the case's client) — pass both spellings so the
+    // model can tell which side (plaintiff/defendant) is ours and create the
+    // task only for the obligation imposed on OUR client, not the other side.
+    const caseForClient = state.casesArr.find(
+      (x) => String(x.id) === String(caseId),
+    );
+    const clientForSplit = caseForClient
+      ? state.clients.find((x) => x.id === caseForClient.clientId)
+      : undefined;
+    const clientNameForSplit = clientForSplit
+      ? [clientForSplit.name, clientForSplit.nameAr]
+          .map((s) => (s || '').trim())
+          .filter(Boolean)
+          .join(' / ')
+      : '';
     (async () => {
       const split = await splitDecisionSummary(
         docSummary,
         docLang || lang,
         state.officeName || undefined,
+        clientNameForSplit || undefined,
       );
       if (cancelled) return;
       if (!split || !split.decision) {
@@ -1730,6 +1746,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       // Include the court, target language AND the document count in the key so
       // that changing the court/language, or the set of filed documents,
       // regenerates a stage-appropriate suggestion instead of a stale one.
+      // The suggestion is chosen AGAINST / IN LIGHT OF the decoded content of
+      // the last document (the "פענוח המסמך האחרון" box) — for a decision that's
+      // the split form (operative decision first). Fall back to the plain
+      // summary when the decode text isn't ready.
+      const decisionContent = (decodeText || docSummary || '').trim();
       const suggestKey =
         'suggest:' +
         caseId +
@@ -1740,14 +1761,18 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         ':' +
         suggestLang +
         ':n' +
-        caseDocCount;
+        caseDocCount +
+        // Regenerate once the decode box switches from the plain summary to the
+        // operative-decision split, so the suggestion reflects the decision.
+        ':d' +
+        decisionContent.length;
       if (summaryLoaded && !genAttempts.has(suggestKey)) {
         rememberGenAttempt(genAttempts, suggestKey);
         const gen = await generateSuggestedAction({
           caseId,
           clientId: caseObj?.clientId,
           court,
-          docSummary: docSummary || '',
+          docSummary: decisionContent,
           documentName: primaryDoc?.fileName,
           lang: suggestLang,
         });
@@ -1763,6 +1788,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     lang,
     summaryLoaded,
     docSummary,
+    decodeText,
     primaryDoc,
     state.casesArr,
     state.documentsArr,
