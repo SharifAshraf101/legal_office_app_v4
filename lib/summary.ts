@@ -250,6 +250,48 @@ export function isRtlText(text?: string | null): boolean {
   return false;
 }
 
+/** True when the text contains any HEBREW letters (Hebrew block or Hebrew
+ *  presentation forms) — used to decide whether a task string still needs to be
+ *  translated into Arabic for the Sharia / Druze / Christian courts. */
+export function hasHebrewText(text?: string | null): boolean {
+  const s = text || '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if ((c >= 0x0590 && c <= 0x05ff) || (c >= 0xfb1d && c <= 0xfb4f)) return true;
+  }
+  return false;
+}
+
+// Module-level cache so a given source string is translated at most once per
+// session (the case-brain re-renders often; translation is a paid AI call).
+const translateCache = new Map<string, string>();
+
+/** Translate a short string into Arabic via the Worker's /api/translate. Falls
+ *  back to the original text on any failure. Cached per source string. */
+export async function translateToArabic(text: string): Promise<string> {
+  const key = (text || '').trim();
+  if (!key) return '';
+  const cached = translateCache.get(key);
+  if (cached != null) return cached;
+  try {
+    const res = await fetch(WORKER_URL + '/api/translate', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + APP_TOKEN,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text: key, target: 'ar' }),
+    });
+    if (!res.ok) return key;
+    const data = (await res.json()) as { ok?: boolean; text?: string };
+    const out = (data.text || key).trim();
+    translateCache.set(key, out);
+    return out;
+  } catch {
+    return key;
+  }
+}
+
 /** True when a case's court is a religious court whose proceedings are conducted
  *  in Arabic — the Sharia (Muslim), Druze, or Christian ecclesiastical courts.
  *  Documents filed there are summarized in Arabic regardless of the language of

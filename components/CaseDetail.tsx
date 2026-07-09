@@ -20,6 +20,8 @@ import {
   fetchDocumentSummaryBoth,
   pickNativeSummary,
   isRtlText,
+  hasHebrewText,
+  translateToArabic,
   isArabicOnlyCourt,
   caseCourtTrackLabel,
   resolveDocLang,
@@ -1301,6 +1303,10 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // prefer it over the stored task / D1 description, which may be Hebrew.
   const taskArCacheRef = useRef<Map<string, string>>(new Map());
   const [decisionTaskAr, setDecisionTaskAr] = useState<string | null>(null);
+  // The final Arabic text for the "משימה שנוצרה" box in Arabic-only courts. When
+  // the resolved task text is Hebrew (a stored task / D1 description) it's
+  // translated to Arabic; null while translating. Only used when forceArabicCourt.
+  const [taskArText, setTaskArText] = useState<string | null>(null);
   // The language the "פענוח המסמך" box renders in — the DOCUMENT's own
   // language. The reply-draft card must match it (Arabic doc → Arabic draft).
   const [docLang, setDocLang] = useState<'ar' | 'he' | null>(null);
@@ -1799,6 +1805,51 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // import (creating the Task + hearing event) is shared with the main
   // CaseDetail via useCaseDecisionImport.
   const decisionInfo = useCaseDecisionImport(caseId);
+
+  // Sharia / Christian / Druze courts → the "משימה שנוצרה" box must read in
+  // Arabic ONLY. Resolve the task text (Arabic decision-split title first, then
+  // the stored task / D1 description) and, if it still contains Hebrew, translate
+  // it to Arabic. Computed here — before the early return below — so this hook
+  // always runs (stable hook order). Cached per source string in translateToArabic.
+  const firstOpenTaskTitleForCase = (() => {
+    const open = state.tasksArr.filter(
+      (tk) => String(tk.caseId) === String(caseId) && tk.status !== 'done',
+    );
+    const pick =
+      open.find((tk) => tk.priority === 'critical') ||
+      open.find((tk) => tk.priority === 'urgent') ||
+      open[0];
+    return pick?.title || '';
+  })();
+  const taskBaseForArabic = forceArabicCourt
+    ? (
+        decisionTaskAr ||
+        decisionInfo?.taskDescription ||
+        firstOpenTaskTitleForCase ||
+        ''
+      ).trim()
+    : '';
+  useEffect(() => {
+    if (!forceArabicCourt) {
+      setTaskArText(null);
+      return;
+    }
+    if (!taskBaseForArabic) {
+      setTaskArText('');
+      return;
+    }
+    if (!hasHebrewText(taskBaseForArabic)) {
+      setTaskArText(taskBaseForArabic);
+      return;
+    }
+    let cancelled = false;
+    translateToArabic(taskBaseForArabic).then((ar) => {
+      if (!cancelled) setTaskArText(ar || taskBaseForArabic);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [forceArabicCourt, taskBaseForArabic]);
 
   const c = state.casesArr.find((x) => String(x.id) === String(caseId));
   if (!c) return null;
@@ -2478,17 +2529,20 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                           // and hide the "פתח משימה" button — there's nothing to
                           // open.
                           // Sharia / Christian / Druze courts → the box reads in
-                          // Arabic ONLY: prefer the Arabic decision-task title,
-                          // then any Arabic stored/D1 text, never Hebrew.
+                          // Arabic ONLY. taskArText is the resolved task text
+                          // translated to Arabic when needed (null = translating).
                           const taskText = forceArabicCourt
-                            ? decisionTaskAr ||
-                              decisionInfo?.taskDescription ||
-                              firstUrgentTask?.title ||
-                              ''
+                            ? taskArText ?? ''
                             : firstUrgentTask?.title ||
                               decisionInfo?.taskDescription ||
                               '';
-                          const hasTask = !!taskText;
+                          // While the Arabic translation is in flight, treat the
+                          // box as "has a task" so it doesn't flash "no task".
+                          const hasTask = forceArabicCourt
+                            ? taskArText == null
+                              ? !!taskBaseForArabic
+                              : !!taskArText
+                            : !!taskText;
                           return (
                             <AIActionCard
                               // Desktop: moved ABOVE "פענוח המסמך" in its column
@@ -2500,7 +2554,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                               desc={
                                 taskText ||
                                 (forceArabicCourt
-                                  ? 'لا توجد مهمة للتنفيذ'
+                                  ? taskArText == null && taskBaseForArabic
+                                    ? 'جارٍ التحميل…'
+                                    : 'لا توجد مهمة للتنفيذ'
                                   : T.noTaskToDo)
                               }
                               btn={hasTask ? T.openTask : undefined}

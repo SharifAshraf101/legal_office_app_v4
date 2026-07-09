@@ -86,6 +86,9 @@ export default {
     if (method === 'POST' && path === '/api/split-decision') {
       return handleSplitDecision(request, env);
     }
+    if (method === 'POST' && path === '/api/translate') {
+      return handleTranslate(request, env);
+    }
     if (method === 'GET' && path.startsWith('/api/suggested-actions/')) {
       return handleGetSuggestedActions(request, env);
     }
@@ -1363,6 +1366,61 @@ async function handleSplitDecision(request: Request, env: Env): Promise<Response
     request,
     env,
   );
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/translate
+// Translate a short piece of text into a target language (default Arabic).
+// Used by the case-brain so the "משימה שנוצרה" box reads ONLY in Arabic for the
+// Sharia / Christian / Druze courts even when the underlying task text (stored
+// task title or D1 decision description) was written in Hebrew.
+// ---------------------------------------------------------------------------
+async function handleTranslate(request: Request, env: Env): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: 'invalid json' }, request, env, 400);
+  }
+  const text = String(body.text ?? '').trim();
+  const target = String(body.target ?? 'ar').trim().toLowerCase();
+  if (!text) return json({ ok: true, text: '' }, request, env);
+  const targetName =
+    target === 'he' ? 'העברית' : target === 'en' ? 'English' : 'العربية';
+  let out = '';
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': env.ANTHROPIC_API_KEY || '',
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 1000,
+        system:
+          'You are a professional legal translator. Translate the user text into ' +
+          targetName +
+          ' only. Preserve legal meaning, names, numbers and dates exactly. Output ONLY the translation — no quotes, no notes, no transliteration, nothing else.',
+        messages: [{ role: 'user', content: text }],
+      }),
+    });
+    if (resp.ok) {
+      const data = (await resp.json()) as {
+        content?: Array<{ type: string; text?: string }>;
+      };
+      out = (data.content || [])
+        .filter((b) => b.type === 'text')
+        .map((b) => b.text || '')
+        .join('')
+        .trim();
+    }
+  } catch {
+    out = '';
+  }
+  // On any failure return the original text so the caller never shows a blank.
+  return json({ ok: true, text: out || text }, request, env);
 }
 
 // ---------------------------------------------------------------------------
