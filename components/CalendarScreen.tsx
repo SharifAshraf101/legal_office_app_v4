@@ -7,6 +7,7 @@ import { useT } from '@/hooks/useT';
 import { CalendarEventDetail } from './CalendarEventDetail';
 import {
   calendarAllItems,
+  calendarCaseLine,
   calendarCaseParts,
   calendarDateValue,
   calendarItemTitle,
@@ -237,11 +238,9 @@ function WeekView({ focus, items }: { focus: Date; items: ReturnType<typeof cale
                           hour: '2-digit',
                           minute: '2-digit',
                         })}{' '}
-                        · {title}
+                        · {calendarCaseLine(parts, title)}
                       </div>
-                      <div className="calendar-week-event-details">
-                        {parts.client} · {parts.caseType} · {parts.court} · {parts.caseNumber}
-                      </div>
+                      <div className="calendar-week-event-details">{title}</div>
                     </div>
                   );
                 })
@@ -308,10 +307,10 @@ function MonthView({ focus, items }: { focus: Date; items: ReturnType<typeof cal
                       )
                     }
                   >
-                    <span className="cal-event-title">{title}</span>
-                    <span className="cal-event-details">
-                      {parts.client} · {parts.caseType} · {parts.court} · {parts.caseNumber}
+                    <span className="cal-event-title">
+                      {calendarCaseLine(parts, title)}
                     </span>
+                    <span className="cal-event-details">{title}</span>
                   </div>
                 );
               })}

@@ -159,6 +159,22 @@ export function calendarCaseParts(
   };
 }
 
+/** The calendar's FIRST (bold) line for EVERY event: client · case type · court
+ *  · case number, joined with " · " (empty "-" placeholders dropped). Falls
+ *  back to `fallback` (the event nature) only when the item has no case. This
+ *  is used across all calendar views so the case details are always on top and
+ *  the event nature / AI-import note sits on the second line. */
+export function calendarCaseLine(
+  parts: { client: string; caseType: string; court: string; caseNumber: string },
+  fallback: string,
+): string {
+  return (
+    [parts.client, parts.caseType, parts.court, parts.caseNumber]
+      .filter((p) => p && p !== '-')
+      .join(' · ') || fallback
+  );
+}
+
 /** Source line 4307. */
 export function itemDateForAgenda(
   item: (CalendarEvent | TimelineItem) & { dueDateTime?: string },
