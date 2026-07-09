@@ -172,7 +172,7 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
         const hearingExists = state.eventsList.some(
           (e) =>
             String(e.caseId) === String(caseId) &&
-            String(e.type) === 'hearingMeeting' &&
+            String(e.type).toLowerCase().startsWith('hearing') &&
             String(e.dateTime).slice(0, 10) === day,
         );
         if (hearingIso && !decisionImportKeys.has(hearingKey) && !hearingExists) {
@@ -1498,7 +1498,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         const hearingExists = state.eventsList.some(
           (e) =>
             String(e.caseId) === String(caseId) &&
-            String(e.type) === 'hearingMeeting' &&
+            String(e.type).toLowerCase().startsWith('hearing') &&
             String(e.dateTime).slice(0, 10) === hearingDay,
         );
         if (hearingIso && !decisionImportKeys.has(hearingKey) && !hearingExists) {

@@ -291,34 +291,53 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
   );
 }
 
-// Collapse duplicate HEARING events (same case + same calendar day) into one.
-// The make.com pipeline writes one calendar_event per document that references
-// a hearing, using the document's Dropbox PATH as source_id — so the SAME
-// hearing can be inserted several times (different source_ids never collide on
-// the (user_id, source_id) upsert key). Keep the earliest-created row per
-// (case, day) and delete the rest. Only touches hearing-type events; meetings,
-// reminders and other types are left untouched.
+// Remove ONLY same-document duplicate HEARING events. The make.com pipeline can
+// write the SAME document's hearing more than once — e.g. both
+// "…_doc-004.pdf-hearing" and "…_doc-004.pdf" (different source_ids never
+// collide on the (user_id, source_id) upsert key). We collapse those to ONE,
+// keyed by the DOC-NNN id embedded in the source_id (+ case + day). Hearings
+// that come from DIFFERENT documents are KEPT even when they fall on the same
+// day — they are NOT considered duplicates. Only hearing-type events are
+// touched; meetings, reminders and other types are left alone.
 async function dedupeHearings(env: Env): Promise<void> {
-  await env.DB.prepare(
-    `DELETE FROM calendar_events
-     WHERE user_id = ?1
-       AND lower(type) IN ('hearing', 'hearingmeeting')
-       AND id NOT IN (
-         SELECT id FROM (
-           SELECT id,
-             ROW_NUMBER() OVER (
-               PARTITION BY lower(coalesce(case_source_id, '')),
-                            substr(coalesce(date_time, ''), 1, 10)
-               ORDER BY created_at ASC, id ASC
-             ) AS rn
-           FROM calendar_events
-           WHERE user_id = ?1
-             AND lower(type) IN ('hearing', 'hearingmeeting')
-         ) WHERE rn = 1
-       )`,
+  const rs = await env.DB.prepare(
+    `SELECT id, source_id, case_source_id, date_time
+     FROM calendar_events
+     WHERE user_id = ?1 AND lower(type) IN ('hearing', 'hearingmeeting')
+     ORDER BY created_at ASC, id ASC`,
   )
     .bind(env.USER_ID)
-    .run();
+    .all();
+  const rows = (rs.results ?? []) as Array<{
+    id: string;
+    source_id?: string;
+    case_source_id?: string;
+    date_time?: string;
+  }>;
+  const seen = new Set<string>();
+  const toDelete: string[] = [];
+  for (const r of rows) {
+    const sid = String(r.source_id ?? '');
+    const docMatch = /doc-\d+/i.exec(sid);
+    // Same-document identity: the DOC-NNN id when the source_id carries one (so
+    // a single document's repeated events collapse), otherwise the source_id
+    // itself (app events keep their own stable ids and never merge together).
+    const docKey = docMatch ? docMatch[0].toLowerCase() : sid;
+    const day = String(r.date_time ?? '').slice(0, 10);
+    const key =
+      String(r.case_source_id ?? '').toLowerCase() + '|' + docKey + '|' + day;
+    if (seen.has(key)) toDelete.push(r.id);
+    else seen.add(key);
+  }
+  for (let i = 0; i < toDelete.length; i += 50) {
+    const chunk = toDelete.slice(i, i + 50);
+    const ph = chunk.map((_, j) => '?' + (j + 2)).join(', ');
+    await env.DB.prepare(
+      `DELETE FROM calendar_events WHERE user_id = ?1 AND id IN (${ph})`,
+    )
+      .bind(env.USER_ID, ...chunk)
+      .run();
+  }
 }
 
 async function syncCaseNotes(env: Env): Promise<void> {
