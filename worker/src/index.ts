@@ -271,8 +271,9 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
   if (Array.isArray(body.calendar_events)) {
     try {
       await dedupeHearings(env);
+      await annotateHearingSource(env);
     } catch {
-      // never fail the save because the dedup hiccuped
+      // never fail the save because the dedup/annotation hiccuped
     }
   }
   const submitted = LOAD_TABLES.reduce(
@@ -336,6 +337,55 @@ async function dedupeHearings(env: Env): Promise<void> {
       `DELETE FROM calendar_events WHERE user_id = ?1 AND id IN (${ph})`,
     )
       .bind(env.USER_ID, ...chunk)
+      .run();
+  }
+}
+
+// Note in the calendar WHERE each AI-imported hearing came from: an invitation
+// to a hearing ("הזמנה לדיון") vs. a judicial decision ("החלטה שיפוטית"),
+// detected from the source document name / title / existing note. For a
+// decision, the note is ONLY the source marker — never the decision's summary
+// (per the office's request "בלי קיצור ההחלטה"). Runs after a save that
+// includes calendar events; idempotent (skips rows already annotated).
+async function annotateHearingSource(env: Env): Promise<void> {
+  const rs = await env.DB.prepare(
+    `SELECT id, source_id, title, description
+     FROM calendar_events
+     WHERE user_id = ?1 AND lower(type) IN ('hearing', 'hearingmeeting')`,
+  )
+    .bind(env.USER_ID)
+    .all();
+  const rows = (rs.results ?? []) as Array<{
+    id: string;
+    source_id?: string;
+    title?: string;
+    description?: string;
+  }>;
+  const now = new Date().toISOString();
+  for (const r of rows) {
+    const hay = (
+      String(r.source_id ?? '') +
+      ' ' +
+      String(r.title ?? '') +
+      ' ' +
+      String(r.description ?? '')
+    ).toLowerCase();
+    let he = '';
+    let ar = '';
+    if (/הזמנ|זימון|تبليغ|دعوة|إحضار|احضار/.test(hay)) {
+      he = 'מועד זה יובא מהזמנה לדיון על ידי הבינה המלאכותית (AI).';
+      ar = 'أُدرج هذا الموعد من دعوة/تبليغ لجلسة بواسطة الذكاء الاصطناعي (AI).';
+    } else if (/החלט|פסק|פרוטוקול|قرار|حكم|محضر/.test(hay)) {
+      he = 'מועד זה יובא מהחלטה שיפוטית על ידי הבינה המלאכותית (AI).';
+      ar = 'أُدرج هذا الموعد من قرار قضائي بواسطة الذكاء الاصطناعي (AI).';
+    } else {
+      continue;
+    }
+    if (String(r.description ?? '') === he) continue; // already annotated
+    await env.DB.prepare(
+      'UPDATE calendar_events SET description = ?2, description_ar = ?3, updated_at = ?4 WHERE user_id = ?1 AND id = ?5',
+    )
+      .bind(env.USER_ID, he, ar, now, r.id)
       .run();
   }
 }

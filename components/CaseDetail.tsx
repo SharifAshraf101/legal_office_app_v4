@@ -99,6 +99,14 @@ const decisionImportKeys = loadDecisionImportKeys();
 const AI_IMPORT_NOTE_HE = 'הובא אוטומטית על ידי הבינה המלאכותית מתוך ההחלטה';
 const AI_IMPORT_NOTE_AR = 'أُدرج تلقائياً بواسطة الذكاء الاصطناعي من القرار';
 const AI_IMPORT_NOTE_BILINGUAL = `${AI_IMPORT_NOTE_HE} · ${AI_IMPORT_NOTE_AR}`;
+// The app imports hearings only from court DECISIONS (a decision/protocol that
+// sets the next hearing). The calendar note states the source WITHOUT the
+// decision's summary (per the office's rule). The Worker adds the equivalent
+// note to pipeline-created hearings (incl. "invitation to hearing" documents).
+const HEARING_FROM_DECISION_HE =
+  'מועד זה יובא מהחלטה שיפוטית על ידי הבינה המלאכותית (AI).';
+const HEARING_FROM_DECISION_AR =
+  'أُدرج هذا الموعد من قرار قضائي بواسطة الذكاء الاصطناعي (AI).';
 
 /**
  * Fetches the case's decision from Cloudflare D1 and imports its derived
@@ -190,8 +198,8 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
                 title: 'מועד דיון',
                 titleAr: 'موعد جلسة',
                 dateTime: hearingIso,
-                description: AI_IMPORT_NOTE_HE,
-                descriptionAr: AI_IMPORT_NOTE_AR,
+                description: HEARING_FROM_DECISION_HE,
+                descriptionAr: HEARING_FROM_DECISION_AR,
                 type: 'hearingMeeting',
               },
             ],
@@ -1516,8 +1524,8 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                 title: 'מועד דיון',
                 titleAr: 'موعد جلسة',
                 dateTime: hearingIso,
-                description: AI_IMPORT_NOTE_HE,
-                descriptionAr: AI_IMPORT_NOTE_AR,
+                description: HEARING_FROM_DECISION_HE,
+                descriptionAr: HEARING_FROM_DECISION_AR,
                 type: 'hearingMeeting',
               },
             ],
