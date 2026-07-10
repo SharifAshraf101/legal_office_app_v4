@@ -556,11 +556,8 @@ export function NewEventModal({
   return (
     <div
       className="new-event-popup-overlay"
-      onClick={(e) => {
-        // Click on the overlay (not inside the box) closes the popup —
-        // matches the standard Modal backdrop behavior.
-        if (e.target === e.currentTarget) close();
-      }}
+      // No backdrop-click close: this form closes ONLY via the X / cancel /
+      // save buttons, so an accidental outside click never discards input.
       style={{
         position: 'fixed',
         inset: 0,

@@ -164,9 +164,8 @@ export function NewCalendarAppointmentModal() {
   return (
     <div
       className="new-appointment-popup-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) close();
-      }}
+      // No backdrop-click close: this form closes ONLY via the X / cancel /
+      // save buttons, so an accidental outside click never discards input.
       style={{
         position: 'fixed',
         inset: 0,
