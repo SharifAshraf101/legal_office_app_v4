@@ -2482,6 +2482,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         color="purple"
                         icon="fa-file-alt"
                         title={T.docParse}
+                        scrollBody
                         desc={
                           decodeText ||
                           (summaryLoaded
@@ -2505,6 +2506,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         color="blue"
                         icon="fa-pen"
                         title={T.replyDraft}
+                        scrollBody
                         // The actual draft prepared for the decoded document
                         // (D1 `drafts`); falls back while loading / when none.
                         desc={
@@ -2865,6 +2867,7 @@ function AIActionCard({
   onBtnClick,
   className,
   badge,
+  scrollBody = false,
 }: {
   color: 'blue' | 'purple' | 'emerald' | 'orange';
   icon: string;
@@ -2876,6 +2879,10 @@ function AIActionCard({
   className?: string;
   /** Small pill shown next to the title (e.g. the court track "שרעי"). */
   badge?: string;
+  /** Cap the body height and scroll long content instead of growing the card
+   *  (used for the "פענוח המסמך" + "טיוטת תגובה" boxes so they never overflow
+   *  their column). Text structure (line breaks) is preserved. */
+  scrollBody?: boolean;
 }) {
   const c = {
     blue: {
@@ -2931,7 +2938,10 @@ function AIActionCard({
         dir={descDir}
         className={
           'tw-whitespace-pre-line tw-text-[11px] tw-text-slate-600 tw-leading-snug ' +
-          (descDir === 'ltr' ? 'tw-text-left' : 'tw-text-right')
+          (descDir === 'ltr' ? 'tw-text-left' : 'tw-text-right') +
+          (scrollBody
+            ? ' tw-max-h-[260px] tw-overflow-y-auto tw-pl-1 tw-pr-1'
+            : '')
         }
       >
         {desc}
