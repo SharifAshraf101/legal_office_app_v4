@@ -6,6 +6,8 @@ import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { caseName } from '@/lib/cases';
 import { clientDisplayName } from '@/lib/clients';
+import { isArabicOnlyCourt } from '@/lib/summary';
+import { ArabicText } from './ArabicText';
 import {
   sortedTasks,
   taskCase,
@@ -191,7 +193,12 @@ export function TasksScreen() {
                 return (
                   <tr key={task.id} className={due.cls} data-task-row={task.id}>
                     <td>
-                      <div className="row-title">{task.title || ''}</div>
+                      <div className="row-title">
+                        <ArabicText
+                          text={task.title || ''}
+                          toArabic={isArabicOnlyCourt(c.court || c.courtAr)}
+                        />
+                      </div>
                       {task.notes ? <div className="sub">{task.notes}</div> : null}
                     </td>
                     <td>{clientDisplayName(cl, lang) || '-'}</td>
@@ -286,7 +293,10 @@ export function TasksScreen() {
                     )}
                   </div>
                   <div className="task-mobile-line-v135 task-mobile-title-v135">
-                    {task.title || ''}
+                    <ArabicText
+                      text={task.title || ''}
+                      toArabic={isArabicOnlyCourt(c.court || c.courtAr)}
+                    />
                   </div>
                   {/* Due date moved UP one row — now sits directly under
                    *  the title and ABOVE the notes (was previously below

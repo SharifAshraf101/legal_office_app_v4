@@ -266,6 +266,13 @@ export function hasHebrewText(text?: string | null): boolean {
 // session (the case-brain re-renders often; translation is a paid AI call).
 const translateCache = new Map<string, string>();
 
+/** Synchronously return an already-cached Arabic translation of `text`, or null
+ *  if it hasn't been translated yet. Lets a component render the Arabic text on
+ *  the FIRST paint (no Hebrew flash) when it's already in the cache. */
+export function peekArabicTranslation(text: string): string | null {
+  return translateCache.get((text || '').trim()) ?? null;
+}
+
 /** Translate a short string into Arabic via the Worker's /api/translate. Falls
  *  back to the original text on any failure. Cached per source string. */
 export async function translateToArabic(text: string): Promise<string> {

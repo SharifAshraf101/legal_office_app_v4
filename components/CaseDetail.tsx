@@ -9,6 +9,7 @@ import { clientDisplayName } from '@/lib/clients';
 import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { Modal } from './Modal';
+import { ArabicText } from './ArabicText';
 import { CaseLastHearingCard } from './CaseLastHearingCard';
 import { CaseEdit } from './CaseEdit';
 import { CaseStatusWarning } from './CaseStatusWarning';
@@ -837,6 +838,13 @@ function CaseTasksPanel({
   const { state } = useAppState();
   const { t, lang } = useT();
   const items = caseTaskItems(caseId, state.tasksArr);
+  // Sharia / Church / Druze court → every task in this case reads in Arabic.
+  const caseObjForLang = state.casesArr.find(
+    (x) => String(x.id) === String(caseId),
+  );
+  const taskArabicOnly = isArabicOnlyCourt(
+    caseObjForLang?.court || caseObjForLang?.courtAr,
+  );
 
   // Show exactly ONE task at a time inside .case-tasks-list; the rest are
   // reached by scrolling. The list's height is set to a single task's natural
@@ -970,7 +978,12 @@ function CaseTasksPanel({
             return (
               <div key={task.id} className={'case-task-row ' + due.cls}>
                 <div>
-                  <div className="case-task-title">{task.title || ''}</div>
+                  <div className="case-task-title">
+                    <ArabicText
+                      text={task.title || ''}
+                      toArabic={taskArabicOnly}
+                    />
+                  </div>
                   <div className="case-task-meta">
                     <span>{due.text}</span>
                     <span className={'task-status-badge ' + taskStatusClass(task.status)}>
@@ -2282,7 +2295,10 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                       aria-hidden="true"
                     />
                     <span className="tw-text-sm tw-font-bold tw-text-orange-700">
-                      {firstUrgentTask.title || '-'}
+                      <ArabicText
+                        text={firstUrgentTask.title || '-'}
+                        toArabic={forceArabicCourt}
+                      />
                     </span>
                   </div>
                   {firstUrgentTask.dueDate && (
@@ -2768,7 +2784,10 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                               done ? 'tw-line-through tw-text-slate-400' : ''
                             }
                           >
-                            {tk.title || '-'}
+                            <ArabicText
+                              text={tk.title || '-'}
+                              toArabic={forceArabicCourt}
+                            />
                           </span>
                         </li>
                       );
