@@ -1995,10 +1995,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         ? 'إعداد مسودة رد تشمل الإنكار والادعاءات ذات الصلة.'
         : 'הוכנה טיוטת כתב הגנה הכוללת הכחשות וטענות הגנה רלוונטיות.',
     openDraft: lang === 'ar' ? 'افتح المسودة' : 'פתח טיוטה',
-    docParse:
-      lang === 'ar'
-        ? 'تحليل آخر مستند في مستندات الملف'
-        : 'פענוח המסמך האחרון במסמכי התיק',
+    docParse: lang === 'ar' ? 'تحليل المستند' : 'פענוח המסמך',
     docParseDesc:
       lang === 'ar'
         ? 'مطالبة مالية بمبلغ 250,000 شيكل بسبب خرق العقد.'
@@ -2474,7 +2471,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         className="lg:tw-order-3"
                         color="purple"
                         icon="fa-file-alt"
-                        title={T.docParse}
+                        title={
+                          T.docParse +
+                          ' ' +
+                          (primaryDoc.title || primaryDoc.fileName || '-')
+                        }
                         scrollBody
                         desc={
                           decodeText ||
