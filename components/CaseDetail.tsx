@@ -1981,8 +1981,10 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     action: lang === 'ar' ? 'إجراء' : 'פעולה',
     open: lang === 'ar' ? 'افتح' : 'פתח',
     aiAnalyzed: lang === 'ar' ? 'تم التحليل بواسطة AI' : 'נותח על ידי AI',
-    submittedBy:
-      lang === 'ar' ? 'تم تقديمه من قبل الطرف المقابل' : 'הוגש על ידי הצד שכנגד',
+    lastDocReceived:
+      lang === 'ar'
+        ? 'المستند الأخير الذي تم استلامه هو:'
+        : 'המסמך האחרון שהתקבל הוא:',
     replyDraft: lang === 'ar' ? 'مسودة الرد' : 'טיוטת תגובה',
     replyDraftDesc:
       lang === 'ar'
@@ -2445,10 +2447,14 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                      *  expand chevron (visual left). */}
                     <div className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-flex-wrap tw-bg-slate-50 tw-px-4 tw-py-3 tw-text-xs lg:tw-text-sm">
                       <div className="tw-flex tw-items-center tw-gap-2 tw-font-semibold tw-text-slate-900">
-                        <span>{primaryDoc.title || primaryDoc.fileName || '-'}</span>
+                        <span>
+                          <span className="tw-font-normal tw-text-slate-500">
+                            {T.lastDocReceived}{' '}
+                          </span>
+                          {primaryDoc.title || primaryDoc.fileName || '-'}
+                        </span>
                         <i className="fas fa-file tw-text-slate-400" aria-hidden="true" />
                       </div>
-                      <div className="tw-text-slate-500">{T.submittedBy}</div>
                       <span className="tw-rounded-full tw-bg-emerald-100 tw-px-2.5 tw-py-1 tw-font-semibold tw-text-emerald-700">
                         {T.aiAnalyzed}
                       </span>
