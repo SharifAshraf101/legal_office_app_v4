@@ -183,6 +183,10 @@ export interface AppState {
   currentLang: Lang;
   currentTheme: Theme;
   currentTab: string;
+  // Bumped every time the "שער תקשורת עם לקוחות" (portal) tab is (re)selected —
+  // used as a remount key so clicking the sidebar button always returns to the
+  // communication centre's main screen, even when already inside a sub-screen.
+  portalNavNonce: number;
   calendarView: 'list' | 'day' | 'week' | 'month';
   calendarFocusDate: string; // ISO; serialized form so reducer state stays JSON-clean
   selectedFinanceCaseId: string;

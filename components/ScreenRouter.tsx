@@ -51,7 +51,10 @@ export function ScreenRouter() {
     case 'documents':
       return <DocumentsScreen />;
     case 'portal':
-      return <PortalScreen />;
+      // `key` remounts the communication centre whenever the portal tab is
+      // (re)clicked — so the sidebar button returns to its main screen even
+      // when the user is already inside a chat / bot / search sub-screen.
+      return <PortalScreen key={state.portalNavNonce} />;
     case 'search':
       return <GlobalSearchScreen />;
     default:

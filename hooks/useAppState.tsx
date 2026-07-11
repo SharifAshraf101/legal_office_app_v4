@@ -58,6 +58,7 @@ const initialState: AppState = {
   currentLang: 'he',
   currentTheme: 'light',
   currentTab: 'home',
+  portalNavNonce: 0,
   calendarView: 'list',
   calendarFocusDate: new Date().toISOString(),
   selectedFinanceCaseId: '',
@@ -111,7 +112,17 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_THEME':
       return { ...state, currentTheme: action.theme };
     case 'SET_TAB':
-      return { ...state, currentTab: action.tab };
+      // Bump the portal nonce every time the portal tab is selected — including
+      // a re-click while already on it — so ScreenRouter remounts PortalScreen
+      // and the communication centre resets to its main screen.
+      return {
+        ...state,
+        currentTab: action.tab,
+        portalNavNonce:
+          action.tab === 'portal'
+            ? state.portalNavNonce + 1
+            : state.portalNavNonce,
+      };
     case 'SET_CALENDAR_VIEW':
       return { ...state, calendarView: action.view };
     case 'SET_CALENDAR_FOCUS': {
