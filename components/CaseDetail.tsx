@@ -1983,8 +1983,8 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     aiAnalyzed: lang === 'ar' ? 'تم التحليل بواسطة AI' : 'נותח על ידי AI',
     lastDocReceived:
       lang === 'ar'
-        ? 'المستند الأخير الذي تم استلامه هو:'
-        : 'המסמך האחרון שהתקבל הוא:',
+        ? 'المستند الأخير الذي تم استلامه في هذا الملف هو:'
+        : 'המסמך האחרון שהתקבל בתיק זה הוא:',
     replyDraft: lang === 'ar' ? 'مسودة الرد' : 'טיוטת תגובה',
     replyDraftDesc:
       lang === 'ar'
