@@ -1767,7 +1767,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         // Regenerate once the decode box switches from the plain summary to the
         // operative-decision split, so the suggestion reflects the decision.
         ':d' +
-        decisionContent.length;
+        decisionContent.length +
+        // Prompt version — bump to force a one-time regeneration so cached
+        // suggestions pick up the improved (professional legal Arabic, no
+        // transliteration) prompt.
+        ':v3ar';
       if (summaryLoaded && !genAttempts.has(suggestKey)) {
         rememberGenAttempt(genAttempts, suggestKey);
         const gen = await generateSuggestedAction({
