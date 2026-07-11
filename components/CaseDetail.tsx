@@ -2473,7 +2473,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         icon="fa-file-alt"
                         title={
                           T.docParse +
-                          ' ' +
+                          ': ' +
                           (primaryDoc.title || primaryDoc.fileName || '-')
                         }
                         scrollBody
