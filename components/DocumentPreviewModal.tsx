@@ -202,8 +202,17 @@ export function DocumentPreviewModal({ doc }: { doc: DocumentRecord }) {
           canvas.className = 'document-preview-pdf-page';
           canvas.width = Math.floor(viewport.width);
           canvas.height = Math.floor(viewport.height);
-          // No inline width/height: the CSS class drives the DISPLAY size and the
-          // intrinsic bitmap ratio keeps the aspect ratio exact (no stretch).
+          // Drive the DISPLAY size with SELF-CONTAINED inline styles (width:100%,
+          // capped at the CSS max, height:auto) so the aspect ratio is exact
+          // regardless of the external stylesheet's state — inline `height:auto`
+          // + the intrinsic bitmap ratio can never be stretched by a stale/
+          // overriding CSS rule. This is what keeps the page from being distorted.
+          canvas.style.display = 'block';
+          canvas.style.width = '100%';
+          canvas.style.maxWidth = CSS_MAX_PAGE_WIDTH + 'px';
+          canvas.style.height = 'auto';
+          canvas.style.margin = '0 auto';
+          canvas.style.backgroundColor = '#fff';
           const ctx = canvas.getContext('2d', { alpha: false });
           if (!ctx) continue;
           ctx.imageSmoothingEnabled = true;
