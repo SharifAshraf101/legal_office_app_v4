@@ -6,7 +6,6 @@ import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { caseName, caseStatusView, clientName, money } from '@/lib/cases';
 import { clientDisplayName } from '@/lib/clients';
-import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { Modal } from './Modal';
 import { ArabicText } from './ArabicText';
@@ -17,6 +16,7 @@ import { TaskModal } from './TaskModal';
 import { NewEventModal } from './NewEventModal';
 import { CaseDocumentsModal } from './CaseDocumentsModal';
 import { CalendarEventDetail } from './CalendarEventDetail';
+import { DocumentPreviewModal } from './DocumentPreviewModal';
 import {
   fetchDocumentSummaryBoth,
   pickNativeSummary,
@@ -250,10 +250,9 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
     modalStack.open(<CaseDocumentsModal caseId={caseId} />);
   };
 
-  const onOpenDoc = async (docId: string) => {
+  const onOpenDoc = (docId: string) => {
     const doc = state.documentsArr.find((d) => String(d.id) === String(docId));
-    const relativePath = doc?.relativePath || '';
-    if (!relativePath) {
+    if (!doc?.relativePath) {
       window.alert(
         lang === 'ar'
           ? 'لم يتم حفظ ملف لهذا المستند.'
@@ -261,26 +260,10 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
       );
       return;
     }
-    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
-      window.open(relativePath, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    if (relativePath.startsWith('/')) {
-      window.open(
-        'https://www.dropbox.com/home' + relativePath,
-        '_blank',
-        'noopener,noreferrer',
-      );
-      return;
-    }
-    const ok = await openDocumentFromLegalOfficeFolder(relativePath, lang);
-    if (!ok) {
-      window.alert(
-        lang === 'ar'
-          ? 'تعذر فتح الملف من Dropbox.'
-          : 'פתיחת הקובץ מ-Dropbox נכשלה.',
-      );
-    }
+    // Open the in-app preview (renders the file + offers a download). The modal
+    // loads http/Dropbox/local paths itself and falls back to an "open document"
+    // button if the in-app render fails.
+    modalStack.open(<DocumentPreviewModal doc={doc} />);
   };
   const onDeleteDoc = async (docId: string) => {
     const ok = await confirmDelete(
