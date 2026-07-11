@@ -63,6 +63,7 @@ import { AddPaymentModal } from '../AddPaymentModal';
 import { CaseDetail } from '../CaseDetail';
 import { CaseDocumentsModal } from '../CaseDocumentsModal';
 import { ClientDetail } from '../ClientDetail';
+import { DocumentPreviewModal } from '../DocumentPreviewModal';
 import { Modal } from '../Modal';
 import { NewEventModal } from '../NewEventModal';
 import { TaskModal } from '../TaskModal';
@@ -3434,6 +3435,7 @@ function ActionPanel({
   selectedCaseId: string | null;
 }) {
   const { state, dispatch } = useAppState();
+  const modalStack = useModalStack();
   const goToDocuments = () => dispatch({ type: 'SET_TAB', tab: 'documents' });
   const T = {
     finance: lang === 'ar' ? 'الوضع المالي' : 'מצב כספי',
@@ -3614,7 +3616,11 @@ function ActionPanel({
               <button
                 key={doc.id}
                 type="button"
-                onClick={goToDocuments}
+                onClick={() =>
+                  doc.relativePath
+                    ? modalStack.open(<DocumentPreviewModal doc={doc} />)
+                    : goToDocuments()
+                }
                 className="tw-flex tw-w-full tw-items-center tw-gap-3 tw-border-b tw-border-slate-100 tw-py-3 tw-text-right last:tw-border-b-0 hover:tw-text-indigo-700"
                 title={fileName}
               >
