@@ -14,6 +14,7 @@ import {
   resetLegalOfficeDataFolder,
 } from '@/lib/disk';
 import { isFileSystemAccessAvailable } from '@/lib/dropbox';
+import { getDeviceRole, setDeviceRole, type DeviceRole } from '@/lib/device';
 import { availableFontsForLang } from '@/lib/translations';
 import { DropboxConnectModal } from './DropboxConnectModal';
 import { Modal } from './Modal';
@@ -47,6 +48,16 @@ export function SettingsDrawer() {
   // only way to point it at a DIFFERENT location (or fix a stale one after the
   // folder was moved/renamed) is to re-pick or reset it here.
   const fsaAvailable = isFileSystemAccessAvailable();
+  // Per-device role: the office computer (local disk) vs a remote phone/laptop
+  // (Dropbox cloud only). Stored per-device in localStorage.
+  const [deviceRole, setDeviceRoleState] = useState<DeviceRole>('remote');
+  useEffect(() => {
+    setDeviceRoleState(getDeviceRole());
+  }, []);
+  const applyDeviceRole = (role: DeviceRole) => {
+    setDeviceRole(role);
+    setDeviceRoleState(role);
+  };
   const [docFolderName, setDocFolderName] = useState('');
   useEffect(() => {
     if (!fsaAvailable) return;
@@ -378,13 +389,53 @@ export function SettingsDrawer() {
         </div>
       </Section>
 
+      {/* Device role — office computer (local disk) vs remote phone/laptop
+       *  (Dropbox cloud only). Per-device, controls how documents open + save. */}
+      <Section
+        title={settingsText('סוג המכשיר', 'نوع الجهاز')}
+        icon="fa-laptop-mobile"
+        pillClass="docs"
+      >
+        <div className="settings-actions">
+          <button
+            type="button"
+            className={'mini-btn' + (deviceRole === 'office' ? ' active' : '')}
+            aria-pressed={deviceRole === 'office'}
+            onClick={() => applyDeviceRole('office')}
+          >
+            <i className="fas fa-building" style={{ marginInlineEnd: 6 }} />
+            {settingsText('מחשב המשרד', 'حاسوب المكتب')}
+          </button>
+          <button
+            type="button"
+            className={'mini-btn' + (deviceRole === 'remote' ? ' active' : '')}
+            aria-pressed={deviceRole === 'remote'}
+            onClick={() => applyDeviceRole('remote')}
+          >
+            <i className="fas fa-mobile-screen-button" style={{ marginInlineEnd: 6 }} />
+            {settingsText('מכשיר נייד / מרוחק', 'جهاز محمول / بعيد')}
+          </button>
+        </div>
+        <div className="settings-save-hint">
+          {deviceRole === 'office'
+            ? settingsText(
+                'מחשב המשרד הראשי: מסמכים נשמרים לתיקיית התיוק המקומית (שמסתנכרנת ל-Dropbox), ונפתחים מהעותק המקומי או מהענן.',
+                'حاسوب المكتب الرئيسي: تُحفظ المستندات في مجلد الحفظ المحلي (المتزامن مع Dropbox)، وتُفتح من النسخة المحلية أو من السحابة.',
+              )
+            : settingsText(
+                'מכשיר נייד/מרוחק (טלפון או מחשב נייד): הדיסק המקומי לא ייגע. פתיחת מסמך מורידה אותו מ-Dropbox ומציגה תצוגה מקדימה עם הורדה, והעלאת מסמך נשלחת ל-Dropbox ותתויק בתיק — משם היא מסתנכרנת למחשב המשרד.',
+                'جهاز محمول/بعيد (هاتف أو حاسوب محمول): لا يُمَسّ القرص المحلي. فتح المستند يُنزّله من Dropbox ويعرض معاينة مع إمكانية التنزيل، ورفع المستند يُرسَل إلى Dropbox ويُحفظ في الملف — ومنه يتزامن إلى حاسوب المكتب.',
+              )}
+        </div>
+      </Section>
+
       {/* Document save location (local folder synced to Dropbox / Dropbox API) */}
       <Section
         title={settingsText('מיקום שמירת מסמכים', 'موقع حفظ المستندات')}
         icon="fa-folder-tree"
         pillClass="docs"
       >
-        {fsaAvailable ? (
+        {fsaAvailable && deviceRole === 'office' ? (
           <>
             <div className="settings-save-hint">
               {docFolderName

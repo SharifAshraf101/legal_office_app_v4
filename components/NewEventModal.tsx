@@ -23,6 +23,7 @@ import {
   uploadFileToDropbox,
 } from '@/lib/dropbox';
 import { saveDocumentToLegalOfficeFolder } from '@/lib/disk';
+import { isOfficeDevice } from '@/lib/device';
 import { DropboxConnectModal } from './DropboxConnectModal';
 import type { CalendarEvent, DocumentRecord, Task, TimelineItem } from '@/types';
 
@@ -410,12 +411,14 @@ export function NewEventModal({
         // abort message below explains WHY nothing was saved).
         let saveError = '';
         try {
-          if (isFileSystemAccessAvailable()) {
-            // DESKTOP: write straight into the firm's local filing folder
+          if (isOfficeDevice() && isFileSystemAccessAvailable()) {
+            // OFFICE COMPUTER: write straight into the firm's local filing folder
             // (Clients/<clientCode>/<caseCode> - title/…). Whatever cloud
             // sync app watches that folder pushes it to the cloud on its own.
             // The folder picker prompts at most once (handle persists in
-            // IndexedDB) and is reused silently afterwards.
+            // IndexedDB) and is reused silently afterwards. A remote phone/laptop
+            // skips this and uploads to the Dropbox cloud below (which the office
+            // computer's Dropbox app then syncs down into the same case folder).
             const saved = await saveDocumentToLegalOfficeFolder(docFile, {
               caseId,
               clientId,

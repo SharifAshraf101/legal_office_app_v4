@@ -80,11 +80,17 @@ export function DocumentPreviewModal({ doc }: { doc: DocumentRecord }) {
     }
   };
 
-  const openExternal = () =>
-    void openDocumentFromLegalOfficeFolder(
-      doc.relativePath || '',
-      lang === 'ar' ? 'ar' : 'he',
-    );
+  const openExternal = () => {
+    const rp = doc.relativePath || '';
+    if (!rp) return;
+    // A Dropbox share URL opens directly in a new tab; a filing/Dropbox path
+    // goes through the cloud-first opener (which resolves a temporary link).
+    if (rp.startsWith('http://') || rp.startsWith('https://')) {
+      window.open(rp, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    void openDocumentFromLegalOfficeFolder(rp, lang === 'ar' ? 'ar' : 'he');
+  };
 
   const onDownload = () => {
     const b = blobRef.current;

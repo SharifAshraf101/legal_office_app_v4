@@ -14,6 +14,7 @@ import {
   getDropboxTemporaryLink,
   isFileSystemAccessAvailable,
 } from './dropbox';
+import { isOfficeDevice } from './device';
 
 export const LEGAL_OFFICE_DATA_FILE = 'legal-office-data.json';
 export const LEGAL_OFFICE_DOCUMENTS_FOLDER = 'Clients';
@@ -350,9 +351,9 @@ export async function openDocumentFromLegalOfficeFolder(
   }
 
   // 2. Fallback to the local copy (no Dropbox connection, or the file hasn't
-  //    synced to the cloud yet). PDFs/images open inline; anything else is
-  //    downloaded so the OS app can open it.
-  if (isFileSystemAccessAvailable()) {
+  //    synced to the cloud yet) — ONLY on the office computer. A remote
+  //    phone/laptop never reads the local disk.
+  if (isOfficeDevice() && isFileSystemAccessAvailable()) {
     const localFile = await readLocalFilingFile(relativePath, lang);
     if (localFile) {
       if (inlineViewable && openBlobInNewTab(localFile)) return true;
@@ -382,10 +383,11 @@ export async function getFilingFileBlob(
   } catch (e) {
     console.warn('[LegalOffice disk] dropbox blob fetch failed', e);
   }
-  // 2. Local synced copy — ONLY if a folder was already granted. We never call
-  //    the folder picker here: this runs inside a render effect (no user
-  //    gesture), so a picker would just throw. Use the saved handle or skip.
-  if (isFileSystemAccessAvailable()) {
+  // 2. Local synced copy — ONLY on the office computer (a remote phone/laptop
+  //    must never touch the local disk; it relies on the cloud copy above). We
+  //    never call the folder picker here: this runs inside a render effect (no
+  //    user gesture), so a picker would just throw. Use the saved handle or skip.
+  if (isOfficeDevice() && isFileSystemAccessAvailable()) {
     try {
       const handle = await loadSavedLegalOfficeDirectoryHandle();
       if (handle && (await verifyLegalOfficeDirectoryPermission(handle))) {

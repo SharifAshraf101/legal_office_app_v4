@@ -514,10 +514,20 @@ export function dropboxRawUrl(shareUrl: string): string {
  *  connected app folder, so a device with no local disk access (mobile) can
  *  fetch the same file from the cloud. Mirrors the path scheme used on upload. */
 export function dropboxPathForRelative(relativePath: string): string {
-  const rp = (relativePath || '').replace(/^\/+/, ''); // drop any leading slash
+  const raw = (relativePath || '').replace(/\/{2,}/g, '/');
   let base = getDropboxFolderPath().replace(/\/+$/, '');
   // Same double-"Clients" guard the uploader uses.
   base = base.replace(new RegExp('/' + FILING_ROOT + '$', 'i'), '');
+  // An already-absolute Dropbox path that ALREADY includes the connected base
+  // folder — e.g. an upload result's `path_lower` "/base/Clients/…" — must be
+  // returned unchanged, otherwise re-prepending `base` doubles it
+  // ("/base/base/Clients/…") and the download 409s.
+  if (base && raw.toLowerCase().startsWith(base.toLowerCase() + '/')) {
+    return raw;
+  }
+  // Otherwise treat it as a filing-relative path (drop any leading slash — a
+  // legacy "/clients/…" form) and nest it under the connected base folder.
+  const rp = raw.replace(/^\/+/, '');
   return `${base}/${rp}`.replace(/\/{2,}/g, '/');
 }
 

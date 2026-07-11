@@ -2348,12 +2348,11 @@ function BotChatScreen({
     }
   };
 
-  // Open a document by id — same path the rest of the app uses
-  // (Documents screen, Case detail). Looks up the DocumentRecord in
-  // global state, then either opens the saved URL or asks the user
-  // to grant the local Dropbox folder via FS Access. Used when the
-  // client double-clicks a blue file-name link in a bot answer.
-  const openDocById = async (docId: string) => {
+  // Open a document by id in the in-app preview (downloads it from the Dropbox
+  // cloud and renders it with a download button — identical on the office
+  // computer and on a remote phone/laptop, which never touches a local disk).
+  // Used when a blue file-name link is double-clicked in a bot answer.
+  const openDocById = (docId: string) => {
     const doc = state.documentsArr.find((d) => String(d.id) === String(docId));
     if (!doc) {
       window.alert(
@@ -2363,8 +2362,7 @@ function BotChatScreen({
       );
       return;
     }
-    const rp = doc.relativePath;
-    if (!rp) {
+    if (!doc.relativePath) {
       window.alert(
         lang === 'ar'
           ? 'لم يتم حفظ ملف لهذا المستند.'
@@ -2372,35 +2370,11 @@ function BotChatScreen({
       );
       return;
     }
-    // Mobile docs store the Dropbox share URL directly in relativePath —
-    // navigate to it so the browser (or Dropbox app) handles download.
-    // We optimistically record the download here (we can't observe the
-    // remote tab to confirm success, but the user explicitly clicked).
-    if (rp.startsWith('http://') || rp.startsWith('https://')) {
-      window.open(rp, '_blank', 'noopener,noreferrer');
-      if (client) {
-        recordPortalBotDownload(String(client.id), docId, doc.fileName || '');
-        setDownloadedDocIds(downloadedDocIdsForClient(String(client.id)));
-      }
-      return;
-    }
-    // Desktop path — read the file from the local Dropbox folder via FS Access.
-    const ok = await openDocumentFromLegalOfficeFolder(rp, lang);
-    if (!ok) {
-      window.alert(
-        lang === 'ar'
-          ? 'تعذر فتح الملف من مجلد Dropbox.'
-          : 'פתיחת הקובץ מתיקיית Dropbox נכשלה.',
-      );
-      return;
-    }
-    // Record the successful download so the lawyer-view bot screen
-    // can badge the same [[DOC:id|name]] link in this client's
-    // transcript with a red "file downloaded" indicator.
+    modalStack.open(<DocumentPreviewModal doc={doc} />);
+    // Record that this document was accessed so the lawyer-view bot screen can
+    // badge the [[DOC:id|name]] link in this client's transcript.
     if (client) {
       recordPortalBotDownload(String(client.id), docId, doc.fileName || '');
-      // Bump local state so the badge appears immediately in this
-      // session too (otherwise it'd only show after the next reload).
       setDownloadedDocIds(downloadedDocIdsForClient(String(client.id)));
     }
   };

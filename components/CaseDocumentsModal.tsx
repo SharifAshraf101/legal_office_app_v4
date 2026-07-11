@@ -15,10 +15,10 @@ import {
   isArabicOnlyCourt,
   type DocSummaryData,
 } from '@/lib/summary';
-import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { Modal } from './Modal';
 import { NewEventModal } from './NewEventModal';
+import { DocumentPreviewModal } from './DocumentPreviewModal';
 import type { DocumentRecord } from '@/types';
 
 /**
@@ -294,8 +294,11 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
     cancelEdit();
   };
 
-  const onOpen = async (relativePath: string | undefined) => {
-    if (!relativePath) {
+  // Open a document in the in-app preview (downloads it from the Dropbox cloud
+  // and renders it with a download button) — same on the office computer and on
+  // a remote phone/laptop, so a remote device never has to reach a local disk.
+  const onOpen = (doc: DocumentRecord) => {
+    if (!doc.relativePath) {
       window.alert(
         lang === 'ar'
           ? 'لم يتم حفظ ملف لهذا المستند.'
@@ -303,29 +306,7 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
       );
       return;
     }
-    // Mobile docs store the Dropbox share URL — navigate directly.
-    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
-      window.open(relativePath, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    // Dropbox internal cloud path: open directly in Dropbox web UI.
-    if (relativePath.startsWith('/')) {
-      window.open(
-        'https://www.dropbox.com/home' + relativePath,
-        '_blank',
-        'noopener,noreferrer',
-      );
-      return;
-    }
-    // Desktop path — local Dropbox folder via FS Access
-    const ok = await openDocumentFromLegalOfficeFolder(relativePath, lang);
-    if (!ok) {
-      window.alert(
-        lang === 'ar'
-          ? 'تعذر فتح الملف من مجلد Dropbox.'
-          : 'פתיחת הקובץ מתיקיית Dropbox נכשלה.',
-      );
-    }
+    modalStack.open(<DocumentPreviewModal doc={doc} />);
   };
 
   // "העלאת מסמך" — upload a NEW document into THIS case. Opens the add-document
@@ -592,7 +573,7 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
                       <span
                         title={pickMode ? pickTitle : openTitle}
                         onDoubleClick={
-                          pickMode ? undefined : () => onOpen(doc.relativePath)
+                          pickMode ? undefined : () => onOpen(doc)
                         }
                         style={{
                           cursor: 'pointer',
