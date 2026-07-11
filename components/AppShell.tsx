@@ -10,6 +10,7 @@ import { DropboxConnectModal } from './DropboxConnectModal';
 import { AppStateProvider, useAppState } from '@/hooks/useAppState';
 import { useThemeAndFont } from '@/hooks/useThemeAndFont';
 import { useAutoSync } from '@/hooks/useAutoSync';
+import { useTaskDeadlineAlerts } from '@/hooks/useTaskDeadlineAlerts';
 import { ModalStackProvider, useModalStack } from '@/hooks/useModalStack';
 import {
   handleDropboxAuthCallback,
@@ -75,6 +76,11 @@ function ShellInner() {
   // choice — we never auto-skip it based on a previously stored language. The
   // user must click Hebrew or Arabic, and the app then runs in that language.
   const [langChosen, setLangChosen] = useState(false);
+
+  // Professional task-deadline alert on open (and while open when a task crosses
+  // the 3-day / 1-day / today / overdue mark). Gated on the app being ready so
+  // it never shows over the language screen or before data hydrates.
+  useTaskDeadlineAlerts(langChosen && state.hydrated);
 
   if (!langChosen) {
     return (

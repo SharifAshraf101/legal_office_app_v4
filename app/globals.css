@@ -188,6 +188,7 @@
 /* In-app document preview modal (DocumentPreviewModal) — large viewer box
  * with a full-size inline frame so PDFs/images render ON SCREEN (no download). */
 .document-preview-box{width:min(1000px,96vw)!important;max-width:96vw!important;height:90vh!important;max-height:90vh!important;display:flex!important;flex-direction:column!important;padding:18px!important;}
+.task-alert-box{width:min(560px,96vw)!important;max-width:96vw!important;max-height:90vh!important;display:flex!important;flex-direction:column!important;padding:20px!important;}
 .document-preview-title{margin:0 36px 8px;font-size:15px;font-weight:850;text-align:center;line-height:1.3;word-break:break-word;}
 .document-preview-toolbar{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin:0 36px 12px;}
 .document-preview-toolbar .btn{display:inline-flex;align-items:center;gap:6px;}
