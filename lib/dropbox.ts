@@ -41,12 +41,16 @@ interface DropboxTokens {
   expires_at: number;
 }
 
-/** Pulls the Dropbox app key from env, with localStorage fallback. */
+/** The Dropbox app key. A key the user entered in the connect modal
+ *  (localStorage) OVERRIDES the build-time env default, so an invalid or
+ *  placeholder `NEXT_PUBLIC_DROPBOX_APP_KEY` can be corrected at runtime — enter
+ *  a valid App Key in the field and it takes effect without a redeploy. */
 export function getDropboxAppKey(): string {
-  const envKey = (process.env.NEXT_PUBLIC_DROPBOX_APP_KEY || '').trim();
-  if (envKey) return envKey;
-  if (typeof window === 'undefined') return '';
-  return (localStorage.getItem(APP_KEY_KEY) || '').trim();
+  if (typeof window !== 'undefined') {
+    const stored = (localStorage.getItem(APP_KEY_KEY) || '').trim();
+    if (stored) return stored;
+  }
+  return (process.env.NEXT_PUBLIC_DROPBOX_APP_KEY || '').trim();
 }
 
 /** Persist a Dropbox app key at runtime (browser localStorage fallback). */
