@@ -5,10 +5,18 @@ import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { Modal } from './Modal';
 import { getFilingFileBlob, openDocumentFromLegalOfficeFolder } from '@/lib/disk';
-import { dropboxRawUrl } from '@/lib/dropbox';
+import { dropboxRawUrl, isDropboxConfigured } from '@/lib/dropbox';
+import { isOfficeDevice } from '@/lib/device';
+import { DropboxConnectModal } from './DropboxConnectModal';
 import type { DocumentRecord } from '@/types';
 
-type Status = 'loading' | 'pdf' | 'image' | 'unsupported' | 'error';
+type Status =
+  | 'loading'
+  | 'pdf'
+  | 'image'
+  | 'unsupported'
+  | 'error'
+  | 'need-dropbox';
 
 const IMAGE_MIME: Record<string, string> = {
   png: 'image/png',
@@ -135,7 +143,13 @@ export function DocumentPreviewModal({ doc }: { doc: DocumentRecord }) {
       const raw = await loadBlob();
       if (cancelled) return;
       if (!raw) {
-        setStatus('error');
+        // The cloud fetch (content API) needs a Dropbox OAuth connection on THIS
+        // device. A remote phone/laptop that never connected Dropbox — or an
+        // office computer flipped to remote that only ever used a local synced
+        // folder — has no token, so the download can't run. Surface that
+        // explicitly (with a connect button) instead of a generic failure.
+        if (rp && !isDropboxConfigured()) setStatus('need-dropbox');
+        else setStatus('error');
         return;
       }
       const blob = normalizeBlobMime(raw);
@@ -262,6 +276,19 @@ export function DocumentPreviewModal({ doc }: { doc: DocumentRecord }) {
         : 'לא ניתן להציג תצוגה מקדימה לסוג קובץ זה בתוך האפליקציה.',
     openExternal: lang === 'ar' ? 'فتح المستند' : 'פתח את המסמך',
     download: lang === 'ar' ? 'تنزيل' : 'הורדה',
+    needDropbox: isOfficeDevice()
+      ? lang === 'ar'
+        ? 'لعرض/تنزيل المستندات من السحابة يجب ربط Dropbox على هذا الجهاز.'
+        : 'כדי להציג/להוריד מסמכים מהענן יש לחבר את Dropbox במכשיר זה.'
+      : lang === 'ar'
+        ? 'هذا جهاز محمول/بعيد: لعرض المستند يجب تنزيله من Dropbox السحابي — لكنّ Dropbox غير مربوط على هذا الجهاز. اربطه ثم أعد المحاولة.'
+        : 'זהו מכשיר נייד/מרוחק: כדי להציג את המסמך יש להורידו מ-Dropbox קלאוד — אך Dropbox אינו מחובר במכשיר זה. חבר אותו ונסה שוב.',
+    connectDropbox: lang === 'ar' ? 'ربط Dropbox' : 'חיבור Dropbox',
+  };
+
+  const connectDropbox = () => {
+    close();
+    modalStack.open(<DropboxConnectModal />);
   };
 
   return (
@@ -311,12 +338,24 @@ export function DocumentPreviewModal({ doc }: { doc: DocumentRecord }) {
             </button>
           </div>
         )}
+        {status === 'need-dropbox' && (
+          <div className="document-preview-msg">
+            <p>{T.needDropbox}</p>
+            <button type="button" className="btn btn-primary" onClick={connectDropbox}>
+              <i className="fab fa-dropbox" aria-hidden="true" style={{ marginInlineEnd: 6 }} />
+              {T.connectDropbox}
+            </button>
+          </div>
+        )}
         {status === 'image' && imageUrl && (
           <img className="document-preview-img" src={imageUrl} alt={fileName} />
         )}
-        {isPdf && status !== 'error' && status !== 'unsupported' && (
-          <div ref={pdfContainerRef} className="document-preview-pdf" />
-        )}
+        {isPdf &&
+          status !== 'error' &&
+          status !== 'unsupported' &&
+          status !== 'need-dropbox' && (
+            <div ref={pdfContainerRef} className="document-preview-pdf" />
+          )}
       </div>
     </Modal>
   );
