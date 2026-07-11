@@ -720,14 +720,14 @@ function CasePickerModal({
   );
   const confirmLabel = lang === 'ar' ? 'اختيار' : 'בחר';
   const cancelLabel = lang === 'ar' ? 'إلغاء' : 'בטל';
-  const confirm = () => {
-    if (!pendingId) return;
-    // Close first so the modal disappears immediately on click, then
-    // hand the picked id to the parent. `close()` is idempotent so a
-    // caller that also closes the modal will be a harmless no-op.
+  // Confirm the pick: close the picker, then hand the id to the parent. Used by
+  // the bottom "בחר" button AND by a double-click on a row (both close + select).
+  const confirmWith = (id: string | null) => {
+    if (!id) return;
     close();
-    onPick(pendingId);
+    onPick(id);
   };
+  const confirm = () => confirmWith(pendingId);
   const heading = lang === 'ar' ? 'اختر القضية' : 'בחר תיק';
   const subtitle =
     lang === 'ar'
@@ -831,6 +831,12 @@ function CasePickerModal({
                     key={c.id}
                     type="button"
                     onClick={() => setPendingId(c.id)}
+                    onDoubleClick={() => confirmWith(c.id)}
+                    title={
+                      lang === 'ar'
+                        ? 'اضغط للتحديد، انقر مرتين للاختيار'
+                        : 'קליק לסימון · דאבל-קליק לבחירה'
+                    }
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -1370,21 +1376,23 @@ function ClientChatScreen({
         currentCaseId={selectedCaseId}
         lang={lang}
         onPick={(caseId) => {
+          // The picker closes itself on confirm; here we only remember the pick
+          // so the chosen case shows under "פעולות מהירות".
           setSelectedCaseId(caseId);
-          modalStack.close(modalStack.topId() ?? 0);
         }}
       />,
     );
   };
 
-  // Open a case's documents modal in attach mode — double-clicking a
-  // doc there will fire `onPickDocument` to attach it to the chat and
-  // close the modal (returning the lawyer to the underlying chat).
-  const openCaseDocumentsForPick = (caseId: string) => {
+  // "העלאת מסמך בתיק" — open the selected case's DOCUMENTS LIST (normal mode).
+  // From there the lawyer can UPLOAD a new document into the case (header
+  // "העלאת מסמך" button) and can still forward any existing document to the chat
+  // (per-row "שלח לשיחה"). No attach-only pick mode.
+  const openCaseDocuments = (caseId: string) => {
     modalStack.open(
       <CaseDocumentsModal
         caseId={caseId}
-        onPickDocument={async (doc) => {
+        onSendToChat={async (doc) => {
           await attachDocumentToChat(doc);
           modalStack.close(modalStack.topId() ?? 0);
         }}
@@ -1392,22 +1400,21 @@ function ClientChatScreen({
     );
   };
 
-  // Step 2: "New document" — opens the docs modal of the previously
-  // selected case in attach mode. If no case was selected yet (and the
-  // client has multiple), bounce through the picker first so step 1
-  // happens implicitly; the lawyer doesn't get stuck.
+  // Step 2: "העלאת מסמך בתיק" — open the previously-selected case's document
+  // list. If no case was picked yet (and the client has multiple), bounce
+  // through the picker first so step 1 happens implicitly.
   const onNewDocumentFromSelectedCase = () => {
     if (clientCases.length === 0) {
       modalStack.open(<ClientDetail clientId={client.id} />);
       return;
     }
     if (selectedCaseId) {
-      openCaseDocumentsForPick(selectedCaseId);
+      openCaseDocuments(selectedCaseId);
       return;
     }
     if (clientCases.length === 1) {
       setSelectedCaseId(clientCases[0].id);
-      openCaseDocumentsForPick(clientCases[0].id);
+      openCaseDocuments(clientCases[0].id);
       return;
     }
     // No case picked yet — show picker first, then chain into docs.
@@ -1419,8 +1426,7 @@ function ClientChatScreen({
         lang={lang}
         onPick={(caseId) => {
           setSelectedCaseId(caseId);
-          modalStack.close(modalStack.topId() ?? 0);
-          openCaseDocumentsForPick(caseId);
+          openCaseDocuments(caseId);
         }}
       />,
     );

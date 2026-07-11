@@ -794,9 +794,11 @@ body.font-family-calibri{--app-font-family:Calibri, Arial, sans-serif;}
 .case-docs-btn .quick-plus{display:inline-grid;place-items:center;width:20px;height:20px;line-height:1;flex:0 0 20px;}
 .case-docs-btn .quick-plus i{display:block;width:20px;height:20px;line-height:20px;text-align:center;margin:0;padding:0;}
 .case-docs-btn .quick-label{display:inline-block;white-space:nowrap;}
-.case-docs-modal-head{display:flex;align-items:flex-start;justify-content:center;gap:12px;margin:0 0 14px;padding-left:46px;padding-right:46px;text-align:center;}
+.case-docs-modal-head{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;margin:0 0 14px;padding-left:46px;padding-right:46px;text-align:center;}
 .case-docs-modal-head h2{margin:0;font-size:20px;font-weight:950;text-align:center;}
-.case-docs-modal-head > div{flex:1;text-align:center;}
+.case-docs-modal-head > div{flex:1 1 auto;text-align:center;}
+.case-docs-upload-btn{flex:0 0 auto;border:0;border-radius:999px;padding:9px 15px;font-weight:900;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;background:var(--primary,#4f46e5);color:#fff;box-shadow:0 6px 16px rgba(79,70,229,.25);}
+.case-docs-upload-btn:hover{filter:brightness(1.06);}
 /* Case-documents modal — hide the bottom "cpm-footer" gray bar
  * (top border + buttons) per user request. The footer only
  * showed in pick-mode anyway; hiding it lets the document list
@@ -1077,6 +1079,7 @@ html body .modal.case-docs-modal.ls.ls.ls.ls.ls .modal-box > .modal-mobile-back-
 .case-docs-modal-btn.open{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;}
 .case-docs-modal-btn.delete{background:#fff1f2;color:#be123c;border:1px solid #fecdd3;}
 .case-docs-modal-btn.edit{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;}
+.case-docs-modal-btn.send{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;}
 .case-docs-modal-btn.save{background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;}
 .case-docs-modal-btn.cancel{background:#f8fafc;color:#475569;border:1px solid #cbd5e1;}
 .case-docs-modal-title-input{

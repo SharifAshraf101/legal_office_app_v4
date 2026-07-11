@@ -18,6 +18,7 @@ import {
 import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { Modal } from './Modal';
+import { NewEventModal } from './NewEventModal';
 import type { DocumentRecord } from '@/types';
 
 /**
@@ -37,9 +38,13 @@ import type { DocumentRecord } from '@/types';
 export interface CaseDocumentsModalProps {
   caseId: string;
   onPickDocument?: (doc: DocumentRecord) => void;
+  /** When provided, each document row gets a "send to chat" action (used by the
+   *  WhatsApp communication screen to forward a case document to the client)
+   *  WITHOUT switching the whole modal into attach-only pick mode. */
+  onSendToChat?: (doc: DocumentRecord) => void;
 }
 
-export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModalProps) {
+export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: CaseDocumentsModalProps) {
   const { state, dispatch } = useAppState();
   const { lang } = useT();
   const modalStack = useModalStack();
@@ -323,6 +328,15 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
     }
   };
 
+  // "העלאת מסמך" — upload a NEW document into THIS case. Opens the add-document
+  // form (NewEventModal) pre-bound to the case, which handles the Dropbox upload
+  // + document-record creation. Available in the normal (non-attach) mode.
+  const openUpload = () => {
+    modalStack.open(
+      <NewEventModal preselectedType="document" preselectedCaseId={caseId} />,
+    );
+  };
+
   const pickMode = !!onPickDocument;
   const pickBanner =
     lang === 'ar'
@@ -372,6 +386,16 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
               {lang === 'ar' ? `عدد المستندات: ${docs.length}` : `מספר מסמכים: ${docs.length}`}
             </div>
           </div>
+          {!pickMode && (
+            <button
+              type="button"
+              className="case-docs-upload-btn"
+              onClick={openUpload}
+            >
+              <i className="fas fa-cloud-arrow-up" />
+              <span>{lang === 'ar' ? 'رفع مستند للملف' : 'העלאת מסמך בתיק'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -644,6 +668,19 @@ export function CaseDocumentsModal({ caseId, onPickDocument }: CaseDocumentsModa
                       </>
                     ) : (
                       <>
+                        {onSendToChat && (
+                          <button
+                            type="button"
+                            className="case-docs-modal-btn send"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSendToChat(doc);
+                            }}
+                          >
+                            <i className="fas fa-paper-plane" />
+                            {lang === 'ar' ? 'إرسال للمحادثة' : 'שלח לשיחה'}
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="case-docs-modal-btn edit"
