@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dropboxPathForRelative, getDropboxTemporaryLink } from '@/lib/dropbox';
 
-const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'https://legal-office-api.sharifashraf.workers.dev';
+const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'https://legal-office-api-v4.sharifashraf.workers.dev';
 const APP_TOKEN = process.env.NEXT_PUBLIC_APP_TOKEN || '';
 
 async function resolveDocumentUrl(document?: { name?: string; url?: string; relativePath?: string }) {

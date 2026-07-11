@@ -7,8 +7,14 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'sharif_law_office_2026';
-const WORKER_URL = 'https://legal-office-api.sharifashraf.workers.dev';
-const APP_TOKEN = '12a52ef1036713e388ecf0ff7e64929dc45c147a4cb20967';
+// v4 stack: incoming WhatsApp messages are stored in the v4 Worker / D1. Falls
+// back to the v4 defaults if the env vars aren't set on this deployment.
+const WORKER_URL =
+  process.env.NEXT_PUBLIC_WORKER_URL ||
+  'https://legal-office-api-v4.sharifashraf.workers.dev';
+const APP_TOKEN =
+  process.env.NEXT_PUBLIC_APP_TOKEN ||
+  'ecd403f741827b30fcd7018ebaf5bc8fdf87b974b30ce8af';
 
 // A new WhatsApp conversation "starts" once the line has been quiet for this
 // long. The first incoming message after such a lull is what re-routes a
@@ -243,7 +249,7 @@ export async function POST(req: NextRequest) {
   // server behind ngrok is NOT CORS-allowed and renders blank on mobile, so we
   // default to the deployed Vercel app. Override with PORTAL_BASE_URL.
   const portalBase = (
-    process.env.PORTAL_BASE_URL || 'https://legal-office-app-v3.vercel.app'
+    process.env.PORTAL_BASE_URL || 'https://legal-office-app-v4.vercel.app'
   ).replace(/\/$/, '');
   // INTERNAL send call → must reach THIS server. On Vercel the request origin
   // works; locally (behind ngrok) the forwarded origin is https-onto-http and
