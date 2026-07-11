@@ -489,6 +489,10 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
   const skill = skillRow?.content || '';
 
   const notes = await fetchDraftNotes(env, clientSrc, caseSrc);
+  // All notes the app aggregated for this case (client note + document-upload
+  // notes + brain quick-action notes), passed straight from the client so the
+  // draft reflects sources that aren't in the case_notes table.
+  const notesContext = String(body.notes_context ?? '').trim();
 
   const systemPrompt =
     'أنت محامٍ خبير في الأحوال الشخصية للمسلمين في إسرائيل، تترافع أمام المحاكم الشرعية ومحاكم شؤون العائلة. مهمتك: قراءة المستند المرفق بالكامل (وهو مستند وارد مثل قرار محكمة أو لائحة دعوى أو طلب من الطرف الآخر) وصياغة مسودة رد قانوني عليه. القالب الحاكم للصياغة والتنسيق وتفاصيل المحامي وبنية الفقرات المرقّمة هو الوثيقة المرجعية التالية، والتزم بها حرفياً كمرجع للأسلوب والشكل:\n\n<skill>\n' +
@@ -508,7 +512,13 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
     notes.he +
     '\n</case_notes_he>\n<case_notes_ar>\n' +
     notes.ar +
-    '\n</case_notes_ar>\n\nصُغ (عند الحاجة فقط) مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم، بلغة المستند نفسها. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "رمز لغة المستند مثل ar أو he أو en أو fr أو ru", "author_side": "ours or opposing or court", "court_requires_response": true or false, "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بلغة المستند أو null", "draft": "نص المسودة الكامل بلغة المستند أو null"}. لا تكتب أي شيء خارج JSON.';
+    '\n</case_notes_ar>\n' +
+    (notesContext
+      ? 'ملاحظات إضافية جُمعت من كل مصادر الملف (ملاحظة الموكل + ملاحظات عند رفع المستندات + ملاحظات الإجراءات السريعة) — التزم بها أيضاً في صياغة الرد:\n<case_notes_all>\n' +
+        notesContext +
+        '\n</case_notes_all>\n'
+      : '') +
+    '\n\nصُغ (عند الحاجة فقط) مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم، بلغة المستند نفسها. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "رمز لغة المستند مثل ar أو he أو en أو fr أو ru", "author_side": "ours or opposing or court", "court_requires_response": true or false, "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بلغة المستند أو null", "draft": "نص المسودة الكامل بلغة المستند أو null"}. لا تكتب أي شيء خارج JSON.';
 
   const anthropicBody = {
     model: 'claude-sonnet-4-6',

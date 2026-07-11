@@ -612,8 +612,12 @@ export async function generateDocumentDraft(opts: {
   caseId?: string;
   documentId?: string;
   lawyerName?: string;
+  /** All case notes (client + document-upload + brain quick-action) fed to the
+   *  draft AI as guiding context. */
+  notesContext?: string;
 }): Promise<{ draftNeeded: boolean; hasDraft: boolean }> {
-  const { relativePath, fileName, clientId, caseId, documentId, lawyerName } = opts;
+  const { relativePath, fileName, clientId, caseId, documentId, lawyerName, notesContext } =
+    opts;
   // Non-PDF can't be read/classified — default to "needed" so we never hide a
   // possibly-required reply.
   if (!relativePath || !/\.pdf$/i.test(fileName)) {
@@ -630,7 +634,15 @@ export async function generateDocumentDraft(opts: {
     const res = await fetch('/api/generate-draft/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileUrl, fileName, clientId, caseId, documentId, lawyerName }),
+      body: JSON.stringify({
+        fileUrl,
+        fileName,
+        clientId,
+        caseId,
+        documentId,
+        lawyerName,
+        notesContext,
+      }),
     });
     if (!res.ok) return { draftNeeded: true, hasDraft: false };
     const data = (await res.json()) as { has_draft?: boolean; draft_needed?: boolean };

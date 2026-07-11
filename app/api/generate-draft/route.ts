@@ -29,13 +29,15 @@ export async function POST(req: Request) {
     clientId?: string;
     caseId?: string;
     documentId?: string;
+    lawyerName?: string;
+    notesContext?: string;
   };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
   }
-  const { fileUrl, fileName, clientId, caseId, documentId } = body;
+  const { fileUrl, fileName, clientId, caseId, documentId, lawyerName, notesContext } = body;
   if (!fileUrl || !fileName) {
     return NextResponse.json({ error: 'missing_params' }, { status: 400 });
   }
@@ -82,6 +84,8 @@ export async function POST(req: Request) {
         client_source_id: clientId || '',
         case_source_id: caseId || '',
         document_source_id: documentId || '',
+        lawyer_name: lawyerName || '',
+        notes_context: notesContext || '',
       }),
     });
     const data = await res.json().catch(() => ({}));

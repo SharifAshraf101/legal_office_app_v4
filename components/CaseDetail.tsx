@@ -42,6 +42,7 @@ import {
 } from '@/lib/summary';
 import { filingFileName } from '@/lib/filing';
 import { caseDocumentsForCase } from '@/lib/documents';
+import { aggregateCaseNotes, caseNotesContext } from '@/lib/caseNotes';
 import { financeCaseBalance } from '@/lib/finance';
 import {
   caseTaskItems,
@@ -1669,8 +1670,20 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       //    court-ordered document, so an opposing-party document is never left
       //    without a draft. `draftv2` key so documents attempted before this
       //    mandate get one fresh regeneration.
-      if (primary && isPdf && !genAttempts.has('draftv2:' + primary.id)) {
-        rememberGenAttempt(genAttempts, 'draftv2:' + primary.id);
+      if (primary && isPdf && !genAttempts.has('draftv3notes:' + primary.id)) {
+        rememberGenAttempt(genAttempts, 'draftv3notes:' + primary.id);
+        // All notes on the case (client note + document-upload notes + brain
+        // quick-action notes) → fed to the draft AI as guiding context.
+        const notesContext = caseNotesContext(
+          aggregateCaseNotes({
+            caseId,
+            clients: state.clients,
+            cases: state.casesArr,
+            documents: state.documentsArr,
+            timeline: state.timelineItems,
+            lang,
+          }),
+        );
         const { draftNeeded: needed } = await generateDocumentDraft({
           relativePath: primary.relativePath,
           fileName: renamed || primary.fileName || '',
@@ -1680,6 +1693,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
           // Our office/lawyer name from Settings → a document NOT authored by us
           // is the opposing side, so a counter-draft is generated.
           lawyerName: state.officeName || undefined,
+          notesContext,
         });
         if (!needed) return apply(null, false);
         const re = await fetchDraftState(
@@ -1903,14 +1917,17 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   );
   // All notes recorded on this case (timeline items of type "note"),
   // newest first — shown in the case-brain "הערות" tab.
-  const notesList = state.timelineItems
-    .filter(
-      (n) => String(n.caseId) === String(caseId) && String(n.type) === 'note',
-    )
-    .slice()
-    .sort((a, b) =>
-      String(b.date || '').localeCompare(String(a.date || '')),
-    );
+  // Every note attached to the case, from all sources: the brain quick-action
+  // notes, the client's own note (client-details screen), and the notes typed
+  // when a document was uploaded. Shown in the "הערות" tab and fed to the draft.
+  const notesList = aggregateCaseNotes({
+    caseId,
+    clients: state.clients,
+    cases: state.casesArr,
+    documents: state.documentsArr,
+    timeline: state.timelineItems,
+    lang,
+  });
   // Pick the next upcoming event for this case for the "מועד הדיון הבא"
   // card; fall back to the case's lastHearing field if none scheduled.
   const upcoming = state.eventsList
@@ -2802,31 +2819,26 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                 ) : (
                   <ul className="tw-flex tw-flex-col tw-gap-3">
                     {notesList.map((n) => {
-                      const noteTitle =
-                        lang === 'ar'
-                          ? n.titleAr || n.title
-                          : n.title || n.titleAr;
-                      const noteDesc =
-                        lang === 'ar'
-                          ? n.descriptionAr || n.description
-                          : n.description || n.descriptionAr;
+                      const icon =
+                        n.source === 'client'
+                          ? 'fa-user tw-text-emerald-500'
+                          : n.source === 'document'
+                            ? 'fa-file-lines tw-text-purple-500'
+                            : 'fa-comment-alt tw-text-blue-500';
                       return (
                         <li
                           key={n.id}
                           className="tw-flex tw-flex-col tw-gap-1 tw-rounded-xl tw-border tw-border-slate-200 tw-bg-white tw-p-3 tw-text-slate-700"
                         >
                           <div className="tw-flex tw-items-center tw-gap-2">
-                            <i
-                              className="fas fa-comment-alt tw-text-blue-500"
-                              aria-hidden="true"
-                            />
+                            <i className={'fas ' + icon} aria-hidden="true" />
                             <span className="tw-text-sm tw-font-semibold">
-                              {noteTitle || '-'}
+                              {n.label || '-'}
                             </span>
                           </div>
-                          {noteDesc ? (
+                          {n.body ? (
                             <p className="tw-m-0 tw-text-sm tw-text-slate-600">
-                              {noteDesc}
+                              {n.body}
                             </p>
                           ) : null}
                           {n.date ? (
