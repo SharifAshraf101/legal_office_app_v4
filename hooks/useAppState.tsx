@@ -17,6 +17,7 @@ import {
   loadData,
   loadUserSettings,
   LS,
+  lsGet,
   lsSet,
   persistCurrentDataToLocalStorage,
 } from '@/lib/storage';
@@ -207,6 +208,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const dispatch = useCallback((action: Action) => {
     if (SAVABLE_ACTION_TYPES.has(action.type)) {
       dirtyRef.current = true;
+      // Persist the dirty state so a reload BEFORE the debounced save fires
+      // (e.g. add a payment, then refresh) knows to flush the local copy to the
+      // backend before pulling — otherwise the boot pull would wipe the edit.
+      lsSet(LS.PENDING_SYNC, '1');
     }
     rawDispatch(action);
   }, []);
@@ -248,13 +253,35 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       },
     });
 
-    // Fire-and-forget Supabase boot. If it returns data, overwrite local.
-    void legalOfficeLoadFromSupabaseV88().then((result) => {
-      if (result.loaded && result.state) {
+    // Supabase boot. If the previous session left un-pushed edits (PENDING_SYNC
+    // — e.g. a payment was added and the page refreshed before the 1.5s
+    // auto-save fired), FLUSH the hydrated local copy to the backend BEFORE
+    // pulling. Otherwise the boot pull would REPLACE_ALL over an edit that never
+    // reached the backend, wiping it from state and then from localStorage on
+    // the next persist — the exact "payment vanishes after saving" bug. This
+    // mirrors the flush-before-pull the visibility/focus refresh already does.
+    void (async () => {
+      if (lsGet(LS.PENDING_SYNC) === '1') {
+        const ok = await legalOfficeSaveToSupabase({
+          clients: data.clients,
+          casesArr: data.casesArr,
+          eventsList: data.eventsList,
+          finances: data.finances,
+          timelineItems: data.timelineItems,
+          documentsArr: data.documentsArr,
+          tasksArr: data.tasksArr,
+        });
+        // On failure keep the flag so the next reload retries the flush.
+        if (ok) lsSet(LS.PENDING_SYNC, '0');
+      }
+      const result = await legalOfficeLoadFromSupabaseV88();
+      // Don't clobber an edit made DURING the boot window (dirtyRef set) — the
+      // pending auto-save will push it once supaSaveReady flips true below.
+      if (result.loaded && result.state && !dirtyRef.current) {
         dispatch({ type: 'REPLACE_ALL', payload: result.state });
       }
       setSupaSaveReady(true);
-    });
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -306,7 +333,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (supaSaveReady && dirtyRef.current) {
         const s = stateRef.current;
         try {
-          await legalOfficeSaveToSupabase({
+          const ok = await legalOfficeSaveToSupabase({
             clients: s.clients,
             casesArr: s.casesArr,
             eventsList: s.eventsList,
@@ -315,7 +342,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             documentsArr: s.documentsArr,
             tasksArr: s.tasksArr,
           });
-          dirtyRef.current = false;
+          if (ok) {
+            dirtyRef.current = false;
+            lsSet(LS.PENDING_SYNC, '0');
+          }
         } catch (e) {
           console.warn('[useAppState] flush before pull failed', e);
         }
@@ -409,8 +439,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         timelineItems: state.timelineItems,
         documentsArr: state.documentsArr,
         tasksArr: state.tasksArr,
-      }).finally(() => {
+      }).then((ok) => {
         dirtyRef.current = false;
+        // Only clear the persisted un-synced marker when the backend confirmed
+        // the save; on failure it stays set so the next reload flushes first.
+        if (ok) lsSet(LS.PENDING_SYNC, '0');
       });
     }, 1500);
     return () => window.clearTimeout(id);

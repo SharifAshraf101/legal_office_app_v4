@@ -51,6 +51,11 @@ export const LS = {
   DOCUMENTS: 'law_documents',
   TASKS: 'law_tasks',
   DATA_VERSION: 'law_data_version',
+  // '1' while local edits may not have reached the backend yet. Set on every
+  // savable edit, cleared once a save completes. On boot we flush the local
+  // copy BEFORE pulling if this is set — otherwise a payment added and then
+  // refreshed before the 1.5s auto-save fired would be wiped by the boot pull.
+  PENDING_SYNC: 'law_pending_sync',
   PORTAL_BOT_HISTORY: 'law_portal_bot_history',
   PORTAL_BOT_DOWNLOADS: 'law_portal_bot_downloads',
   LAST_TASK_DROPBOX_PATH: 'law_last_task_dropbox_path_v1',
