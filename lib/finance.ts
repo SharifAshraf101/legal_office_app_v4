@@ -20,10 +20,18 @@ export function paymentTypeLabel(type: string | undefined, lang: Lang): string {
   return lang === 'ar' ? item.ar : item.he;
 }
 
-/** Source line 3790. */
+/** Source line 3790.
+ *  Every finance record in this system is an actual payment: they are created
+ *  by the payment modal and stored in the D1 `payments` table, which has NO
+ *  draft/status column. The `paid` flag is an in-memory-only field that does
+ *  not survive the backend round-trip, so requiring `paid === true` here made
+ *  saved payments silently drop out of the balance/list after a reload. Count a
+ *  record unless it is EXPLICITLY marked unpaid (`paid === false`), which keeps
+ *  the door open for a future draft flag without depending on the flag being
+ *  restored on load. */
 export function allPaidItemsForCase(caseId: string, finances: Finance[]): Finance[] {
   return finances
-    .filter((f) => f.caseId === caseId && f.paid)
+    .filter((f) => f.caseId === caseId && f.paid !== false)
     .slice()
     .sort(
       (a, b) =>
