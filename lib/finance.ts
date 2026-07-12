@@ -23,7 +23,7 @@ export function paymentTypeLabel(type: string | undefined, lang: Lang): string {
 /** Source line 3790. */
 export function allPaidItemsForCase(caseId: string, finances: Finance[]): Finance[] {
   return finances
-    .filter((f) => f.caseId === caseId && (f as Finance & { paid?: boolean }).paid)
+    .filter((f) => f.caseId === caseId && f.paid)
     .slice()
     .sort(
       (a, b) =>

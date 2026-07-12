@@ -247,10 +247,15 @@ function normalizeFinance(
   caseByUuid: Record<string, string>,
   _caseBySource: Record<string, Case>,
 ): Finance | null {
-  const caseId =
+  // Canonicalise to UPPER-CASE like normalizeTask/Event/Document: the external
+  // pipeline has written some rows with lower-case case ids, and a
+  // case-sensitive match would hide the payment from its case (balance/list
+  // would show 0), the same bug the sibling normalizers were fixed for.
+  const caseId = (
     String(first(r, ['case_source_id', 'caseId'], '')) ||
     caseByUuid[String(first(r, ['case_id'], ''))] ||
-    '';
+    ''
+  ).toUpperCase();
   if (!caseId) return null;
   const id = String(first(r, ['source_id', 'payment_source_id', 'id'], '')).trim();
   const appId = id && !id.includes('-0000-') ? id : 'PAY-' + String(first(r, ['id'], '')).slice(0, 8);
@@ -262,6 +267,11 @@ function normalizeFinance(
     type: String(first(r, ['type', 'payment_type'], 'payment')),
     description: String(first(r, ['description', 'notes'], '')),
     descriptionAr: String(first(r, ['description_ar', 'descriptionAr', 'description', 'notes'], '')),
+    // Every row in the backend `payments` table is an actual recorded
+    // payment (there is no draft/status column). Restore `paid` so the
+    // round-trip doesn't wipe the flag and make the payment vanish from
+    // the case balance on the next load/poll.
+    paid: true,
   };
 }
 

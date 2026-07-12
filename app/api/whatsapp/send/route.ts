@@ -24,12 +24,17 @@ async function resolveDocumentUrl(document?: { name?: string; url?: string; rela
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { to, message, document } = body as {
-    to: string;
+  let body: {
+    to?: string;
     message?: string;
     document?: { name?: string; url?: string; relativePath?: string };
   };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+  const { to, message, document } = body;
 
   if (!to) {
     return NextResponse.json({ error: 'Missing recipient phone number' }, { status: 400 });
@@ -44,7 +49,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const resolvedDocumentUrl = await resolveDocumentUrl(document);
+  let resolvedDocumentUrl: string | undefined;
+  try {
+    resolvedDocumentUrl = await resolveDocumentUrl(document);
+  } catch (error) {
+    console.error('[WhatsApp send] failed to resolve document link', error);
+    return NextResponse.json(
+      { error: 'Failed to resolve document link' },
+      { status: 502 },
+    );
+  }
+  // A document was requested but we couldn't produce a link for it. Don't
+  // silently downgrade to a text-only send (which would drop the attachment
+  // the caller intended to deliver) — surface the failure instead.
+  if (document && !resolvedDocumentUrl) {
+    return NextResponse.json(
+      { error: 'Could not resolve a shareable link for the attached document' },
+      { status: 502 },
+    );
+  }
   const isDocument = Boolean(resolvedDocumentUrl);
   const finalPayload = isDocument
     ? {
@@ -99,7 +122,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'WhatsApp send failed', details: data }, { status: response.status });
   }
 
-  if (response.ok) {
+  // Message already delivered by Meta above (response.ok). Logging it to D1 is
+  // best-effort: a failure here must NOT fail the request, or the UI would
+  // treat a successfully-sent message as failed and re-send it (duplicates).
+  try {
     await fetch(`${WORKER_URL}/api/whatsapp-messages`, {
       method: 'POST',
       headers: {
@@ -118,6 +144,8 @@ export async function POST(req: NextRequest) {
         file_name: document?.name || null,
       }),
     });
+  } catch (error) {
+    console.error('[WhatsApp send] failed to log outgoing message to D1', error);
   }
 
   return NextResponse.json(data);

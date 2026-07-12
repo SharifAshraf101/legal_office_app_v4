@@ -37,6 +37,30 @@ export function FinanceEdit({ caseId }: FinanceEditProps) {
   const confirmDelete = useDeleteConfirm();
 
   const c = state.casesArr.find((x) => x.id === caseId);
+
+  // Hooks must run before the `if (!c)` early return (Rules of Hooks), so the
+  // initial values are derived null-safely from `c`.
+  const initialTitle =
+    lang === 'ar' ? c?.titleAr || c?.title || '' : c?.title || c?.titleAr || '';
+  const initialPayments: PaymentDraft[] = financePaymentsForCase(
+    caseId,
+    state.finances,
+  ).map((p) => ({
+    id: p.id,
+    date: p.date || '',
+    type: p.type || 'fee',
+    amount: String(Number(p.amount || 0)),
+    description:
+      lang === 'ar'
+        ? p.descriptionAr || p.description || ''
+        : p.description || p.descriptionAr || '',
+  }));
+  const [title, setTitle] = useState(initialTitle);
+  const [caseNumber, setCaseNumber] = useState(c?.caseNumber || '');
+  const [clientId, setClientId] = useState(c?.clientId ?? '');
+  const [fee, setFee] = useState(String(Number(c?.agreedFee || 0)));
+  const [payments, setPayments] = useState<PaymentDraft[]>(initialPayments);
+
   if (!c) return null;
 
   const onDeleteAllPayments = async () => {
@@ -52,28 +76,6 @@ export function FinanceEdit({ caseId }: FinanceEditProps) {
     });
     modalStack.closeAll();
   };
-
-  const initialTitle =
-    lang === 'ar' ? c.titleAr || c.title || '' : c.title || c.titleAr || '';
-  const initialPayments: PaymentDraft[] = financePaymentsForCase(
-    caseId,
-    state.finances,
-  ).map((p) => ({
-    id: p.id,
-    date: p.date || '',
-    type: p.type || 'fee',
-    amount: String(Number(p.amount || 0)),
-    description:
-      lang === 'ar'
-        ? p.descriptionAr || p.description || ''
-        : p.description || p.descriptionAr || '',
-  }));
-
-  const [title, setTitle] = useState(initialTitle);
-  const [caseNumber, setCaseNumber] = useState(c.caseNumber || '');
-  const [clientId, setClientId] = useState(c.clientId);
-  const [fee, setFee] = useState(String(Number(c.agreedFee || 0)));
-  const [payments, setPayments] = useState<PaymentDraft[]>(initialPayments);
 
   const close = () => modalStack.close(modalStack.topId() ?? 0);
 

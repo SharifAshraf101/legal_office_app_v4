@@ -116,6 +116,12 @@ export interface Finance {
   type?: FinanceType;
   description?: string;
   descriptionAr?: string;
+  // A recorded payment. Only records with `paid: true` count toward a case's
+  // balance (see lib/finance.ts). Every row persisted to the backend
+  // `payments` table represents an actual payment, so the loaders restore
+  // this flag on the way back in — otherwise a saved payment would reload
+  // without it and silently drop out of every balance/total.
+  paid?: boolean;
 }
 
 export type TimelineType = 'note' | 'call' | 'meeting' | 'document' | 'task' | 'hearing' | string;

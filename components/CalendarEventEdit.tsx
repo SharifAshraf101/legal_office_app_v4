@@ -93,10 +93,12 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
     source === 'task'
       ? state.timelineItems.find((x) => String(x.id) === String(id))
       : state.eventsList.find((x) => String(x.id) === String(id));
-  if (!item) return null;
 
-  const initialRaw =
-    source === 'task'
+  // Hooks below must run before the `if (!item)` early return (Rules of Hooks),
+  // so the initial values are derived null-safely from `item`.
+  const initialRaw = !item
+    ? undefined
+    : source === 'task'
       ? (item as TimelineItem & { dueDateTime?: string; dueDate?: string }).dueDateTime ||
         (item as TimelineItem & { dueDate?: string }).dueDate ||
         (item as TimelineItem).date
@@ -106,13 +108,15 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
   const [dateStr, setDateStr] = useState(calendarDateValue(initialDate));
   const [hour, setHour] = useState(pad(initialDate.getHours()));
   const [minute, setMinute] = useState(pad(initialDate.getMinutes()));
-  const [nature, setNature] = useState(calendarItemTitle(item, lang) || 'דיון מקדמי');
-  const [caseId, setCaseId] = useState(item.caseId || '');
+  const [nature, setNature] = useState((item ? calendarItemTitle(item, lang) : '') || 'דיון מקדמי');
+  const [caseId, setCaseId] = useState(item?.caseId || '');
   const [description, setDescription] = useState(
     lang === 'ar'
-      ? item.descriptionAr || item.description || ''
-      : item.description || item.descriptionAr || '',
+      ? item?.descriptionAr || item?.description || ''
+      : item?.description || item?.descriptionAr || '',
   );
+
+  if (!item) return null;
 
   const close = () => modalStack.close(modalStack.topId() ?? 0);
   const backToDetail = () => {

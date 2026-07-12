@@ -1447,7 +1447,15 @@ async function handleGetSuggestedActions(request: Request, env: Env): Promise<Re
 // GET /api/photo/<key>
 // ---------------------------------------------------------------------------
 async function servePhoto(env: Env, rawKey: string): Promise<Response> {
-  const key = decodeURIComponent(rawKey);
+  let key: string;
+  try {
+    key = decodeURIComponent(rawKey);
+  } catch {
+    // A malformed percent-escape (e.g. "/api/photo/%") makes
+    // decodeURIComponent throw URIError — treat it as not-found instead of
+    // letting it bubble up to a bare 500.
+    return new Response('not found', { status: 404 });
+  }
   if (!key) return new Response('not found', { status: 404 });
 
   const obj = await env.PHOTOS.get(key);
@@ -1467,10 +1475,10 @@ function safeName(name: string): string {
 // POST /api/whatsapp-messages
 // -----------------------------------------------------------------------
 async function handleSaveWhatsAppMessage(request: Request, env: Env): Promise<Response> {
-  const body = await request.json() as { 
-    client_phone: string; 
-    direction: string; 
-    message_text: string; 
+  let body: {
+    client_phone: string;
+    direction: string;
+    message_text: string;
     timestamp: number;
     message_type?: string;
     media_url?: string;
@@ -1478,19 +1486,32 @@ async function handleSaveWhatsAppMessage(request: Request, env: Env): Promise<Re
     media_id?: string;
     file_name?: string;
   };
-  await env.DB.prepare(
-    'INSERT INTO whatsapp_messages (client_phone, direction, message_text, timestamp, message_type, media_url, media_mime_type, media_id, file_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)'
-  ).bind(
-    body.client_phone, 
-    body.direction, 
-    body.message_text || '', 
-    body.timestamp,
-    body.message_type || 'text',
-    body.media_url || null,
-    body.media_mime_type || null,
-    body.media_id || null,
-    body.file_name || null
-  ).run();
+  try {
+    body = await request.json() as typeof body;
+  } catch {
+    return json({ error: 'invalid_json' }, request, env, 400);
+  }
+  if (!body || !body.client_phone) {
+    return json({ error: 'missing client_phone' }, request, env, 400);
+  }
+  try {
+    await env.DB.prepare(
+      'INSERT INTO whatsapp_messages (client_phone, direction, message_text, timestamp, message_type, media_url, media_mime_type, media_id, file_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)'
+    ).bind(
+      body.client_phone,
+      body.direction,
+      body.message_text || '',
+      body.timestamp,
+      body.message_type || 'text',
+      body.media_url || null,
+      body.media_mime_type || null,
+      body.media_id || null,
+      body.file_name || null
+    ).run();
+  } catch (e) {
+    console.error('[worker] failed to save whatsapp message', e);
+    return json({ error: 'db_error' }, request, env, 500);
+  }
   return json({ ok: true }, request, env);
 }
 

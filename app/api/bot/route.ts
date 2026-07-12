@@ -190,7 +190,10 @@ export async function POST(req: Request) {
   // Past Q+A turns get folded into the messages list. We keep the last 10
   // turns (20 messages) — enough for short-term context, not enough to
   // blow up the prompt or invalidate the cache breakpoint above.
-  const recentHistory = history.slice(-10);
+  // `history = []` only defaults `undefined`; a client sending a non-array
+  // (e.g. `{}`) would otherwise make `.slice` throw here — before the try
+  // block below — and return a bare 500 instead of a clean response.
+  const recentHistory = Array.isArray(history) ? history.slice(-10) : [];
   const messages: Anthropic.Messages.MessageParam[] = [];
   for (const h of recentHistory) {
     if (!h?.question || !h?.answer) continue;

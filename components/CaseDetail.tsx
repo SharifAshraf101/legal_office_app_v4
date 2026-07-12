@@ -123,6 +123,21 @@ const HEARING_FROM_DECISION_AR =
 function useCaseDecisionImport(caseId: string): DecisionInfo | null {
   const { state, dispatch } = useAppState();
   const [info, setInfo] = useState<DecisionInfo | null>(null);
+  // Mirror the latest tasks/events into refs. The import below dispatches a
+  // FULL-array replacement from inside an async `.then()`; if it spread the
+  // `state.tasksArr`/`state.eventsList` captured when the effect ran, any
+  // task/event added during the fetch window would be silently overwritten.
+  // Reading from the refs at dispatch time always spreads the current arrays.
+  // (We deliberately keep these out of the effect deps so the D1 fetch doesn't
+  // re-fire on every unrelated task/event change.)
+  const tasksRef = useRef(state.tasksArr);
+  const eventsRef = useRef(state.eventsList);
+  useEffect(() => {
+    tasksRef.current = state.tasksArr;
+  }, [state.tasksArr]);
+  useEffect(() => {
+    eventsRef.current = state.eventsList;
+  }, [state.eventsList]);
   useEffect(() => {
     const primary = caseDocumentsForCase(caseId, state.documentsArr)[0];
     const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
@@ -149,7 +164,7 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
       if (
         desc &&
         !decisionImportKeys.has(taskKey) &&
-        !state.tasksArr.some(
+        !tasksRef.current.some(
           (t) => String(t.caseId) === String(caseId) && t.title === desc,
         )
       ) {
@@ -157,7 +172,7 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
         dispatch({
           type: 'SET_TASKS',
           tasks: [
-            ...state.tasksArr,
+            ...tasksRef.current,
             {
               id: 'TASK-' + String(Date.now()),
               title: desc,
@@ -181,7 +196,7 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
         const hearingIso = isNaN(hd.getTime()) ? '' : hd.toISOString();
         const day = d.hearingDate.slice(0, 10);
         const hearingKey = 'hearing:' + caseId + ':' + day;
-        const hearingExists = state.eventsList.some(
+        const hearingExists = eventsRef.current.some(
           (e) =>
             String(e.caseId) === String(caseId) &&
             String(e.type).toLowerCase().startsWith('hearing') &&
@@ -192,7 +207,7 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
           dispatch({
             type: 'SET_EVENTS',
             events: [
-              ...state.eventsList,
+              ...eventsRef.current,
               {
                 id: 'EV-' + String(Date.now() + 1),
                 caseId,
@@ -1271,6 +1286,19 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   const { state, dispatch } = useAppState();
   const { lang } = useT();
   const modalStack = useModalStack();
+  // Mirror the latest tasks/events into refs. The decision-split effect below
+  // dispatches FULL-array replacements from inside an async callback (after the
+  // AI split resolves), so it must spread the CURRENT arrays — not the snapshot
+  // captured when the effect ran — or a task/event added during that window
+  // would be silently overwritten.
+  const tasksRef = useRef(state.tasksArr);
+  const eventsRef = useRef(state.eventsList);
+  useEffect(() => {
+    tasksRef.current = state.tasksArr;
+  }, [state.tasksArr]);
+  useEffect(() => {
+    eventsRef.current = state.eventsList;
+  }, [state.eventsList]);
   const close = () => modalStack.close(modalStack.topId() ?? 0);
   const [tab, setTab] = useState<'notes' | 'tasks' | 'documents'>('documents');
   // Which document the "פענוח" + "טיוטת תגובה" boxes focus on. null = default
@@ -1499,7 +1527,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       }
       if (title) {
         const taskKey = decisionTaskKey(caseId, title);
-        const exists = state.tasksArr.some(
+        const exists = tasksRef.current.some(
           (t) => String(t.caseId) === String(caseId) && t.title === title,
         );
         if (!decisionImportKeys.has(taskKey) && !exists) {
@@ -1507,7 +1535,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
           dispatch({
             type: 'SET_TASKS',
             tasks: [
-              ...state.tasksArr,
+              ...tasksRef.current,
               {
                 // Stable id per case-decision so it's idempotent with the
                 // server-side batch (same source_id → upsert, never duplicated).
@@ -1539,7 +1567,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         const hd = new Date(`${hearingDay}T${time}:00`);
         const hearingIso = isNaN(hd.getTime()) ? '' : hd.toISOString();
         const hearingKey = 'hearing:' + caseId + ':' + hearingDay;
-        const hearingExists = state.eventsList.some(
+        const hearingExists = eventsRef.current.some(
           (e) =>
             String(e.caseId) === String(caseId) &&
             String(e.type).toLowerCase().startsWith('hearing') &&
@@ -1550,7 +1578,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
           dispatch({
             type: 'SET_EVENTS',
             events: [
-              ...state.eventsList,
+              ...eventsRef.current,
               {
                 id: 'EV-DEC-' + caseId,
                 caseId,

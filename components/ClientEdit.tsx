@@ -28,6 +28,24 @@ export function ClientEdit({ clientId }: ClientEditProps) {
   const confirmDelete = useDeleteConfirm();
 
   const c = state.clients.find((x) => x.id === clientId);
+
+  // Hooks must run before the `if (!c)` early return (Rules of Hooks), so the
+  // initial values are derived null-safely from `c`.
+  const initialName = c ? clientDisplayName(c, lang) : '';
+  const initialPhone = String(c?.phone || '');
+  const initialIdNumber = String(c?.idNumber || '');
+  const initialAddress =
+    lang === 'ar' ? c?.addressAr || c?.address || '' : c?.address || c?.addressAr || '';
+  const initialNotes =
+    lang === 'ar' ? c?.notesAr || c?.notes || '' : c?.notes || c?.notesAr || '';
+  const initialOtherName = lang === 'ar' ? c?.name || '' : c?.nameAr || '';
+  const [name, setName] = useState(initialName);
+  const [otherName, setOtherName] = useState(initialOtherName);
+  const [phone, setPhone] = useState(initialPhone);
+  const [idNumber, setIdNumber] = useState(initialIdNumber);
+  const [address, setAddress] = useState(initialAddress);
+  const [notes, setNotes] = useState(initialNotes);
+
   if (!c) return null;
 
   const onDeleteClient = async () => {
@@ -78,26 +96,11 @@ export function ClientEdit({ clientId }: ClientEditProps) {
     modalStack.closeAll();
   };
 
-  const initialName = clientDisplayName(c, lang);
-  const initialPhone = String(c.phone || '');
-  const initialIdNumber = String(c.idNumber || '');
-  const initialAddress =
-    lang === 'ar' ? c.addressAr || c.address || '' : c.address || c.addressAr || '';
-  const initialNotes =
-    lang === 'ar' ? c.notesAr || c.notes || '' : c.notes || c.notesAr || '';
-  const initialOtherName = lang === 'ar' ? c.name || '' : c.nameAr || '';
   const otherNameLabel =
     lang === 'ar' ? 'اسم الموكل بالعبرية' : 'שם הלקוח בערבית';
   const title = lang === 'ar' ? 'تفاصيل الموكل' : 'פרטי לקוח';
   const notesLabel =
     lang === 'ar' ? 'ملاحظات مرتبطة بالموكل' : 'הערות קשורות ללקוח';
-
-  const [name, setName] = useState(initialName);
-  const [otherName, setOtherName] = useState(initialOtherName);
-  const [phone, setPhone] = useState(initialPhone);
-  const [idNumber, setIdNumber] = useState(initialIdNumber);
-  const [address, setAddress] = useState(initialAddress);
-  const [notes, setNotes] = useState(initialNotes);
 
   const close = () => modalStack.close(modalStack.topId() ?? 0);
   const backToDetail = () => {

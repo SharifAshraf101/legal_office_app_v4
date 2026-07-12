@@ -237,6 +237,22 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.documentsArr, state.casesArr, state.clients, caseId, refreshTick]);
 
+  // These three pieces of local UI state MUST be declared before the
+  // `if (!c) return null` early-return below. If the case vanishes between
+  // renders (e.g. deleted on another device and dropped by the 30s poll's
+  // REPLACE_ALL) `c` becomes undefined, the early-return fires, and skipping
+  // these Hooks would violate the Rules of Hooks ("rendered fewer hooks than
+  // expected") and crash the modal.
+  //
+  // Inline-edit state for renaming a document's title. Only one document is
+  // editable at a time; `editTitleDraft` holds the working text and commit
+  // writes it back via SET_DOCUMENTS.
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [editTitleDraft, setEditTitleDraft] = useState<string>('');
+  // Pick mode two-step: tap a row to highlight ("pending"), then confirm with
+  // the bottom "בחר" button.
+  const [pendingDocId, setPendingDocId] = useState<string | null>(null);
+
   const c = state.casesArr.find((x) => String(x.id) === String(caseId));
   if (!c) return null;
 
@@ -265,11 +281,6 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
     });
   };
 
-  // Inline-edit state for renaming a document's title. Only one
-  // document is editable at a time. `editTitleDraft` holds the
-  // working text; commit writes it back via SET_DOCUMENTS.
-  const [editingDocId, setEditingDocId] = useState<string | null>(null);
-  const [editTitleDraft, setEditTitleDraft] = useState<string>('');
   const startEdit = (docId: string, currentTitle: string) => {
     setEditingDocId(docId);
     setEditTitleDraft(currentTitle);
@@ -323,10 +334,6 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
     lang === 'ar'
       ? 'وضع الإرفاق بالمحادثة — اختر مستندًا ثم اضغط "اختيار" لإرساله إلى المحادثة'
       : 'מצב צירוף לשיחה — בחר מסמך ולחץ "בחר" כדי לצרפו לשיחה עם הלקוח';
-  // Two-step pattern in pick mode: tap a row to highlight ("pending"),
-  // then confirm with the bottom "בחר" button. "בטל" closes without
-  // attaching anything to the chat.
-  const [pendingDocId, setPendingDocId] = useState<string | null>(null);
   const confirmLabel = lang === 'ar' ? 'اختيار' : 'בחר';
   const cancelLabel = lang === 'ar' ? 'إلغاء' : 'בטל';
   const uploadLabel = lang === 'ar' ? 'رفع المستند' : 'העלאת מסמך';

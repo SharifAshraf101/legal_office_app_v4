@@ -32,6 +32,24 @@ export function CaseEdit({ caseId }: CaseEditProps) {
   const confirmDelete = useDeleteConfirm();
 
   const c = state.casesArr.find((x) => x.id === caseId);
+
+  // Hooks must run before the `if (!c)` early return (Rules of Hooks), so the
+  // initial values are derived null-safely from `c`.
+  const initialTitle =
+    lang === 'ar' ? c?.titleAr || c?.title || '' : c?.title || c?.titleAr || '';
+  const initialCourt =
+    lang === 'ar' ? c?.courtAr || c?.court || '' : c?.court || c?.courtAr || '';
+  const initialDesc =
+    lang === 'ar'
+      ? c?.descriptionAr || c?.description || ''
+      : c?.description || c?.descriptionAr || '';
+  const [title, setTitle] = useState(initialTitle);
+  const [clientId, setClientId] = useState(c?.clientId ?? '');
+  const [court, setCourt] = useState(initialCourt);
+  const [caseNumber, setCaseNumber] = useState(c?.caseNumber || '');
+  const [fee, setFee] = useState(String(Number(c?.agreedFee || 0)));
+  const [desc, setDesc] = useState(initialDesc);
+
   if (!c) return null;
 
   const onDeleteCase = async () => {
@@ -68,22 +86,6 @@ export function CaseEdit({ caseId }: CaseEditProps) {
     // Close the edit modal AND any underlying detail modal.
     modalStack.closeAll();
   };
-
-  const initialTitle =
-    lang === 'ar' ? c.titleAr || c.title || '' : c.title || c.titleAr || '';
-  const initialCourt =
-    lang === 'ar' ? c.courtAr || c.court || '' : c.court || c.courtAr || '';
-  const initialDesc =
-    lang === 'ar'
-      ? c.descriptionAr || c.description || ''
-      : c.description || c.descriptionAr || '';
-
-  const [title, setTitle] = useState(initialTitle);
-  const [clientId, setClientId] = useState(c.clientId);
-  const [court, setCourt] = useState(initialCourt);
-  const [caseNumber, setCaseNumber] = useState(c.caseNumber || '');
-  const [fee, setFee] = useState(String(Number(c.agreedFee || 0)));
-  const [desc, setDesc] = useState(initialDesc);
 
   const status = caseStatusView(c.status, t);
   const docsLabel = lang === 'ar' ? 'مستندات القضية' : 'מסמכי התיק';

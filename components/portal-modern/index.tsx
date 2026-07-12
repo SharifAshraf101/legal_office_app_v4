@@ -3240,6 +3240,30 @@ function ChatComposer({
   const recordStartRef = useRef<number>(0);
   const recordStreamRef = useRef<MediaStream | null>(null);
 
+  // If the composer unmounts mid-recording (e.g. the lawyer navigates away
+  // without pressing stop), MediaRecorder.onstop — which releases the mic
+  // tracks — never fires, so the microphone stays live (the browser's
+  // recording indicator stays on) until the tab is closed. Stop it on unmount.
+  useEffect(() => {
+    return () => {
+      const rec = recorderRef.current;
+      if (rec) {
+        // Drop the handler first so a stop triggered by unmount doesn't emit a
+        // blob or setState on the now-unmounted composer.
+        rec.onstop = null;
+        if (rec.state !== 'inactive') {
+          try {
+            rec.stop();
+          } catch {
+            /* recorder already torn down */
+          }
+        }
+      }
+      recordStreamRef.current?.getTracks().forEach((t) => t.stop());
+      recordStreamRef.current = null;
+    };
+  }, []);
+
   const readOnlyPlaceholder =
     lang === 'ar'
       ? 'وضع القراءة فقط — لا يمكن إرسال رسائل'

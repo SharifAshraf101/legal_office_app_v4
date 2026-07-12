@@ -24,6 +24,12 @@ export function AddPaymentModal() {
   const c = state.casesArr.find((x) => x.id === state.selectedFinanceCaseId);
   const close = () => modalStack.close(modalStack.topId() ?? 0);
 
+  // Hooks must run before any early return (Rules of Hooks). These initializers
+  // don't depend on `c`, so declare them here, above the `if (!c)` guard.
+  const [paymentType, setPaymentType] = useState('fee');
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
+
   if (!c) {
     // Source alerts here; we close immediately and surface the alert too.
     if (typeof window !== 'undefined') {
@@ -34,10 +40,6 @@ export function AddPaymentModal() {
   }
 
   const client = state.clients.find((x) => x.id === c.clientId);
-
-  const [paymentType, setPaymentType] = useState('fee');
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -50,7 +52,7 @@ export function AddPaymentModal() {
     const today = new Date().toISOString().slice(0, 10);
     const heLabel = defaultPaymentDescription(paymentType, 'he');
     const arLabel = defaultPaymentDescription(paymentType, 'ar');
-    const newPayment: Finance & { paid?: boolean } = {
+    const newPayment: Finance = {
       id: nextPaymentId(state.finances),
       caseId: c.id,
       description: desc || heLabel,
