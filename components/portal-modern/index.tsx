@@ -104,6 +104,7 @@ type Screen =
   | 'hub'
   | 'chat'
   | 'bot'
+  | 'lang-choice'
   | 'lawyer-search'
   // Deep-link ("kiosk") screens — used only when a client opens the
   // WhatsApp portal link. 'gate' waits for app data to hydrate and the
@@ -144,7 +145,7 @@ function PortalShell({
   autoLoginPhone?: string;
   deepLink?: boolean;
 }) {
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
   const { lang, t } = useT();
   // Deep-link mode: a client opened the WhatsApp portal link. We auto-bind
   // them to their file by phone and lock them inside the bot — the
@@ -203,6 +204,9 @@ function PortalShell({
 
   const [screen, setScreen] = useState<Screen>(deepLink ? 'gate' : 'chooser');
   const [selectedClient, setSelectedClient] = useState<ClientRow | null>(null);
+  // The raw matched client (deep link) — kept so the ClientRow can be rebuilt in
+  // whichever language the client picks on the language-choice screen.
+  const [matchedClient, setMatchedClient] = useState<Client | null>(null);
   // Why the deep-link 'denied' dead-end is showing: 'unmatched' (phone not
   // recognized) vs 'ended' (the client logged out of their bot session).
   const [deniedReason, setDeniedReason] = useState<'unmatched' | 'ended'>(
@@ -235,8 +239,19 @@ function PortalShell({
       setScreen('denied');
       return;
     }
-    // Build the bot's ClientRow directly from the matched client so we don't
-    // depend on the 30-row hub slice (the client could be further down the list).
+    setMatchedClient(matched);
+    setSelectedClient(buildClientRow(matched, lang));
+    setLawyerView(false);
+    // Ask the client which language to converse in BEFORE opening the bot; the
+    // bot then answers in the chosen language.
+    setScreen('lang-choice');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLink, autoLoginPhone, state.clients, state.casesArr, lang]);
+
+  // Build the bot's ClientRow directly from the matched client (so we don't
+  // depend on the 30-row hub slice) in a given language — rebuilt when the
+  // client picks a language, so the name/case labels match their choice.
+  function buildClientRow(matched: Client, lng: 'he' | 'ar'): ClientRow {
     const allCases = state.casesArr.filter((cs) => cs.clientId === matched.id);
     const activeCases = allCases.filter((cs) => cs.status !== 'inactive');
     const displayCases = activeCases.length > 0 ? activeCases : allCases;
@@ -245,22 +260,27 @@ function PortalShell({
       caseNumber: cs.caseNumber || cs.id,
       title: cs.title || cs.caseNumber || cs.id,
     }));
-    const name = clientDisplayName(matched, lang);
-    setSelectedClient({
+    const name = clientDisplayName(matched, lng);
+    return {
       id: matched.id,
-      name: name || (lang === 'ar' ? 'موكل' : 'לקוח'),
+      name: name || (lng === 'ar' ? 'موكل' : 'לקוח'),
       caseNo: caseSummaries[0]?.caseNumber || '',
-      caseType: caseSummaries[0]?.title || (lang === 'ar' ? 'بدون قضية' : 'ללא תיק'),
+      caseType: caseSummaries[0]?.title || (lng === 'ar' ? 'بدون قضية' : 'ללא תיק'),
       cases: caseSummaries,
       time: '',
       unread: 0,
       avatar: (name || '?').trim().charAt(0).toUpperCase(),
       status: 'online',
-    });
-    setLawyerView(false);
+    };
+  }
+
+  // Client picked a conversation language on the language-choice screen → set
+  // it app-wide, rebuild their row in that language, and open the bot.
+  const chooseLangAndStart = (chosen: 'he' | 'ar') => {
+    dispatch({ type: 'SET_LANG', lang: chosen });
+    if (matchedClient) setSelectedClient(buildClientRow(matchedClient, chosen));
     setScreen('bot');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deepLink, autoLoginPhone, state.clients, state.casesArr, lang]);
+  };
 
   // Safety net: if data never loads (network/CORS/token failure), don't spin
   // forever — fall back to the 'denied' dead-end after a grace period.
@@ -346,6 +366,12 @@ function PortalShell({
         />
       )}
       {screen === 'gate' && <GateScreen lang={lang} />}
+      {screen === 'lang-choice' && (
+        <LanguageChoiceScreen
+          clientName={selectedClient?.name || ''}
+          onChoose={chooseLangAndStart}
+        />
+      )}
       {screen === 'denied' && (
         <DeniedScreen reason={deniedReason} lang={lang} />
       )}
@@ -401,6 +427,53 @@ function PortalShell({
 /* ────────────────────────────────────────────────────────── *
  * Deep-link (kiosk) screens
  * ────────────────────────────────────────────────────────── */
+
+/**
+ * Deep-link language picker. Shown right after the client is matched, BEFORE the
+ * bot opens, so the whole conversation runs in the language they choose. Bilingual
+ * on purpose — the client hasn't picked yet.
+ */
+function LanguageChoiceScreen({
+  clientName,
+  onChoose,
+}: {
+  clientName: string;
+  onChoose: (lang: 'he' | 'ar') => void;
+}) {
+  return (
+    <div className="tw-flex tw-min-h-[80vh] tw-flex-col tw-items-center tw-justify-center tw-gap-6 tw-px-6 tw-py-10 tw-text-center">
+      <div className="tw-grid tw-h-16 tw-w-16 tw-place-items-center tw-rounded-full tw-bg-indigo-500 tw-text-white tw-shadow-sm">
+        <Bot className="tw-h-8 tw-w-8" />
+      </div>
+      <div>
+        {clientName ? (
+          <div className="tw-mb-1 tw-text-lg tw-font-bold tw-text-slate-900">
+            {'أهلاً ' + clientName + ' · שלום ' + clientName}
+          </div>
+        ) : null}
+        <div className="tw-text-base tw-font-semibold tw-text-slate-700">
+          اختر لغة المحادثة · בחר שפת השיחה
+        </div>
+      </div>
+      <div className="tw-flex tw-w-full tw-max-w-sm tw-flex-col tw-gap-3">
+        <button
+          type="button"
+          onClick={() => onChoose('ar')}
+          className="tw-flex tw-items-center tw-justify-center tw-gap-3 tw-rounded-2xl tw-bg-emerald-500 tw-px-6 tw-py-4 tw-text-lg tw-font-bold tw-text-white tw-shadow-sm hover:tw-bg-emerald-600"
+        >
+          العربية
+        </button>
+        <button
+          type="button"
+          onClick={() => onChoose('he')}
+          className="tw-flex tw-items-center tw-justify-center tw-gap-3 tw-rounded-2xl tw-bg-indigo-500 tw-px-6 tw-py-4 tw-text-lg tw-font-bold tw-text-white tw-shadow-sm hover:tw-bg-indigo-600"
+        >
+          עברית
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /** Shown while app data hydrates and the phone→client match resolves. */
 function GateScreen({ lang }: { lang: 'he' | 'ar' }) {
@@ -1393,12 +1466,18 @@ function ClientChatScreen({
   // "העלאת מסמך" button) and can still forward any existing document to the chat
   // (per-row "שלח לשיחה"). No attach-only pick mode.
   const openCaseDocuments = (caseId: string) => {
-    modalStack.open(
+    // Close by THIS modal's own id (returned from open) after sending, so
+    // "שלח לשיחה" reliably drops the lawyer back into the chat. The old
+    // `modalStack.topId()` was read off the closure captured at open time —
+    // stale, so it resolved to the stack as it was BEFORE this modal existed
+    // (→ close(0), a no-op) and left the documents screen stuck open.
+    let modalId = 0;
+    modalId = modalStack.open(
       <CaseDocumentsModal
         caseId={caseId}
         onSendToChat={async (doc) => {
           await attachDocumentToChat(doc);
-          modalStack.close(modalStack.topId() ?? 0);
+          modalStack.close(modalId);
         }}
       />,
     );
