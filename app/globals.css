@@ -41,6 +41,10 @@
        app-shell's body height/overflow lock so the bot chat scrolls on mobile. */
     body.portal-standalone{height:auto;min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;}
     body.portal-standalone .modern-portal-root{min-height:100vh;min-height:100dvh;}
+    /* The client portal is a fixed LIGHT theme (cream cards). Pin the color
+       scheme so a phone in dark mode doesn't flip system colors (e.g. button
+       text to white on the cream chips, making the labels vanish). */
+    body.portal-standalone,.modern-portal-root{color-scheme:light;}
     @media(max-width:620px){.language-actions{grid-template-columns:1fr}.language-panel{padding:28px 20px}.summary-grid{grid-template-columns:1fr}.actions .btn-secondary{display:none}.page-title h1{font-size:20px}.table th:nth-child(3),.table td:nth-child(3){display:none}.content{padding-inline:12px}.panel-head{padding-inline:14px}.panel-body{padding-inline:14px}}
   
     @keyframes conflictBlink{

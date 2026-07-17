@@ -732,6 +732,8 @@ export function NewEventModal({
                 <input
                   id="eventDateOnlyInput"
                   type="date"
+                  // en-IL: built-in calendar starts the week on Sunday (keeps DD/MM/YYYY).
+                  lang="en-IL"
                   value={eventDate}
                   onChange={(e) => setEventDate(e.target.value)}
                 />
@@ -767,6 +769,8 @@ export function NewEventModal({
                 <input
                   id="taskDueDateInput"
                   type="date"
+                  // en-IL: built-in calendar starts the week on Sunday (keeps DD/MM/YYYY).
+                  lang="en-IL"
                   value={taskDate}
                   onChange={(e) => setTaskDate(e.target.value)}
                 />

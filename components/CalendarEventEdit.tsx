@@ -241,6 +241,8 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
           <input
             id="editCalendarDate"
             type="date"
+            // en-IL: built-in calendar starts the week on Sunday (keeps DD/MM/YYYY).
+            lang="en-IL"
             value={dateStr}
             onChange={(e) => setDateStr(e.target.value)}
             required

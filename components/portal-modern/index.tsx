@@ -2782,7 +2782,7 @@ function BotChatScreen({
                 key={item}
                 type="button"
                 onClick={onClick}
-                className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-[#FDFBF5] tw-px-4 tw-py-4 tw-text-sm tw-font-medium tw-shadow-sm hover:tw-bg-[#F8F2E4]"
+                className="tw-rounded-2xl tw-border tw-border-slate-200 tw-bg-[#FDFBF5] tw-px-4 tw-py-4 tw-text-sm tw-font-medium tw-text-slate-800 tw-shadow-sm hover:tw-bg-[#F8F2E4]"
               >
                 {item}
               </button>

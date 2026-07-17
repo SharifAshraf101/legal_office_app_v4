@@ -229,6 +229,10 @@ export function NewCalendarAppointmentModal() {
               <input
                 id="appointmentDateInput"
                 type="date"
+                // en-IL locale makes the browser's built-in calendar start the
+                // week on Sunday (Israeli convention) while keeping the
+                // DD/MM/YYYY display format. Week-start can't be set via CSS/JS.
+                lang="en-IL"
                 value={dateStr}
                 onChange={(e) => setDateStr(e.target.value)}
                 required

@@ -200,6 +200,8 @@ export function FinanceEdit({ caseId }: FinanceEditProps) {
                   {t('date')}
                   <input
                     type="date"
+                    // en-IL: built-in calendar starts the week on Sunday (keeps DD/MM/YYYY).
+                    lang="en-IL"
                     data-payment-date
                     value={p.date}
                     onChange={(e) => updatePayment(p.id, 'date', e.target.value)}

@@ -117,6 +117,8 @@ export function CalendarScreen() {
               </button>
               <input
                 type="date"
+                // en-IL: built-in calendar starts the week on Sunday (keeps DD/MM/YYYY).
+                lang="en-IL"
                 className="calendar-date-input"
                 value={calendarDateValue(focus)}
                 onChange={(e) => setDateStr(e.target.value)}

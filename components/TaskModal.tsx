@@ -201,6 +201,8 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
           <input
             id="taskDueInput"
             type="date"
+            // en-IL: built-in calendar starts the week on Sunday (keeps DD/MM/YYYY).
+            lang="en-IL"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
           />
