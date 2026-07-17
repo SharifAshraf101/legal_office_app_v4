@@ -186,10 +186,7 @@ export function DocumentPreviewModal({ doc }: { doc: DocumentRecord }) {
       // Render PDFs with pdf.js to <canvas>. This is the only approach that
       // renders INLINE everywhere the app runs — desktop AND mobile browsers /
       // installed PWAs, where an <iframe> to a PDF blob just shows the browser's
-      // "download" placeholder (no built-in viewer). RTL Hebrew/Arabic renders
-      // correctly because we now ship pdf.js's cMap + standard-font data
-      // (cMapUrl / standardFontDataUrl); without it non-embedded fonts have no
-      // glyph metrics and the text came out garbled.
+      // "download" placeholder (no built-in viewer).
       try {
         const importRuntime = new Function('u', 'return import(u)') as (
           u: string,
@@ -200,9 +197,18 @@ export function DocumentPreviewModal({ doc }: { doc: DocumentRecord }) {
         if (cancelled) return;
         const pdf = await pdfjs.getDocument({
           data,
+          // cMap + standard-font data for documents whose fonts/char-maps need
+          // supplementary resources (provisioned into public/pdfjs).
           cMapUrl: PDFJS_CMAPS,
           cMapPacked: true,
           standardFontDataUrl: PDFJS_STANDARD_FONTS,
+          // Draw glyphs straight from the font program onto the canvas instead
+          // of rebuilding an OpenType face and rendering it via the browser's
+          // FontFace API. That FontFace path is what breaks cursive Arabic / RTL
+          // Hebrew in Word-exported PDFs — letters come out disconnected,
+          // isolated and mis-spaced. Direct path rendering is slower but shapes
+          // the text faithfully. (Scanned image-only PDFs are unaffected.)
+          disableFontFace: true,
         }).promise;
         if (cancelled) return;
         const container = pdfContainerRef.current;
