@@ -37,6 +37,15 @@ const CSS_MAX_PAGE_WIDTH = 900;
 const MAX_CANVAS_DIM = 8192;
 const MAX_CANVAS_AREA = 16_000_000;
 
+// pdf.js assets, provisioned into public/pdfjs by scripts/copy-pdfjs.mjs. The
+// cMap + standard-font data is what lets non-embedded Hebrew/Arabic fonts render
+// correctly — without it pdf.js has no glyph metrics and the text comes out
+// garbled (dropped / reordered / mis-spaced). Paths MUST end in a slash.
+const PDFJS_LIB = '/pdfjs/pdf.min.mjs';
+const PDFJS_WORKER = '/pdfjs/pdf.worker.min.mjs';
+const PDFJS_CMAPS = '/pdfjs/cmaps/';
+const PDFJS_STANDARD_FONTS = '/pdfjs/standard_fonts/';
+
 export function DocumentPreviewModal({ doc }: { doc: DocumentRecord }) {
   const modalStack = useModalStack();
   const { lang } = useT();
@@ -174,15 +183,27 @@ export function DocumentPreviewModal({ doc }: { doc: DocumentRecord }) {
         return;
       }
 
+      // Render PDFs with pdf.js to <canvas>. This is the only approach that
+      // renders INLINE everywhere the app runs — desktop AND mobile browsers /
+      // installed PWAs, where an <iframe> to a PDF blob just shows the browser's
+      // "download" placeholder (no built-in viewer). RTL Hebrew/Arabic renders
+      // correctly because we now ship pdf.js's cMap + standard-font data
+      // (cMapUrl / standardFontDataUrl); without it non-embedded fonts have no
+      // glyph metrics and the text came out garbled.
       try {
         const importRuntime = new Function('u', 'return import(u)') as (
           u: string,
         ) => Promise<typeof import('pdfjs-dist')>;
-        const pdfjs = await importRuntime('/pdf.min.mjs');
-        pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+        const pdfjs = await importRuntime(PDFJS_LIB);
+        pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
         const data = await blob.arrayBuffer();
         if (cancelled) return;
-        const pdf = await pdfjs.getDocument({ data }).promise;
+        const pdf = await pdfjs.getDocument({
+          data,
+          cMapUrl: PDFJS_CMAPS,
+          cMapPacked: true,
+          standardFontDataUrl: PDFJS_STANDARD_FONTS,
+        }).promise;
         if (cancelled) return;
         const container = pdfContainerRef.current;
         if (!container) {

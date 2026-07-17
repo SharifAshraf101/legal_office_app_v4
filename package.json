@@ -4,10 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "predev": "node scripts/copy-pdfjs.mjs",
     "build": "next build",
+    "prebuild": "node scripts/copy-pdfjs.mjs",
+    "postinstall": "node scripts/copy-pdfjs.mjs",
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "copy-pdfjs": "node scripts/copy-pdfjs.mjs",
     "extract-css": "node scripts/extract-css.mjs",
     "extract-assets": "node scripts/extract-assets.mjs"
   },

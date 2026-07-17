@@ -20,6 +20,10 @@ worker/.wrangler
 
 .vercel
 
+# pdf.js runtime + font data, regenerated from node_modules by
+# scripts/copy-pdfjs.mjs (postinstall / predev / prebuild)
+/public/pdfjs/
+
 # Local tunnel binary
 ngrok.exe
 _dom.html
