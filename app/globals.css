@@ -37,13 +37,24 @@
       .portal-wa-panel{position:relative;z-index:300;margin-bottom:calc(90px + env(safe-area-inset-bottom));}
       .portal-wa-panel .portal-wa-body textarea{display:block}
     }
+    /* Standalone client portal (/portal deep link) scrolls the PAGE — undo the
+       app-shell's body height/overflow lock so the bot chat scrolls on mobile. */
+    body.portal-standalone{height:auto;min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+    body.portal-standalone .modern-portal-root{min-height:100vh;min-height:100dvh;}
     @media(max-width:620px){.language-actions{grid-template-columns:1fr}.language-panel{padding:28px 20px}.summary-grid{grid-template-columns:1fr}.actions .btn-secondary{display:none}.page-title h1{font-size:20px}.table th:nth-child(3),.table td:nth-child(3){display:none}.content{padding-inline:12px}.panel-head{padding-inline:14px}.panel-body{padding-inline:14px}}
   
     @keyframes conflictBlink{
       0%,100%{background:#fff4f4;border-color:#e11d48;box-shadow:0 0 0 0 rgba(225,29,72,.22)}
       50%{background:#ffffff;border-color:#111827;box-shadow:0 0 0 6px rgba(225,29,72,.14)}
     }
+    /* Overlaps that belong to a single client are far less alarming than two
+       different clients booked at the same minute — blink them green. */
+    @keyframes conflictBlinkSameClient{
+      0%,100%{background:#f0fdf4;border-color:#059669;box-shadow:0 0 0 0 rgba(5,150,105,.22)}
+      50%{background:#ffffff;border-color:#111827;box-shadow:0 0 0 6px rgba(5,150,105,.14)}
+    }
     .agenda-modal-row.conflict-blink{animation:conflictBlink 1s ease-in-out infinite;border-width:2px;}
+    .agenda-modal-row.conflict-blink.conflict-same-client{animation-name:conflictBlinkSameClient;}
     .agenda-conflict-badge{display:inline-flex;align-items:center;gap:4px;margin-inline-start:8px;border:1px solid #e11d48;color:#e11d48;background:#fff;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:900;}
   
 

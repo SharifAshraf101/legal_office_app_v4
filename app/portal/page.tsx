@@ -36,6 +36,16 @@ export default function PortalPage() {
     setParams({ phone: phone || undefined, lang });
   }, []);
 
+  // The global stylesheet locks the app-shell body to `height:100vh;
+  // overflow:hidden` (the shell scrolls its own `.content`). The standalone
+  // client portal has no shell — it scrolls the PAGE — so on a phone that lock
+  // clips the bot chat below the fold and nothing scrolls. Mark the body so the
+  // stylesheet can let this route scroll normally.
+  useEffect(() => {
+    document.body.classList.add('portal-standalone');
+    return () => document.body.classList.remove('portal-standalone');
+  }, []);
+
   if (!params) return null;
 
   return (

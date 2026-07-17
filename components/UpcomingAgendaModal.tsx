@@ -18,6 +18,8 @@ import { Modal } from './Modal';
  *
  * Highlights conflicts (two items at the exact same minute) with the
  * `conflict-blink` keyframe animation defined in globals.css (line 71).
+ * Overlaps that all belong to one client blink green instead of rose via
+ * `conflict-same-client`.
  */
 export function UpcomingAgendaModal() {
   const { state } = useAppState();
@@ -28,9 +30,15 @@ export function UpcomingAgendaModal() {
 
   const items = upcomingAgendaItems(state.eventsList, state.timelineItems);
   const counts: Record<string, number> = {};
-  items.forEach((x) => {
+  const clientsAtTime: Record<string, Set<string>> = {};
+  items.forEach((x, i) => {
     const k = agendaTimeKey(x.date);
-    if (k) counts[k] = (counts[k] || 0) + 1;
+    if (!k) return;
+    counts[k] = (counts[k] || 0) + 1;
+    // An item with no case (or a case with no client) gets a per-row marker so
+    // it never counts as "the same client" as another unattributed row.
+    const clientId = state.casesArr.find((c) => c.id === x.item.caseId)?.clientId;
+    (clientsAtTime[k] ||= new Set()).add(clientId ? String(clientId) : `unknown-${i}`);
   });
 
   const title = lang === 'ar' ? 'مواعيد ومهام قريبة' : 'מועדים ומשימות קרובים';
@@ -85,12 +93,18 @@ export function UpcomingAgendaModal() {
               hour: '2-digit',
               minute: '2-digit',
             });
-            const conflict = counts[agendaTimeKey(entry.date)] > 1;
+            const timeKey = agendaTimeKey(entry.date);
+            const conflict = counts[timeKey] > 1;
+            const sameClient = conflict && clientsAtTime[timeKey]?.size === 1;
             const isTask = entry.item.type === 'task';
             return (
               <div
                 key={i}
-                className={'agenda-modal-row' + (conflict ? ' conflict-blink' : '')}
+                className={
+                  'agenda-modal-row' +
+                  (conflict ? ' conflict-blink' : '') +
+                  (sameClient ? ' conflict-same-client' : '')
+                }
               >
                 <div className="agenda-modal-time">{dateText}</div>
                 <div>

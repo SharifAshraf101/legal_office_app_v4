@@ -1135,6 +1135,10 @@ function ClientChatScreen({
     ? selectedCase.caseNumber || ''
     : client.caseNo;
   const headerCaseTitle = selectedCase ? selectedCaseLabel : client.caseType;
+  // Phone shown beside the name in the header. `pollClient` is already the
+  // resolved state.clients record (see the poll effect above); fall back to
+  // whatever phone the chat was opened with.
+  const headerPhone = pollClient?.phone || (client as any).phone || '';
 
   const openCase = () => {
     if (firstCase) {
@@ -1480,7 +1484,20 @@ function ClientChatScreen({
           <div className="tw-flex tw-flex-1 tw-items-center tw-gap-3">
             <Avatar label={client.avatar} />
             <div>
-              <div className="tw-font-bold">{client.name}</div>
+              <div className="tw-flex tw-items-center tw-gap-2">
+                <span className="tw-font-bold">{client.name}</span>
+                {headerPhone && (
+                  // dir="ltr" keeps the digits and any leading + in dialing
+                  // order inside the RTL header.
+                  <a
+                    href={`tel:${headerPhone}`}
+                    dir="ltr"
+                    className="tw-text-xs tw-text-slate-500 hover:tw-text-emerald-600"
+                  >
+                    {headerPhone}
+                  </a>
+                )}
+              </div>
               <div className="tw-text-xs tw-text-slate-500">
                 {T.case} {headerCaseNumber}
               </div>
@@ -1967,18 +1984,12 @@ function BotChatScreen({
     );
   }, [client?.id]);
 
-  // Welcome splash: on mobile, show the greeting card for 5s on entry, then
-  // hide it so the questions/answers area fills the screen in its place.
-  // Desktop keeps the card (it has room alongside the conversation).
+  // Welcome splash: show the greeting card for 5s after the client lands on
+  // the screen, then hide it so the questions/answers area fills its place.
+  // Applies to every layout — the card is a greeting, not a permanent panel.
   const [showWelcome, setShowWelcome] = useState(true);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    // Only auto-hide on the mobile layout (where screen space is tight and
-    // the mobile nav shows). On wider screens the card stays put.
-    if (!window.matchMedia('(max-width: 1050px)').matches) {
-      setShowWelcome(true);
-      return;
-    }
     setShowWelcome(true);
     const id = window.setTimeout(() => setShowWelcome(false), 5000);
     return () => window.clearTimeout(id);
