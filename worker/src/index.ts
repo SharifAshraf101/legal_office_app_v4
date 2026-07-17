@@ -25,6 +25,7 @@ const DEFAULT_LAWYER_NAME = 'أشرف شريف / אשרף שריף / Ashraf Shar
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    try {
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
@@ -99,6 +100,25 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
     return handleGetWhatsAppMessages(request, env);
   }
     return json({ error: 'not found' }, request, env, 404);
+    } catch (e) {
+      // An unhandled throw (e.g. a D1 write error) would otherwise reach the
+      // client as a non-JSON Cloudflare "Error 1101" / 502 page with no body —
+      // which is exactly what breaks the make.com pipeline (it sees a bare 502
+      // "ConnectionError" and can't tell why). The app and Make both parse
+      // JSON, so surface the real error instead of an opaque 502.
+      return json(
+        {
+          error: 'worker_exception',
+          detail:
+            e instanceof Error
+              ? (e.stack || e.message).slice(0, 800)
+              : String(e).slice(0, 800),
+        },
+        request,
+        env,
+        500,
+      );
+    }
   },
 };
 
@@ -646,12 +666,21 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
     date: new Date().toISOString().slice(0, 10),
   };
   let count = 0;
+  let persistError = '';
   const built = buildUpsert('drafts', row, env.USER_ID);
   if (built) {
-    await env.DB.prepare(built.sql)
-      .bind(...built.binds)
-      .run();
-    count = 1;
+    // Guard the write like /api/suggest-action does: the draft has already been
+    // generated (the expensive part), so a D1 write failure here must NOT throw
+    // out of the request — an unhandled throw becomes an opaque 502 for the
+    // make.com draft step. Report it in the response instead.
+    try {
+      await env.DB.prepare(built.sql)
+        .bind(...built.binds)
+        .run();
+      count = 1;
+    } catch (e) {
+      persistError = e instanceof Error ? e.message.slice(0, 300) : String(e).slice(0, 300);
+    }
   }
 
   return json(
@@ -669,6 +698,7 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
       has_draft: !!(draftHe || draftAr),
       notes_scope: notes.scope,
       notes_count: notes.count,
+      persist_error: persistError || undefined,
     },
     request,
     env,

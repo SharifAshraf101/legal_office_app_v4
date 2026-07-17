@@ -24,7 +24,9 @@ const MODEL = 'claude-haiku-4-5';
 
 const PROMPT = `You are a legal assistant for a law office. The attached file is a legal document (a court filing, motion, ruling, claim, etc.), written in any language (Hebrew, Arabic, English, French, Russian, …).
 
-Write a CONCISE, factual summary (3–6 sentences) covering, when present: the document type, the parties, the main request/claim, key dates and deadlines, and any decision/ruling. No preamble, no opinions — just the facts from the document.
+Write a factual summary of the document's CONTENT, up to HALF A PAGE at most (roughly 8–12 sentences; use fewer for a short document — never pad to reach the limit). Cover, when present: the document type, the main request/claim/argument, the legal grounds, key dates and deadlines, and any decision/ruling.
+
+Summarize ONLY the substance of the document. Do NOT include the names of the parties, the names of their lawyers, or any addresses — omit those identifying header details entirely; the summary is about WHAT the document says, not WHO filed it. No preamble, no opinions — just the facts from the document.
 
 LANGUAGE RULE — decide "language" from the SUBSTANTIVE legal document (the actual claim/defense/motion/ruling), NOT from an automatic court e-filing cover page. Many filings begin with a single auto-generated Hebrew "אישור הגשה"/submission-receipt page produced by the court system; IGNORE that page when detecting the language and base "language" and "orig" on the main body that follows. In particular: if the document is connected to the Sharia court (בית הדין השרעי / المحكمة الشرعية) in ANY way — filed to it, addressed to it, OR ISSUED BY it (a decision / ruling / protocol / order from the Sharia court, e.g. "החלטה"/"قرار"/"حكم"/"محضر") — OR its main body is written in Arabic, then "language" is "ar" and "orig" MUST be written in Arabic — even when the first (receipt) page is in Hebrew.
 
@@ -105,7 +107,9 @@ export async function POST(req: Request) {
     const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 1500,
+      // Half-a-page summary in THREE languages (orig + he + ar); Hebrew/Arabic
+      // are token-heavy, so give the longer output room to complete.
+      max_tokens: 3000,
       messages: [
         {
           role: 'user',
