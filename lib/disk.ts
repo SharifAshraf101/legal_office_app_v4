@@ -10,6 +10,7 @@ import type { AppState, Case, Client, Lang } from '@/types';
 import { FILING_ROOT, filingFolderSegments, filingFileName } from './filing';
 import {
   dropboxPathForRelative,
+  dropboxRawUrl,
   downloadDropboxFileBlob,
   getDropboxTemporaryLink,
   isFileSystemAccessAvailable,
@@ -450,8 +451,9 @@ export function isInlineViewable(name: string): boolean {
   ].includes(ext);
 }
 
-/** Download a File via a temporary object URL (used as the final fallback). */
-function downloadBlob(file: File, name: string): void {
+/** Download a Blob/File via a temporary object URL (used as the final fallback,
+ *  and by the client-facing bot chat to save a document to the device). */
+function downloadBlob(file: Blob, name: string): void {
   const url = URL.createObjectURL(file);
   const a = document.createElement('a');
   a.href = url;
@@ -460,6 +462,92 @@ function downloadBlob(file: File, name: string): void {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** Load a filing document's raw bytes for a client-facing download. Mirrors the
+ *  cloud-first loading DocumentPreviewModal uses: a Dropbox share URL is fetched
+ *  directly (falling back to the authenticated content API on CORS/failure),
+ *  while a filing path goes straight through getFilingFileBlob. Returns null
+ *  when the file can't be fetched from any source. */
+async function loadFilingBlobForDownload(
+  relativePath: string,
+  lang: 'he' | 'ar',
+): Promise<Blob | null> {
+  if (!relativePath) return null;
+  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+    try {
+      const res = await fetch(dropboxRawUrl(relativePath));
+      if (res.ok) return await res.blob();
+    } catch {
+      /* CORS/network — fall through to the authenticated content API */
+    }
+    try {
+      return await getFilingFileBlob(relativePath, lang);
+    } catch {
+      return null;
+    }
+  }
+  return getFilingFileBlob(relativePath, lang);
+}
+
+/** Fetch a filing document's bytes through the Worker's server-side Dropbox
+ *  proxy. This is what lets a CLIENT device — a phone opening the portal bot that
+ *  never connected Dropbox itself — download a document: the Worker holds the
+ *  office's Dropbox credentials and streams the file. Returns null when the
+ *  Worker isn't configured for Dropbox, the file is missing, or on any error, so
+ *  the caller can fall back to the direct (office-device) path. A share-URL
+ *  relativePath is skipped here — it's fetched directly instead. */
+async function fetchFilingBlobViaWorker(
+  relativePath: string,
+): Promise<Blob | null> {
+  const base = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(/\/$/, '');
+  const token = process.env.NEXT_PUBLIC_APP_TOKEN || '';
+  if (!base || !relativePath) return null;
+  if (/^https?:\/\//i.test(relativePath)) return null;
+  try {
+    const res = await fetch(
+      base + '/api/document?path=' + encodeURIComponent(relativePath),
+      {
+        headers: token ? { Authorization: 'Bearer ' + token } : undefined,
+        cache: 'no-store',
+      },
+    );
+    if (!res.ok) return null;
+    return await res.blob();
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch a filing document and save it straight to the user's device as a
+ *  download — NO in-app preview. Used by the client-facing bot chat, where a
+ *  double-click on a document link should just download the file to the client's
+ *  phone/laptop. Tries the Worker's server-side Dropbox proxy FIRST (the only
+ *  path that works on a device with no Dropbox connection of its own), then falls
+ *  back to a direct Dropbox/local fetch for office devices / share-URL docs.
+ *  Returns false when the file couldn't be fetched from any source (caller shows
+ *  a message). */
+export async function downloadFilingDocument(
+  doc: {
+    relativePath?: string | null;
+    fileName?: string | null;
+    title?: string | null;
+  },
+  lang: 'he' | 'ar',
+): Promise<boolean> {
+  const rp = doc.relativePath || '';
+  if (!rp) return false;
+  const fileName =
+    (doc.fileName || '').trim() ||
+    rp.split('/').filter(Boolean).pop()?.split('?')[0] ||
+    (doc.title || '').trim() ||
+    'document';
+  const blob =
+    (await fetchFilingBlobViaWorker(rp)) ??
+    (await loadFilingBlobForDownload(rp, lang));
+  if (!blob) return false;
+  downloadBlob(blob, fileName);
+  return true;
 }
 
 /** Open a File in a new browser tab so PDFs/images render INLINE instead of

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -1613,6 +1613,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // own document with no court order → no draft (the "הצעה לפעולה" card covers
   // that case). `draftNeeded` drives whether the "טיוטת תגובה" card renders.
   const [draftNeeded, setDraftNeeded] = useState(true);
+  // True while the "עדכן טיוטה" button is re-running Claude (skill + notes) for
+  // the focused document — disables the button and swaps its label to a busy one.
+  const [regenBusy, setRegenBusy] = useState(false);
   useEffect(() => {
     const primary = primaryDoc;
     if (!primary && !caseId) {
@@ -1744,6 +1747,81 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       cancelled = true;
     };
   }, [primaryDoc, caseId, lang, docLang, state.casesArr, state.clients]);
+
+  // "עדכן טיוטה" button handler — regenerate the reply draft ON DEMAND. Hands the
+  // focused PDF to the Worker's /api/draft, which reads the active drafting skill
+  // (skills table) as the governing template + this case's notes (case_notes AND
+  // the brain "הערות" tab, passed as notesContext) and writes a fresh draft that
+  // keeps the skill's structure. The freshly-saved draft is read back and shown.
+  const regenerateDraft = useCallback(async () => {
+    const primary = primaryDoc;
+    // Only PDFs can be read by Claude; nothing to regenerate otherwise.
+    if (!primary || regenBusy || !/\.pdf$/i.test(primary.fileName || '')) return;
+    setRegenBusy(true);
+    try {
+      const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
+      const client = caseObj
+        ? state.clients.find((x) => x.id === caseObj.clientId)
+        : undefined;
+      const renamed =
+        primary.fileName
+          ? filingFileName(client, caseObj, primary.fileName, primary.id)
+          : primary.fileName;
+      // Every note shown in the "הערות" tab (client note + document-upload notes
+      // + brain quick-action notes) → guiding context for the draft AI.
+      const notesContext = caseNotesContext(
+        aggregateCaseNotes({
+          caseId,
+          clients: state.clients,
+          cases: state.casesArr,
+          documents: state.documentsArr,
+          timeline: state.timelineItems,
+          lang,
+        }),
+      );
+      const { draftNeeded: needed } = await generateDocumentDraft({
+        relativePath: primary.relativePath,
+        fileName: renamed || primary.fileName || '',
+        clientId: primary.clientId,
+        caseId,
+        documentId: primary.id,
+        // Our office/lawyer name → a document NOT authored by us is the opposing
+        // side, so a counter-draft is generated.
+        lawyerName: state.officeName || undefined,
+        notesContext,
+      });
+      setDraftNeeded(needed);
+      if (!needed) {
+        setReplyDraft(null);
+      } else {
+        const re = await fetchDraftState(
+          {
+            caseId,
+            documentId: primary.id,
+            preferLang: docLang,
+            forceArabic: forceArabicCourt,
+          },
+          lang,
+        );
+        setReplyDraft(re.text);
+      }
+      setDraftLoaded(true);
+    } finally {
+      setRegenBusy(false);
+    }
+  }, [
+    primaryDoc,
+    regenBusy,
+    caseId,
+    docLang,
+    lang,
+    forceArabicCourt,
+    state.casesArr,
+    state.clients,
+    state.documentsArr,
+    state.timelineItems,
+    state.officeName,
+  ]);
 
   // "הצעה לפעולה" card content — the latest AI suggested action for this case,
   // pulled from D1 `case_suggested_actions.suggested_action` (written by the
@@ -2040,6 +2118,8 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         ? 'إعداد مسودة رد تشمل الإنكار والادعاءات ذات الصلة.'
         : 'הוכנה טיוטת כתב הגנה הכוללת הכחשות וטענות הגנה רלוונטיות.',
     openDraft: lang === 'ar' ? 'افتح المسودة' : 'פתח טיוטה',
+    updateDraft: lang === 'ar' ? 'تحديث المسودة' : 'עדכן טיוטה',
+    updatingDraft: lang === 'ar' ? 'جارٍ التحديث…' : 'מעדכן…',
     docParse: lang === 'ar' ? 'تحليل المستند' : 'פענוח המסמך',
     docParseDesc:
       lang === 'ar'
@@ -2572,6 +2652,19 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                                 )
                             : undefined
                         }
+                        // "עדכן טיוטה" → re-run Claude with the drafting skill +
+                        // the current notes tab and refresh the box. PDF only
+                        // (Claude can't read other formats).
+                        btn2={
+                          primaryDoc &&
+                          /\.pdf$/i.test(primaryDoc.fileName || '')
+                            ? regenBusy
+                              ? T.updatingDraft
+                              : T.updateDraft
+                            : undefined
+                        }
+                        onBtn2Click={regenerateDraft}
+                        btn2Disabled={regenBusy}
                       />
                       )}
                       {/* "משימה שנוצרה" — hidden on mobile, kept in the grid on
@@ -2899,6 +2992,9 @@ function AIActionCard({
   desc,
   btn,
   onBtnClick,
+  btn2,
+  onBtn2Click,
+  btn2Disabled = false,
   className,
   badge,
   scrollBody = false,
@@ -2909,6 +3005,12 @@ function AIActionCard({
   desc: string;
   btn?: string;
   onBtnClick?: () => void;
+  /** Optional SECOND action button, shown below `btn` (e.g. "עדכן טיוטה" next to
+   *  "פתח טיוטה"). */
+  btn2?: string;
+  onBtn2Click?: () => void;
+  /** Disable the second button (e.g. while it's busy regenerating). */
+  btn2Disabled?: boolean;
   /** Extra classes for the card's root (e.g. responsive grid `order`). */
   className?: string;
   /** Small pill shown next to the title (e.g. the court track "שרעי"). */
@@ -2990,6 +3092,21 @@ function AIActionCard({
           }
         >
           {btn}
+        </button>
+      )}
+      {btn2 && (
+        <button
+          type="button"
+          onClick={onBtn2Click}
+          disabled={btn2Disabled}
+          className={
+            (btn ? '' : 'tw-mt-auto ') +
+            'tw-rounded-full tw-border tw-bg-white tw-px-3 tw-py-1 tw-text-[11px] tw-font-bold ' +
+            c.btnC +
+            (btn2Disabled ? ' tw-opacity-60 tw-cursor-not-allowed' : '')
+          }
+        >
+          {btn2}
         </button>
       )}
     </div>

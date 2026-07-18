@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { LanguageSelector } from './LanguageSelector';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { MobileNav } from './MobileNav';
 import { ScreenRouter } from './ScreenRouter';
+import { SplashFlower } from './SplashFlower';
 import { DropboxConnectModal } from './DropboxConnectModal';
 import { AppStateProvider, useAppState } from '@/hooks/useAppState';
 import { useThemeAndFont } from '@/hooks/useThemeAndFont';
@@ -76,11 +77,15 @@ function ShellInner() {
   // choice — we never auto-skip it based on a previously stored language. The
   // user must click Hebrew or Arabic, and the app then runs in that language.
   const [langChosen, setLangChosen] = useState(false);
+  // The intro flower splash plays once, right after the language is chosen, and
+  // masks the brief hydration wait. It removes itself when its animation ends.
+  const [splashDone, setSplashDone] = useState(false);
+  const finishSplash = useCallback(() => setSplashDone(true), []);
 
   // Professional task-deadline alert on open (and while open when a task crosses
   // the 3-day / 1-day / today / overdue mark). Gated on the app being ready so
   // it never shows over the language screen or before data hydrates.
-  useTaskDeadlineAlerts(langChosen && state.hydrated);
+  useTaskDeadlineAlerts(langChosen && state.hydrated && splashDone);
 
   if (!langChosen) {
     return (
@@ -96,25 +101,29 @@ function ShellInner() {
     );
   }
 
-  // After the choice, hold for hydration to complete before the main shell
-  // (it loads almost immediately, since the user reads the screen first).
-  if (!state.hydrated) return null;
-
+  // After the choice, the flower splash plays on top while the app hydrates
+  // (which finishes almost immediately). The main shell renders underneath once
+  // hydrated, so when the splash dissolves the app is already there.
   return (
-    <div id="mainApp">
-      <div className="app-shell">
-        <Sidebar />
-        <main className="main">
-          <Topbar />
-          <section
-            className={'content' + (state.currentTab === 'home' ? ' home-content' : '')}
-            id="content"
-          >
-            <ScreenRouter />
-          </section>
-        </main>
-        <MobileNav />
-      </div>
-    </div>
+    <>
+      {state.hydrated && (
+        <div id="mainApp">
+          <div className="app-shell">
+            <Sidebar />
+            <main className="main">
+              <Topbar />
+              <section
+                className={'content' + (state.currentTab === 'home' ? ' home-content' : '')}
+                id="content"
+              >
+                <ScreenRouter />
+              </section>
+            </main>
+            <MobileNav />
+          </div>
+        </div>
+      )}
+      {!splashDone && <SplashFlower onDone={finishSplash} />}
+    </>
   );
 }

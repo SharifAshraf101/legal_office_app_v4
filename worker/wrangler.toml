@@ -39,3 +39,16 @@ USER_ID = "c0307382-5fd2-4a2b-88df-40b22bb9ad26"
 # the deployed (Vercel) build use DIFFERENT NEXT_PUBLIC_APP_TOKEN values, so the
 # Worker accepts both. (1st = .env.local / desktop, 2nd = Vercel / mobile.)
 APP_TOKEN = "12a52ef1036713e388ecf0ff7e64929dc45c147a4cb20967,kEJg5dhYi8cRD29OyCSVwPWpNftz0ejUxHX6B3QMorZT7K4a"
+
+# --- Server-side Dropbox (for GET /api/document) --------------------------
+# Lets a CLIENT device with no Dropbox connection of its own download a filing
+# document: the Worker fetches it from the office's Dropbox and streams it.
+#   DROPBOX_APP_KEY:     the public Dropbox app key (== NEXT_PUBLIC_DROPBOX_APP_KEY).
+#                        Non-secret, so it can live here as a [vars] entry.
+#   DROPBOX_BASE_FOLDER: the folder the office picked in Dropbox. Leave "" for an
+#                        App-folder app; set e.g. "/Cases" for a picked subfolder.
+#   DROPBOX_REFRESH_TOKEN: the office's long-lived refresh token — a SECRET, set
+#                        it with `wrangler secret put DROPBOX_REFRESH_TOKEN`
+#                        (NEVER commit it here).
+# DROPBOX_APP_KEY = "REPLACE_ME"
+# DROPBOX_BASE_FOLDER = ""

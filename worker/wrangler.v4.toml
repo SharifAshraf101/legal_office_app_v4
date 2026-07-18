@@ -31,3 +31,21 @@ USER_ID = "c0307382-5fd2-4a2b-88df-40b22bb9ad26"
 # Fresh token for the v4 stack (kept separate from v3). The app (.env.local)
 # and the make.com scenarios must send THIS token to the v4 Worker.
 APP_TOKEN = "ecd403f741827b30fcd7018ebaf5bc8fdf87b974b30ce8af"
+
+# --- Server-side Dropbox (for GET /api/document) --------------------------
+# Lets a CLIENT device with no Dropbox connection of its own download a filing
+# document: the Worker fetches it from the office's Dropbox and streams it.
+#   DROPBOX_APP_KEY:     the public Dropbox app key (== NEXT_PUBLIC_DROPBOX_APP_KEY).
+#   DROPBOX_BASE_FOLDER: the folder the office picked in Dropbox — "" for an
+#                        App-folder app, else e.g. "/Cases".
+# The SECRET (refresh token) is set separately, NOT here:
+#   npx wrangler secret put DROPBOX_REFRESH_TOKEN -c wrangler.v4.toml
+# DROPBOX_APP_KEY = the app tied to the CURRENT Dropbox account (Hotmail) that
+# holds the case files. NOTE: NEXT_PUBLIC_DROPBOX_APP_KEY in .env.local still
+# holds the OLD key (peduyf74hh1ey4c, old Gmail account) — the browser overrides
+# it via localStorage 'legal_office_dropbox_app_key' = this value.
+DROPBOX_APP_KEY = "l4h3v29wfau4fki"
+# Base folder where make.com stores case files (found via Dropbox search):
+# actual path = DROPBOX_BASE_FOLDER + "/" + D1 relative_path
+# (e.g. /Legal-Office-Ashraf_Sharif/Clients/clt-101/.../DOC-001.pdf).
+DROPBOX_BASE_FOLDER = "/Legal-Office-Ashraf_Sharif"

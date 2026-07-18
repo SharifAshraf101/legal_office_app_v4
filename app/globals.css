@@ -41495,3 +41495,108 @@ body.professional.dark .modal.case-brain-modal .case-brain-header{background: #0
     color: var(--primary) !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Intro splash — a small four-petal flower grows and blooms open, then the
+   overlay dissolves to reveal the main screen. Rendered by <SplashFlower/>
+   once, right after the language is chosen. Theme-aware via var() tokens.
+   ───────────────────────────────────────────────────────────────────────── */
+.splash-flower {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: radial-gradient(120% 120% at 50% 42%,
+      var(--surface) 0%, var(--bg) 58%, var(--bg-2) 100%);
+  animation: splashOverlayOut .5s ease 1.6s forwards;
+}
+/* Soft brand-tinted halo that swells behind the flower. */
+.splash-flower__glow {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: min(72vmin, 440px);
+  height: min(72vmin, 440px);
+  border-radius: 50%;
+  background: radial-gradient(circle,
+      rgba(37, 99, 235, .18) 0%, rgba(37, 99, 235, 0) 68%);
+  opacity: 0;
+  transform: scale(.4);
+  animation: splashGlow 1.5s ease-out forwards;
+}
+.splash-flower__flower {
+  position: relative;
+  width: min(46vmin, 236px);
+  height: min(46vmin, 236px);
+  transform: scale(0);
+  filter: drop-shadow(0 14px 30px rgba(27, 46, 74, .22));
+  animation:
+    flowerGrow 1.3s cubic-bezier(.34, 1.56, .64, 1) forwards,
+    flowerBloomOut .55s ease-in 1.55s forwards;
+}
+.splash-flower__flower svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+/* Each petal is a card-shaped rounded rect; its gradient (matching a home
+   card) is set inline on the SVG, so no `fill` here — a CSS fill would win over
+   the gradient. Petals pop from their own centre, staggered, blooming open. */
+.splash-petal {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0);
+  animation: petalPop .6s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+.splash-petal--1 { animation-delay: .12s; }
+.splash-petal--2 { animation-delay: .24s; }
+.splash-petal--3 { animation-delay: .36s; }
+.splash-petal--4 { animation-delay: .48s; }
+/* Central brand tile the four cards fan out from (app primary). */
+.splash-flower__center {
+  fill: var(--primary);
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0);
+  animation: petalPop .55s cubic-bezier(.34, 1.56, .64, 1) .62s both;
+}
+
+@keyframes flowerGrow {
+  0%   { transform: scale(0) rotate(-60deg); }
+  70%  { transform: scale(1.06) rotate(6deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@keyframes petalPop {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+/* Final beat: the bloom opens wide and dissolves into the app underneath. */
+@keyframes flowerBloomOut {
+  0%   { transform: scale(1) rotate(0); opacity: 1; }
+  100% { transform: scale(6) rotate(16deg); opacity: 0; }
+}
+@keyframes splashGlow {
+  0%   { opacity: 0; transform: scale(.4); }
+  55%  { opacity: 1; transform: scale(1); }
+  100% { opacity: .85; transform: scale(1.06); }
+}
+@keyframes splashOverlayOut {
+  0%   { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+/* Respect reduced-motion: hold a static flower, then fade out (no growth). */
+@media (prefers-reduced-motion: reduce) {
+  .splash-flower__flower,
+  .splash-petal,
+  .splash-flower__center,
+  .splash-flower__glow {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+  .splash-flower { animation: splashOverlayOut .4s ease 1.3s forwards; }
+}

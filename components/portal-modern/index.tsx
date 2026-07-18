@@ -28,7 +28,7 @@ import {
   findClientByPhone,
   normalizePhoneForLinks,
 } from '@/lib/clients';
-import { openDocumentFromLegalOfficeFolder } from '@/lib/disk';
+import { downloadFilingDocument, openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import {
   dropboxPathForRelative,
   getDropboxTemporaryLink,
@@ -1061,7 +1061,7 @@ const SAMPLE_MESSAGES = [
 type ChatMessage = {
   id: number;
   side: 'client' | 'office';
-  type: 'text' | 'file' | 'voice' | 'bot-help';
+  type: 'text' | 'file' | 'image' | 'voice' | 'bot-help';
   text: string;
   time: string;
   /** When the client uploads a real file to the chat (vs. a sample
@@ -1074,6 +1074,9 @@ type ChatMessage = {
   voiceUrl?: string;
   /** Direct URL for a document attachment, used by the open button. */
   documentUrl?: string;
+  /** Same-origin URL that streams an attached image's bytes (via the WhatsApp
+   *  media proxy), used to preview it inline and to download it. */
+  imageUrl?: string;
   /** MIME type of the attached document, when available. */
   mimeType?: string;
 };
@@ -1121,18 +1124,35 @@ function ClientChatScreen({
       const data = await res.json();
 
       const msgs = (data.messages || []).map((m: any) => {
-        const isDocument = Boolean(
-          m.message_type === 'document' || m.file_name || m.media_url || String(m.message_text || '').startsWith('📎')
-        );
+        const mime = String(m.media_mime_type || '');
+        const isImage = m.message_type === 'image' || mime.startsWith('image/');
+        const isDocument =
+          !isImage &&
+          Boolean(
+            m.message_type === 'document' || m.file_name || m.media_url || String(m.message_text || '').startsWith('📎')
+          );
+        // Bytes for a media attachment: an already-stored direct URL wins;
+        // otherwise stream it through the same-origin WhatsApp media proxy,
+        // which resolves the Meta media id server-side (browsers can't).
+        const mediaSrc: string | undefined = m.media_url
+          ? m.media_url
+          : m.media_id
+            ? `/api/whatsapp/media/${m.media_id}`
+            : undefined;
         const fileName = String(m.file_name || m.message_text || '').trim();
         const label = fileName.replace(/^📎\s*/, '');
+        // For an image the stored text is a placeholder ("[תמונה]"); show a real
+        // caption only when the client sent one, else nothing.
+        const imageCaption =
+          label && !label.startsWith('[') ? label : '';
         return {
           id: m.id,
           side: m.direction === 'incoming' ? 'client' : 'office',
-          type: isDocument ? 'file' : 'text',
-          text: label || (m.message_text || ''),
+          type: isImage ? 'image' : isDocument ? 'file' : 'text',
+          text: isImage ? imageCaption : label || (m.message_text || ''),
           time: new Date(m.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
-          documentUrl: isDocument ? m.media_url || undefined : undefined,
+          documentUrl: isDocument ? mediaSrc : undefined,
+          imageUrl: isImage ? mediaSrc : undefined,
           mimeType: m.media_mime_type || undefined,
         };
       });
@@ -2438,10 +2458,11 @@ function BotChatScreen({
     }
   };
 
-  // Open a document by id in the in-app preview (downloads it from the Dropbox
-  // cloud and renders it with a download button — identical on the office
-  // computer and on a remote phone/laptop, which never touches a local disk).
-  // Used when a blue file-name link is double-clicked in a bot answer.
+  // Handle a double-click on a blue file-name link in a bot answer.
+  //   • CLIENT VIEW (the bot chatting with a client): save the file STRAIGHT to
+  //     the client's device — no in-app preview. The client just wants the file.
+  //   • LAWYER VIEW (reviewing a client's transcript): keep the in-app preview so
+  //     the lawyer can eyeball what the bot offered.
   const openDocById = (docId: string) => {
     const doc = state.documentsArr.find((d) => String(d.id) === String(docId));
     if (!doc) {
@@ -2460,13 +2481,35 @@ function BotChatScreen({
       );
       return;
     }
-    modalStack.open(<DocumentPreviewModal doc={doc} />);
+
     // Record that this document was accessed so the lawyer-view bot screen can
     // badge the [[DOC:id|name]] link in this client's transcript.
-    if (client) {
+    const recordAccess = () => {
+      if (!client) return;
       recordPortalBotDownload(String(client.id), docId, doc.fileName || '');
       setDownloadedDocIds(downloadedDocIdsForClient(String(client.id)));
+    };
+
+    if (!lawyerView) {
+      // Client view — download to the device. Only badge it as downloaded once
+      // the bytes actually reach the client.
+      void downloadFilingDocument(doc, lang === 'ar' ? 'ar' : 'he').then((ok) => {
+        if (ok) {
+          recordAccess();
+        } else {
+          window.alert(
+            lang === 'ar'
+              ? 'تعذّر تنزيل المستند. حاول مرة أخرى.'
+              : 'הורדת המסמך נכשלה. נסה שוב.',
+          );
+        }
+      });
+      return;
     }
+
+    // Lawyer view — keep the in-app preview.
+    modalStack.open(<DocumentPreviewModal doc={doc} />);
+    recordAccess();
   };
 
   // Append a per-case status summary as a fresh Q+A to the chat
@@ -3121,6 +3164,61 @@ function VoiceBubble({ message }: { message: ChatMessage }) {
   );
 }
 
+// Inline preview for an image a client sent over WhatsApp. Shows the picture
+// right in the chat bubble (tap to open it full-size in a new tab) and a
+// download button that saves it to the device. The bytes stream through the
+// same-origin /api/whatsapp/media proxy, so the browser can render <img> and a
+// real <a download>. If the media has aged out of Meta's store the <img> errors
+// and we fall back to an "unavailable" note.
+function ImageBubble({
+  message,
+  lang,
+}: {
+  message: ChatMessage;
+  lang?: 'he' | 'ar';
+}) {
+  const [failed, setFailed] = useState(false);
+  const url = message.imageUrl;
+  const caption = (message.text || '').trim();
+  const downloadName = caption || (lang === 'ar' ? 'صورة.jpg' : 'תמונה.jpg');
+
+  if (!url || failed) {
+    return (
+      <div className="tw-flex tw-items-center tw-gap-2 tw-rounded-2xl tw-border tw-border-slate-200/80 tw-bg-white/80 tw-p-3 tw-text-xs tw-font-medium tw-text-slate-500">
+        <FileText className="tw-h-4 tw-w-4" />
+        {lang === 'ar' ? 'الصورة غير متاحة' : 'התמונה אינה זמינה'}
+      </div>
+    );
+  }
+
+  return (
+    <div className="tw-flex tw-flex-col tw-gap-2">
+      {/* Tap the picture to view it full-size. */}
+      <a href={url} target="_blank" rel="noopener noreferrer" className="tw-block">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={downloadName}
+          onError={() => setFailed(true)}
+          className="tw-max-h-72 tw-w-full tw-max-w-[260px] tw-cursor-zoom-in tw-rounded-2xl tw-object-cover tw-shadow-sm"
+        />
+      </a>
+      {caption && (
+        <div className="tw-text-xs tw-leading-5" dir="auto">
+          {caption}
+        </div>
+      )}
+      <a
+        href={url}
+        download={downloadName}
+        className="tw-inline-flex tw-w-fit tw-items-center tw-gap-1 tw-rounded-xl tw-bg-emerald-600 tw-px-3 tw-py-2 tw-text-xs tw-font-semibold tw-text-white hover:tw-bg-emerald-700"
+      >
+        {lang === 'ar' ? 'تنزيل الصورة' : 'הורדת תמונה'}
+      </a>
+    </div>
+  );
+}
+
 function MessageBubble({
   message,
   onClientFileDoubleClick,
@@ -3254,6 +3352,7 @@ function MessageBubble({
             </button>
           </div>
         )}
+        {message.type === 'image' && <ImageBubble message={message} lang={lang} />}
         {message.type === 'voice' && <VoiceBubble message={message} />}
         <div className="tw-mt-2 tw-text-left tw-text-xs tw-text-slate-400">{message.time}</div>
       </div>

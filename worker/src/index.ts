@@ -99,6 +99,9 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
   if (method === 'GET' && path.startsWith('/api/whatsapp-messages/')) {
     return handleGetWhatsAppMessages(request, env);
   }
+    if (method === 'GET' && path === '/api/document') {
+      return handleDocument(request, env);
+    }
     return json({ error: 'not found' }, request, env, 404);
     } catch (e) {
       // An unhandled throw (e.g. a D1 write error) would otherwise reach the
@@ -1476,6 +1479,152 @@ async function handleGetSuggestedActions(request: Request, env: Env): Promise<Re
 // ---------------------------------------------------------------------------
 // GET /api/photo/<key>
 // ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------
+// GET /api/document?path=<relative_path>
+// Stream a filing document from the office's Dropbox so a device that never
+// connected Dropbox itself (a client opening the portal bot on their phone) can
+// still download it. The office connected Dropbox once; its refresh token lives
+// here as a Worker secret. Requires the shared APP_TOKEN like every authed
+// endpoint, and echoes CORS headers because the browser fetches it with an
+// Authorization header (a CORS request, unlike an <img> tag).
+// -----------------------------------------------------------------------
+
+// Short-lived Dropbox access token, cached across requests in the same isolate
+// so we don't re-exchange the refresh token on every download.
+let dropboxTokenCache: { token: string; expiresAt: number } | null = null;
+
+async function getDropboxAccessToken(env: Env): Promise<string | null> {
+  if (!env.DROPBOX_REFRESH_TOKEN || !env.DROPBOX_APP_KEY) return null;
+  const now = Date.now();
+  if (dropboxTokenCache && now < dropboxTokenCache.expiresAt) {
+    return dropboxTokenCache.token;
+  }
+  const body = new URLSearchParams();
+  body.set('grant_type', 'refresh_token');
+  body.set('refresh_token', env.DROPBOX_REFRESH_TOKEN);
+  body.set('client_id', env.DROPBOX_APP_KEY);
+  try {
+    const res = await fetch('https://api.dropboxapi.com/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+    if (!res.ok) {
+      console.warn('[worker dropbox] token refresh failed', res.status);
+      return null;
+    }
+    const jsonBody = (await res.json()) as {
+      access_token: string;
+      expires_in: number;
+    };
+    dropboxTokenCache = {
+      token: jsonBody.access_token,
+      expiresAt: now + (jsonBody.expires_in - 60) * 1000,
+    };
+    return jsonBody.access_token;
+  } catch (e) {
+    console.warn('[worker dropbox] token refresh error', e);
+    return null;
+  }
+}
+
+// Mirror the browser's dropboxPathForRelative: nest a filing relative_path under
+// the office's connected base folder, guarding the doubled-"Clients" case, and
+// return a leading-slash Dropbox API path.
+function dropboxApiPath(relativePath: string, base: string): string {
+  const raw = (relativePath || '').replace(/\/{2,}/g, '/');
+  let b = (base || '').replace(/\/+$/, '');
+  b = b.replace(/\/Clients$/i, '');
+  let full: string;
+  if (b && raw.toLowerCase().startsWith(b.toLowerCase() + '/')) {
+    full = raw;
+  } else {
+    full = `${b}/${raw.replace(/^\/+/, '')}`;
+  }
+  full = full.replace(/\/{2,}/g, '/');
+  return full.startsWith('/') ? full : '/' + full;
+}
+
+// Dropbox-API-Arg must be Latin-1 safe — escape non-ASCII (Hebrew/Arabic
+// filenames) as \uXXXX so the fetch doesn't throw on the header value.
+function dropboxApiArgHeader(value: unknown): string {
+  return JSON.stringify(value).replace(/[\u007f-\uffff]/g, (ch) =>
+    '\\u' + ch.charCodeAt(0).toString(16).padStart(4, '0'),
+  );
+}
+
+function mimeFromExt(name: string): string {
+  const ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase();
+  switch (ext) {
+    case 'pdf':
+      return 'application/pdf';
+    case 'png':
+      return 'image/png';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'gif':
+      return 'image/gif';
+    case 'webp':
+      return 'image/webp';
+    case 'doc':
+      return 'application/msword';
+    case 'docx':
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    case 'xls':
+      return 'application/vnd.ms-excel';
+    case 'xlsx':
+      return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    case 'txt':
+      return 'text/plain; charset=utf-8';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
+async function handleDocument(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const relativePath = (url.searchParams.get('path') || '').trim();
+  if (!relativePath) {
+    return json({ error: 'missing_path' }, request, env, 400);
+  }
+  const token = await getDropboxAccessToken(env);
+  if (!token) {
+    // The office hasn't provisioned server-side Dropbox credentials yet.
+    return json({ error: 'dropbox_not_configured' }, request, env, 500);
+  }
+  const apiPath = dropboxApiPath(relativePath, env.DROPBOX_BASE_FOLDER || '');
+  let dbxRes: Response;
+  try {
+    dbxRes = await fetch('https://content.dropboxapi.com/2/files/download', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Dropbox-API-Arg': dropboxApiArgHeader({ path: apiPath }),
+      },
+    });
+  } catch (e) {
+    console.warn('[worker dropbox] download error', e);
+    return json({ error: 'dropbox_unreachable' }, request, env, 502);
+  }
+  if (!dbxRes.ok || !dbxRes.body) {
+    const detail = (await dbxRes.text().catch(() => '')).slice(0, 300);
+    console.warn('[worker dropbox] download failed', dbxRes.status, detail);
+    // 409 = path not found → surface as 404 so the client can say "unavailable".
+    return json(
+      { error: 'document_unavailable', detail },
+      request,
+      env,
+      dbxRes.status === 409 ? 404 : 502,
+    );
+  }
+  const fileName = relativePath.split('/').filter(Boolean).pop() || 'document';
+  const headers = new Headers(corsHeaders(request, env));
+  headers.set('Content-Type', mimeFromExt(fileName));
+  headers.set('Cache-Control', 'private, max-age=3600');
+  return new Response(dbxRes.body, { status: 200, headers });
+}
+
 async function servePhoto(env: Env, rawKey: string): Promise<Response> {
   let key: string;
   try {

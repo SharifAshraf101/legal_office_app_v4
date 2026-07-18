@@ -10,6 +10,18 @@ export interface Env {
   USER_ID: string;
   APP_TOKEN: string;
   ANTHROPIC_API_KEY: string;
+  // Server-side Dropbox access so a device WITHOUT its own Dropbox connection
+  // (a client's phone opening the portal bot) can still download a filing
+  // document: the Worker holds the office's credentials and streams the bytes.
+  //   DROPBOX_APP_KEY       — the Dropbox app key / client_id (same value as the
+  //                           browser's NEXT_PUBLIC_DROPBOX_APP_KEY). PKCE apps
+  //                           refresh with just the client_id, no secret.
+  //   DROPBOX_REFRESH_TOKEN — the office's long-lived refresh token (secret).
+  //   DROPBOX_BASE_FOLDER   — the folder the office picked in Dropbox ("" for an
+  //                           App-folder app, or e.g. "/Cases"). Optional.
+  DROPBOX_APP_KEY?: string;
+  DROPBOX_REFRESH_TOKEN?: string;
+  DROPBOX_BASE_FOLDER?: string;
 }
 
 // The tables read by /api/load and written by /api/save, in the SAME key order
