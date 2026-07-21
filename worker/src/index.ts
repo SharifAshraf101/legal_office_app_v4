@@ -9,6 +9,7 @@
 //   POST /api/save          -> upsert all tables            (auth)
 //   POST /api/draft         -> read a PDF, draft a reply with Claude, save it (auth)
 //   POST /api/upload-photo  -> store a client photo in R2   (auth)
+//   POST /api/document      -> upload a filing doc into the office's Dropbox (auth)
 //   GET  /api/legal-actions -> legal actions by court type  (auth)
 //   POST /api/suggested-actions -> save AI suggested action (auth)
 //   GET  /api/suggested-actions/:case_id -> get suggestions (auth)
@@ -101,6 +102,12 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
   }
     if (method === 'GET' && path === '/api/document') {
       return handleDocument(request, env);
+    }
+    if (method === 'POST' && path === '/api/document') {
+      return handleUploadDocument(request, env);
+    }
+    if (method === 'GET' && path === '/api/document-link') {
+      return handleDocumentLink(request, env);
     }
     return json({ error: 'not found' }, request, env, 404);
     } catch (e) {
@@ -1623,6 +1630,132 @@ async function handleDocument(request: Request, env: Env): Promise<Response> {
   headers.set('Content-Type', mimeFromExt(fileName));
   headers.set('Cache-Control', 'private, max-age=3600');
   return new Response(dbxRes.body, { status: 200, headers });
+}
+
+// -----------------------------------------------------------------------
+// POST /api/document   (multipart form: file, path)
+// Upload a filing document into the OFFICE'S Dropbox using the same server-side
+// credentials the download proxy uses. This is what lets a REMOTE device (a
+// phone/laptop that never connected Dropbox of its own) land a file in the exact
+// canonical folder make.com scans and that GET /api/document later reads back —
+// instead of the device's own, possibly-different Dropbox account/folder.
+//   `path` — the filing-RELATIVE path the client built ("Clients/<clt>/<case>/
+//            <file>"). We nest it under DROPBOX_BASE_FOLDER, mirroring downloads.
+// Returns { ok, path } where `path` is the filing-relative path to store on the
+// document record (derived from Dropbox's ACTUAL final path, so an autorename is
+// reflected). The office desktop keeps writing to its local synced folder.
+// -----------------------------------------------------------------------
+async function handleUploadDocument(request: Request, env: Env): Promise<Response> {
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return json({ error: 'expected multipart/form-data' }, request, env, 400);
+  }
+  const entry = form.get('file');
+  const relPath = String(form.get('path') || '').trim();
+  if (!entry || typeof entry === 'string') {
+    return json({ error: 'no file' }, request, env, 400);
+  }
+  if (!relPath) {
+    return json({ error: 'missing_path' }, request, env, 400);
+  }
+  const file = entry as unknown as { arrayBuffer(): Promise<ArrayBuffer> };
+
+  const token = await getDropboxAccessToken(env);
+  if (!token) {
+    // The office hasn't provisioned server-side Dropbox credentials yet.
+    return json({ error: 'dropbox_not_configured' }, request, env, 500);
+  }
+  const apiPath = dropboxApiPath(relPath, env.DROPBOX_BASE_FOLDER || '');
+  let dbxRes: Response;
+  try {
+    dbxRes = await fetch('https://content.dropboxapi.com/2/files/upload', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'application/octet-stream',
+        // add + autorename: the client's _DOC-NNN suffix already makes the name
+        // unique; autorename is only a last-resort collision guard.
+        'Dropbox-API-Arg': dropboxApiArgHeader({
+          path: apiPath,
+          mode: 'add',
+          autorename: true,
+          mute: true,
+        }),
+      },
+      body: await file.arrayBuffer(),
+    });
+  } catch (e) {
+    console.warn('[worker dropbox] upload error', e);
+    return json({ error: 'dropbox_unreachable' }, request, env, 502);
+  }
+  if (!dbxRes.ok) {
+    const detail = (await dbxRes.text().catch(() => '')).slice(0, 300);
+    console.warn('[worker dropbox] upload failed', dbxRes.status, detail);
+    return json({ error: 'upload_failed', detail }, request, env, 502);
+  }
+  const meta = (await dbxRes.json().catch(() => ({}))) as {
+    path_display?: string;
+    path_lower?: string;
+  };
+  // Store a filing-RELATIVE path ("Clients/…") so GET /api/document resolves it
+  // via dropboxApiPath on any device. Derive it from Dropbox's actual final path
+  // (autorename may have adjusted the filename), stripping the office base folder.
+  const finalDisplay = meta.path_display || meta.path_lower || apiPath;
+  const idx = finalDisplay.toLowerCase().indexOf('/clients/');
+  const relativePath =
+    idx >= 0 ? finalDisplay.slice(idx + 1) : finalDisplay.replace(/^\/+/, '');
+  return json({ ok: true, path: relativePath }, request, env);
+}
+
+// -----------------------------------------------------------------------
+// GET /api/document-link?path=<relative_path>
+// Return a short-lived, PUBLIC direct download link for a filing document
+// (Dropbox get_temporary_link → a dl.dropboxusercontent.com URL valid ~4h).
+// Unlike streaming through /api/document, this link needs no Authorization
+// header, so a third party (e.g. Meta's WhatsApp servers fetching an outgoing
+// document attachment) can fetch the file directly. Called server-to-server by
+// the app's /api/whatsapp/send route with the shared APP_TOKEN.
+// -----------------------------------------------------------------------
+async function handleDocumentLink(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const relativePath = (url.searchParams.get('path') || '').trim();
+  if (!relativePath) {
+    return json({ error: 'missing_path' }, request, env, 400);
+  }
+  const token = await getDropboxAccessToken(env);
+  if (!token) {
+    return json({ error: 'dropbox_not_configured' }, request, env, 500);
+  }
+  const apiPath = dropboxApiPath(relativePath, env.DROPBOX_BASE_FOLDER || '');
+  let dbxRes: Response;
+  try {
+    dbxRes = await fetch('https://api.dropboxapi.com/2/files/get_temporary_link', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ path: apiPath }),
+    });
+  } catch (e) {
+    console.warn('[worker dropbox] temp-link error', e);
+    return json({ error: 'dropbox_unreachable' }, request, env, 502);
+  }
+  if (!dbxRes.ok) {
+    const detail = (await dbxRes.text().catch(() => '')).slice(0, 300);
+    console.warn('[worker dropbox] temp-link failed', dbxRes.status, detail);
+    // 409 = path not found → surface as 404.
+    return json(
+      { error: 'document_unavailable', detail },
+      request,
+      env,
+      dbxRes.status === 409 ? 404 : 502,
+    );
+  }
+  const data = (await dbxRes.json()) as { link?: string };
+  return json({ link: data.link || null }, request, env);
 }
 
 async function servePhoto(env: Env, rawKey: string): Promise<Response> {

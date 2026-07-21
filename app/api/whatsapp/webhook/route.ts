@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse, after } from 'next/server';
-import { phonesMatch } from '@/lib/clients';
+import {
+  SESSION_GAP_MS,
+  botInviteMessage,
+  clientNameForPhone,
+  isKnownClient,
+  loadOfficeClients,
+  resolvePortalBase,
+  unknownSenderMessage,
+} from '@/lib/whatsappBot';
 
 export const runtime = 'nodejs';
 // Give the background routing work (full client load + outbound send) room
@@ -15,20 +23,6 @@ const WORKER_URL =
 const APP_TOKEN =
   process.env.NEXT_PUBLIC_APP_TOKEN ||
   'ecd403f741827b30fcd7018ebaf5bc8fdf87b974b30ce8af';
-
-// A new WhatsApp conversation "starts" once the line has been quiet for this
-// long. The first incoming message after such a lull is what re-routes a
-// known client into their bot (per the office's re-engagement flow).
-const SESSION_GAP_MS = 30 * 60 * 1000;
-
-const OFFICE_PHONE = '02-6288479';
-
-// Minimal shape of the client rows returned by the worker's /api/load.
-interface ClientRow {
-  phone?: string;
-  full_name?: string;
-  full_name_ar?: string;
-}
 
 export async function GET(req: NextRequest) {
   const searchParams = new URL(req.url).searchParams;
@@ -71,30 +65,16 @@ async function priorConversationTs(
   }
 }
 
-// All client rows for the configured office, used to resolve a sender's
-// phone number to a known client.
-async function loadClients(): Promise<ClientRow[]> {
-  try {
-    const res = await fetch(`${WORKER_URL}/api/load`, {
-      headers: { Authorization: `Bearer ${APP_TOKEN}` },
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { clients?: ClientRow[] };
-    return Array.isArray(data?.clients) ? data.clients : [];
-  } catch (e) {
-    console.error('loadClients failed:', e);
-    return [];
-  }
-}
-
 // Send a text reply through our own send route so the outgoing message is
 // pushed to Meta AND logged to D1 the same way lawyer-sent messages are.
+// autoInvite:false — this IS the bot invite (or the "unknown sender" reply), so
+// it must not trigger another automatic invite.
 async function sendText(origin: string, to: string, message: string): Promise<void> {
   try {
     await fetch(`${origin}/api/whatsapp/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, message }),
+      body: JSON.stringify({ to, message, autoInvite: false }),
     });
   } catch (e) {
     console.error('sendText failed:', e);
@@ -115,29 +95,19 @@ async function routeToBot(
   selfBase: string,
   from: string,
 ): Promise<void> {
-  const clients = await loadClients();
-  const matches = clients.filter((c) => phonesMatch(c.phone, from));
-  const matched = matches.length === 1 ? matches[0] : null;
+  const clients = await loadOfficeClients(WORKER_URL, APP_TOKEN);
 
-  if (matched) {
-    const name = (matched.full_name || matched.full_name_ar || '').trim();
-    const link = `${portalBase}/portal?phone=${encodeURIComponent(from)}&lang=he`;
-    const message =
-      `שלום${name ? ' ' + name : ''}, ` +
-      `כדי לקבל מידע על התיק שלך — סטטוס, דיונים, תשלומים ומסמכים — ` +
-      `היכנס/י לבוט הלקוחות:\n${link}\n\n` +
-      `مرحباً، للاطلاع على معلومات ملفك (الحالة، الجلسات، المدفوعات والمستندات) ` +
-      `ادخل إلى بوت الموكلين عبر الرابط أعلاه.`;
-    await sendText(selfBase, from, message);
+  // Any matching client record counts as "known". A phone shared by two
+  // family-member clients (two matching rows) used to fall through to the
+  // "unrecognised" reply — now such a client still gets the bot link.
+  if (isKnownClient(clients, from)) {
+    const name = clientNameForPhone(clients, from);
+    await sendText(selfBase, from, botInviteMessage(name, portalBase, from));
     return;
   }
 
   // Unknown sender — default "not recognized" reply.
-  const message =
-    `שלום, מספר הטלפון אינו מזוהה כלקוח במערכת. ` +
-    `לפניות נא ליצור קשר עם המשרד: ${OFFICE_PHONE}.\n\n` +
-    `مرحباً، رقم هاتفك غير مسجّل كموكل لدينا. للتواصل مع المكتب: ${OFFICE_PHONE}.`;
-  await sendText(selfBase, from, message);
+  await sendText(selfBase, from, unknownSenderMessage());
 }
 
 export async function POST(req: NextRequest) {
@@ -248,9 +218,7 @@ export async function POST(req: NextRequest) {
   // serves a clean build (no ngrok browser-warning / dev HMR). The local dev
   // server behind ngrok is NOT CORS-allowed and renders blank on mobile, so we
   // default to the deployed Vercel app. Override with PORTAL_BASE_URL.
-  const portalBase = (
-    process.env.PORTAL_BASE_URL || 'https://legal-office-app-v4.vercel.app'
-  ).replace(/\/$/, '');
+  const portalBase = resolvePortalBase();
   // INTERNAL send call → must reach THIS server. On Vercel the request origin
   // works; locally (behind ngrok) the forwarded origin is https-onto-http and
   // breaks TLS, so hit the loopback http port the dev server listens on.

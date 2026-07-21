@@ -259,6 +259,7 @@ export function TaskDeadlineAlertModal({ onClose }: { onClose?: () => void }) {
                     {groups[b].map((t) => (
                       <div
                         key={t.id}
+                        className="task-alert-row"
                         style={{
                           background: '#fff',
                           border: '1px solid #e5e7eb',
@@ -278,7 +279,7 @@ export function TaskDeadlineAlertModal({ onClose }: { onClose?: () => void }) {
                             {taskMeta(t)}
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <div className="task-alert-row-actions" style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                           <button
                             type="button"
                             onClick={() => markDone(t.id)}

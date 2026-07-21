@@ -373,9 +373,18 @@ export async function getFilingFileBlob(
   relativePath: string,
   lang: 'he' | 'ar',
 ): Promise<Blob | null> {
-  // 1. Cloud copy via the Dropbox content API (the primary store; matches the
-  //    Dropbox-first precedence of openDocumentFromLegalOfficeFolder). Returns
-  //    the bytes — CORS is allowed on the content endpoint.
+  // 0. Server-side Dropbox proxy through the Worker — the OFFICE'S canonical
+  //    store, and the ONLY source that works on a remote phone/laptop with no
+  //    Dropbox connection of its own. Remote uploads now land here, so this is
+  //    tried FIRST. It self-skips http share-URL paths and an unconfigured
+  //    Worker (returns null), so we fall through to the client-side sources
+  //    below for those.
+  const viaWorker = await fetchFilingBlobViaWorker(relativePath);
+  if (viaWorker) return viaWorker;
+  // 1. Cloud copy via the client's OWN Dropbox content API (office device, or a
+  //    remote device that connected the same Dropbox). Matches the Dropbox-first
+  //    precedence of openDocumentFromLegalOfficeFolder; CORS is allowed on the
+  //    content endpoint.
   try {
     const blob = await downloadDropboxFileBlob(
       dropboxPathForRelative(relativePath),

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -50,14 +50,53 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
     dispatch({ type: 'SET_TIMELINE', timeline: next.timeline });
     modalStack.closeAll();
   };
-  const defaultCaseId = existing?.caseId || preselectedCaseId || state.casesArr[0]?.id || '';
+  // New tasks start with an EMPTY case field — the office picks the case by
+  // typing the client's name (see the case search-box below). Editing an
+  // existing task, or "new task" launched from inside a case, pre-fills it.
+  const defaultCaseId = existing?.caseId || preselectedCaseId || '';
+
+  // "Client · case number · case title" — shown in the search input once a case
+  // is picked, and as each result row's text.
+  const caseLabelFor = (c: (typeof state.casesArr)[number]) =>
+    [clientName(c.clientId, state.clients, lang), c.caseNumber, caseName(c, lang)]
+      .filter(Boolean)
+      .join(' · ');
 
   const [title, setTitle] = useState(existing?.title || '');
   const [caseId, setCaseId] = useState(defaultCaseId);
+  const [caseQuery, setCaseQuery] = useState(() => {
+    const c = state.casesArr.find((x) => String(x.id) === String(defaultCaseId));
+    return c ? caseLabelFor(c) : '';
+  });
+  const [showCaseResults, setShowCaseResults] = useState(false);
   const [dueDate, setDueDate] = useState(existing?.dueDate || '');
   const [status, setStatus] = useState(existing?.status || 'open');
   const [priority, setPriority] = useState(existing?.priority || 'normal');
   const [notes, setNotes] = useState(existing?.notes || '');
+
+  // Cases whose client name / number / title / court match what's typed.
+  // Typing a client's name therefore lists exactly that client's cases.
+  const caseResults = useMemo(() => {
+    const q = caseQuery.trim().toLowerCase();
+    const rows = state.casesArr.filter((c) => {
+      if (!q) return true;
+      const cl = state.clients.find((x) => x.id === c.clientId);
+      const text = [cl?.name, cl?.nameAr, c.caseNumber, c.title, c.titleAr, c.court]
+        .filter(Boolean)
+        .join(' · ')
+        .toLowerCase();
+      return text.includes(q);
+    });
+    return rows.slice(0, 30);
+  }, [caseQuery, state.casesArr, state.clients]);
+
+  const pickCase = (id: string) => {
+    const c = state.casesArr.find((x) => String(x.id) === String(id));
+    if (!c) return;
+    setCaseId(String(c.id));
+    setCaseQuery(caseLabelFor(c));
+    setShowCaseResults(false);
+  };
 
   const close = () => modalStack.close(modalStack.topId() ?? 0);
 
@@ -181,20 +220,49 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
             )}
           />
         </label>
-        <label>
+        <label className="full">
           {t('caseDetails')}
-          <select
-            id="taskCaseInput"
-            value={caseId}
-            onChange={(e) => setCaseId(e.target.value)}
-          >
-            {state.casesArr.map((c) => (
-              <option key={c.id} value={c.id}>
-                {clientName(c.clientId, state.clients, lang)} · {c.caseNumber || ''} ·{' '}
-                {caseName(c, lang)}
-              </option>
-            ))}
-          </select>
+          <div className="search-box">
+            <input
+              id="taskCaseInput"
+              type="text"
+              autoComplete="off"
+              placeholder={taskText(
+                'הקלד/י שם לקוח כדי לבחור תיק…',
+                'اكتب اسم الموكل لاختيار الملف…',
+                lang,
+              )}
+              value={caseQuery}
+              onChange={(e) => {
+                setCaseQuery(e.target.value);
+                setCaseId('');
+                setShowCaseResults(true);
+              }}
+              onFocus={() => setShowCaseResults(true)}
+              onBlur={() => setTimeout(() => setShowCaseResults(false), 160)}
+            />
+            <div className={'case-results' + (showCaseResults ? '' : ' is-hidden')}>
+              {caseResults.length === 0 ? (
+                <div className="case-result">
+                  <strong>{taskText('לא נמצאו תוצאות', 'لا توجد نتائج', lang)}</strong>
+                </div>
+              ) : (
+                caseResults.map((c) => (
+                  <div
+                    key={c.id}
+                    className="case-result"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      pickCase(String(c.id));
+                    }}
+                  >
+                    <strong>{clientName(c.clientId, state.clients, lang)}</strong>
+                    <span>{[c.caseNumber, caseName(c, lang)].filter(Boolean).join(' · ')}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </label>
         <label>
           {taskText('תאריך יעד', 'تاريخ الاستحقاق', lang)}

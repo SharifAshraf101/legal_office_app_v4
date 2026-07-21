@@ -8,6 +8,7 @@
 
 import { applyLegalOfficeData, persistCurrentDataToLocalStorage } from './storage';
 import { firstNonEmpty, isNonEmpty } from './utils';
+import { FILING_ROOT, filingFolderSegments, filingFileName } from './filing';
 import type {
   AppState,
   Case,
@@ -15,6 +16,7 @@ import type {
   Client,
   DocumentRecord,
   Finance,
+  Lang,
   Task,
   TimelineItem,
 } from '@/types';
@@ -639,5 +641,67 @@ export async function uploadClientPhotoToStorage(
   } catch (e) {
     console.warn('[LegalOffice Cloudflare storage] photo upload error', e);
     return null;
+  }
+}
+
+// ---- Remote document upload (POST /api/document) --------------------------
+// Upload a filing document THROUGH the Worker into the office's canonical
+// Dropbox — the same tree make.com scans and that GET /api/document reads back.
+// Used by remote devices (phones/laptops) so an upload never depends on the
+// device having connected its own Dropbox: the Worker holds the office's single
+// server-side credentials, exactly like the download proxy. The client builds
+// the SAME filing-relative path the local/desktop save uses so the two backends
+// stay identical; the Worker returns the actual stored path (an autorename is
+// reflected) to persist on the record.
+
+export type WorkerDocumentUploadResult =
+  | { ok: true; relativePath: string }
+  | { ok: false; error: string };
+
+export async function uploadDocumentViaWorker(
+  file: File,
+  opts: {
+    client?: Client | null;
+    caseObj?: Case | null;
+    lang?: Lang;
+    /** Running document id (e.g. "DOC-001") appended before the extension. */
+    docId?: string;
+  } = {},
+): Promise<WorkerDocumentUploadResult> {
+  if (!WORKER_URL) {
+    return { ok: false, error: 'Worker URL not configured (NEXT_PUBLIC_WORKER_URL).' };
+  }
+  const segments = filingFolderSegments(opts.client, opts.caseObj, opts.lang ?? 'he');
+  const filename = filingFileName(opts.client, opts.caseObj, file.name, opts.docId);
+  // Filing-RELATIVE path (no base folder) — the Worker nests it under the
+  // office's DROPBOX_BASE_FOLDER, guarding the doubled-"Clients" case itself.
+  const relPath = `${FILING_ROOT}/${segments.join('/')}/${filename}`;
+
+  const form = new FormData();
+  form.append('file', file);
+  form.append('path', relPath);
+  try {
+    const res = await fetch(WORKER_URL + '/api/document', {
+      method: 'POST',
+      // No Content-Type — the browser sets the multipart boundary.
+      headers: { Authorization: 'Bearer ' + APP_TOKEN },
+      body: form,
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      console.warn('[LegalOffice Cloudflare storage] document upload failed', res.status, detail);
+      return {
+        ok: false,
+        error: `Worker upload failed (${res.status}): ${detail || 'unknown error'}`,
+      };
+    }
+    const data = (await res.json()) as { ok?: boolean; path?: string; error?: string };
+    if (!data.ok || !data.path) {
+      return { ok: false, error: data.error || 'Worker returned no path.' };
+    }
+    return { ok: true, relativePath: data.path };
+  } catch (e) {
+    console.warn('[LegalOffice Cloudflare storage] document upload error', e);
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }

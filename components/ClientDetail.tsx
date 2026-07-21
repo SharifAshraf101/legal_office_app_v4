@@ -8,7 +8,6 @@ import {
   clientDisplayName,
   normalizePhoneForLinks,
   whatsappAppUrl,
-  whatsappUrl,
 } from '@/lib/clients';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { Modal } from './Modal';
@@ -335,9 +334,8 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         </a>
         <a
           className="client-whatsapp-link client-whatsapp-link-cell"
-          href={whatsappUrl(phone, waText)}
-          target="_blank"
-          rel="noopener"
+          href={whatsappAppUrl(phone, waText)}
+          target="_self"
         >
           <i className="fas fa-message" />
           <span>{msgLabel}</span>

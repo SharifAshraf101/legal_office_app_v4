@@ -31,6 +31,7 @@ import {
 import { downloadFilingDocument, openDocumentFromLegalOfficeFolder } from '@/lib/disk';
 import {
   dropboxPathForRelative,
+  dropboxRawUrl,
   getDropboxTemporaryLink,
   isDropboxConfigured,
 } from '@/lib/dropbox';
@@ -1339,21 +1340,45 @@ function ClientChatScreen({
       },
     ]);
 
+    // Surface a delivery failure to the lawyer instead of silently pretending
+    // the file arrived — a failed send used to leave the file bubble sitting
+    // in the chat as if it had been delivered.
+    const warn = (he: string, ar: string) =>
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          side: 'office',
+          type: 'text',
+          text: '⚠️ ' + (lang === 'ar' ? ar : he),
+          time: nowHHMM(),
+        },
+      ]);
+
     const clientRecord = state.clients.find((c) => c.id === client.id);
     const phone = normalizePhoneForLinks(clientRecord?.phone || '');
+    if (!phone) {
+      warn(
+        'המסמך לא נשלח: אין מספר טלפון ללקוח.',
+        'لم يُرسل المستند: لا يوجد رقم هاتف للموكل.',
+      );
+      return;
+    }
     const caption = (lang === 'ar' ? 'تم إرسال ملف: ' : 'נשלח מסמך: ') + fileName;
 
-    // Resolve a public/direct URL for the file HERE, in the browser, where the
-    // Dropbox tokens live in localStorage. The server-side send route cannot do
-    // this — it has no access to localStorage, so getDropboxTemporaryLink()
-    // always returns null there and the message falls back to plain text.
+    // Resolve a direct URL for the file HERE, in the browser, where the Dropbox
+    // tokens live in localStorage — the fast path. If it fails, we still send:
+    // the send route resolves the link server-side from `relativePath` via the
+    // worker, so delivery no longer depends on this browser's Dropbox state.
     const relativePath =
       typeof doc.relativePath === 'string' && doc.relativePath.trim()
         ? doc.relativePath.trim()
         : undefined;
     let documentUrl: string | undefined;
     if (relativePath && /^https?:\/\//i.test(relativePath)) {
-      documentUrl = relativePath;
+      // A stored Dropbox SHARE page URL (…?dl=0) must become a RAW/direct link,
+      // or Meta fetches Dropbox's HTML preview page instead of the file.
+      documentUrl = dropboxRawUrl(relativePath);
     } else if (relativePath && isDropboxConfigured()) {
       try {
         const link = await getDropboxTemporaryLink(dropboxPathForRelative(relativePath));
@@ -1363,24 +1388,40 @@ function ClientChatScreen({
       }
     }
 
-    if (phone) {
+    try {
+      const res = await fetch('/api/whatsapp/send/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: phone,
+          message: caption,
+          document: {
+            name: fileName,
+            url: documentUrl,
+            relativePath,
+          },
+        }),
+      });
+      let data: any = null;
       try {
-        await fetch('/api/whatsapp/send/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: phone,
-            message: caption,
-            document: {
-              name: fileName,
-              url: documentUrl,
-              relativePath,
-            },
-          }),
-        });
-      } catch (e) {
-        console.error('WhatsApp document send failed:', e);
+        data = await res.json();
+      } catch {
+        /* non-JSON error body */
       }
+      // Meta returns { messages: [...] } on a successful send.
+      if (!res.ok || !(data && data.messages)) {
+        console.error('WhatsApp document send failed:', res.status, data);
+        warn(
+          'המסמך לא הגיע ללקוח. ודא/י שהמסמך שמור ב-Dropbox ונסה/י שוב.',
+          'لم يصل المستند إلى الموكل. تأكد من حفظ المستند في دروبوكس وحاول مجددًا.',
+        );
+      }
+    } catch (e) {
+      console.error('WhatsApp document send failed:', e);
+      warn(
+        'שליחת המסמך נכשלה (שגיאת רשת).',
+        'فشل إرسال المستند (خطأ في الشبكة).',
+      );
     }
   };
 

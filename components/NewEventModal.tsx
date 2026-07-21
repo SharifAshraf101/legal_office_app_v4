@@ -16,15 +16,10 @@ import {
   minuteOptions,
 } from '@/lib/dates';
 import { pad } from '@/lib/utils';
-import {
-  hasDropboxFolder,
-  isDropboxConfigured,
-  isFileSystemAccessAvailable,
-  uploadFileToDropbox,
-} from '@/lib/dropbox';
+import { isFileSystemAccessAvailable } from '@/lib/dropbox';
+import { uploadDocumentViaWorker } from '@/lib/cloudflare';
 import { saveDocumentToLegalOfficeFolder } from '@/lib/disk';
 import { isOfficeDevice } from '@/lib/device';
-import { DropboxConnectModal } from './DropboxConnectModal';
 import type { CalendarEvent, DocumentRecord, Task, TimelineItem } from '@/types';
 
 /**
@@ -435,30 +430,26 @@ export function NewEventModal({
                   ? 'تعذّر حفظ الملف في المجلد المحلي (أُلغي اختيار المجلد أو فشلت الكتابة). لم يتم حفظ المستند.'
                   : 'שמירת הקובץ לתיקייה המקומית בוטלה או נכשלה. המסמך לא נשמר.';
             }
-          } else if (!isDropboxConfigured() || !hasDropboxFolder()) {
-            // MOBILE (no File System Access) and Dropbox not connected: prompt
-            // the one-time setup. Nothing was saved this round, so abort.
-            modalStack.open(<DropboxConnectModal />);
-            saveError =
-              lang === 'ar'
-                ? 'يجب ربط Dropbox أولاً ثم إعادة المحاولة. لم يتم حفظ المستند.'
-                : 'יש לחבר את Dropbox תחילה ואז לנסות שוב. המסמך לא נשמר.';
           } else {
-            const uploaded = await uploadFileToDropbox(docFile, {
-              caseId,
-              clientId,
-              caseObj,
+            // REMOTE device (phone / laptop): upload THROUGH the Worker so the
+            // file lands in the OFFICE'S canonical Dropbox — the exact folder
+            // make.com scans and that document downloads read back from. The
+            // device needs no Dropbox login of its own (mirrors how remote
+            // downloads already work), which is what fixes mobile uploads that
+            // previously went to the phone's own, unwatched Dropbox folder.
+            const uploaded = await uploadDocumentViaWorker(docFile, {
               client,
+              caseObj,
               lang,
               docId,
             });
             if (uploaded.ok) {
-              relativePath = uploaded.url || uploaded.path;
+              relativePath = uploaded.relativePath;
             } else {
               saveError =
                 lang === 'ar'
-                  ? `فشل رفع الملف إلى Dropbox. لم يتم حفظ المستند. السبب: ${uploaded.error}`
-                  : `העלאת הקובץ ל-Dropbox נכשלה. המסמך לא נשמר. סיבה: ${uploaded.error}`;
+                  ? `فشل رفع الملف إلى Dropbox عبر الخادم. لم يتم حفظ المستند. السبب: ${uploaded.error}`
+                  : `העלאת הקובץ ל-Dropbox דרך השרת נכשלה. המסמך לא נשמר. סיבה: ${uploaded.error}`;
             }
           }
         } finally {
