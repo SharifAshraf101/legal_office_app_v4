@@ -107,12 +107,32 @@ export function buildUpsert(
   const allowed = TABLE_COLUMNS[table];
   if (!allowed) return null;
 
+  // The external pipeline (make.com) keys incoming `documents` rows by the
+  // Dropbox PATH instead of the running DOC id, e.g.
+  //   "Clients/clt-101/CS-1020 - .../CLT-101_CS-1020_..._DOC-099.pdf".
+  // We used to DROP any document whose source_id contained '/', so those
+  // path-keyed rows would not duplicate the canonical DOC-NNN row — but that
+  // silently discarded every legitimate document the pipeline filed, so nothing
+  // it produced ever reached the app (the scenario still saw 200 ok). Instead,
+  // recover the DOC-NNN id embedded in the path/filename and use THAT as the
+  // conflict key: the write now UPDATES the canonical row (idempotent) rather
+  // than being lost or duplicated. Only reject when no id can be recovered.
+  if (table === 'documents' && String(row.source_id ?? '').includes('/')) {
+    const hay =
+      String(row.source_id ?? '') +
+      ' ' +
+      String(row.file_name ?? '') +
+      ' ' +
+      String(row.relative_path ?? '');
+    const ids = hay.match(/DOC-\d{1,6}/gi);
+    if (!ids || ids.length === 0) return null;
+    // Prefer the id closest to the filename (last match) — folder names could
+    // in principle carry a different DOC id than the file itself.
+    row = { ...row, source_id: ids[ids.length - 1].toUpperCase() };
+  }
+
   const present = allowed.filter((c) => row[c] !== undefined);
   if (!present.includes('source_id')) return null;
-  // Reject a corrupted source_id that is a file PATH instead of an id (the
-  // external pipeline has written document rows keyed by the Dropbox path,
-  // which then show up as duplicate junk rows). Real ids never contain '/'.
- if (table === "documents" && String(row.source_id ?? "").includes("/")) return null;
 
   const now = new Date().toISOString();
   const id = typeof row.id === 'string' && row.id ? row.id : crypto.randomUUID();
