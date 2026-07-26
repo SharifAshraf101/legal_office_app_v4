@@ -53,6 +53,7 @@ import {
   type PortalBotHistoryItem,
 } from '@/lib/portal';
 import { caseName } from '@/lib/cases';
+import { formatDMY } from '@/lib/dates';
 import {
   financeCaseBalance,
   financePaidItemsForCase,
@@ -296,6 +297,20 @@ function PortalShell({
     }, 20000);
     return () => window.clearTimeout(id);
   }, [deepLink]);
+
+  // Pin the bot-chat header on the client's phone. The sticky header only
+  // stays put when the two portal wrappers are `overflow: visible`; the CSS
+  // that grants this is scoped with `:has(.modern-portal-bot-chat)`, which
+  // some in-app / older mobile browsers (how clients open the WhatsApp link)
+  // don't support — there the wrappers keep `overflow: hidden`, break
+  // `position: sticky`, and the header scrolls away (while it stays pinned in
+  // the office's modern desktop browser). Toggling a plain body class gives
+  // the same override with NO :has() dependency, so it also works there.
+  useEffect(() => {
+    const active = screen === 'bot';
+    document.body.classList.toggle('portal-bot-chat-open', active);
+    return () => document.body.classList.remove('portal-bot-chat-open');
+  }, [screen]);
 
   const openChat = (client: ClientRow, caseId?: string) => {
     // If a specific case chip was clicked, surface that case's number/title
@@ -3716,11 +3731,7 @@ function ActionPanel({
     if (!raw) return '';
     const dt = new Date(raw);
     if (Number.isNaN(dt.getTime())) return '';
-    return dt.toLocaleDateString(lang === 'ar' ? 'ar-EG-u-nu-latn' : 'he-IL-u-nu-latn', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+    return formatDMY(dt);
   };
 
   // Latest documents for the case the lawyer picked via "בחירת תיק".
@@ -3749,11 +3760,7 @@ function ActionPanel({
     if (!raw) return '';
     const dt = new Date(raw);
     if (Number.isNaN(dt.getTime())) return '';
-    return dt.toLocaleDateString(lang === 'ar' ? 'ar-EG-u-nu-latn' : 'he-IL-u-nu-latn', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+    return formatDMY(dt);
   };
 
   return (

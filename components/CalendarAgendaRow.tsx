@@ -11,6 +11,7 @@ import {
   eventTypeLabel,
   type CalendarItem,
 } from '@/lib/calendar';
+import { formatDMY, localizedWeekday } from '@/lib/dates';
 import { CalendarEventDetail } from './CalendarEventDetail';
 
 /**
@@ -26,12 +27,10 @@ export function CalendarAgendaRow({ entry }: { entry: CalendarItem }) {
   const type = item.type || 'hearingMeeting';
   const isTask = type === 'task';
 
-  const fullDate = entry.date.toLocaleDateString(calendarLocale(lang), {
-    weekday: 'long',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  const fullDate =
+    localizedWeekday(entry.date, calendarLocale(lang), 'long') +
+    ', ' +
+    formatDMY(entry.date);
   const timeStr = entry.date.toLocaleTimeString(calendarLocale(lang), {
     hour: '2-digit',
     minute: '2-digit',

@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
+import { AR_GLOSSARY } from '@/lib/arabicGlossary';
 import type {
   CalendarEvent,
   Case,
@@ -167,7 +168,8 @@ export async function POST(req: Request) {
 
   const langHint =
     lang === 'ar'
-      ? '\n\nThe client speaks Arabic. Default to Arabic responses unless they explicitly write in another language.'
+      ? '\n\nThe client speaks Arabic. Default to Arabic responses unless they explicitly write in another language.\n\n' +
+        AR_GLOSSARY
       : '\n\nThe client speaks Hebrew. Default to Hebrew responses unless they explicitly write in another language.';
 
   // System is split into two blocks so the FROZEN instructions (BASE) can

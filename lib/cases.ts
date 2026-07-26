@@ -1,6 +1,7 @@
 // Case-related helpers. Ports of source 3776-3779, 3919, 4188-4192, 4399. v3 versions of case modals read directly from source without needing to import this module.
 
 import type { Case, CalendarEvent, Client, Lang, Task } from '@/types';
+import { formatDMYTime, localizedWeekday } from './dates';
 
 /** Source line 3776. */
 export function caseName(c: Case, lang: Lang): string {
@@ -116,14 +117,10 @@ export function formatCaseDateTime(raw: string | Date, lang: Lang): string {
       ? raw
       : new Date(String(raw).includes('T') ? raw : String(raw) + 'T09:00:00');
   if (isNaN(d.getTime())) return String(raw);
-  return d.toLocaleString(lang === 'ar' ? 'ar-EG-u-nu-latn' : 'he-IL-u-nu-latn', {
-    weekday: 'long',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const locale = lang === 'ar' ? 'ar-EG-u-nu-latn' : 'he-IL-u-nu-latn';
+  // Arabic weekday name, then the numeric date/time formatted the same as
+  // Hebrew (05.10.2026, 14:30) instead of the locale's slashed, RTL-marked form.
+  return `${localizedWeekday(d, locale, 'long')}, ${formatDMYTime(d)}`;
 }
 
 /** Source line 5055. Open tasks for a case, sorted. We keep the sort simple

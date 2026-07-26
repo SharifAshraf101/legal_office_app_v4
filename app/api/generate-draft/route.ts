@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     caseId?: string;
     documentId?: string;
     lawyerName?: string;
+    clientName?: string;
     notesContext?: string;
   };
   try {
@@ -37,7 +38,16 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
   }
-  const { fileUrl, fileName, clientId, caseId, documentId, lawyerName, notesContext } = body;
+  const {
+    fileUrl,
+    fileName,
+    clientId,
+    caseId,
+    documentId,
+    lawyerName,
+    clientName,
+    notesContext,
+  } = body;
   if (!fileUrl || !fileName) {
     return NextResponse.json({ error: 'missing_params' }, { status: 400 });
   }
@@ -85,6 +95,7 @@ export async function POST(req: Request) {
         case_source_id: caseId || '',
         document_source_id: documentId || '',
         lawyer_name: lawyerName || '',
+        client_name: clientName || '',
         notes_context: notesContext || '',
       }),
     });

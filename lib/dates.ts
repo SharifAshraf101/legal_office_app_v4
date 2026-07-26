@@ -84,3 +84,46 @@ export function sameCalendarDay(a: string | Date, b: string | Date): boolean {
 export function calendarDateValue(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
+
+/* ------------------------------------------------------------------ *
+ *  Display formatters — DD.MM.YYYY, deterministic across languages.
+ *
+ *  The office writes dates day-first with dot separators (05.10.2026).
+ *  `toLocaleDateString` gives exactly that under `he-IL`, but under any
+ *  Arabic locale it swaps the separator to '/', injects invisible RTL
+ *  marks (U+200F) and — depending on the browser's ICU build — can flip
+ *  the order to year-first (2026.10.05). So for the numeric parts we
+ *  build the string by hand: Arabic then reads identically to Hebrew.
+ *  Localized weekday / month *names* still come from the locale (see
+ *  `localizedWeekday`) — only the digits are formatted manually.
+ * ------------------------------------------------------------------ */
+
+/** `DD.MM.YYYY` — same output in every language. */
+export function formatDMY(d: Date): string {
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+}
+
+/** `DD.MM` — day + month only (no year). */
+export function formatDM(d: Date): string {
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}`;
+}
+
+/** `HH:MM`, 24-hour. */
+export function formatHM(d: Date): string {
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** `DD.MM.YYYY, HH:MM` — matches he-IL's "05.10.2026, 14:30". */
+export function formatDMYTime(d: Date): string {
+  return `${formatDMY(d)}, ${formatHM(d)}`;
+}
+
+/** Localized weekday name only (e.g. "יום שני" / "الاثنين"). Pass the same
+ *  locale you'd give toLocaleDateString (via calendarLocale(lang)). */
+export function localizedWeekday(
+  d: Date,
+  locale: string,
+  style: 'long' | 'short' = 'long',
+): string {
+  return d.toLocaleDateString(locale, { weekday: style });
+}

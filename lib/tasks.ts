@@ -1,7 +1,7 @@
 // Task helpers. Ports of source 5017-5025, 5038-5040, 5055. Names preserved.
 
 import type { Case, Client, Lang, Task, TimelineItem } from '@/types';
-import { calendarLocale } from './calendar';
+import { formatDMY } from './dates';
 import { caseName, clientName } from './cases';
 import { clientDisplayName } from './clients';
 
@@ -98,12 +98,7 @@ export function taskDueInfo(
           ? 'task-row-due-today'
           : '';
   return {
-    text:
-      d.toLocaleDateString(calendarLocale(lang), {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      }) + suffix,
+    text: formatDMY(d) + suffix,
     cls,
   };
 }

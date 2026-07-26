@@ -11,8 +11,6 @@
 //               folder), from where the office computer's Dropbox app syncs them
 //               down into the local filing tree.
 
-import { isFileSystemAccessAvailable } from '@/lib/dropbox';
-
 export type DeviceRole = 'office' | 'remote';
 
 const KEY = 'law_device_role';
@@ -28,14 +26,23 @@ export function getStoredDeviceRole(): DeviceRole | null {
   }
 }
 
-/** Effective role for this device. Defaults preserve existing behavior: a
- *  machine with the File System Access API acts as the office computer until the
- *  user marks it (e.g. a laptop) as a remote device in Settings; phones — which
- *  lack the API — are always remote. */
+/** Effective role for this device. Defaults to 'remote' so EVERY device routes
+ *  its document uploads THROUGH the Worker into the office's canonical Dropbox —
+ *  the behavior the firm wants on phones AND laptops. A machine acts as the
+ *  "office computer" (local-disk save + local-first open) ONLY when the user
+ *  marks it so in Settings.
+ *
+ *  Previously any device with the File System Access API (i.e. every desktop
+ *  Chrome/Edge — including a laptop that ISN'T the office computer) defaulted to
+ *  'office' and silently saved to its OWN local disk instead of Dropbox, so a
+ *  document uploaded from a laptop never reached the cloud and couldn't be
+ *  opened from any other device. Defaulting to 'remote' fixes that: the office
+ *  desktop keeps local save only when it's explicitly set as the office
+ *  computer. */
 export function getDeviceRole(): DeviceRole {
   const stored = getStoredDeviceRole();
   if (stored) return stored;
-  return isFileSystemAccessAvailable() ? 'office' : 'remote';
+  return 'remote';
 }
 
 export function setDeviceRole(role: DeviceRole): void {

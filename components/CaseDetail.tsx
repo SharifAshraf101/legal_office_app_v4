@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { Lang } from '@/types';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -34,12 +35,15 @@ import {
   loadGenAttempts,
   rememberGenAttempt,
   fetchDecisionInfo,
-  fetchSuggestedAction,
-  generateSuggestedAction,
+  fetchSuggestedActionDetailed,
+  generateSuggestedActionDetailed,
   isDecisionOrProtocol,
   splitDecisionSummary,
   type DecisionInfo,
+  type SuggestedActionDetail,
 } from '@/lib/summary';
+import { buildDeadlineView, type DeadlineTone } from '@/lib/deadlines';
+import { calendarDateValue, formatDMYTime } from '@/lib/dates';
 import { filingFileName } from '@/lib/filing';
 import { caseDocumentsForCase } from '@/lib/documents';
 import { aggregateCaseNotes, caseNotesContext } from '@/lib/caseNotes';
@@ -111,6 +115,56 @@ const HEARING_FROM_DECISION_HE =
   'מועד זה יובא מהחלטה שיפוטית על ידי הבינה המלאכותית (AI).';
 const HEARING_FROM_DECISION_AR =
   'أُدرج هذا الموعد من قرار قضائي بواسطة الذكاء الاصطناعي (AI).';
+// Marker for a procedural DEADLINE the AI derives from the case's court track
+// (e.g. "כתב הגנה תוך 60 יום ממועד ההמצאה") — distinct from a decision-imported
+// item; attached to the auto-created task + calendar reminder.
+const PROC_DEADLINE_NOTE_HE =
+  'מועד דיוני שחושב אוטומטית לפי סדרי הדין של הערכאה (AI).';
+const PROC_DEADLINE_NOTE_AR =
+  'موعد إجرائي احتُسب تلقائياً وفق أصول المحاكمات لدى المحكمة (AI).';
+const PROC_DEADLINE_NOTE_BILINGUAL = `${PROC_DEADLINE_NOTE_HE} · ${PROC_DEADLINE_NOTE_AR}`;
+
+// "צד מיוצג" selector options. `value` is the CANONICAL Hebrew term sent to the
+// worker (its prompt is Hebrew); he/ar are the localized display labels. The
+// empty value = "automatic" (let the AI infer the side).
+const PARTY_OPTIONS: { value: string; he: string; ar: string }[] = [
+  { value: '', he: 'אוטומטי (זיהוי AI)', ar: 'تلقائي (كشف آلي)' },
+  { value: 'תובע', he: 'תובע', ar: 'مدّعٍ' },
+  { value: 'נתבע', he: 'נתבע', ar: 'مدّعى عليه' },
+  { value: 'מבקש', he: 'מבקש', ar: 'طالب' },
+  { value: 'משיב', he: 'משיב', ar: 'مطلوب ضدّه' },
+  { value: 'עותר', he: 'עותר', ar: 'ملتمس' },
+];
+
+// Per-case represented-party OVERRIDE, persisted in localStorage (device-local,
+// like the AI import/generation sets). '' / absent = automatic inference.
+const PARTY_OVERRIDE_LS = 'law_represented_party_v1';
+function loadPartyOverrides(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(PARTY_OVERRIDE_LS);
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+function savePartyOverride(caseId: string, value: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const all = loadPartyOverrides();
+    if (value) all[caseId] = value;
+    else delete all[caseId];
+    localStorage.setItem(PARTY_OVERRIDE_LS, JSON.stringify(all));
+  } catch {
+    /* ignore quota / serialization errors */
+  }
+}
+/** Localized label for a canonical party value ('' → the "automatic" label). */
+function partyLabel(value: string, lang: Lang): string {
+  const opt = PARTY_OPTIONS.find((o) => o.value === value);
+  if (opt) return lang === 'ar' ? opt.ar : opt.he;
+  return value; // an AI-inferred term not in the canonical list — show as-is
+}
 
 /**
  * Fetches the case's decision from Cloudflare D1 and imports its derived
@@ -1040,6 +1094,67 @@ interface TimelineEntry {
   description: string;
   date: string;
   docId?: string;
+  /** Source file name (with extension) for document entries — drives the
+   *  file-type icon. Empty for non-document rows or documents with no file. */
+  fileName?: string;
+}
+
+/** Pick a file-type FontAwesome 6 (`fas`) icon from a document's file name.
+ *  Falls back to the generic file icon when the extension is unknown or the
+ *  name is missing (e.g. timeline-sourced rows that carry no actual file). */
+function documentTypeIcon(fileName?: string): string {
+  const ext = (fileName || '').split('.').pop()?.toLowerCase() || '';
+  switch (ext) {
+    case 'pdf':
+      return 'fa-file-pdf';
+    case 'doc':
+    case 'docx':
+    case 'rtf':
+    case 'odt':
+      return 'fa-file-word';
+    case 'xls':
+    case 'xlsx':
+    case 'csv':
+    case 'ods':
+      return 'fa-file-excel';
+    case 'ppt':
+    case 'pptx':
+    case 'odp':
+      return 'fa-file-powerpoint';
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+    case 'webp':
+    case 'bmp':
+    case 'svg':
+    case 'heic':
+    case 'tif':
+    case 'tiff':
+      return 'fa-file-image';
+    case 'mp3':
+    case 'wav':
+    case 'm4a':
+    case 'ogg':
+    case 'aac':
+      return 'fa-file-audio';
+    case 'mp4':
+    case 'mov':
+    case 'avi':
+    case 'mkv':
+    case 'webm':
+      return 'fa-file-video';
+    case 'zip':
+    case 'rar':
+    case '7z':
+    case 'gz':
+      return 'fa-file-zipper';
+    case 'txt':
+    case 'md':
+      return 'fa-file-lines';
+    default:
+      return 'fa-file';
+  }
 }
 
 /** Extract a millisecond timestamp from an app-generated ID like
@@ -1082,6 +1197,7 @@ function caseTimelineEntries(
             ? t.descriptionAr || t.description
             : t.description || t.descriptionAr) || '',
         date: t.date || '',
+        fileName: (t as { fileName?: string }).fileName || '',
         sortKey: idTs || dateTs,
       });
     });
@@ -1103,6 +1219,7 @@ function caseTimelineEntries(
             : d.description || d.descriptionAr) || '',
         date: d.date || '',
         docId: d.id,
+        fileName: d.fileName || (d as { storedFileName?: string }).storedFileName || '',
         sortKey: upTs || idTs || dateTs,
       });
     });
@@ -1200,7 +1317,7 @@ function CaseTimelineSection({
                         className={
                           'fas ' +
                           (e.type === 'document'
-                            ? 'fa-file'
+                            ? documentTypeIcon(e.fileName)
                             : e.type === 'task'
                               ? 'fa-circle-check'
                               : e.type === 'call'
@@ -1341,6 +1458,35 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   const genAttemptRef = useRef<Set<string> | null>(null);
   if (genAttemptRef.current === null) genAttemptRef.current = loadGenAttempts();
   const genAttempts = genAttemptRef.current;
+
+  // The party WE represent — the case's client, both spellings joined — passed
+  // to every AI call (suggested action + draft classification) so the model can
+  // tell which side is ours and never propose the opposing party's move or a
+  // reply to a document our own side authored.
+  const representedClientName = useMemo(() => {
+    const co = state.casesArr.find((x) => String(x.id) === String(caseId));
+    const cl = co ? state.clients.find((x) => x.id === co.clientId) : undefined;
+    return cl
+      ? [cl.name, cl.nameAr]
+          .map((s) => (s || '').trim())
+          .filter(Boolean)
+          .join(' / ')
+      : '';
+  }, [caseId, state.casesArr, state.clients]);
+
+  // The lawyer's authoritative "צד מיוצג" override for THIS case ('' = automatic
+  // AI inference). Loaded from localStorage per case; fed to /api/suggest-action
+  // so the model treats it as fact instead of inferring.
+  const [partyOverride, setPartyOverride] = useState<string>('');
+  useEffect(() => {
+    setPartyOverride(loadPartyOverrides()[caseId] || '');
+  }, [caseId]);
+  const onChangePartyOverride = (value: string) => {
+    setPartyOverride(value);
+    savePartyOverride(caseId, value);
+    // The generation effect below depends on partyOverride and regenerates the
+    // suggestion (with the override as ground truth) on this change.
+  };
 
   // The document the header + "פענוח" + "טיוטת תגובה" boxes focus on: the one
   // picked from "מסמכים נוספים בתיק", or — by default — the LAST filed document
@@ -1681,6 +1827,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
           // Our office/lawyer name from Settings → the worker treats documents
           // NOT authored by us as the opposing side (→ counter-draft required).
           lawyerName: state.officeName || undefined,
+          // The client we represent — a document filed on their behalf is also
+          // "ours", so no counter-draft is produced against our own side.
+          clientName: representedClientName || undefined,
         });
         if (!needed) return apply(null, false);
         const re = await fetchDraftState(
@@ -1724,6 +1873,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
           // Our office/lawyer name from Settings → a document NOT authored by us
           // is the opposing side, so a counter-draft is generated.
           lawyerName: state.officeName || undefined,
+          clientName: representedClientName || undefined,
           notesContext,
         });
         if (!needed) return apply(null, false);
@@ -1788,6 +1938,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         // Our office/lawyer name → a document NOT authored by us is the opposing
         // side, so a counter-draft is generated.
         lawyerName: state.officeName || undefined,
+        clientName: representedClientName || undefined,
         notesContext,
       });
       setDraftNeeded(needed);
@@ -1827,17 +1978,23 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // pulled from D1 `case_suggested_actions.suggested_action` (written by the
   // Make pipeline) via the Worker. Falls back to the static placeholder text
   // when the case has no suggested action yet.
-  const [suggestedAction, setSuggestedAction] = useState<string | null>(null);
+  const [suggestedDetail, setSuggestedDetail] =
+    useState<SuggestedActionDetail | null>(null);
+  // The date the procedural deadline is counted FROM — defaults to the
+  // triggering (primary) document's date, and is editable in the box. Reset
+  // whenever the focused document changes (see the effect keyed on primaryDoc).
+  const [anchorDate, setAnchorDate] = useState<string>('');
   useEffect(() => {
     if (!caseId) {
-      setSuggestedAction(null);
+      setSuggestedDetail(null);
       return;
     }
     let cancelled = false;
     (async () => {
-      // Show any existing suggestion immediately.
-      const existing = await fetchSuggestedAction(caseId);
-      if (!cancelled && existing) setSuggestedAction(existing);
+      // Show any existing suggestion immediately — preferring the saved one for
+      // the currently-selected represented party.
+      const existing = await fetchSuggestedActionDetailed(caseId, partyOverride);
+      if (!cancelled && existing) setSuggestedDetail(existing);
       // Once the document summary is ready, generate a COURT-MATCHED suggestion
       // (once per case): the worker maps the case's court to the right
       // legal_actions track ("שלום/מחוזי"→אזרחי, "משפחה"→משפחה+אזרחי,
@@ -1891,18 +2048,25 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         // Prompt version — bump to force a one-time regeneration so cached
         // suggestions pick up the improved (professional legal Arabic, no
         // transliteration) prompt.
-        ':v3ar';
+        ':v3ar' +
+        // Represented-party override → regenerate for the newly-chosen side
+        // (the worker treats it as ground truth).
+        ':party' +
+        (partyOverride || 'auto');
       if (summaryLoaded && !genAttempts.has(suggestKey)) {
         rememberGenAttempt(genAttempts, suggestKey);
-        const gen = await generateSuggestedAction({
+        const gen = await generateSuggestedActionDetailed({
           caseId,
           clientId: caseObj?.clientId,
           court,
           docSummary: decisionContent,
           documentName: primaryDoc?.fileName,
           lang: suggestLang,
+          lawyerName: state.officeName || undefined,
+          clientName: representedClientName || undefined,
+          representedParty: partyOverride || undefined,
         });
-        if (!cancelled && gen) setSuggestedAction(gen);
+        if (!cancelled && gen) setSuggestedDetail(gen);
       }
     })();
     return () => {
@@ -1916,9 +2080,117 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     docSummary,
     decodeText,
     primaryDoc,
+    partyOverride,
     state.casesArr,
     state.documentsArr,
   ]);
+
+  // Default the deadline anchor to the triggering (primary) document's date
+  // whenever the focused document changes; manual edits persist until then.
+  useEffect(() => {
+    const d =
+      (primaryDoc?.date && String(primaryDoc.date).slice(0, 10)) ||
+      (primaryDoc?.uploadedAt && String(primaryDoc.uploadedAt).slice(0, 10)) ||
+      '';
+    setAnchorDate(d);
+  }, [primaryDoc?.id, primaryDoc?.date, primaryDoc?.uploadedAt]);
+
+  // Live procedural-deadline view (due date + days remaining + urgency tone) for
+  // the current suggestion, counted from the (editable) anchor date. Null when
+  // the suggestion has no day-based deadline (e.g. a "wait for the court" reply).
+  const deadlineView = useMemo(() => {
+    if (!suggestedDetail) return null;
+    return buildDeadlineView({
+      anchorDate,
+      deadlineDays: suggestedDetail.deadlineDays,
+      deadlineText: suggestedDetail.deadline,
+      lang,
+    });
+  }, [suggestedDetail, anchorDate, lang]);
+
+  // Auto-import the computed procedural deadline as a Task (+ a calendar
+  // reminder on today/future dates), deduped once per browser — mirroring
+  // useCaseDecisionImport. Only when we have a concrete, day-based deadline.
+  useEffect(() => {
+    if (!caseId || !suggestedDetail || !deadlineView) return;
+    const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
+    const clientId = caseObj?.clientId || '';
+    const dueYmd = calendarDateValue(deadlineView.dueDate);
+    const title = suggestedDetail.text.slice(0, 200);
+    const docKey = primaryDoc?.id || 'none';
+
+    // Task — priority scaled by urgency (overdue/critical → critical). Keyed by
+    // (case + triggering document) WITHOUT the due date, so later anchor-date
+    // edits (which only change the live display) never spawn a duplicate.
+    const taskKey = 'procdl:task:' + caseId + ':' + docKey;
+    const taskExists = tasksRef.current.some(
+      (t) => String(t.caseId) === String(caseId) && t.title === title,
+    );
+    if (!decisionImportKeys.has(taskKey) && !taskExists) {
+      rememberDecisionImportKey(decisionImportKeys, taskKey);
+      const priority: 'critical' | 'urgent' | 'normal' =
+        deadlineView.urgency === 'overdue' || deadlineView.urgency === 'critical'
+          ? 'critical'
+          : deadlineView.urgency === 'warning'
+            ? 'urgent'
+            : 'normal';
+      dispatch({
+        type: 'SET_TASKS',
+        tasks: [
+          ...tasksRef.current,
+          {
+            id: 'TASK-' + String(Date.now()),
+            title,
+            caseId,
+            clientId,
+            dueDate: dueYmd,
+            status: 'open',
+            priority,
+            notes: PROC_DEADLINE_NOTE_BILINGUAL,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+    }
+
+    // Calendar reminder on the due date — only when it's today or in the future
+    // (don't backfill past-dated events for old documents). Type 'reminder', not
+    // a hearing, so it never feeds caseHearingCandidates.
+    if (deadlineView.daysRemaining >= 0) {
+      const evKey = 'procdl:ev:' + caseId + ':' + docKey;
+      const evExists = eventsRef.current.some(
+        (e) =>
+          String(e.caseId) === String(caseId) &&
+          String(e.type) === 'reminder' &&
+          String(e.dateTime).slice(0, 10) === dueYmd,
+      );
+      const dt = new Date(dueYmd + 'T09:00:00');
+      const iso = isNaN(dt.getTime()) ? '' : dt.toISOString();
+      if (iso && !decisionImportKeys.has(evKey) && !evExists) {
+        rememberDecisionImportKey(decisionImportKeys, evKey);
+        dispatch({
+          type: 'SET_EVENTS',
+          events: [
+            ...eventsRef.current,
+            {
+              id: 'EV-' + String(Date.now() + 1),
+              caseId,
+              clientId,
+              client_source_id: clientId,
+              case_source_id: caseId,
+              title: 'מועד דיוני: ' + title,
+              titleAr: 'موعد إجرائي: ' + title,
+              dateTime: iso,
+              description: PROC_DEADLINE_NOTE_HE,
+              descriptionAr: PROC_DEADLINE_NOTE_AR,
+              type: 'reminder',
+            },
+          ],
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseId, suggestedDetail, deadlineView, primaryDoc, dispatch]);
 
   // Decision-derived task + hearing for the latest (decision) document,
   // imported from Cloudflare and shown in the "משימה שנוצרה" card. The
@@ -1979,9 +2251,67 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     (lang === 'ar' ? c.courtAr || c.court : c.court || c.courtAr) || '-';
   // Court track the "הצעה לפעולה" suggestion is drawn from (e.g. "שרעי"/"משפחה"),
   // shown as a small pill on the card — only when there IS a real suggestion.
-  const courtTrackBadge = suggestedAction
+  const courtTrackBadge = suggestedDetail
     ? caseCourtTrackLabel(c.court || c.courtAr, lang)
     : '';
+
+  // "צד מיוצג" selector — defaults to automatic AI inference; picking a side
+  // overrides it (fed to the worker as ground truth). Shown whenever there IS a
+  // suggestion. When on automatic, the AI-detected side is shown alongside.
+  const partySelectorNode = suggestedDetail ? (
+    <label className="tw-flex tw-items-center tw-gap-1.5 tw-flex-wrap tw-text-[11px] tw-text-slate-500">
+      <span className="tw-whitespace-nowrap tw-font-bold">
+        {lang === 'ar' ? 'الطرف الذي نمثّله:' : 'צד מיוצג:'}
+      </span>
+      <select
+        value={partyOverride}
+        onChange={(e) => onChangePartyOverride(e.target.value)}
+        className="tw-rounded tw-border tw-border-slate-300 tw-bg-white tw-px-1.5 tw-py-0.5 tw-text-[11px] tw-text-slate-700"
+      >
+        {PARTY_OPTIONS.map((o) => (
+          <option key={o.value || 'auto'} value={o.value}>
+            {lang === 'ar' ? o.ar : o.he}
+          </option>
+        ))}
+      </select>
+      {!partyOverride && suggestedDetail.representedParty ? (
+        <span className="tw-whitespace-nowrap tw-text-slate-400">
+          {(lang === 'ar' ? 'المُكتشَف: ' : 'זוהה: ') +
+            partyLabel(suggestedDetail.representedParty, lang)}
+        </span>
+      ) : null}
+    </label>
+  ) : null;
+
+  // The anchor-date editor — shown only when the suggestion has a day-based
+  // deadline. Editing the date recomputes the countdown live.
+  const anchorEditorNode =
+    suggestedDetail && deadlineView ? (
+      <label className="tw-flex tw-items-center tw-gap-1.5 tw-text-[11px] tw-text-slate-500">
+        <span className="tw-whitespace-nowrap">
+          {lang === 'ar' ? 'يُحتسب من تاريخ:' : 'נספר מתאריך:'}
+        </span>
+        <input
+          type="date"
+          value={anchorDate}
+          onChange={(e) => setAnchorDate(e.target.value)}
+          className="tw-rounded tw-border tw-border-slate-300 tw-bg-white tw-px-1.5 tw-py-0.5 tw-text-[11px] tw-text-slate-700"
+        />
+      </label>
+    ) : null;
+
+  // Combined foot of the "הצעה לפעולה" card (party selector + anchor editor),
+  // passed to both the mobile and desktop instances.
+  const cardFooterNode =
+    partySelectorNode || anchorEditorNode ? (
+      <div className="tw-flex tw-flex-col tw-gap-1.5">
+        {partySelectorNode}
+        {anchorEditorNode}
+      </div>
+    ) : null;
+  const deadlineChip = deadlineView
+    ? { label: deadlineView.chipLabel, tone: deadlineView.tone }
+    : undefined;
 
   // "פתח משימה" on the decision card: ensure the decision's task exists as a
   // real Task under this case/client (so it appears in the tasks screen and
@@ -2045,17 +2375,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime(),
     )[0];
   const hearingLabel = upcoming
-    ? new Date(upcoming.dateTime).toLocaleString(
-        lang === 'ar' ? 'ar' : 'he-IL',
-        {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-        },
-      )
+    ? formatDMYTime(new Date(upcoming.dateTime))
     : c.lastHearing || '-';
 
   // Most recent PAST event for this case for the "מועד הדיון האחרון"
@@ -2069,17 +2389,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime(),
     )[0];
   const lastHearingLabel = lastPast
-    ? new Date(lastPast.dateTime).toLocaleString(
-        lang === 'ar' ? 'ar' : 'he-IL',
-        {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-        },
-      )
+    ? formatDMYTime(new Date(lastPast.dateTime))
     : c.lastHearing || '-';
 
   const T = {
@@ -2351,7 +2661,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
             icon="fa-bullseye"
             title={T.actionSuggestion}
             badge={courtTrackBadge || undefined}
-            desc={suggestedAction || T.actionSuggestionDesc}
+            desc={suggestedDetail?.text || T.actionSuggestionDesc}
+            deadlineChip={deadlineChip}
+            footer={cardFooterNode}
             btn={T.viewSuggestion}
           />
         </div>
@@ -2737,7 +3049,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                           icon="fa-bullseye"
                           title={T.actionSuggestion}
                           badge={courtTrackBadge || undefined}
-                          desc={suggestedAction || T.actionSuggestionDesc}
+                          desc={suggestedDetail?.text || T.actionSuggestionDesc}
+                          deadlineChip={deadlineChip}
+                          footer={cardFooterNode}
                           btn={T.viewSuggestion}
                         />
                       </div>
@@ -2998,6 +3312,8 @@ function AIActionCard({
   className,
   badge,
   scrollBody = false,
+  deadlineChip,
+  footer,
 }: {
   color: 'blue' | 'purple' | 'emerald' | 'orange';
   icon: string;
@@ -3019,7 +3335,17 @@ function AIActionCard({
    *  (used for the "פענוח המסמך" + "טיוטת תגובה" boxes so they never overflow
    *  their column). Text structure (line breaks) is preserved. */
   scrollBody?: boolean;
+  /** Prominent colored countdown pill (procedural-deadline "days remaining"),
+   *  shown under the title. Tone reflects urgency (red/orange/emerald). */
+  deadlineChip?: { label: string; tone: DeadlineTone };
+  /** Optional node rendered at the card's foot (e.g. the anchor-date editor). */
+  footer?: ReactNode;
 }) {
+  const deadlineToneCls: Record<DeadlineTone, string> = {
+    red: 'tw-bg-red-100 tw-text-red-700 tw-border-red-200',
+    orange: 'tw-bg-amber-100 tw-text-amber-800 tw-border-amber-200',
+    emerald: 'tw-bg-emerald-100 tw-text-emerald-800 tw-border-emerald-200',
+  };
   const c = {
     blue: {
       bg: 'tw-bg-blue-50',
@@ -3070,6 +3396,18 @@ function AIActionCard({
         </div>
         <i className={'fas ' + icon + ' ' + c.iconC} aria-hidden="true" />
       </div>
+      {deadlineChip && (
+        <div
+          dir="rtl"
+          className={
+            'tw-flex tw-items-center tw-gap-1.5 tw-rounded-lg tw-border tw-px-2 tw-py-1 tw-text-[11px] tw-font-extrabold ' +
+            deadlineToneCls[deadlineChip.tone]
+          }
+        >
+          <i className="fas fa-hourglass-half" aria-hidden="true" />
+          <span>{deadlineChip.label}</span>
+        </div>
+      )}
       <p
         dir={descDir}
         className={
@@ -3109,6 +3447,7 @@ function AIActionCard({
           {btn2}
         </button>
       )}
+      {footer && <div className="tw-mt-1">{footer}</div>}
     </div>
   );
 }

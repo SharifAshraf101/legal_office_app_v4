@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { caseStatusView, clientName, money } from '@/lib/cases';
 import { clientDisplayName } from '@/lib/clients';
+import { courtLabel, filterCourts } from '@/lib/courts';
 import { Modal } from './Modal';
 import { CaseDetail } from './CaseDetail';
 import { CaseStatusWarning } from './CaseStatusWarning';
@@ -46,9 +47,14 @@ export function CaseEdit({ caseId }: CaseEditProps) {
   const [title, setTitle] = useState(initialTitle);
   const [clientId, setClientId] = useState(c?.clientId ?? '');
   const [court, setCourt] = useState(initialCourt);
+  const [showCourtResults, setShowCourtResults] = useState(false);
   const [caseNumber, setCaseNumber] = useState(c?.caseNumber || '');
   const [fee, setFee] = useState(String(Number(c?.agreedFee || 0)));
   const [desc, setDesc] = useState(initialDesc);
+
+  // Court/tribunal picker — same reference list + short "<category> <city>"
+  // label as the New-Case modal. Filters by a typed category keyword or city.
+  const courtResults = useMemo(() => filterCourts(court), [court]);
 
   if (!c) return null;
 
@@ -207,12 +213,69 @@ export function CaseEdit({ caseId }: CaseEditProps) {
         </label>
         <label>
           {t('court')}
-          <input
-            id="editCaseCourt"
-            type="text"
-            value={court}
-            onChange={(e) => setCourt(e.target.value)}
-          />
+          <div className="search-box" style={{ display: 'block' }}>
+            <input
+              id="editCaseCourt"
+              type="text"
+              autoComplete="off"
+              placeholder={
+                lang === 'ar'
+                  ? 'اكتب نوع المحكمة أو المدينة (شرعي، صلح، عائلة، حيفا…)'
+                  : 'הקלד ערכאה או עיר (שלום, שרעי, משפחה, מחוזי, חיפה…)'
+              }
+              value={court}
+              onChange={(e) => {
+                setCourt(e.target.value);
+                setShowCourtResults(true);
+              }}
+              onFocus={() => setShowCourtResults(true)}
+              onBlur={() => setTimeout(() => setShowCourtResults(false), 180)}
+            />
+            <div
+              id="editCaseCourtResults"
+              className={'case-results' + (showCourtResults ? '' : ' is-hidden')}
+            >
+              {courtResults.length === 0 ? (
+                <div className="case-result">
+                  <strong>{lang === 'ar' ? 'لا توجد نتائج' : 'לא נמצאו תוצאות'}</strong>
+                </div>
+              ) : (
+                courtResults.map((ct) => {
+                  const label = courtLabel(ct);
+                  return (
+                    <div
+                      key={ct.name}
+                      className="case-result"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setCourt(label);
+                        setShowCourtResults(false);
+                      }}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        setCourt(label);
+                        setShowCourtResults(false);
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 2,
+                          minWidth: 0,
+                        }}
+                      >
+                        <strong>{label}</strong>
+                        <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                          {ct.name}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
         </label>
         <label>
           {t('caseNumber')}

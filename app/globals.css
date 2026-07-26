@@ -18130,6 +18130,22 @@ body.dark {
   box-shadow: 0 8px 24px rgba(27,46,74,.25) !important;
   border-radius: 18px !important;
 }
+/* Language-selector brand mark now carries the office flower emblem instead
+   of the old gavel glyph. A white tile lets the colorful logo read cleanly on
+   every theme; the `.language-panel` ancestor + double class (2 types + 3
+   classes = 0,3,2) out-specifies the dark / professional.dark background
+   overrides. The SVG's own margins provide the inset, plus a little padding. */
+html body .language-panel .brand-mark.brand-mark--logo {
+  background: #ffffff !important;
+  padding: 6px !important;
+  box-sizing: border-box !important;
+}
+html body .language-panel .brand-mark.brand-mark--logo .brand-mark-logo {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  display: block !important;
+}
 .language-card {
   border-color: var(--line) !important;
   border-radius: 12px !important;
@@ -25776,6 +25792,24 @@ html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row .statu
     overflow: hidden !important;
     text-overflow: ellipsis !important;
   }
+  /* Close the gap between the unique-number column and the case (מהות
+     התביעה) column — same mechanism as the clients screen. With
+     `table-layout: auto` the number column is handed a share of the row's
+     leftover width (visible as: short case titles → big gap, long titles →
+     small gap), and its start-aligned code (CS-NNN) leaves that surplus as
+     empty space toward the title. Pin the number column to its content width
+     (`width: 1%` + nowrap) so the leftover flows to the flexible case column
+     instead, leaving a pure-padding gap of ~1cm total. */
+  html body .cases-v2-fluid .cases-scroll-list .table > thead > tr > th:nth-child(1),
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="number"] {
+    width: 1% !important;
+    white-space: nowrap !important;
+    padding-inline-end: 0.5cm !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > thead > tr > th:nth-child(2),
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] {
+    padding-inline-start: 0.5cm !important;
+  }
 }
 
 /* Dark-mode. */
@@ -26182,6 +26216,24 @@ html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row 
     display: table-cell !important;
     flex-direction: row !important;
     white-space: nowrap !important;
+  }
+  /* Close the gap between the client-number column and the name column.
+     With `table-layout: auto` the browser hands the number column a share of
+     the row's leftover width, and since its code (CLT-NNN) is start-aligned
+     that surplus opens up as empty space toward the name (padding alone can't
+     remove it — that was the earlier attempt). Pin the number column to its
+     content width (`width: 1%` + nowrap) so NO surplus lands there; the
+     leftover flows to the flexible name column instead. The remaining gap is
+     then pure padding — ~1cm total, split across the two facing sides. */
+  html body .clients-v2-fluid .clients-scroll-list .table > thead > tr > th:nth-child(1),
+  html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="number"] {
+    width: 1% !important;
+    white-space: nowrap !important;
+    padding-inline-end: 0.5cm !important;
+  }
+  html body .clients-v2-fluid .clients-scroll-list .table > thead > tr > th:nth-child(2),
+  html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="client"] {
+    padding-inline-start: 0.5cm !important;
   }
 }
 
@@ -29063,6 +29115,42 @@ html[lang="ar"] .client-case-link strong,
 html[lang="ar"] .case-detail-title h2,
 html[lang="ar"] .client-detail-title-centered {
   min-height: calc(var(--font-size-base) * var(--line-height-ar)) !important;
+}
+
+/* Arabic: the "آخر مستندات القضية" card usually lists long Hebrew document
+ * names. In Arabic the base font + line-height are larger, so a two-line name
+ * used to collide with — and spill past — the rounded card border. Shrink the
+ * filename a touch, tighten its line-height and let it wrap cleanly so the
+ * whole name stays inside the card. Scoped to the recent-documents panel only
+ * (not the full documents modal). The mobile/desktop selectors are spelled out
+ * so this out-specifies the .case-detail-*-v###/.case-detail-side-col font-size
+ * rules. */
+html[lang="ar"] body .modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-side-col .case-recent-documents-panel .case-document-title,
+html[lang="ar"] body .modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-side-col .case-recent-documents-panel .case-document-title,
+html[lang="ar"] .case-recent-documents-panel .case-document-row .case-document-title,
+html[lang="ar"] .case-recent-documents-panel .case-document-title {
+  /* Shrink the filename and, crucially, stop the base single-line clip
+   * (white-space:nowrap + overflow:hidden + ellipsis). Let it wrap so the
+   * whole Hebrew name stays inside the card instead of spilling past it. */
+  font-size: clamp(0.68rem, 2.4vw, 0.8rem) !important;
+  line-height: 1.4 !important;
+  align-items: flex-start !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+html[lang="ar"] body .modal.case-detail-mobile-v140.case-detail-mobile-v140 .case-detail-side-col .case-recent-documents-panel .case-document-title span,
+html[lang="ar"] body .modal.case-detail-desktop-v215.case-detail-desktop-v215 .case-detail-side-col .case-recent-documents-panel .case-document-title span,
+html[lang="ar"] .case-recent-documents-panel .case-document-row .case-document-title span,
+html[lang="ar"] .case-recent-documents-panel .case-document-title span {
+  font-size: clamp(0.68rem, 2.4vw, 0.8rem) !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  white-space: normal !important;
+  line-height: 1.4 !important;
+}
+html[lang="ar"] .case-recent-documents-panel .case-document-title i {
+  margin-top: 2px;
 }
 
 /* Number-only fields (case-number, balance, amount) stay LTR to avoid
@@ -38102,6 +38190,23 @@ html body .modern-portal-root.modern-portal-root.modern-portal-root.modern-porta
   overflow: visible !important;
 }
 html body .modern-portal-root:has(.modern-portal-bot-chat) > div {
+  overflow: visible !important;
+}
+
+/* :has()-FREE fallback for the exact same override. The two rules above rely
+ * on `:has()`, which the desktop office browser supports — but the clients who
+ * open the WhatsApp portal link often do so in an in-app / older mobile
+ * browser WITHOUT `:has()`. There the wrappers keep `overflow: hidden`, the
+ * sticky header has no scroll container to pin against, and it scrolls away —
+ * "I see the fixed bot header, the client doesn't". PortalShell toggles
+ * `body.portal-bot-chat-open` while the bot chat is mounted, so this plain
+ * class selector reproduces the override with no `:has()` needed. The 11×
+ * `.modern-portal-root` repeat (plus the body class) out-specifies the
+ * `overflow: hidden` base rule above so this `!important` wins. */
+html body.portal-bot-chat-open .modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root.modern-portal-root {
+  overflow: visible !important;
+}
+html body.portal-bot-chat-open .modern-portal-root > div {
   overflow: visible !important;
 }
 

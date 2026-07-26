@@ -3,6 +3,7 @@
 import type { Case, Client, DocumentRecord, Lang, Task } from '@/types';
 import { caseName, clientName } from './cases';
 import { clientDisplayName } from './clients';
+import { formatDMYTime } from './dates';
 
 /** Next short, zero-padded running document number, e.g. "DOC-001".
  *  Mirrors nextClientId / nextCaseId: takes the max numeric tail + 1.
@@ -51,13 +52,7 @@ export function formatDocumentDate(raw: string | undefined, lang: Lang): string 
   if (!raw) return lang === 'ar' ? 'غير محدد' : 'לא צוין';
   const d = new Date(raw);
   if (isNaN(d.getTime())) return String(raw);
-  return d.toLocaleString(lang === 'ar' ? 'ar-EG-u-nu-latn' : 'he-IL-u-nu-latn', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDMYTime(d);
 }
 
 /**

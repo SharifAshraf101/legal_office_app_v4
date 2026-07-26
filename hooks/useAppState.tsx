@@ -198,23 +198,131 @@ const SAVABLE_ACTION_TYPES = new Set<Action['type']>([
   'SET_TIMELINE',
 ]);
 
+// Backend table keys the app owns and can delete from — the same keys the save
+// payload uses. Order/naming must match lib/cloudflare.ts's save body and the
+// Worker's DELETABLE_TABLES whitelist.
+const DELETION_TABLES = [
+  'clients',
+  'cases',
+  'tasks',
+  'calendar_events',
+  'documents',
+  'payments',
+  'timeline_items',
+] as const;
+
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [state, rawDispatch] = useReducer(reducer, initialState);
+  // Always-current snapshot of state. Read by the dispatch wrapper (to diff
+  // deletions against the PREVIOUS committed state) and by the visibility/poll
+  // flush. Kept in sync by an effect further below.
+  const stateRef = useRef(state);
   // dirtyRef tracks whether the in-memory state holds un-pushed user
   // edits. Only flipped to true by wrappedDispatch (consumer-facing
   // dispatches); REPLACE_ALL/HYDRATE go through rawDispatch and leave
   // it false. Auto-save flushes dirty=true, then resets to false.
   const dirtyRef = useRef(false);
-  const dispatch = useCallback((action: Action) => {
-    if (SAVABLE_ACTION_TYPES.has(action.type)) {
-      dirtyRef.current = true;
-      // Persist the dirty state so a reload BEFORE the debounced save fires
-      // (e.g. add a payment, then refresh) knows to flush the local copy to the
-      // backend before pulling — otherwise the boot pull would wipe the edit.
-      lsSet(LS.PENDING_SYNC, '1');
+
+  // Un-synced deletions: source_ids the user removed locally, per backend
+  // table, that the next save must delete server-side (an upsert alone can't
+  // remove rows). Kept in a ref so recording one never triggers a render, and
+  // mirrored to localStorage so a reload before the sync still propagates them.
+  const pendingDeletionsRef = useRef<Record<string, Set<string>>>(
+    Object.fromEntries(
+      DELETION_TABLES.map((t) => [t, new Set<string>()] as [string, Set<string>]),
+    ),
+  );
+  const persistDeletions = useCallback(() => {
+    const out: Record<string, string[]> = {};
+    let any = false;
+    for (const t of DELETION_TABLES) {
+      const arr = [...pendingDeletionsRef.current[t]];
+      if (arr.length) {
+        out[t] = arr;
+        any = true;
+      }
     }
-    rawDispatch(action);
+    lsSet(LS.PENDING_DELETIONS, any ? JSON.stringify(out) : '');
   }, []);
+  const snapshotDeletions = useCallback((): Record<string, string[]> => {
+    const out: Record<string, string[]> = {};
+    for (const t of DELETION_TABLES) {
+      const arr = [...pendingDeletionsRef.current[t]];
+      if (arr.length) out[t] = arr;
+    }
+    return out;
+  }, []);
+  // Remove only the ids that were in the snapshot handed to a save, so a
+  // deletion recorded WHILE that save was in flight survives for the next one.
+  const clearDeletions = useCallback(
+    (snapshot: Record<string, string[]>) => {
+      for (const t of DELETION_TABLES) {
+        const ids = snapshot[t];
+        if (!ids) continue;
+        const set = pendingDeletionsRef.current[t];
+        ids.forEach((id) => set.delete(id));
+      }
+      persistDeletions();
+    },
+    [persistDeletions],
+  );
+  // Diff a savable array-replace action against the previous state to learn
+  // which source_ids were removed (→ mark for deletion) or re-added (→ unmark).
+  const recordDeletions = useCallback(
+    (action: Action, prev: AppState) => {
+      let table = '';
+      let prevArr: Array<{ id?: string }> = [];
+      let nextArr: Array<{ id?: string }> = [];
+      switch (action.type) {
+        case 'SET_CLIENTS':   table = 'clients';         prevArr = prev.clients;       nextArr = action.clients;   break;
+        case 'SET_CASES':     table = 'cases';           prevArr = prev.casesArr;      nextArr = action.cases;     break;
+        case 'SET_EVENTS':    table = 'calendar_events'; prevArr = prev.eventsList;    nextArr = action.events;    break;
+        case 'SET_TASKS':     table = 'tasks';           prevArr = prev.tasksArr;      nextArr = action.tasks;     break;
+        case 'SET_FINANCES':  table = 'payments';        prevArr = prev.finances;      nextArr = action.finances;  break;
+        case 'SET_DOCUMENTS': table = 'documents';       prevArr = prev.documentsArr;  nextArr = action.documents; break;
+        case 'SET_TIMELINE':  table = 'timeline_items';  prevArr = prev.timelineItems; nextArr = action.timeline;  break;
+        default:
+          return;
+      }
+      const set = pendingDeletionsRef.current[table];
+      if (!set) return;
+      const nextIds = new Set(nextArr.map((x) => String(x?.id || '')).filter(Boolean));
+      let changed = false;
+      for (const x of prevArr) {
+        const id = String(x?.id || '');
+        if (id && !nextIds.has(id) && !set.has(id)) {
+          set.add(id);
+          changed = true;
+        }
+      }
+      for (const id of nextIds) {
+        if (set.has(id)) {
+          set.delete(id);
+          changed = true;
+        }
+      }
+      if (changed) persistDeletions();
+    },
+    [persistDeletions],
+  );
+
+  const dispatch = useCallback(
+    (action: Action) => {
+      if (SAVABLE_ACTION_TYPES.has(action.type)) {
+        dirtyRef.current = true;
+        // Persist the dirty state so a reload BEFORE the debounced save fires
+        // (e.g. add a payment, then refresh) knows to flush the local copy to
+        // the backend before pulling — otherwise the boot pull would wipe the
+        // edit.
+        lsSet(LS.PENDING_SYNC, '1');
+        // Learn which rows (if any) this array-replace removed, so the save can
+        // delete them server-side instead of leaving orphans in D1.
+        recordDeletions(action, stateRef.current);
+      }
+      rawDispatch(action);
+    },
+    [recordDeletions],
+  );
   // Gates Supabase auto-save until the v88 loader has settled — without this
   // a stale localStorage cache would upsert OVER newer Supabase rows during
   // the few-hundred-ms boot window before REPLACE_ALL fires.
@@ -227,6 +335,23 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const settings = loadUserSettings();
     const data = loadData();
+
+    // Restore any un-synced deletions from a previous session so the boot flush
+    // (and later saves) still remove those rows from the backend.
+    try {
+      const rawDels = lsGet(LS.PENDING_DELETIONS);
+      if (rawDels) {
+        const parsed = JSON.parse(rawDels) as Record<string, string[]>;
+        for (const t of DELETION_TABLES) {
+          const ids = parsed[t];
+          if (Array.isArray(ids)) {
+            ids.forEach((id) => pendingDeletionsRef.current[t].add(String(id)));
+          }
+        }
+      }
+    } catch {
+      /* ignore a malformed deletions cache */
+    }
 
     // Normalize the font family for the loaded language, matching the source's
     // `normalizeFontFamily()` call in loadUserSettings (line 5228).
@@ -262,6 +387,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     // mirrors the flush-before-pull the visibility/focus refresh already does.
     void (async () => {
       if (lsGet(LS.PENDING_SYNC) === '1') {
+        const dels = snapshotDeletions();
         const ok = await legalOfficeSaveToSupabase({
           clients: data.clients,
           casesArr: data.casesArr,
@@ -270,9 +396,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           timelineItems: data.timelineItems,
           documentsArr: data.documentsArr,
           tasksArr: data.tasksArr,
+          deletions: dels,
         });
-        // On failure keep the flag so the next reload retries the flush.
-        if (ok) lsSet(LS.PENDING_SYNC, '0');
+        // On failure keep the flag (and the deletions) so the next reload
+        // retries the flush.
+        if (ok) {
+          lsSet(LS.PENDING_SYNC, '0');
+          clearDeletions(dels);
+        }
       }
       const result = await legalOfficeLoadFromSupabaseV88();
       // Don't clobber an edit made DURING the boot window (dirtyRef set) — the
@@ -307,7 +438,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // Cooldown prevents rapid bounces (focus+visibility+pageshow firing
   // back-to-back) from hammering the endpoint.
   // -----------------------------------------------------------------------
-  const stateRef = useRef(state);
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
@@ -332,6 +462,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       // happened in the meantime.
       if (supaSaveReady && dirtyRef.current) {
         const s = stateRef.current;
+        const dels = snapshotDeletions();
         try {
           const ok = await legalOfficeSaveToSupabase({
             clients: s.clients,
@@ -341,10 +472,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             timelineItems: s.timelineItems,
             documentsArr: s.documentsArr,
             tasksArr: s.tasksArr,
+            deletions: dels,
           });
           if (ok) {
             dirtyRef.current = false;
             lsSet(LS.PENDING_SYNC, '0');
+            clearDeletions(dels);
           }
         } catch (e) {
           console.warn('[useAppState] flush before pull failed', e);
@@ -431,6 +564,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     if (!state.hydrated || !supaSaveReady) return;
     if (!dirtyRef.current) return;
     const id = window.setTimeout(() => {
+      const dels = snapshotDeletions();
       void legalOfficeSaveToSupabase({
         clients: state.clients,
         casesArr: state.casesArr,
@@ -439,11 +573,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         timelineItems: state.timelineItems,
         documentsArr: state.documentsArr,
         tasksArr: state.tasksArr,
+        deletions: dels,
       }).then((ok) => {
         dirtyRef.current = false;
-        // Only clear the persisted un-synced marker when the backend confirmed
-        // the save; on failure it stays set so the next reload flushes first.
-        if (ok) lsSet(LS.PENDING_SYNC, '0');
+        // Only clear the persisted un-synced marker (and the deletions handed to
+        // this save) when the backend confirmed it; on failure they stay set so
+        // the next reload flushes first.
+        if (ok) {
+          lsSet(LS.PENDING_SYNC, '0');
+          clearDeletions(dels);
+        }
       });
     }, 1500);
     return () => window.clearTimeout(id);

@@ -1,0 +1,21 @@
+-- =========================================================================
+-- add_represented_party_d1.sql
+-- =========================================================================
+-- Adds the represented-party column to case_suggested_actions so the case-brain
+-- "הצעה לפעולה" box can show (and persist) WHICH side the office represents —
+-- inferred automatically by /api/suggest-action, or set as an authoritative
+-- override by the lawyer via the party selector.
+--
+--   case_suggested_actions.represented_party — the party the office represents
+--       in this case (e.g. "תובע"/"נתבע"/"מבקש"/"משיב"/"עותר"), as determined by
+--       the party analysis (or the lawyer's override). Written by
+--       /api/suggest-action; served by the existing GET (SELECT *).
+--
+-- Apply (remote v4) from the worker/ dir:
+--   npx wrangler d1 execute legal-office-v4 --remote -c wrangler.v4.toml \
+--       --file=../db/add_represented_party_d1.sql -y
+-- SQLite has no "ADD COLUMN IF NOT EXISTS"; running twice errors harmlessly
+-- ("duplicate column name") — safe to ignore on a re-run.
+-- =========================================================================
+
+ALTER TABLE case_suggested_actions ADD COLUMN represented_party TEXT;

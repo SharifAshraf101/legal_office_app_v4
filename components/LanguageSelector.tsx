@@ -24,8 +24,13 @@ export function LanguageSelector({ onChoose }: { onChoose: (lang: 'he' | 'ar') =
   return (
     <div className="language-selector" id="languageSelector">
       <div className="language-panel">
-        <div className="brand-mark">
-          <i className="fas fa-gavel" />
+        <div className="brand-mark brand-mark--logo">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/office-logo.svg"
+            alt="أشرف شريف"
+            className="brand-mark-logo"
+          />
         </div>
         <h1>أشرف شريف</h1>
         <p>Legal Office Management</p>

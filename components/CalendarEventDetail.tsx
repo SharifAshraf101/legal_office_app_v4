@@ -10,6 +10,7 @@ import {
   eventTypeLabel,
   isHearingImportNote,
 } from '@/lib/calendar';
+import { formatDMYTime, localizedWeekday } from '@/lib/dates';
 import { Modal } from './Modal';
 import { CaseDetail } from './CaseDetail';
 import { CalendarEventEdit } from './CalendarEventEdit';
@@ -70,14 +71,8 @@ export function CalendarEventDetail({ source, id }: CalendarEventDetailProps) {
       : (item as CalendarEvent).dateTime ||
         (item as CalendarEvent & { date?: string }).date;
   const d = rawDate ? new Date(rawDate) : new Date();
-  const dateText = d.toLocaleString(calendarLocale(lang), {
-    weekday: 'long',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const dateText =
+    localizedWeekday(d, calendarLocale(lang), 'long') + ', ' + formatDMYTime(d);
 
   const title = lang === 'ar' ? 'تفاصيل الموعد' : 'פרטי יומן';
   const natureLabel = lang === 'ar' ? 'ماهية الموعد' : 'מהות המועד';

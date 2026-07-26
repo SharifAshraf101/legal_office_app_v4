@@ -1,7 +1,7 @@
 // Calendar helpers. Ports of source 4067-4106 + 4307-4310. Names preserved so ver 3sion of calendar modals can read directly from source without needing to import this module.
 // porting the calendar modals in Stage 4b-4 reads directly from the source.
 
-import { calendarDateValue, sameCalendarDay } from './dates';
+import { calendarDateValue, sameCalendarDay, formatDMY, formatDMYTime } from './dates';
 import { caseName, clientName } from './cases';
 import type {
   CalendarEvent,
@@ -347,19 +347,7 @@ export function calendarRangeTitle(
     start.setDate(d.getDate() - d.getDay());
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
-    return (
-      start.toLocaleDateString(calendarLocale(lang), {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      }) +
-      ' - ' +
-      end.toLocaleDateString(calendarLocale(lang), {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      })
-    );
+    return formatDMY(start) + ' - ' + formatDMY(end);
   }
   if (view === 'month') {
     return d.toLocaleDateString(calendarLocale(lang), {
@@ -418,13 +406,7 @@ export function conflictWarningMessage(
 ): string {
   const dt = new Date(existing.dateTime || '');
   const dateStr = Number.isFinite(dt.getTime())
-    ? dt.toLocaleString(lang === 'ar' ? 'ar-IL-u-nu-latn' : 'he-IL-u-nu-latn', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
+    ? formatDMYTime(dt)
     : (existing.dateTime || '');
   const title =
     (lang === 'ar' ? existing.titleAr || existing.title : existing.title || existing.titleAr) ||

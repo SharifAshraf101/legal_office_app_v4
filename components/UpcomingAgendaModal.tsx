@@ -10,6 +10,7 @@ import {
   upcomingAgendaItems,
 } from '@/lib/calendar';
 import { caseName, clientName } from '@/lib/cases';
+import { formatDMYTime, localizedWeekday } from '@/lib/dates';
 import { Modal } from './Modal';
 
 /**
@@ -85,14 +86,10 @@ export function UpcomingAgendaModal() {
               lang === 'ar'
                 ? entry.item.titleAr || entry.item.title
                 : entry.item.title || entry.item.titleAr;
-            const dateText = entry.date.toLocaleString(calendarLocale(lang), {
-              weekday: 'long',
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            });
+            const dateText =
+              localizedWeekday(entry.date, calendarLocale(lang), 'long') +
+              ', ' +
+              formatDMYTime(entry.date);
             const timeKey = agendaTimeKey(entry.date);
             const conflict = counts[timeKey] > 1;
             const sameClient = conflict && clientsAtTime[timeKey]?.size === 1;

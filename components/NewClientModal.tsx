@@ -159,6 +159,15 @@ export function NewClientModal() {
           />
         </div>
         <div className="form-field">
+          <label>{t('idNumber')}</label>
+          <input
+            id="newClientIdNumberInput"
+            placeholder={idPlaceholder}
+            value={idNumber}
+            onChange={(e) => setIdNumber(e.target.value)}
+          />
+        </div>
+        <div className="form-field">
           <label>{t('phone')}</label>
           <input
             id="newClientPhoneInput"
@@ -166,15 +175,6 @@ export function NewClientModal() {
             placeholder="050-0000000"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-          />
-        </div>
-        <div className="form-field">
-          <label>{t('idNumber')}</label>
-          <input
-            id="newClientIdNumberInput"
-            placeholder={idPlaceholder}
-            value={idNumber}
-            onChange={(e) => setIdNumber(e.target.value)}
           />
         </div>
         <div className="form-field">

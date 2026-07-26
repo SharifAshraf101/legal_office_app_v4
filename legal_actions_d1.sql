@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS case_suggested_actions (
   court_type TEXT,
   suggested_action TEXT,
   deadline TEXT,
+  deadline_days INTEGER,
+  represented_party TEXT,
   legal_source TEXT,
   confidence TEXT,
   reasoning TEXT,

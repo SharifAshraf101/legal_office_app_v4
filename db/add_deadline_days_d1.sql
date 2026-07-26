@@ -1,0 +1,21 @@
+-- =========================================================================
+-- add_deadline_days_d1.sql
+-- =========================================================================
+-- Adds a numeric deadline column to case_suggested_actions so the case-brain
+-- "הצעה לפעולה" box can compute a real due date + live "days remaining"
+-- countdown from the triggering document's date.
+--
+--   case_suggested_actions.deadline_days — whole number of days the chosen
+--       procedural action runs for (e.g. 60 for כתב הגנה באזרחי, 30 במשפחה),
+--       or NULL when the deadline isn't expressed in days ("פותח את ההליך",
+--       "בלא דיחוי"). Written by /api/suggest-action; served by the existing
+--       GET /api/suggested-actions/:case_id (SELECT *) for initial display.
+--
+-- Apply (remote v4) from the worker/ dir:
+--   npx wrangler d1 execute legal-office-v4 --remote -c wrangler.v4.toml \
+--       --file=../db/add_deadline_days_d1.sql
+-- SQLite has no "ADD COLUMN IF NOT EXISTS"; running twice errors harmlessly
+-- ("duplicate column name") — safe to ignore on a re-run.
+-- =========================================================================
+
+ALTER TABLE case_suggested_actions ADD COLUMN deadline_days INTEGER;

@@ -6,6 +6,7 @@ import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { clientDisplayName } from '@/lib/clients';
 import { nextCaseId } from '@/lib/cases';
+import { courtLabel, filterCourts } from '@/lib/courts';
 import type { Case, TimelineItem } from '@/types';
 
 /**
@@ -26,11 +27,18 @@ export function NewCaseModal() {
   const [showResults, setShowResults] = useState(false);
   const [title, setTitle] = useState('');
   const [court, setCourt] = useState('');
+  const [showCourtResults, setShowCourtResults] = useState(false);
   const [caseNumber, setCaseNumber] = useState('');
   const [fee, setFee] = useState('');
   const [desc, setDesc] = useState('');
 
   const close = () => modalStack.close(modalStack.topId() ?? 0);
+
+  // Court/tribunal picker: filter the reference list by the typed text (a
+  // category keyword like שלום/שרעי/משפחה/מחוזי/עבודה or a city). Selecting a
+  // row stores the short "<category> <city>" label in the court field; the user
+  // can still type a free-text court that isn't in the list.
+  const courtResults = useMemo(() => filterCourts(court), [court]);
 
   const clientResults = useMemo(() => {
     const q = clientQuery.trim().toLowerCase();
@@ -221,15 +229,69 @@ export function NewCaseModal() {
             onChange={(e) => setTitle(e.target.value)}
           />
         </div>
-        <div className="form-field">
+        <div className="form-field search-box">
           <label>{t('court')}</label>
           <input
             id="newCaseCourtInput"
             required
-            placeholder={lang === 'ar' ? 'اسم المحكمة' : 'שם בית המשפט'}
+            autoComplete="off"
+            placeholder={
+              lang === 'ar'
+                ? 'اكتب نوع المحكمة أو المدينة (شرعي، صلح، عائلة، حيفا…)'
+                : 'הקלד ערכאה או עיר (שלום, שרעי, משפחה, מחוזי, חיפה…)'
+            }
             value={court}
-            onChange={(e) => setCourt(e.target.value)}
+            onChange={(e) => {
+              setCourt(e.target.value);
+              setShowCourtResults(true);
+            }}
+            onFocus={() => setShowCourtResults(true)}
+            onBlur={() => setTimeout(() => setShowCourtResults(false), 180)}
           />
+          <div
+            id="newCaseCourtResults"
+            className={'case-results' + (showCourtResults ? '' : ' is-hidden')}
+          >
+            {courtResults.length === 0 ? (
+              <div className="case-result">
+                <strong>{lang === 'ar' ? 'لا توجد نتائج' : 'לא נמצאו תוצאות'}</strong>
+              </div>
+            ) : (
+              courtResults.map((c) => {
+                const label = courtLabel(c);
+                return (
+                  <div
+                    key={c.name}
+                    className="case-result"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setCourt(label);
+                      setShowCourtResults(false);
+                    }}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      setCourt(label);
+                      setShowCourtResults(false);
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2,
+                        minWidth: 0,
+                      }}
+                    >
+                      <strong>{label}</strong>
+                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                        {c.name}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
         <div className="form-field">
           <label>{t('caseNumber')}</label>

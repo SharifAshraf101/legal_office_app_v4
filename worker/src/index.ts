@@ -18,6 +18,7 @@
 
 import { corsHeaders, json, preflight } from './cors';
 import { buildUpsert, LOAD_TABLES, safeParse, type Env } from './db';
+import { AR_GLOSSARY } from './arabicGlossary';
 
 // The office's own registered lawyer. Used to decide whether an incoming
 // document was authored by US (no draft needed) vs. the other side / court.
@@ -292,6 +293,41 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
   }
 
   if (statements.length) await env.DB.batch(statements);
+
+  // Explicit deletions: rows the user removed locally. The upsert above only
+  // adds/updates, so a deleted record would otherwise linger in D1 and come
+  // back on the next load. We delete ONLY the exact (user_id, source_id) rows
+  // the client listed — never a diff/replace — so a row make.com just added
+  // (and this client hasn't loaded yet) is never removed. Table names come from
+  // a fixed whitelist, so interpolating them into the SQL is safe.
+  let deleted = 0;
+  const deletions =
+    body.deletions && typeof body.deletions === 'object'
+      ? (body.deletions as Record<string, unknown>)
+      : null;
+  if (deletions) {
+    const DELETABLE_TABLES = [
+      'clients', 'cases', 'tasks', 'calendar_events',
+      'documents', 'payments', 'timeline_items',
+    ];
+    const delStatements: D1PreparedStatement[] = [];
+    for (const table of DELETABLE_TABLES) {
+      const raw = Array.isArray(deletions[table]) ? (deletions[table] as unknown[]) : [];
+      const ids = raw.map((x) => String(x ?? '').trim()).filter((x) => x.length > 0);
+      for (let i = 0; i < ids.length; i += 50) {
+        const chunk = ids.slice(i, i + 50);
+        const ph = chunk.map((_, j) => '?' + (j + 2)).join(', ');
+        delStatements.push(
+          env.DB.prepare(
+            `DELETE FROM ${table} WHERE user_id = ?1 AND source_id IN (${ph})`,
+          ).bind(env.USER_ID, ...chunk),
+        );
+        deleted += chunk.length;
+      }
+    }
+    if (delStatements.length) await env.DB.batch(delStatements);
+  }
+
   if (Array.isArray(body.timeline_items) || Array.isArray(body.cases)) {
     try {
       await syncCaseNotes(env);
@@ -318,6 +354,7 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
       count: statements.length,
       submitted,
       skipped: submitted - statements.length,
+      deleted,
     },
     request,
     env,
@@ -484,6 +521,9 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
     (String(body.lawyer_name || '').trim()
       ? ' / ' + String(body.lawyer_name).trim()
       : '');
+  // The party we represent — a document submitted ON THEIR BEHALF is also
+  // "ours" (no reply drafted against our own side).
+  const clientName = String(body.client_name || '').trim();
 
   const docMatch =
     /(DOC-\d+)/i.exec(fileName) ||
@@ -527,7 +567,9 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
   const systemPrompt =
     'أنت محامٍ خبير في الأحوال الشخصية للمسلمين في إسرائيل، تترافع أمام المحاكم الشرعية ومحاكم شؤون العائلة. مهمتك: قراءة المستند المرفق بالكامل (وهو مستند وارد مثل قرار محكمة أو لائحة دعوى أو طلب من الطرف الآخر) وصياغة مسودة رد قانوني عليه. القالب الحاكم للصياغة والتنسيق وتفاصيل المحامي وبنية الفقرات المرقّمة هو الوثيقة المرجعية التالية، والتزم بها حرفياً كمرجع للأسلوب والشكل:\n\n<skill>\n' +
     skill +
-    '\n</skill>\n\nقاعدة اللغة الإلزامية: اكتشف لغة المستند المرفق أياً كانت (عربية، عبرية، إنجليزية، فرنسية، روسية، أو أي لغة أخرى) بالاعتماد على متن المستند القانوني نفسه لا على صفحة الغلاف. كثير من الملفات تبدأ بصفحة أولى آلية بالعبرية هي مجرد "אישור הגשה" (إشعار استلام من نظام المحكمة الإلكتروني) — تجاهل هذه الصفحة عند تحديد اللغة واعتمد على المتن الذي يليها. وبوجه خاص: إذا كان المستند مرتبطاً بالمحكمة الشرعية (בית הדין השרעי / المحكمة الشرعية) بأي شكل — مقدَّماً إليها أو موجَّهاً إليها أو صادراً عنها (قرار أو حكم أو محضر أو أمر منها، مثل "החלטה"/"قرار"/"حكم"/"محضر") — أو كان متنه مكتوباً بالعربية، فاللغة هي ar واكتب المسودة بالعربية حتى لو كانت الصفحة الأولى (إشعار الاستلام) بالعبرية. اكتب المسودة بلغة المستند نفسها فقط، ولا تخلط لغتين في مسودة واحدة. ضع رمز اللغة في الحقل detected_language (مثل ar أو he أو en أو fr أو ru) وضع نص المسودة الكامل في الحقل draft بلغة المستند. لا تختلق وقائع أو تواريخ أو أسماء غير موجودة في المستند أو في ملاحظات القضية. أعِد كائن JSON واحداً فقط، دون أي نص خارج JSON، ودون Markdown، وأول حرف في ردك يجب أن يكون القوس {.';
+    '\n</skill>\n\nقاعدة اللغة الإلزامية: اكتشف لغة المستند المرفق أياً كانت (عربية، عبرية، إنجليزية، فرنسية، روسية، أو أي لغة أخرى) بالاعتماد على متن المستند القانوني نفسه لا على صفحة الغلاف. كثير من الملفات تبدأ بصفحة أولى آلية بالعبرية هي مجرد "אישור הגשה" (إشعار استلام من نظام المحكمة الإلكتروني) — تجاهل هذه الصفحة عند تحديد اللغة واعتمد على المتن الذي يليها. وبوجه خاص: إذا كان المستند مرتبطاً بالمحكمة الشرعية (בית הדין השרעי / المحكمة الشرعية) بأي شكل — مقدَّماً إليها أو موجَّهاً إليها أو صادراً عنها (قرار أو حكم أو محضر أو أمر منها، مثل "החלטה"/"قرار"/"حكم"/"محضر") — أو كان متنه مكتوباً بالعربية، فاللغة هي ar واكتب المسودة بالعربية حتى لو كانت الصفحة الأولى (إشعار الاستلام) بالعبرية. اكتب المسودة بلغة المستند نفسها فقط، ولا تخلط لغتين في مسودة واحدة. ضع رمز اللغة في الحقل detected_language (مثل ar أو he أو en أو fr أو ru) وضع نص المسودة الكامل في الحقل draft بلغة المستند. لا تختلق وقائع أو تواريخ أو أسماء غير موجودة في المستند أو في ملاحظات القضية. أعِد كائن JSON واحداً فقط، دون أي نص خارج JSON، ودون Markdown، وأول حرف في ردك يجب أن يكون القوس {.' +
+    '\n\n' +
+    AR_GLOSSARY;
 
   const userText =
     'اقرأ المستند المرفق بالكامل كلمةً كلمةً. مكتبنا/المحامي صاحب الملف هو: ' +
@@ -535,7 +577,9 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
     '.\n\nأولاً صنِّف المستند:\n' +
     '- author_side = من حرّر/قدّم هذا المستند فعلياً (المحامي الموقّع عليه أو الطرف الذي قدّمه)، وليس بالضرورة من ذُكر اسمه داخله: "ours" فقط إذا حرّره أو قدّمه مكتبنا/المحامي المذكور أعلاه ('  +
     lawyerName +
-    ')، أو "opposing" إذا قدّمه الطرف الآخر/الخصم أو محاميه، أو "court" إذا كان صادراً عن المحكمة/القاضي. إذا لم يكن المستند صادراً عن مكتبنا بوضوح، فاعتبره "opposing".\n' +
+    ')' +
+    (clientName ? ' أو قُدّم نيابةً عن موكّلنا الذي نمثّله (' + clientName + ')' : '') +
+    '، أو "opposing" إذا قدّمه الطرف الآخر/الخصم أو محاميه، أو "court" إذا كان صادراً عن المحكمة/القاضي. إذا لم يكن المستند صادراً عن مكتبنا بوضوح، فاعتبره "opposing".\n' +
     '- court_requires_response = true إذا كان المستند يأمر أو يطلب تقديم رد/جواب/تعقيب، وإلا false.\n\n' +
     'قاعدة إعداد المسودة (مهمة جداً وإلزامية): إذا كان author_side = "opposing" أو court_requires_response = true، فيجب عليك إلزامياً ملء الحقل draft بنص مسودة رد قانونية كاملة على هذا المستند وفق القالب الحاكم — ولا تتركه null أبداً في هذه الحالة. أما إذا كان المستند من مكتبنا (author_side = "ours") ولم تأمر المحكمة بالرد، فلا حاجة لمسودة: اترك draft = null.\n\n' +
     'هذه ملاحظات المحامي على هذه القضية، استخدمها في توجيه الرد:\n<case_notes_he>\n' +
@@ -743,6 +787,9 @@ async function handleDraftDecision(request: Request, env: Env): Promise<Response
     (String(body.lawyer_name || '').trim()
       ? ' / ' + String(body.lawyer_name).trim()
       : '');
+  // The party we represent — a document submitted ON THEIR BEHALF is also
+  // "ours" (no reply drafted against our own side).
+  const clientName = String(body.client_name || '').trim();
 
   const docMatch =
     /(DOC-\d+)/i.exec(fileName) ||
@@ -777,6 +824,7 @@ async function handleDraftDecision(request: Request, env: Env): Promise<Response
     'صنِّف هذا المستند حسب من حرّره/قدّمه فعلياً (المحامي الموقّع أو الطرف مقدّم الطلب)، لا حسب من ذُكر اسمه داخله:\n' +
     '- author_side = "ours" فقط إذا حرّره أو قدّمه مكتبنا/المحامي ' +
     lawyerName +
+    (clientName ? ' أو قُدّم نيابةً عن موكّلنا الذي نمثّله (' + clientName + ')' : '') +
     '، أو "opposing" إذا قدّمه الطرف الآخر/الخصم أو محاميه، أو "court" إذا صدر عن المحكمة/القاضي. إذا لم يكن صادراً عن مكتبنا بوضوح فاعتبره "opposing".\n' +
     '- court_requires_response = true إذا كان المستند يأمر أو يطلب تقديم رد/جواب/تعقيب، وإلا false.\n' +
     'أعِد JSON فقط: {"author_side":"ours or opposing or court","court_requires_response":true or false}.';
@@ -1111,6 +1159,19 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
   const docSummary = String(body.doc_summary ?? '').trim();
   const docName = String(body.document_name ?? '').trim();
   const lang = String(body.lang ?? 'he').trim().toLowerCase();
+  // Party awareness: the client we represent + the registered lawyer, so the
+  // model suggests an action for OUR side only — never the opposing party's move
+  // and never a response to a document our own side authored.
+  const clientName = String(body.client_name ?? '').trim();
+  const lawyerName =
+    DEFAULT_LAWYER_NAME +
+    (String(body.lawyer_name || '').trim()
+      ? ' / ' + String(body.lawyer_name).trim()
+      : '');
+  // Optional AUTHORITATIVE override of which side we represent (the lawyer's
+  // pick in the "צד מיוצג" selector). When set, the model treats it as fact
+  // instead of inferring; when empty, the model infers it from the parties.
+  const representedPartyOverride = String(body.represented_party ?? '').trim();
   if (!caseId) return json({ error: 'case_id required' }, request, env, 400);
 
   // The full CHAIN of documents already filed in this case, read straight from
@@ -1171,7 +1232,27 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
     .join('\n');
 
   const systemPrompt =
-    'אתה עוזר משפטי במשרד עורכי דין בישראל. קיבלת: (א) את תוכן/פענוח המסמך האחרון שהתקבל בתיק (מה שנקבע או נדרש בו), (ב) את שרשרת המסמכים שכבר הוגשו, ו-(ג) רשימת הפעולות האפשריות לפי סדרי הדין של הערכאה הרלוונטית. משימתך: בחר את הפעולה הדיונית שעל המשרד לנקוט כתגובה למסמך האחרון ו/או לאורו — הפעולה חייבת להתאים למה שנאמר בפועל במסמך האחרון, ולהיות מוקבלת לסדר הדין המתאים של אותה ערכאה. תחילה קבע מהו השלב הנוכחי לפי שרשרת המסמכים, ואז בחר מתוך הרשימה שסופקה את הפעולה התואמת גם לתוכן המסמך האחרון וגם לשלב. בחר אך ורק מתוך הרשימה שסופקה; אל תציע פעולה ששלבה כבר חלף, ואל תמציא פעולות, מועדים או מקורות שאינם ברשימה. החזר אובייקט JSON אחד בלבד, ללא טקסט נוסף, ותו ראשון {.';
+    'אתה עוזר משפטי במשרד עורך הדין ' +
+    lawyerName +
+    '. קיבלת: (א) את תוכן/פענוח המסמך האחרון שהתקבל בתיק (מה שנקבע או נדרש בו), (ב) את שרשרת המסמכים שכבר הוגשו, ו-(ג) רשימת הפעולות האפשריות לפי סדרי הדין של הערכאה הרלוונטית.\n\n' +
+    (clientName
+      ? 'לקוח המשרד בתיק זה — הצד שאנו מייצגים — הוא: ' +
+        clientName +
+        '. זהו הצד המיוצג על ידי עורך הדין הנ"ל; הצד שכנגד אינו מיוצג על ידינו.\n\n'
+      : '') +
+    'לפני בחירת הפעולה בצע ניתוח צד מחייב:\n' +
+    (representedPartyOverride
+      ? '1. עובדה ודאית שקבע עורך הדין: לקוח המשרד' +
+        (clientName ? ' (' + clientName + ')' : '') +
+        ' הוא ה' +
+        representedPartyOverride +
+        ' בתיק. אמץ זאת כנתון ודאי ואל תסיק צד אחר.\n'
+      : '1. קבע לפי שמות הצדדים בשרשרת המסמכים ובמסמך האחרון האם לקוח המשרד' +
+        (clientName ? ' (' + clientName + ')' : '') +
+        ' הוא התובע/המבקש/העותר או הנתבע/המשיב באותה ערכאה.\n') +
+    '2. קבע מי חיבר/הגיש בפועל את המסמך האחרון (לפי החתום/המגיש, לא לפי מי שמוזכר בגופו): צד המשרד (הלקוח שאנו מייצגים או עורך דיננו), הצד שכנגד, או בית המשפט/בית הדין.\n' +
+    '3. בחר אך ורק פעולה שעל הצד שאנו מייצגים לנקוט לפי סדר הדין. חל איסור מוחלט: אל תציע פעולה ששייכת לצד שכנגד (הצד שאיננו מייצגים), ואל תציע פעולה או תגובה לטובת הצד השני. כמו כן, אם את המסמך האחרון חיבר צד המשרד עצמו, אל תציע תגובה אליו — אלא אם קיימת חובה דיונית פתוחה שהמסמך מטיל דווקא על לקוח המשרד. אם המסמך האחרון חובר על ידי צד המשרד ואין פעולת המשך הנדרשת מאיתנו לפי סדר הדין, החזר את הודעת ההמתנה.\n\n' +
+    'משימתך: תחילה קבע מהו השלב הנוכחי לפי שרשרת המסמכים, ואז בחר מתוך הרשימה שסופקה את הפעולה שעל הצד שאנו מייצגים לנקוט — התואמת גם לתוכן המסמך האחרון וגם לשלב, ומוקבלת לסדר הדין של אותה ערכאה. בחר אך ורק מתוך הרשימה שסופקה; אל תציע פעולה ששלבה כבר חלף, ואל תמציא פעולות, מועדים או מקורות שאינם ברשימה. החזר אובייקט JSON אחד בלבד, ללא טקסט נוסף, ותו ראשון {.';
   const userText =
     'הערכאה: ' +
     (court || '-') +
@@ -1188,15 +1269,21 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
     waitMsg +
     '" והשאר deadline ו-legal_source ריקים.\n\n' +
     (lang === 'ar'
-      ? 'اكتب كل النصوص في الحقول suggested_action و reasoning و deadline و legal_source باللغة العربية الفصحى القانونية المهنية فقط. قائمة الإجراءات والمواعيد والمصادر مكتوبة بالعبرية — تَرجِمها ترجمةً قانونيةً دقيقةً إلى مصطلحات عربية قانونية حقيقية. مُنِعَ منعاً باتاً نقلُ أي كلمة عبرية أو أجنبية نقحرةً (كتابةً صوتيةً بأحرف عربية)؛ كل كلمة يجب أن تكون كلمةً عربيةً صحيحةً وذات معنى قانوني سليم. أبقِ الأرقام وأرقام المواد/الأنظمة كما هي وترجِم أسماءها ووصفها إلى العربية (مثال: «כתב תביעה» ← «لائحة دعوى»، «תקנה» ← «مادة/نظام»، «בית משפט לענייני משפחה» ← «محكمة شؤون الأسرة»). '
+      ? 'اكتب كل النصوص في الحقول suggested_action و reasoning و deadline و legal_source باللغة العربية الفصحى القانونية المهنية فقط. قائمة الإجراءات والمواعيد والمصادر مكتوبة بالعبرية — تَرجِمها ترجمةً قانونيةً دقيقةً إلى مصطلحات عربية قانونية حقيقية. مُنِعَ منعاً باتاً نقلُ أي كلمة عبرية أو أجنبية نقحرةً (كتابةً صوتيةً بأحرف عربية)؛ كل كلمة يجب أن تكون كلمةً عربيةً صحيحةً وذات معنى قانوني سليم. أبقِ الأرقام وأرقام المواد/الأنظمة كما هي وترجِم أسماءها ووصفها إلى العربية (مثال: «כתב תביעה» ← «لائحة دعوى»، «תקנה» ← «مادة/نظام»، «בית משפט לענייני משפחה» ← «محكمة شؤون الأسرة»).\n\n' +
+        AR_GLOSSARY +
+        '\n\n'
       : 'כתוב את suggested_action ואת reasoning בעברית. ') +
-    'החזר JSON: {"suggested_action":"שם הפעולה והסבר קצר מה לעשות","deadline":"המועד מתוך הרשימה","legal_source":"התקנה/המקור מתוך הרשימה","reasoning":"נימוק קצר","confidence":"high או medium או low"}.';
+    'שדה deadline_days: אם המועד שבחרת נקוב בימים — החזר את מספר הימים כמספר שלם (וכשיש בשורה כמה חלופות, כגון "45 / 30 / 15 ימים" או "60 ימים; רשלנות רפואית - 120 ימים", בחר את המספר הרלוונטי לתיק לפי תוכן המסמך האחרון); אם המועד אינו נקוב בימים (למשל "פותח את ההליך", "בלא דיחוי", "יחד עם כתב ההגנה", "ללא שיהוי") — החזר null.\n\n' +
+    'החזר JSON: {"represented_party":"הצד שאנו מייצגים לפי הניתוח — תובע/מבקש/עותר או נתבע/משיב","author_side":"מי חיבר את המסמך האחרון — ours או opposing או court","suggested_action":"שם הפעולה והסבר קצר מה על הצד שאנו מייצגים לעשות","deadline":"המועד מתוך הרשימה","deadline_days":<מספר שלם או null>,"legal_source":"התקנה/המקור מתוך הרשימה","reasoning":"נימוק קצר","confidence":"high או medium או low"}.';
 
   let suggested = '';
   let deadline = '';
+  let deadlineDays: number | null = null;
   let legalSource = '';
   let reasoning = '';
   let confidence = '';
+  let representedParty = '';
+  let authorSide = '';
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -1229,9 +1316,22 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
       const parsed = JSON.parse(cleaned) as Record<string, unknown>;
       suggested = String(parsed.suggested_action ?? '').trim();
       deadline = String(parsed.deadline ?? '').trim();
+      // deadline_days: a raw integer (or null) the model derives for the action
+      // it picked. Tolerate a numeric string too. Non-numeric → null.
+      const rawDays = parsed.deadline_days;
+      if (typeof rawDays === 'number' && Number.isFinite(rawDays) && rawDays > 0) {
+        deadlineDays = Math.round(rawDays);
+      } else if (typeof rawDays === 'string' && /^\s*\d{1,3}\s*$/.test(rawDays)) {
+        const n = parseInt(rawDays.trim(), 10);
+        deadlineDays = n > 0 ? n : null;
+      } else {
+        deadlineDays = null;
+      }
       legalSource = String(parsed.legal_source ?? '').trim();
       reasoning = String(parsed.reasoning ?? '').trim();
       confidence = String(parsed.confidence ?? '').trim();
+      representedParty = String(parsed.represented_party ?? '').trim();
+      authorSide = String(parsed.author_side ?? '').trim().toLowerCase();
     }
   } catch {
     // fall through — suggested stays empty, handled below
@@ -1242,10 +1342,15 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
     // the office to wait for new decisions/instructions instead of failing.
     suggested = waitMsg;
     deadline = '';
+    deadlineDays = null;
     legalSource = '';
     if (!reasoning) reasoning = waitMsg;
     confidence = confidence || 'low';
   }
+
+  // The lawyer's explicit "צד מיוצג" pick is authoritative — it wins over the
+  // model's inference (and holds even if the AI call failed entirely).
+  if (representedPartyOverride) representedParty = representedPartyOverride;
 
   // `client_id` is NOT NULL in the table — bind '' (never null) so a case
   // without a resolved client can't crash the INSERT (which, being outside the
@@ -1255,8 +1360,8 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
   try {
     await env.DB.prepare(
       `INSERT INTO case_suggested_actions
-       (client_id, case_id, document_name, court_type, suggested_action, deadline, legal_source, confidence, reasoning)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
+       (client_id, case_id, document_name, court_type, suggested_action, deadline, deadline_days, represented_party, legal_source, confidence, reasoning)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)`,
     )
       .bind(
         clientId || '',
@@ -1265,6 +1370,8 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
         courtTypes.join(','),
         suggested,
         deadline || null,
+        deadlineDays,
+        representedParty || null,
         legalSource || null,
         confidence || null,
         reasoning || null,
@@ -1278,8 +1385,11 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
     {
       ok: true,
       court_types: courtTypes,
+      represented_party: representedParty,
+      author_side: authorSide,
       suggested_action: suggested,
       deadline,
+      deadline_days: deadlineDays,
       legal_source: legalSource,
       reasoning,
       confidence,
@@ -1339,7 +1449,9 @@ async function handleSplitDecision(request: Request, env: Env): Promise<Response
     summary +
     '\n\n' +
     (langSent === 'ar'
-      ? 'اكتب قيم الحقول decision و rest و task_title باللغة العربية فقط. '
+      ? 'اكتب قيم الحقول decision و rest و task_title باللغة العربية فقط.\n\n' +
+        AR_GLOSSARY +
+        '\n\n'
       : langSent === 'he'
         ? 'כתוב את הערכים בשדות decision, rest, task_title בעברית בלבד. '
         : 'כתוב את הערכים בשדות decision, rest ו-task_title באותה שפה שבה כתוב הסיכום שקיבלת — אל תתרגם לשפה אחרת. ') +
@@ -1443,7 +1555,8 @@ async function handleTranslate(request: Request, env: Env): Promise<Response> {
         system:
           'You are a professional legal translator. Translate the user text into ' +
           targetName +
-          ' only. Preserve legal meaning, names, numbers and dates exactly. Output ONLY the translation — no quotes, no notes, no transliteration, nothing else.',
+          ' only. Preserve legal meaning, names, numbers and dates exactly. Output ONLY the translation — no quotes, no notes, no transliteration, nothing else.' +
+          (target === 'he' || target === 'en' ? '' : '\n\n' + AR_GLOSSARY),
         messages: [{ role: 'user', content: text }],
       }),
     });

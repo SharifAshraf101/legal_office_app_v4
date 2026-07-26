@@ -56,6 +56,10 @@ export const LS = {
   // copy BEFORE pulling if this is set — otherwise a payment added and then
   // refreshed before the 1.5s auto-save fired would be wiped by the boot pull.
   PENDING_SYNC: 'law_pending_sync',
+  // source_ids the user deleted locally that haven't been confirmed deleted on
+  // the backend yet. JSON `{ [table]: string[] }`. Kept until a save that
+  // carries them succeeds, so a reload before the sync still propagates them.
+  PENDING_DELETIONS: 'law_pending_deletions_v1',
   PORTAL_BOT_HISTORY: 'law_portal_bot_history',
   PORTAL_BOT_DOWNLOADS: 'law_portal_bot_downloads',
   LAST_TASK_DROPBOX_PATH: 'law_last_task_dropbox_path_v1',

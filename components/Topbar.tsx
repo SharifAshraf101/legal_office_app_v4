@@ -157,7 +157,7 @@ export function Topbar() {
         <div className="home-brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/office-logo.png"
+            src="/office-logo.svg"
             alt={brandName}
             className="home-brand-logo"
           />

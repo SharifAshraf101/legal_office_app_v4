@@ -7,10 +7,11 @@ import { useT } from '@/hooks/useT';
 import { caseName, clientName } from '@/lib/cases';
 import { clientDisplayName } from '@/lib/clients';
 import { nextDocumentNumber } from '@/lib/documents';
-import { calendarLocale, findConflictingEvent } from '@/lib/calendar';
+import { findConflictingEvent } from '@/lib/calendar';
 import { useConflictConfirm } from '@/hooks/useConflictConfirm';
 import {
   composeDateTime,
+  formatDMYTime,
   hourOptions,
   localDateParts,
   minuteOptions,
@@ -343,7 +344,7 @@ export function NewEventModal({
     if (type === 'task' && dueDateTimeStr) {
       const dueText =
         (lang === 'ar' ? 'موعد الانتهاء: ' : 'מועד אחרון: ') +
-        new Date(dueDateTimeStr).toLocaleString(calendarLocale(lang));
+        formatDMYTime(new Date(dueDateTimeStr));
       desc = desc ? `${desc} · ${dueText}` : dueText;
     }
 

@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
+import { AR_GLOSSARY } from '@/lib/arabicGlossary';
 
 /**
  * On-demand document-summary GENERATION.
@@ -33,7 +34,9 @@ LANGUAGE RULE — decide "language" from the SUBSTANTIVE legal document (the act
 Return ONLY valid JSON (no markdown, no code fences) with EXACTLY these keys:
 {"language":"the ISO code of the language the SUBSTANTIVE document is written in, e.g. he, ar, en, fr, ru","orig":"the summary in the document's OWN language","he":"the summary in Hebrew","ar":"the summary in Arabic"}
 
-"orig" must be written in the document's own language. "he" and "ar" must always be filled too (translate the summary so both are present) — they power the bilingual screens.`;
+"orig" must be written in the document's own language. "he" and "ar" must always be filled too (translate the summary so both are present) — they power the bilingual screens.
+
+${AR_GLOSSARY}`;
 
 /** Pull a JSON object out of the model's reply, tolerating code fences. */
 function extractJson(text: string): {

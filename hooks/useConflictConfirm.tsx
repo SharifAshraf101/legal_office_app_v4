@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { useModalStack } from './useModalStack';
 import { useT } from './useT';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { formatDMYTime } from '@/lib/dates';
 import type { CalendarEvent } from '@/types';
 
 /**
@@ -23,13 +24,7 @@ export function useConflictConfirm(): (
     (existing: CalendarEvent) => {
       const dt = new Date(existing.dateTime || '');
       const dateStr = Number.isFinite(dt.getTime())
-        ? dt.toLocaleString(lang === 'ar' ? 'ar-IL-u-nu-latn' : 'he-IL-u-nu-latn', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })
+        ? formatDMYTime(dt)
         : existing.dateTime || '';
       const title =
         (lang === 'ar'

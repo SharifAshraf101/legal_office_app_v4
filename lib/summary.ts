@@ -450,6 +450,108 @@ export async function fetchSuggestedAction(caseId: string): Promise<string | nul
   return null;
 }
 
+/** A court-matched suggested action in STRUCTURED form — the fields kept
+ *  separate (not merged into one string) so the case-brain can render a live
+ *  deadline countdown from `deadlineDays` + the triggering document's date. */
+export interface SuggestedActionDetail {
+  /** The suggested action text (clean — no appended deadline/source). */
+  text: string;
+  /** Free-text deadline from the rule/model (e.g. "60 ימים ממועד ההמצאה"). */
+  deadline: string;
+  /** Whole number of days the action runs for, or null when not day-based. */
+  deadlineDays: number | null;
+  /** The legal source/regulation (e.g. "תק' 9(ב)"). */
+  legalSource: string;
+  /** The party the office represents (e.g. "תובע"/"נתבע") — inferred by the
+   *  party analysis or set by the lawyer's override. '' when unknown. */
+  representedParty: string;
+}
+
+/** Coerce a deadline_days value (number, numeric string, or nullish) to a
+ *  positive integer or null. */
+function normalizeDeadlineDays(
+  v: number | string | null | undefined,
+): number | null {
+  if (typeof v === 'number' && Number.isFinite(v) && v > 0) return Math.round(v);
+  if (typeof v === 'string' && /^\s*\d{1,3}\s*$/.test(v)) {
+    const n = parseInt(v.trim(), 10);
+    return n > 0 ? n : null;
+  }
+  return null;
+}
+
+/** Newest non-empty suggested-action ROW (structured) for ONE exact case_id.
+ *  When `preferParty` is given, the newest row for THAT represented party wins
+ *  (so toggling the "צד מיוצג" selector back to a side shows its own saved
+ *  suggestion, not a later one for the other side); falls back to the newest
+ *  non-empty row when none match. */
+async function fetchSuggestedActionRowFor(
+  id: string,
+  preferParty?: string,
+): Promise<SuggestedActionDetail | null> {
+  try {
+    const res = await fetch(
+      WORKER_URL + '/api/suggested-actions/' + encodeURIComponent(id),
+      { method: 'GET', headers: { Authorization: 'Bearer ' + APP_TOKEN } },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      suggestions?: Array<{
+        suggested_action?: string;
+        deadline?: string;
+        deadline_days?: number | string | null;
+        legal_source?: string;
+        represented_party?: string;
+      }>;
+    };
+    type Row = NonNullable<typeof data.suggestions>[number];
+    const toDetail = (row: Row): SuggestedActionDetail => ({
+      text: (row.suggested_action || '').trim(),
+      deadline: (row.deadline || '').trim(),
+      deadlineDays: normalizeDeadlineDays(row.deadline_days),
+      legalSource: (row.legal_source || '').trim(),
+      representedParty: (row.represented_party || '').trim(),
+    });
+    const rows = data.suggestions || [];
+    const want = (preferParty || '').trim();
+    // Rows arrive newest-first. Prefer the newest matching the requested party.
+    if (want) {
+      for (const row of rows) {
+        if (
+          (row.suggested_action || '').trim() &&
+          (row.represented_party || '').trim() === want
+        ) {
+          return toDetail(row);
+        }
+      }
+    }
+    for (const row of rows) {
+      if ((row.suggested_action || '').trim()) return toDetail(row);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Structured form of {@link fetchSuggestedAction}: the newest saved suggestion
+ *  for a case with its deadline/days/source kept separate. Tries the id as-is,
+ *  lower-, then upper-case (the pipeline may store a different case).
+ *  `preferParty` selects the newest suggestion for a given represented party. */
+export async function fetchSuggestedActionDetailed(
+  caseId: string,
+  preferParty?: string,
+): Promise<SuggestedActionDetail | null> {
+  const id = (caseId || '').trim();
+  if (!id) return null;
+  const candidates = [...new Set([id, id.toLowerCase(), id.toUpperCase()])];
+  for (const candidate of candidates) {
+    const row = await fetchSuggestedActionRowFor(candidate, preferParty);
+    if (row) return row;
+  }
+  return null;
+}
+
 /** True when a document is (or contains) a court DECISION / PROTOCOL — checked
  *  against the document's type/title/file name AND, when provided, its summary
  *  text. The summary check matters because a decision is often written ON
@@ -600,6 +702,79 @@ export async function generateSuggestedAction(opts: {
   }
 }
 
+/** Structured form of {@link generateSuggestedAction}: generates + saves a
+ *  court-matched next action and returns its fields SEPARATELY (text, deadline,
+ *  deadlineDays, legalSource) so the case-brain can render a live countdown
+ *  instead of a single merged string. Returns null on failure. */
+export async function generateSuggestedActionDetailed(opts: {
+  caseId: string;
+  clientId?: string;
+  court?: string;
+  docSummary?: string;
+  documentName?: string;
+  lang?: 'he' | 'ar';
+  /** Registered office/lawyer name — so the suggestion is for OUR side. */
+  lawyerName?: string;
+  /** The client we represent (both spellings) — lets the model tell which side
+   *  is ours and never suggest the opposing party's move. */
+  clientName?: string;
+  /** Authoritative override of the represented party (the lawyer's selector
+   *  pick, e.g. "תובע"/"נתבע"). Empty → the model infers it. */
+  representedParty?: string;
+}): Promise<SuggestedActionDetail | null> {
+  const {
+    caseId,
+    clientId,
+    court,
+    docSummary,
+    documentName,
+    lang,
+    lawyerName,
+    clientName,
+    representedParty,
+  } = opts;
+  if (!caseId) return null;
+  try {
+    const res = await fetch(WORKER_URL + '/api/suggest-action', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + APP_TOKEN,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        case_id: caseId,
+        client_id: clientId || '',
+        court: court || '',
+        doc_summary: docSummary || '',
+        document_name: documentName || '',
+        lang: lang || 'he',
+        lawyer_name: lawyerName || '',
+        client_name: clientName || '',
+        represented_party: representedParty || '',
+      }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      ok?: boolean;
+      suggested_action?: string;
+      deadline?: string;
+      deadline_days?: number | string | null;
+      legal_source?: string;
+      represented_party?: string;
+    };
+    if (!data.ok || !data.suggested_action) return null;
+    return {
+      text: data.suggested_action.trim(),
+      deadline: (data.deadline || '').trim(),
+      deadlineDays: normalizeDeadlineDays(data.deadline_days),
+      legalSource: (data.legal_source || '').trim(),
+      representedParty: (data.represented_party || '').trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Generate a reply draft for a PDF document that has none yet: obtain a
  *  temporary Dropbox link and hand it to /api/generate-draft (which fetches the
  *  PDF server-side and forwards it to the Worker's /api/draft → Claude → saves
@@ -612,12 +787,23 @@ export async function generateDocumentDraft(opts: {
   caseId?: string;
   documentId?: string;
   lawyerName?: string;
+  /** The client we represent — a document filed on their behalf is "ours", so
+   *  no reply is drafted against our own side. */
+  clientName?: string;
   /** All case notes (client + document-upload + brain quick-action) fed to the
    *  draft AI as guiding context. */
   notesContext?: string;
 }): Promise<{ draftNeeded: boolean; hasDraft: boolean }> {
-  const { relativePath, fileName, clientId, caseId, documentId, lawyerName, notesContext } =
-    opts;
+  const {
+    relativePath,
+    fileName,
+    clientId,
+    caseId,
+    documentId,
+    lawyerName,
+    clientName,
+    notesContext,
+  } = opts;
   // Non-PDF can't be read/classified — default to "needed" so we never hide a
   // possibly-required reply.
   if (!relativePath || !/\.pdf$/i.test(fileName)) {
@@ -641,6 +827,7 @@ export async function generateDocumentDraft(opts: {
         caseId,
         documentId,
         lawyerName,
+        clientName,
         notesContext,
       }),
     });
@@ -726,8 +913,12 @@ export async function classifyDraftDecision(opts: {
   caseId?: string;
   documentId?: string;
   lawyerName?: string;
+  /** The client we represent — a document filed on their behalf counts as
+   *  "ours", so no reply is drafted against our own side. */
+  clientName?: string;
 }): Promise<{ draftNeeded: boolean }> {
-  const { relativePath, fileName, clientId, caseId, documentId, lawyerName } = opts;
+  const { relativePath, fileName, clientId, caseId, documentId, lawyerName, clientName } =
+    opts;
   if (!relativePath || !/\.pdf$/i.test(fileName)) return { draftNeeded: true };
   let fileUrl: string | null = null;
   try {
@@ -740,7 +931,15 @@ export async function classifyDraftDecision(opts: {
     const res = await fetch('/api/classify-draft/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileUrl, fileName, clientId, caseId, documentId, lawyerName }),
+      body: JSON.stringify({
+        fileUrl,
+        fileName,
+        clientId,
+        caseId,
+        documentId,
+        lawyerName,
+        clientName,
+      }),
     });
     if (!res.ok) return { draftNeeded: true };
     const data = (await res.json()) as { draft_needed?: boolean };

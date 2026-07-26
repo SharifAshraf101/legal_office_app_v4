@@ -22,6 +22,7 @@ import {
   type CalendarView,
 } from '@/lib/calendar';
 import { caseSearchText } from '@/lib/cases';
+import { formatDM } from '@/lib/dates';
 import { CalendarAgendaRow } from './CalendarAgendaRow';
 import { MainScreenBackButton } from './MainScreenBackButton';
 
@@ -200,12 +201,7 @@ function WeekView({ focus, items }: { focus: Date; items: ReturnType<typeof cale
             <div key={i} className="calendar-week-day">
               <h3>
                 {names[i]}
-                <span className="calendar-week-date">
-                  {d.toLocaleDateString(calendarLocale(lang), {
-                    day: '2-digit',
-                    month: '2-digit',
-                  })}
-                </span>
+                <span className="calendar-week-date">{formatDM(d)}</span>
               </h3>
               {dayItems.length === 0 ? (
                 <div className="sub">{calendarText('noItems', lang)}</div>
@@ -341,9 +337,18 @@ function ListView({
   const { state } = useAppState();
 
   const filtered = useMemo(() => {
+    // Agenda list shows only TODAY and upcoming appointments — anything whose
+    // date already passed is hidden. Compared at day granularity (start of
+    // today), so an appointment earlier today still counts as "today". The
+    // items arrive already sorted ascending, so the nearest one leads.
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const upcoming = items.filter(
+      (entry) => entry.date.getTime() >= startOfToday.getTime(),
+    );
     const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((entry) => {
+    if (!q) return upcoming;
+    return upcoming.filter((entry) => {
       const c = state.casesArr.find((x) => x.id === entry.item.caseId);
       if (!c) return false;
       return caseSearchText(c, state.clients).toLowerCase().includes(q);

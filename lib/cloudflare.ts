@@ -582,12 +582,21 @@ export interface SupabaseSaveInput {
   documentsArr: DocumentRecord[];
   finances: Finance[];
   timelineItems: TimelineItem[];
+  /** source_ids the user deleted locally, keyed by backend table
+   *  (clients / cases / tasks / calendar_events / documents / payments /
+   *  timeline_items). The Worker deletes exactly these rows — an upsert alone
+   *  can only add/update, so without this a deleted record lingers in D1 and
+   *  reappears on the next load. Precise (never a full diff/replace), so a row
+   *  make.com just added is never touched. */
+  deletions?: Record<string, string[]>;
 }
 
 // Returns true only when the backend confirmed the save (HTTP 2xx). Callers use
 // this to decide whether it's safe to clear the un-synced/dirty markers — a
 // failed save must keep them set so the edit is retried, not silently dropped.
 export async function legalOfficeSaveToSupabase(s: SupabaseSaveInput): Promise<boolean> {
+  const hasDeletions =
+    !!s.deletions && Object.values(s.deletions).some((a) => Array.isArray(a) && a.length > 0);
   const body = {
     clients: s.clients.filter((x) => x.id).map(clientToRow),
     cases: s.casesArr.filter((x) => x.id).map(caseToRow),
@@ -596,6 +605,9 @@ export async function legalOfficeSaveToSupabase(s: SupabaseSaveInput): Promise<b
     documents: s.documentsArr.filter((x) => x.id).map(docToRow),
     payments: s.finances.filter((x) => x.id).map(financeToRow),
     timeline_items: s.timelineItems.filter((x) => x.id).map(timelineToRow),
+    // Only present when there is something to delete — `undefined` is dropped
+    // from the JSON so an ordinary save never carries an empty deletions block.
+    deletions: hasDeletions ? s.deletions : undefined,
   };
   try {
     const res = await fetch(WORKER_URL + '/api/save', {

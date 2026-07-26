@@ -10,7 +10,7 @@ import type {
   Task,
   TimelineItem,
 } from '@/types';
-import { calendarLocale } from './calendar';
+import { formatDMY, formatHM } from './dates';
 import { caseName } from './cases';
 import { caseDocumentsForCase, formatDocumentDate } from './documents';
 import {
@@ -201,19 +201,16 @@ export function portalClientCases(clientId: string, cases: Case[]): Case[] {
 }
 
 /** Source line 4769. */
-export function portalFormatDate(raw: string | Date | null | undefined, lang: Lang): string {
+export function portalFormatDate(
+  raw: string | Date | null | undefined,
+  // Kept for a stable call signature; the numeric date reads the same in
+  // Hebrew and Arabic (05.10.2026), so no locale is needed.
+  _lang?: Lang,
+): string {
   if (!raw) return '-';
   const d = raw instanceof Date ? raw : new Date(raw);
   if (isNaN(d.getTime())) return String(raw);
-  return (
-    d.toLocaleDateString(calendarLocale(lang), {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }) +
-    ' ' +
-    d.toLocaleTimeString(calendarLocale(lang), { hour: '2-digit', minute: '2-digit' })
-  );
+  return `${formatDMY(d)} ${formatHM(d)}`;
 }
 
 /** Source line 4775. */

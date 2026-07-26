@@ -7,6 +7,7 @@ import { useT } from '@/hooks/useT';
 import { caseName } from '@/lib/cases';
 import { clientDisplayName } from '@/lib/clients';
 import { calendarLocale } from '@/lib/calendar';
+import { formatDMY, localizedWeekday } from '@/lib/dates';
 import { TaskModal } from './TaskModal';
 import { Modal } from './Modal';
 import type { Task } from '@/types';
@@ -160,12 +161,9 @@ export function TaskDeadlineAlertModal({ onClose }: { onClose?: () => void }) {
       const d = new Date(t.dueDate + 'T00:00:00');
       if (!isNaN(d.getTime())) {
         parts.push(
-          d.toLocaleDateString(calendarLocale(lang), {
-            weekday: 'short',
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-          }),
+          localizedWeekday(d, calendarLocale(lang), 'short') +
+            ', ' +
+            formatDMY(d),
         );
       }
     }
