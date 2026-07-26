@@ -15,7 +15,6 @@ import {
   isArabicOnlyCourt,
   type DocSummaryData,
 } from '@/lib/summary';
-import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { Modal } from './Modal';
 import { NewEventModal } from './NewEventModal';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
@@ -48,7 +47,6 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
   const { state, dispatch } = useAppState();
   const { lang } = useT();
   const modalStack = useModalStack();
-  const confirmDelete = useDeleteConfirm();
 
   // For each document without a stored summary, pull it from Cloudflare
   // (by file name, like the case-brain). Fetched summaries are kept in LOCAL
@@ -237,18 +235,12 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.documentsArr, state.casesArr, state.clients, caseId, refreshTick]);
 
-  // These three pieces of local UI state MUST be declared before the
-  // `if (!c) return null` early-return below. If the case vanishes between
-  // renders (e.g. deleted on another device and dropped by the 30s poll's
-  // REPLACE_ALL) `c` becomes undefined, the early-return fires, and skipping
-  // these Hooks would violate the Rules of Hooks ("rendered fewer hooks than
-  // expected") and crash the modal.
+  // This local UI state MUST be declared before the `if (!c) return null`
+  // early-return below. If the case vanishes between renders (e.g. deleted on
+  // another device and dropped by the 30s poll's REPLACE_ALL) `c` becomes
+  // undefined, the early-return fires, and skipping this Hook would violate the
+  // Rules of Hooks ("rendered fewer hooks than expected") and crash the modal.
   //
-  // Inline-edit state for renaming a document's title. Only one document is
-  // editable at a time; `editTitleDraft` holds the working text and commit
-  // writes it back via SET_DOCUMENTS.
-  const [editingDocId, setEditingDocId] = useState<string | null>(null);
-  const [editTitleDraft, setEditTitleDraft] = useState<string>('');
   // Pick mode two-step: tap a row to highlight ("pending"), then confirm with
   // the bottom "בחר" button.
   const [pendingDocId, setPendingDocId] = useState<string | null>(null);
@@ -268,42 +260,6 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
     .filter(Boolean)
     .join(' · ');
 
-  const onDelete = async (docId: string) => {
-    const ok = await confirmDelete(
-      lang === 'ar'
-        ? 'حذف المستند من قائمة القضية؟'
-        : 'למחוק את המסמך מרשימת התיק?',
-    );
-    if (!ok) return;
-    dispatch({
-      type: 'SET_DOCUMENTS',
-      documents: state.documentsArr.filter((d) => String(d.id) !== String(docId)),
-    });
-  };
-
-  const startEdit = (docId: string, currentTitle: string) => {
-    setEditingDocId(docId);
-    setEditTitleDraft(currentTitle);
-  };
-  const cancelEdit = () => {
-    setEditingDocId(null);
-    setEditTitleDraft('');
-  };
-  const saveEdit = () => {
-    if (!editingDocId) return;
-    const trimmed = editTitleDraft.trim();
-    if (!trimmed) {
-      cancelEdit();
-      return;
-    }
-    dispatch({
-      type: 'SET_DOCUMENTS',
-      documents: state.documentsArr.map((d) =>
-        String(d.id) === String(editingDocId) ? { ...d, title: trimmed } : d,
-      ),
-    });
-    cancelEdit();
-  };
 
   // Open a document in the in-app preview (downloads it from the Dropbox cloud
   // and renders it with a download button) — same on the office computer and on
@@ -557,44 +513,21 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
                       }
                       style={isPending ? { color: 'var(--primary)' } : undefined}
                     />
-                    {String(editingDocId) === String(doc.id) ? (
-                      <input
-                        type="text"
-                        className="case-docs-modal-title-input"
-                        value={editTitleDraft}
-                        onChange={(e) => setEditTitleDraft(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            saveEdit();
-                          } else if (e.key === 'Escape') {
-                            e.preventDefault();
-                            cancelEdit();
-                          }
-                        }}
-                        autoFocus
-                        aria-label={lang === 'ar' ? 'تعديل اسم المستند' : 'עריכת שם המסמך'}
-                      />
-                    ) : (
-                      <span
-                        className="case-docs-modal-title-text"
-                        title={pickMode ? pickTitle : openTitle}
-                        onDoubleClick={
-                          pickMode ? undefined : () => onOpen(doc)
-                        }
-                        style={{
-                          cursor: 'pointer',
-                          color: 'var(--primary)',
-                          fontWeight: 700,
-                        }}
-                        aria-label={
-                          pickMode ? undefined : openTitle + ' — ' + fileName
-                        }
-                      >
-                        {titleStr}
-                      </span>
-                    )}
+                    <span
+                      className="case-docs-modal-title-text"
+                      title={pickMode ? pickTitle : openTitle}
+                      onDoubleClick={pickMode ? undefined : () => onOpen(doc)}
+                      style={{
+                        cursor: 'pointer',
+                        color: 'var(--primary)',
+                        fontWeight: 700,
+                      }}
+                      aria-label={
+                        pickMode ? undefined : openTitle + ' — ' + fileName
+                      }
+                    >
+                      {titleStr}
+                    </span>
                   </div>
                   {(() => {
                     const local = summaries[doc.id];
@@ -630,73 +563,21 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
                     ) : null;
                   })()}
                 </div>
-                <div className="case-docs-modal-row-actions">
-                  {!doc.isTask &&
-                    (String(editingDocId) === String(doc.id) ? (
-                      <>
-                        <button
-                          type="button"
-                          className="case-docs-modal-btn save"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            saveEdit();
-                          }}
-                        >
-                          <i className="fas fa-check" />
-                          {lang === 'ar' ? 'حفظ' : 'שמור'}
-                        </button>
-                        <button
-                          type="button"
-                          className="case-docs-modal-btn cancel"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            cancelEdit();
-                          }}
-                        >
-                          <i className="fas fa-xmark" />
-                          {lang === 'ar' ? 'إلغاء' : 'בטל'}
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        {onSendToChat && (
-                          <button
-                            type="button"
-                            className="case-docs-modal-btn send"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSendToChat(doc);
-                            }}
-                          >
-                            <i className="fas fa-paper-plane" />
-                            {lang === 'ar' ? 'إرسال للمحادثة' : 'שלח לשיחה'}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="case-docs-modal-btn edit"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startEdit(doc.id, titleStr);
-                          }}
-                        >
-                          <i className="fas fa-pen" />
-                          {lang === 'ar' ? 'تعديل' : 'עריכה'}
-                        </button>
-                        <button
-                          type="button"
-                          className="case-docs-modal-btn delete"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDelete(doc.id);
-                          }}
-                        >
-                          <i className="fas fa-trash" />
-                          {lang === 'ar' ? 'حذف' : 'מחק'}
-                        </button>
-                      </>
-                    ))}
-                </div>
+                {!doc.isTask && onSendToChat && (
+                  <div className="case-docs-modal-row-actions">
+                    <button
+                      type="button"
+                      className="case-docs-modal-btn send"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSendToChat(doc);
+                      }}
+                    >
+                      <i className="fas fa-paper-plane" />
+                      {lang === 'ar' ? 'إرسال للمحادثة' : 'שלח לשיחה'}
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
