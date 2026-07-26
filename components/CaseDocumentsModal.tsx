@@ -553,7 +553,10 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
                           fontSize: 12,
                           lineHeight: 1.45,
                           color: 'var(--muted)',
-                          textAlign: dir === 'ltr' ? 'left' : 'right',
+                          // Justify the summary so both edges are flush; `dir`
+                          // (below) keeps RTL/LTR correct so the last line and
+                          // word order stay right for Arabic/Hebrew.
+                          textAlign: 'justify',
                           overflowWrap: 'anywhere',
                           wordBreak: 'break-word',
                         }}
