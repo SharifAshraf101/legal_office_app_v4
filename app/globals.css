@@ -1097,6 +1097,18 @@ html body .modal.case-docs-modal.ls.ls.ls.ls.ls .modal-box > .modal-mobile-back-
 .case-docs-type-badge[data-ext="webp"],
 .case-docs-type-badge[data-ext="heic"]{color:#7c3aed;background:#f5f3ff;border-color:#ddd6fe;}
 .case-docs-modal-title span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* The document TITLE text wraps to show the full title (Hebrew RTL titles were
+ * nowrap and overflowed left, clipped at the screen edge on mobile because the
+ * span couldn't shrink). Higher specificity than the ellipsis rule above; the
+ * PDF/DOCX badge span is unaffected. */
+.case-docs-modal-title .case-docs-modal-title-text{
+  min-width:0;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
 .case-docs-modal-meta{display:flex;flex-wrap:wrap;gap:6px;color:var(--muted);font-size:11px;font-weight:800;margin-top:5px;}
 .case-docs-modal-path{font-size:11px;color:var(--muted);direction:ltr;text-align:right;margin-top:5px;word-break:break-word;}
 .case-docs-modal-row-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;}

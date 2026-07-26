@@ -578,6 +578,7 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
                       />
                     ) : (
                       <span
+                        className="case-docs-modal-title-text"
                         title={pickMode ? pickTitle : openTitle}
                         onDoubleClick={
                           pickMode ? undefined : () => onOpen(doc)
