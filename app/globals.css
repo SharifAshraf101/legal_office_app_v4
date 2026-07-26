@@ -1059,6 +1059,12 @@ html body .modal.case-docs-modal.ls.ls.ls.ls.ls .modal-box > .modal-mobile-back-
 .case-docs-modal-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
 .case-docs-modal-list{display:grid;gap:10px;max-height:52vh;overflow:auto;padding-inline-end:6px;scrollbar-width:thin;}
 .case-docs-modal-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:18px;background:var(--surface-soft);padding:12px 14px;}
+/* Text column of each row — must be able to shrink below its content width so
+ * a long (e.g. Arabic) summary WRAPS inside the row instead of overflowing and
+ * being clipped on the left. Essential on mobile where the row is display:flex
+ * with justify-content:space-between (see the .modal.ls… override). */
+.case-docs-modal-main{min-width:0;flex:1 1 auto;}
+.case-docs-modal-summary{overflow-wrap:anywhere;word-break:break-word;white-space:normal;}
 .case-docs-modal-title{display:flex;align-items:center;gap:8px;font-weight:950;min-width:0;}
 /* File-type badge at the start of each document row (PDF / DOCX / …). */
 .case-docs-type-badge{

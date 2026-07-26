@@ -536,7 +536,7 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
                     {uploadLabel}
                   </button>
                 )}
-                <div>
+                <div className="case-docs-modal-main">
                   <div className="case-docs-modal-title">
                     {fileExt && (
                       <span
@@ -620,6 +620,8 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
                           lineHeight: 1.45,
                           color: 'var(--muted)',
                           textAlign: dir === 'ltr' ? 'left' : 'right',
+                          overflowWrap: 'anywhere',
+                          wordBreak: 'break-word',
                         }}
                       >
                         {summaryText}
