@@ -427,13 +427,17 @@ async function consolidateHearings(env: Env): Promise<void> {
     const hasInv = sources.has('invitation');
     const hasDec = sources.has('decision');
     const isImported = hasInv || hasDec;
-    // Keep the earliest event (stable). We deliberately do NOT prefer the event
-    // that carries the decision text — for a decision/protocol hearing that text
-    // must be discarded from the calendar (it still lives in file_summary /
-    // documents). Manual hearings (source 'other') are left completely alone.
-    const keep = group[0];
-    for (const r of group) if (r.id !== keep.id) toDelete.push(r.id);
+    // Manual-only groups are left COMPLETELY alone — never delete or relabel a
+    // hearing the lawyer entered by hand. Two same-day manual hearings (or two
+    // case-less manual hearings sharing the '|day' key) are legitimate and must
+    // both survive. (This guard must run BEFORE any delete is queued.)
     if (!isImported) continue;
+    // Collapse only DUPLICATE IMPORTED hearings (the same session that arrived
+    // from both an invitation and a decision). Keep the earliest imported event
+    // as canonical; never touch a manual ('other') member of a mixed group.
+    const importedMembers = group.filter((r) => hearingSourceType(r) !== 'other');
+    const keep = importedMembers[0];
+    for (const r of importedMembers) if (r.id !== keep.id) toDelete.push(r.id);
     let he = '';
     let ar = '';
     if (sources.size >= 2) {
@@ -749,7 +753,10 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
       draft_needed: draftNeeded,
       author_side: authorSide || 'unknown',
       court_requires_response: courtRequiresResponse,
-      has_draft: !!(draftHe || draftAr),
+      // A draft can be produced in ANY language (stored in draft_orig even when
+      // it's not Hebrew/Arabic), so report presence from draftText — not only
+      // the he/ar columns, which are null for e.g. an English/French document.
+      has_draft: draftText != null,
       notes_scope: notes.scope,
       notes_count: notes.count,
       persist_error: persistError || undefined,
@@ -1443,7 +1450,7 @@ async function handleSplitDecision(request: Request, env: Env): Promise<Response
     '/עורך הדין הנ"ל — לבצע פעולה דיונית של תגובה: "להגיב על", "להשיב ל-", "לנמק את", להגיש תגובה/תשובה/הבהרה/התייחסות/כתב טענות — בדרך כלל בתוך מועד.\n' +
     '• אל תיצור משימה עבור חיוב כספי (תשלום סכום, הוצאות, מזונות) — חיוב כספי אינו משימה; השאר task_title ריק.\n' +
     '• אל תיצור משימה כאשר החובה/הפעולה מוטלת על הצד שכנגד (הצד שאיננו מייצגים) ולא על לקוח המשרד, או כאשר ההחלטה היא קביעה/הכרעה בלבד שאינה דורשת מלקוח המשרד פעולת תגובה דיונית; השאר task_title ריק. המשימה שתיווצר חייבת להיות הפעולה המוטלת על הצד שאנו מייצגים בלבד.\n\n' +
-    'אם ההחלטה קובעת מועד דיון/ישיבה הבא, חלץ את תאריך הדיון (והשעה אם צוינה) — זה שדה נפרד (hearing_date) ואינו תלוי בכלל המשימה. אל תמציא תוכן, תאריכים או שעות שאינם בסיכום. החזר אובייקט JSON אחד בלבד, ללא טקסט נוסף, ותו ראשון {.';
+    'שדה hearing_date מיועד אך ורק למועד של דיון/ישיבה בבית המשפט שעל הצדדים להתייצב אליו, שנקבע במפורש בהחלטה (למשל "נקבע דיון ל...", "הישיבה הבאה תתקיים ביום...", "الجلسة القادمة بتاريخ..."). מועד אחרון להגיש/להגשת תגובה/תשובה/כתב טענות/מסמך — הוא מועד יעד למשימה בלבד (task_due_date), ולעולם אינו hearing_date; במקרה כזה חלץ את התאריך אל task_due_date והשאר hearing_date ריק. לעולם אל תכניס מועד הגשה/תגובה לשדה hearing_date. אל תמציא תוכן, תאריכים או שעות שאינם בסיכום. החזר אובייקט JSON אחד בלבד, ללא טקסט נוסף, ותו ראשון {.';
   const userText =
     'סיכום המסמך:\n' +
     summary +
@@ -1455,7 +1462,7 @@ async function handleSplitDecision(request: Request, env: Env): Promise<Response
       : langSent === 'he'
         ? 'כתוב את הערכים בשדות decision, rest, task_title בעברית בלבד. '
         : 'כתוב את הערכים בשדות decision, rest ו-task_title באותה שפה שבה כתוב הסיכום שקיבלת — אל תתרגם לשפה אחרת. ') +
-    'החזר JSON: {"decision":"ההחלטה/ההוראה האופרטיבית של בית המשפט בלשון תמציתית; אם אין החלטה אופרטיבית ברורה השאר מחרוזת ריקה","rest":"שאר תוכן המסמך (רקע/עובדות/נימוקים/מהלך הדיון) בתמצית","task_title":"רק אם ההחלטה מחייבת אותנו בפעולת תגובה דיונית (להגיב/להשיב/לנמק/להגיש תגובה) — נסח את הפעולה שעלינו לבצע; אחרת (כולל חיוב כספי או חובה על הצד שכנגד) השאר ריק","task_due_date":"תאריך היעד לביצוע המשימה בפורמט YYYY-MM-DD אם מצוין, אחרת ריק","hearing_date":"תאריך מועד הדיון/הישיבה הבא בפורמט YYYY-MM-DD אם נקבע בהחלטה, אחרת ריק","hearing_time":"שעת הדיון בפורמט HH:MM אם צוינה, אחרת ריק"}.';
+    'החזר JSON: {"decision":"ההחלטה/ההוראה האופרטיבית של בית המשפט בלשון תמציתית; אם אין החלטה אופרטיבית ברורה השאר מחרוזת ריקה","rest":"שאר תוכן המסמך (רקע/עובדות/נימוקים/מהלך הדיון) בתמצית","task_title":"רק אם ההחלטה מחייבת אותנו בפעולת תגובה דיונית (להגיב/להשיב/לנמק/להגיש תגובה) — נסח את הפעולה שעלינו לבצע; אחרת (כולל חיוב כספי או חובה על הצד שכנגד) השאר ריק","task_due_date":"תאריך היעד לביצוע המשימה בפורמט YYYY-MM-DD אם מצוין, אחרת ריק","hearing_date":"תאריך מועד דיון/ישיבה בבית המשפט שעל הצדדים להתייצב אליו, בפורמט YYYY-MM-DD, אך ורק אם ההחלטה קובעת דיון כזה במפורש; מועד אחרון להגשת תגובה/תשובה/מסמך אינו דיון — הוא task_due_date בלבד, ובמקרה כזה השאר ריק","hearing_time":"שעת הדיון בפורמט HH:MM אם צוינה, אחרת ריק"}.';
 
   let decision = '';
   let rest = '';

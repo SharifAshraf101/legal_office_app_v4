@@ -9,6 +9,7 @@ import {
   calendarAllItems,
   calendarCaseLine,
   calendarCaseParts,
+  calendarContactName,
   calendarDateValue,
   calendarItemTitle,
   calendarSecondaryLine,
@@ -212,6 +213,7 @@ function WeekView({ focus, items }: { focus: Date; items: ReturnType<typeof cale
                     state.casesArr,
                     state.clients,
                     lang,
+                    calendarContactName(entry.item, lang),
                   );
                   const title =
                     calendarItemTitle(entry.item, lang) ||
@@ -288,6 +290,7 @@ function MonthView({ focus, items }: { focus: Date; items: ReturnType<typeof cal
                   state.casesArr,
                   state.clients,
                   lang,
+                  calendarContactName(entry.item, lang),
                 );
                 const title =
                   calendarItemTitle(entry.item, lang) ||

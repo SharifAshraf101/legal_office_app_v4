@@ -73,6 +73,7 @@ export function eventTypeLabel(type: string, lang: Lang, t: (k: string) => strin
   if (type === 'hearingMeeting') return lang === 'ar' ? 'جلسة/اجتماع' : 'דיון';
   if (type === 'hearing') return t('hearing');
   if (type === 'meeting') return t('meeting');
+  if (type === 'reminder') return t('reminder');
   if (type === 'task') return t('task');
   if (type === 'call') return t('call');
   if (type === 'note') return t('note');
@@ -90,7 +91,11 @@ export function calendarHearingNatureFallback(
   const list = lang === 'ar' ? naturesAr : naturesHe;
   const id = String(item?.id || '');
   const m = id.match(/EV-H-(\d+)/);
-  if (m) return list[(Number(m[1]) - 1) % list.length];
+  if (m) {
+    // Guard against a negative modulo (id "EV-H-0" → (0-1)%n = -1 → undefined).
+    const idx = (((Number(m[1]) - 1) % list.length) + list.length) % list.length;
+    return list[idx];
+  }
   return list[0];
 }
 
@@ -130,6 +135,10 @@ export function calendarSecondaryLine(
 ): string {
   const title = calendarItemTitle(item, lang);
   const type = String(item.type ?? '');
+  // A client-less reminder / meeting shows the contact name as the bold client
+  // line (via calendarContactName), so keep the second line to the event-type
+  // label (the caller's fallback) rather than repeating the name here.
+  if (!item.caseId && (type === 'reminder' || type === 'meeting')) return '';
   if (!['hearing', 'hearingMeeting', 'meeting'].includes(type)) return title;
   const descHe = String((item as CalendarEvent).description ?? '');
   const descAr = String((item as CalendarEvent).descriptionAr ?? '');
@@ -189,11 +198,16 @@ export function calendarCaseParts(
   cases: Case[],
   clients: Client[],
   lang: Lang,
+  /** Name to show as the client when the event has no linked case (e.g. a
+   *  reminder / meeting for a NEW potential client typed by hand). Falls back to
+   *  "ללא לקוח" / "بدون موكل" when empty. */
+  fallbackClient?: string,
 ): { client: string; caseType: string; court: string; caseNumber: string } {
   const c = cases.find((x) => x.id === caseId);
   if (!c) {
+    const fb = (fallbackClient || '').trim();
     return {
-      client: lang === 'ar' ? 'بدون موكل' : 'ללא לקוח',
+      client: fb || (lang === 'ar' ? 'بدون موكل' : 'ללא לקוח'),
       caseType: '-',
       court: '-',
       caseNumber: '-',
@@ -222,6 +236,23 @@ export function calendarCaseLine(
       .filter((p) => p && p !== '-')
       .join(' · ') || fallback
   );
+}
+
+/** For a client-less reminder / client-meeting the person's name (a new
+ *  potential client typed by hand) is carried on the event's description by the
+ *  appointment modal. Returns that name for those event types so the calendar
+ *  can show it as the client line; '' for anything else. */
+export function calendarContactName(
+  item: { type?: string; description?: string; descriptionAr?: string },
+  lang: Lang,
+): string {
+  const type = String(item.type ?? '');
+  if (type !== 'reminder' && type !== 'meeting') return '';
+  return (
+    (lang === 'ar'
+      ? item.descriptionAr || item.description
+      : item.description || item.descriptionAr) || ''
+  ).trim();
 }
 
 /** Source line 4307. */
@@ -289,12 +320,22 @@ export function upcomingAgendaItems(
       date: itemDateForAgenda(e as CalendarEvent & { dueDateTime?: string }) ?? new Date(NaN),
       source: 'event' as const,
     }));
+  // Normalize a due-datetime to a canonical ISO string so the event key and the
+  // timeline-twin key below MATCH for the same task (the timeline side uses
+  // toISOString(); the event side used the raw string, so the two keys never
+  // matched and the task showed TWICE in the agenda). Guarded so an invalid
+  // date can't throw.
+  const normDue = (d?: string): string => {
+    if (!d) return '';
+    const t = new Date(d);
+    return isNaN(t.getTime()) ? d : t.toISOString();
+  };
   const eventTaskKeys = new Set(
     events
       .filter((e) => e.type === 'task')
       .map(
         (e) =>
-          `${e.caseId || ''}|${String(e.title || e.titleAr || '').trim()}|${(e as { dueDateTime?: string }).dueDateTime || ''}`,
+          `${e.caseId || ''}|${String(e.title || e.titleAr || '').trim()}|${normDue((e as { dueDateTime?: string }).dueDateTime)}`,
       ),
   );
   const timelineTaskItems: (CalendarItem & { key: string })[] = timeline
@@ -306,7 +347,7 @@ export function upcomingAgendaItems(
         dateTime?: string;
       };
       const due = ti.dueDateTime || ti.dueDate || ti.dateTime || x.date || '';
-      const normalizedDue = due ? new Date(due).toISOString() : '';
+      const normalizedDue = normDue(due);
       return {
         item: {
           ...x,

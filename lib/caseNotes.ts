@@ -3,7 +3,7 @@ import type { Case, Client, DocumentRecord, Lang, TimelineItem } from '@/types';
 export interface CaseNoteEntry {
   id: string;
   /** Where the note came from — drives the icon in the notes tab. */
-  source: 'note' | 'client' | 'document';
+  source: 'note' | 'client' | 'document' | 'summary';
   /** Bold heading of the note card (e.g. "הערת לקוח" or the doc name). */
   label: string;
   /** Body text of the note. */
@@ -19,7 +19,10 @@ export interface CaseNoteEntry {
  * one, so the case-brain "הערות" tab AND the reply-draft AI see the same set:
  *   • quick-action / timeline notes (type 'note') added in the brain,
  *   • the client's own notes (from the client-details screen),
- *   • the notes typed when a document was uploaded (the document's description).
+ *   • the notes typed when a document was uploaded (the document's description),
+ *   • the AI-generated SUMMARY of each document (summaryHe/summaryAr) — copied
+ *     in so the notes tab shows every document's gist AND the reply-draft AI
+ *     reads it, not only the single document it is drafting a reply for.
  * Newest first. Language-aware (prefers the field matching `lang`).
  */
 export function aggregateCaseNotes(opts: {
@@ -41,6 +44,7 @@ export function aggregateCaseNotes(opts: {
 
   const clientNoteLabel = lang === 'ar' ? 'ملاحظة الموكل' : 'הערת לקוח';
   const docNoteLabel = lang === 'ar' ? 'ملاحظة على مستند' : 'הערה על מסמך';
+  const docSummaryLabel = lang === 'ar' ? 'ملخص المستند' : 'תקציר המסמך';
 
   const entries: CaseNoteEntry[] = [];
 
@@ -87,6 +91,25 @@ export function aggregateCaseNotes(opts: {
       body,
       date: String(d.date || ''),
       text: (name ? name + ': ' : '') + body,
+    });
+  }
+
+  // 4. The AI summary of each document (mirrored onto the row as
+  //    summaryHe/summaryAr from the file_summary table). Copied into the notes
+  //    so the "הערות" tab shows every document's gist and the reply-draft AI
+  //    reads all of them — not only the one document it drafts a reply for.
+  for (const d of documents) {
+    if (String(d.caseId) !== String(caseId)) continue;
+    const body = pick(d.summaryHe, d.summaryAr);
+    if (!body) continue;
+    const name = (d.title || d.fileName || '').trim();
+    entries.push({
+      id: 'doc-summary-' + String(d.id),
+      source: 'summary',
+      label: docSummaryLabel + (name ? ' — ' + name : ''),
+      body,
+      date: String(d.date || ''),
+      text: (name ? name + ' — ' : '') + docSummaryLabel + ': ' + body,
     });
   }
 

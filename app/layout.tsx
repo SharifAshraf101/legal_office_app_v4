@@ -55,6 +55,19 @@ const V155_EARLY_MOBILE_RESIZE_GUARD = `
 export const metadata: Metadata = {
   title: 'Legal Office - Ashraf Sharif',
   description: 'Legal Office Management',
+  // Favicon (browser tab) + iOS home-screen icon. The PWA / Android
+  // launcher icons come from the Next.js manifest (app/manifest.ts).
+  // iOS composites transparent PNGs onto black, so the apple icon uses
+  // the cream-backed variant — same art as the launcher tile.
+  icons: {
+    icon: [
+      { url: '/icons/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/favicon-16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/icons/app-icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    shortcut: ['/icons/favicon-32.png'],
+  },
   // Run chromeless when added to the home screen on iOS Safari
   // (Chrome/Edge/Android picks this up automatically from the
   // Next.js manifest.ts). The black-translucent status bar style

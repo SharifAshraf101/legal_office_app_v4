@@ -32,6 +32,7 @@ const NATURE_AR_MAP: Record<string, string> = {
   'דיון הוכחות': 'جلسة إثباتات',
   'סיכומים בעל פה': 'تلخيصات شفوية',
   'פגישה עם הלקוח': 'اجتماع مع الموكل',
+  'תזכורת': 'تذكير',
 };
 
 const HOURS = Array.from({ length: 24 }, (_, h) => pad(h));
@@ -108,7 +109,16 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
   const [dateStr, setDateStr] = useState(calendarDateValue(initialDate));
   const [hour, setHour] = useState(pad(initialDate.getHours()));
   const [minute, setMinute] = useState(pad(initialDate.getMinutes()));
-  const [nature, setNature] = useState((item ? calendarItemTitle(item, lang) : '') || 'דיון מקדמי');
+  // The canonical nature is stored in `title`; use it directly when it's a known
+  // nature (covers client-less reminders/meetings whose description holds the
+  // contact name — calendarItemTitle would otherwise return that name). Fall
+  // back to calendarItemTitle for AI-imported hearings whose title isn't a nature.
+  const rawTitle = String(item?.title ?? '');
+  const [nature, setNature] = useState(
+    NATURE_AR_MAP[rawTitle]
+      ? rawTitle
+      : (item ? calendarItemTitle(item, lang) : '') || 'דיון מקדמי',
+  );
   const [caseId, setCaseId] = useState(item?.caseId || '');
   const [description, setDescription] = useState(
     lang === 'ar'
@@ -164,6 +174,18 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
       }
       const next = state.eventsList.map((x) => {
         if (String(x.id) !== String(id)) return x;
+        const evType =
+          nature === 'תזכורת'
+            ? 'reminder'
+            : nature === 'פגישה עם הלקוח'
+              ? 'meeting'
+              : 'hearingMeeting';
+        // A client-less reminder/meeting carries the contact NAME on its
+        // description in BOTH languages (there is no case to derive a client
+        // from). Keep the name in descriptionAr too instead of overwriting it
+        // with the nature — otherwise the Arabic view would show the nature
+        // instead of the name after an edit.
+        const contactEvent = !caseId && (evType === 'reminder' || evType === 'meeting');
         const updated: CalendarEvent = {
           ...x,
           caseId,
@@ -171,8 +193,8 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
           title: nature,
           titleAr: natureAr,
           description: desc,
-          descriptionAr: natureAr,
-          type: nature === 'פגישה עם הלקוח' ? 'meeting' : 'hearingMeeting',
+          descriptionAr: contactEvent ? desc : natureAr,
+          type: evType,
         };
         return updated;
       });
@@ -195,6 +217,7 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
     { v: 'דיון הוכחות', he: 'דיון הוכחות', ar: 'جلسة إثباتات' },
     { v: 'סיכומים בעל פה', he: 'סיכומים בעל פה', ar: 'تلخيصات شفوية' },
     { v: 'פגישה עם הלקוח', he: 'פגישה עם הלקוח', ar: 'اجتماع مع الموكل' },
+    { v: 'תזכורת', he: 'תזכורת', ar: 'تذكير' },
   ];
 
   return (

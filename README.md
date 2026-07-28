@@ -36,10 +36,10 @@ Built with **Next.js 16**, **React 18**, **TypeScript**, **Tailwind CSS**, and *
 
 - **Framework:** Next.js 16 (App Router) · React 18 · TypeScript
 - **Styling:** Tailwind CSS · PostCSS · Autoprefixer
-- **Backend:** Supabase (`@supabase/supabase-js`, `@supabase/ssr`)
+- **Backend:** Cloudflare Workers · D1 (SQL) · R2 (storage) — see [worker/](worker/) (migrated off Supabase; v3 kept as rollback)
 - **AI:** Anthropic SDK (`@anthropic-ai/sdk`)
 - **Icons:** Lucide React
-- **Deploy:** Netlify (config in [netlify.toml](netlify.toml))
+- **Deploy:** Vercel (frontend, `vercel --prod`) · Cloudflare Wrangler (worker, `wrangler deploy --config wrangler.v4.toml`)
 
 ---
 

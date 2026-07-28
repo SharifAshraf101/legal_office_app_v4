@@ -99,6 +99,8 @@ export type Action =
   | { type: 'SET_CASES'; cases: Case[] }
   | { type: 'SET_EVENTS'; events: CalendarEvent[] }
   | { type: 'SET_TASKS'; tasks: Task[] }
+  | { type: 'ADD_TASKS'; tasks: Task[] }
+  | { type: 'ADD_EVENTS'; events: CalendarEvent[] }
   | { type: 'SET_FINANCES'; finances: Finance[] }
   | { type: 'SET_DOCUMENTS'; documents: DocumentRecord[] }
   | { type: 'SET_TIMELINE'; timeline: TimelineItem[] };
@@ -155,6 +157,25 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, eventsList: action.events };
     case 'SET_TASKS':
       return { ...state, tasksArr: action.tasks };
+    case 'ADD_TASKS': {
+      // Append-only, RACE-FREE: unlike SET_TASKS (which replaces the whole
+      // array from a possibly-stale snapshot), this composes with the CURRENT
+      // reducer state, so two concurrent auto-imports (decision import +
+      // procedural-deadline + split) can't overwrite each other's new task.
+      // Dedup by id keeps it idempotent.
+      const have = new Set(state.tasksArr.map((t) => String(t.id)));
+      const add = action.tasks.filter((t) => t.id && !have.has(String(t.id)));
+      return add.length
+        ? { ...state, tasksArr: [...state.tasksArr, ...add] }
+        : state;
+    }
+    case 'ADD_EVENTS': {
+      const have = new Set(state.eventsList.map((e) => String(e.id)));
+      const add = action.events.filter((e) => e.id && !have.has(String(e.id)));
+      return add.length
+        ? { ...state, eventsList: [...state.eventsList, ...add] }
+        : state;
+    }
     case 'SET_FINANCES':
       return { ...state, finances: action.finances };
     case 'SET_DOCUMENTS':
@@ -193,6 +214,8 @@ const SAVABLE_ACTION_TYPES = new Set<Action['type']>([
   'SET_CASES',
   'SET_EVENTS',
   'SET_TASKS',
+  'ADD_TASKS',
+  'ADD_EVENTS',
   'SET_FINANCES',
   'SET_DOCUMENTS',
   'SET_TIMELINE',
@@ -485,7 +508,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       }
 
       const result = await legalOfficeLoadFromSupabaseV88({ force: true });
-      if (result.loaded && result.state) {
+      // Mirror the boot guard: do NOT REPLACE_ALL while a local edit is still
+      // un-pushed (the flush above failed, or the user edited during the pull).
+      // Otherwise the pull overwrites the dirty edit and the rescheduled
+      // auto-save pushes the overwritten data back — losing the edit.
+      if (result.loaded && result.state && !dirtyRef.current) {
         dispatch({ type: 'REPLACE_ALL', payload: result.state });
       }
     };
@@ -575,11 +602,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         tasksArr: state.tasksArr,
         deletions: dels,
       }).then((ok) => {
-        dirtyRef.current = false;
-        // Only clear the persisted un-synced marker (and the deletions handed to
-        // this save) when the backend confirmed it; on failure they stay set so
-        // the next reload flushes first.
+        // Only clear the dirty flag AND the persisted marker (and the deletions
+        // handed to this save) when the backend confirmed it. On failure they
+        // ALL stay set so the next poll/reload retries the flush — clearing
+        // dirtyRef here (as before) made the next poll skip the flush and let
+        // REPLACE_ALL wipe the un-pushed edit (silent data loss).
         if (ok) {
+          dirtyRef.current = false;
           lsSet(LS.PENDING_SYNC, '0');
           clearDeletions(dels);
         }
@@ -648,6 +677,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const loadBackup = useCallback((data: Partial<LegalOfficeBackup>) => {
     const applied = applyLegalOfficeData(data);
     dispatch({ type: 'REPLACE_ALL', payload: applied.state });
+    // A restore is a USER-initiated replacement (unlike a REPLACE_ALL from a
+    // server pull), so it MUST be pushed. Mark dirty + persist the un-synced
+    // marker so the auto-save flushes it; without this the next ~30s poll pulls
+    // the old server state and REPLACE_ALL silently reverts the whole restore.
+    // NOTE: the flush upserts (no server-side delete), so records that exist on
+    // the server but not in the backup are merged, not removed.
+    dirtyRef.current = true;
+    lsSet(LS.PENDING_SYNC, '1');
   }, []);
 
   const reloadFromSupabase = useCallback(async () => {

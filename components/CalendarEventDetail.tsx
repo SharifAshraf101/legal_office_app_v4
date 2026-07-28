@@ -5,6 +5,7 @@ import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import {
   calendarCaseParts,
+  calendarContactName,
   calendarLocale,
   calendarSecondaryLine,
   eventTypeLabel,
@@ -62,7 +63,13 @@ export function CalendarEventDetail({ source, id }: CalendarEventDetailProps) {
     ? eventTypeLabel(String(item.type ?? ''), lang, t)
     : secondary;
   const importNote = isImport ? secondary : '';
-  const parts = calendarCaseParts(item.caseId, state.casesArr, state.clients, lang);
+  const parts = calendarCaseParts(
+    item.caseId,
+    state.casesArr,
+    state.clients,
+    lang,
+    calendarContactName(item, lang),
+  );
   const rawDate =
     source === 'task'
       ? (item as TimelineItem & { dueDateTime?: string; dueDate?: string }).dueDateTime ||

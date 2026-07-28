@@ -163,8 +163,16 @@ function normalizeEvent(
 ): CalendarEvent | null {
   const rawType = String(first(r, ['type', 'event_type', 'category'], 'hearingMeeting'));
   const title = String(first(r, ['title', 'name', 'subject'], ''));
-  const lower = (rawType + ' ' + title).toLowerCase();
-  if (['task', 'document', 'note', 'call'].includes(rawType) || /כתב תביעה|מסמך|document|task/.test(lower)) {
+  // Filter out rows that are actually tasks/documents/notes/calls — by their
+  // TYPE only. We must NOT match the free-text TITLE: a legitimate hearing
+  // titled e.g. "דיון בכתב תביעה", or a procedural reminder whose title
+  // mentions "כתב תביעה"/"מסמך", would otherwise be dropped and vanish from the
+  // calendar on every cloud reload.
+  const typeLower = rawType.toLowerCase();
+  if (
+    ['task', 'document', 'note', 'call'].includes(rawType) ||
+    /task|document|note|call/.test(typeLower)
+  ) {
     return null;
   }
   // Canonicalise to UPPER-CASE: case ids are "CS-NNNN" and client ids
@@ -198,7 +206,10 @@ function normalizeEvent(
     dateTime: dt,
     description: String(first(r, ['description', 'notes'], title)),
     descriptionAr: String(first(r, ['description_ar', 'descriptionAr', 'description', 'notes'], title)),
-    type: rawType === 'meeting' ? 'meeting' : 'hearingMeeting',
+    // Preserve 'meeting' and 'reminder' (both are set from the appointment
+    // modal); anything else is a hearing. Collapsing reminder→hearingMeeting
+    // here would drop the type on the first cloud reload.
+    type: rawType === 'meeting' ? 'meeting' : rawType === 'reminder' ? 'reminder' : 'hearingMeeting',
     supabaseId: String(first(r, ['id'], '')),
   };
 }

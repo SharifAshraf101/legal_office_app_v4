@@ -20,7 +20,7 @@ import {
   paymentTypeLabel,
 } from './finance';
 import { money } from './cases';
-import { normalizePhoneForLinks } from './clients';
+import { normalizePhoneForLinks, phonesMatch } from './clients';
 import { LS, lsGet, lsSet } from './storage';
 
 /** Source line 3825. */
@@ -96,9 +96,13 @@ export function portalClientMatchesCredentials(
     idOk &&
       phoneStored &&
       phoneInput &&
+      // `phonesMatch` canonicalizes the Israeli local `0…` vs international
+      // `972…` prefix (the raw endsWith heuristic denied a valid client who
+      // entered "050-…" when the file stored "+972-50-…", or vice versa).
       (phoneStored === phoneInput ||
         phoneStored.endsWith(phoneInput) ||
-        phoneInput.endsWith(phoneStored)),
+        phoneInput.endsWith(phoneStored) ||
+        phonesMatch(c.phone, phone)),
   );
 }
 
@@ -658,7 +662,7 @@ export function portalBotAnswer(
   const asksFee =
     /שכר|כסף|תשלום|תשלומים|שולם|שולמו|חוב|יתרה|יתרת|أتعاب|اتعاب|مال|دفع|دفعة|دفعات|مدفوعات|دَيْن|دين|رصيد|المتبقي|باقي/.test(q);
   const asksDocument = isDocumentQuestion(q);
-  const asksNotes = /הער|מلاحظ|ملاحظة|note|משימה|مهمة|שיחה|مكالمة/.test(q);
+  const asksNotes = /הער|ملاحظ|note|משימה|مهمة|שיחה|مكالمة/.test(q);
   const asksStatus = /סטטוס|מצב|حالة|status|פעיל|نشط|סגור|مغلق/.test(q);
   const asksCourt = /בית משפט|محكمة|court/.test(q);
   const asksNumber = /מספר|رقم|number/.test(q);

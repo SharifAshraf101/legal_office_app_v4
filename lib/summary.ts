@@ -582,6 +582,44 @@ export function isDecisionOrProtocol(
   );
 }
 
+/** True when a court DECISION/PROTOCOL summary sets a deadline to FILE or SUBMIT
+ *  a response / document (a TASK deadline) rather than scheduling an actual court
+ *  HEARING/session the parties must attend. Such a deadline must NOT be filed as
+ *  a calendar "מועד דיון" / hearing — it belongs to the task. Deterministic
+ *  keyword test (Hebrew + Arabic) so it can gate hearing creation AND heal
+ *  already-misfiled hearings without re-querying the model. Returns false when
+ *  the summary clearly SCHEDULES a hearing, so a decision that BOTH sets a
+ *  deadline and schedules a hearing still keeps its hearing. */
+export function decisionDateIsFilingDeadline(summary?: string | null): boolean {
+  const s = (summary || '').trim();
+  if (!s) return false;
+  // An actual scheduled court hearing/session wins — never treat it as a mere
+  // filing deadline.
+  const schedulesHearing =
+    /נקבע[֐-׿\s"']{0,25}(דיון|ישיבה|הוכחות)/.test(s) ||
+    /מועד\s*(ה)?(דיון|ישיבה)/.test(s) ||
+    /(הדיון|הישיבה)\s*(הבא|הבאה|תתקיים|יתקיים)/.test(s) ||
+    /נדח[הת][֐-׿\s"']{0,25}(דיון|ישיבה|מועד)/.test(s) ||
+    /الجلسة\s*(القادمة|المقبلة)/.test(s) ||
+    /موعد\s*(ال)?جلسة/.test(s) ||
+    /(حدد|حُدد|حُدّد|تحديد|تقرر|أجل|أُجل|أجّل|أجّلت|تأجلت|أجلت)[؀-ۿ\s]{0,15}(ال)?جلسة/.test(s) ||
+    /الجلسة\s*(يوم|بتاريخ)/.test(s);
+  if (schedulesHearing) return false;
+  // A deadline to file / submit a response or document → a task deadline.
+  return (
+    /מועד\s*אחרון\s*להג(י)?ש/.test(s) ||
+    /(תוך|בתוך|במשך|בפרק זמן של)\s*\d+\s*(ימים|יום)/.test(s) ||
+    /להג(י)?ש[֐-׿\s"']{0,20}(תגובה|תשובה|כתב|הבהרה|התייחסות|בקשה)/.test(s) ||
+    /(שהות|ארכה|מהלה|מועד)[֐-׿\s"']{0,20}(להגיב|להשיב|להגיש)/.test(s) ||
+    /مهلة[؀-ۿ\s\d]{0,25}لتقديم/.test(s) ||
+    /خلال\s*\d+[؀-ۿ\s]{0,25}لتقديم/.test(s) ||
+    /لتقديم[؀-ۿ\s]{0,20}(رد|جواب|تعقيب|لائحة|بيان|مذكرة)/.test(s) ||
+    /(آخر|أقصى)\s*موعد\s*لتقديم/.test(s) ||
+    /تقديم\s*(تعقيب|رد|جواب|لائحة|مذكرة|بيان)/.test(s) ||
+    /مهلة\s*\d+\s*(يوم|أيام)/.test(s)
+  );
+}
+
 /** Split a court decision/protocol SUMMARY (the one stored in Cloudflare) into
  *  the operative DECISION part, the REST, and any TASK the decision imposes on
  *  the office (action + due date). Returns null on failure (caller shows the

@@ -30,8 +30,13 @@ export function paymentTypeLabel(type: string | undefined, lang: Lang): string {
  *  the door open for a future draft flag without depending on the flag being
  *  restored on load. */
 export function allPaidItemsForCase(caseId: string, finances: Finance[]): Finance[] {
+  // Case-INSENSITIVE id match: the pipeline sometimes writes a payment's caseId
+  // in a different letter-case than the case's own id (e.g. "cs-1010" vs
+  // "CS-1010"). A case-sensitive `===` would silently drop that payment, leaving
+  // the case balance INFLATED (client wrongly told they still owe the fee).
+  const want = String(caseId).toUpperCase();
   return finances
-    .filter((f) => f.caseId === caseId && f.paid !== false)
+    .filter((f) => String(f.caseId).toUpperCase() === want && f.paid !== false)
     .slice()
     .sort(
       (a, b) =>

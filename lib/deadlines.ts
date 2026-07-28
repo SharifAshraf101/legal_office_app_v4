@@ -42,10 +42,16 @@ export interface DeadlineView {
 export function parseDeadlineDays(deadlineText?: string | null): number | null {
   const s = String(deadlineText ?? '');
   if (!s) return null;
-  // Number immediately followed (allowing spaces) by "יום" / "ימים" / "ימי".
-  const m = s.match(/(\d{1,3})\s*(?:ימים|ימי|יום|أيام|يوم|days?)/);
+  // Only DAY-based deadlines: a day unit must appear somewhere. Otherwise it
+  // isn't expressed in days ("פותח את ההליך", "בלא דיחוי", "עד 6 שבועות").
+  if (!/(?:ימים|ימי|יום|أيام|يوم|days?)/.test(s)) return null;
+  // Take the FIRST number in the string. For a list like "45 / 30 / 15 ימים"
+  // this yields 45 (the primary) — the previous regex matched only the number
+  // GLUED to the day-word, which in a slash-list is the LAST one (15), i.e. it
+  // flagged the deadline as overdue up to 30 days early.
+  const m = s.match(/\d{1,3}/);
   if (m) {
-    const n = parseInt(m[1], 10);
+    const n = parseInt(m[0], 10);
     return Number.isFinite(n) && n > 0 ? n : null;
   }
   return null;

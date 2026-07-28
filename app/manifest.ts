@@ -22,15 +22,33 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: 'he',
     dir: 'rtl',
     icons: [
+      // `any` — shown as-is where the platform doesn't mask (e.g. the
+      // install prompt, task switcher). Cream background matches theme_color.
       {
-        src: '/icons/nav-home.png',
+        src: '/icons/app-icon-192.png',
         sizes: '192x192',
         type: 'image/png',
+        purpose: 'any',
       },
       {
-        src: '/icons/nav-home.png',
+        src: '/icons/app-icon-512.png',
         sizes: '512x512',
         type: 'image/png',
+        purpose: 'any',
+      },
+      // `maskable` — Android crops to its device shape (circle/squircle).
+      // The mark is padded into the inner-80% safe zone so nothing clips.
+      {
+        src: '/icons/app-icon-192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+      {
+        src: '/icons/app-icon-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
       },
     ],
   };

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { Lang } from '@/types';
+import type { CalendarEvent, Lang } from '@/types';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -38,6 +38,7 @@ import {
   fetchSuggestedActionDetailed,
   generateSuggestedActionDetailed,
   isDecisionOrProtocol,
+  decisionDateIsFilingDeadline,
   splitDecisionSummary,
   type DecisionInfo,
   type SuggestedActionDetail,
@@ -224,9 +225,8 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
       ) {
         rememberDecisionImportKey(decisionImportKeys, taskKey);
         dispatch({
-          type: 'SET_TASKS',
+          type: 'ADD_TASKS',
           tasks: [
-            ...tasksRef.current,
             {
               id: 'TASK-' + String(Date.now()),
               title: desc,
@@ -259,9 +259,8 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
         if (hearingIso && !decisionImportKeys.has(hearingKey) && !hearingExists) {
           rememberDecisionImportKey(decisionImportKeys, hearingKey);
           dispatch({
-            type: 'SET_EVENTS',
+            type: 'ADD_EVENTS',
             events: [
-              ...eventsRef.current,
               {
                 id: 'EV-' + String(Date.now() + 1),
                 caseId,
@@ -1679,13 +1678,15 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         if (!decisionImportKeys.has(taskKey) && !exists) {
           rememberDecisionImportKey(decisionImportKeys, taskKey);
           dispatch({
-            type: 'SET_TASKS',
+            type: 'ADD_TASKS',
             tasks: [
-              ...tasksRef.current,
               {
-                // Stable id per case-decision so it's idempotent with the
-                // server-side batch (same source_id → upsert, never duplicated).
-                id: 'TASK-DEC-' + caseId,
+                // Stable id per case + DECISION DOCUMENT so it's idempotent with
+                // the server-side batch (same source_id → upsert, never
+                // duplicated) — keyed on the document, not just the case, so a
+                // SECOND decision in the same case gets its own id instead of
+                // colliding with the first (which produced a duplicate-id task).
+                id: 'TASK-DEC-' + caseId + '-' + primary.id,
                 title,
                 caseId,
                 clientId,
@@ -1705,8 +1706,38 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       //     AI-imported. Deduped by day against existing hearings + the
       //     persisted import keys (shared with the /api/decision importer so
       //     the two paths never double-file the same hearing).
+      //
+      //     BUT a decision that only sets a DEADLINE to file a response is a
+      //     TASK deadline, NOT a hearing — never file it as "מועד דיון". When the
+      //     summary is such a filing deadline we (a) don't create a hearing, and
+      //     (b) HEAL the case: remove any hearing a previous run (or the
+      //     /api/decision importer) wrongly filed from this decision.
+      const filingDeadline = decisionDateIsFilingDeadline(docSummary);
       const hearingDay = (split.hearingDate || '').slice(0, 10);
-      if (/^\d{4}-\d{2}-\d{2}$/.test(hearingDay)) {
+      if (filingDeadline) {
+        const evDecId = 'EV-DEC-' + caseId;
+        const dupDays = new Set(
+          [hearingDay, (split.taskDueDate || '').slice(0, 10)].filter((d) =>
+            /^\d{4}-\d{2}-\d{2}$/.test(d),
+          ),
+        );
+        const isMisfiledHearing = (e: CalendarEvent) =>
+          String(e.caseId) === String(caseId) &&
+          String(e.type).toLowerCase().startsWith('hearing') &&
+          // This path's own event is always from THIS (latest) decision, so it's
+          // safe to drop; the importer's is matched by its decision-import note
+          // on the deadline day only, so unrelated hearings are never touched.
+          (String(e.id) === evDecId ||
+            (dupDays.has(String(e.dateTime).slice(0, 10)) &&
+              (e.description === HEARING_FROM_DECISION_HE ||
+                e.descriptionAr === HEARING_FROM_DECISION_AR)));
+        if (eventsRef.current.some(isMisfiledHearing)) {
+          dispatch({
+            type: 'SET_EVENTS',
+            events: eventsRef.current.filter((e) => !isMisfiledHearing(e)),
+          });
+        }
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(hearingDay)) {
         const time = /^\d{2}:\d{2}$/.test(split.hearingTime)
           ? split.hearingTime
           : '09:00';
@@ -1722,11 +1753,10 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         if (hearingIso && !decisionImportKeys.has(hearingKey) && !hearingExists) {
           rememberDecisionImportKey(decisionImportKeys, hearingKey);
           dispatch({
-            type: 'SET_EVENTS',
+            type: 'ADD_EVENTS',
             events: [
-              ...eventsRef.current,
               {
-                id: 'EV-DEC-' + caseId,
+                id: 'EV-DEC-' + caseId + '-' + primary.id,
                 caseId,
                 clientId,
                 client_source_id: clientId,
@@ -2135,9 +2165,8 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
             ? 'urgent'
             : 'normal';
       dispatch({
-        type: 'SET_TASKS',
+        type: 'ADD_TASKS',
         tasks: [
-          ...tasksRef.current,
           {
             id: 'TASK-' + String(Date.now()),
             title,
@@ -2169,9 +2198,8 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       if (iso && !decisionImportKeys.has(evKey) && !evExists) {
         rememberDecisionImportKey(decisionImportKeys, evKey);
         dispatch({
-          type: 'SET_EVENTS',
+          type: 'ADD_EVENTS',
           events: [
-            ...eventsRef.current,
             {
               id: 'EV-' + String(Date.now() + 1),
               caseId,
@@ -3259,7 +3287,9 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                           ? 'fa-user tw-text-emerald-500'
                           : n.source === 'document'
                             ? 'fa-file-lines tw-text-purple-500'
-                            : 'fa-comment-alt tw-text-blue-500';
+                            : n.source === 'summary'
+                              ? 'fa-align-left tw-text-teal-500'
+                              : 'fa-comment-alt tw-text-blue-500';
                       return (
                         <li
                           key={n.id}

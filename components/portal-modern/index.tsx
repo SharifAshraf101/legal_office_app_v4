@@ -1080,6 +1080,10 @@ type ChatMessage = {
   type: 'text' | 'file' | 'image' | 'voice' | 'bot-help';
   text: string;
   time: string;
+  /** True for an OPTIMISTIC outgoing bubble added on send, before its D1 twin
+   *  is polled back. The poll merge reconciles it (adopts the D1 id) instead of
+   *  appending a duplicate. Cleared once reconciled. */
+  pending?: boolean;
   /** When the client uploads a real file to the chat (vs. a sample
    *  message with only a name), we keep the File object on the
    *  message so the "add document" flow can pre-attach the actual
@@ -1177,10 +1181,27 @@ function ClientChatScreen({
           const seen = new Set(prev.map((msg) => msg.id));
           const merged = [...prev];
           msgs.forEach((msg: ChatMessage) => {
-            if (!seen.has(msg.id)) {
-              merged.push(msg);
-              seen.add(msg.id);
+            if (seen.has(msg.id)) return;
+            // Reconcile an optimistic OUTGOING bubble (added on send with a
+            // Date.now() id) with its now-persisted D1 twin, so a sent message
+            // doesn't render TWICE. Match the first still-pending office bubble
+            // of the same type+text and adopt the D1 id instead of appending.
+            if (msg.side === 'office') {
+              const idx = merged.findIndex(
+                (m) =>
+                  m.pending &&
+                  m.side === 'office' &&
+                  m.type === msg.type &&
+                  m.text === msg.text,
+              );
+              if (idx !== -1) {
+                merged[idx] = { ...merged[idx], ...msg, pending: false };
+                seen.add(msg.id);
+                return;
+              }
             }
+            merged.push(msg);
+            seen.add(msg.id);
           });
           return merged;
         });
@@ -1345,6 +1366,7 @@ function ClientChatScreen({
       ...prev,
       {
         id: Date.now(),
+        pending: true,
         side: 'office',
         type: 'file',
         text: fileName,
@@ -1448,6 +1470,7 @@ function ClientChatScreen({
     ...prev,
     {
       id: Date.now(),
+      pending: true,
       side: 'office',
       type: 'text',
       text,
@@ -1479,6 +1502,7 @@ function ClientChatScreen({
       ...prev,
       {
         id: Date.now(),
+        pending: true,
         side: 'office',
         type: 'file',
         text: file.name,
@@ -1499,6 +1523,7 @@ function ClientChatScreen({
       ...prev,
       {
         id: Date.now(),
+        pending: true,
         side: 'office',
         type: 'voice',
         text: `${mm}:${ss}`,

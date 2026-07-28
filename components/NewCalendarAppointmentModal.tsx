@@ -25,6 +25,7 @@ const NATURE_AR_MAP: Record<string, string> = {
   'דיון הוכחות': 'جلسة إثباتات',
   'סיכומים בעל פה': 'تلخيصات شفوية',
   'פגישה עם הלקוח': 'اجتماع مع الموكل',
+  'תזכורת': 'تذكير',
 };
 
 function nextEventId(events: CalendarEvent[]): string {
@@ -88,20 +89,38 @@ export function NewCalendarAppointmentModal() {
     setSelectedCaseId(first?.id ?? '');
   };
 
+  // A reminder or a client-meeting may be for a NEW potential client — so the
+  // client needn't be chosen from the list and no case is required. Hearings
+  // stay strict (an existing client + a linked case).
+  const allowFreeClient = nature === 'תזכורת' || nature === 'פגישה עם הלקוח';
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!selectedClientId) {
-      window.alert(
-        lang === 'ar' ? 'يجب اختيار موكل من القائمة' : 'יש לבחור לקוח מהרשימה',
-      );
-      return;
-    }
-    if (!selectedCaseId) {
-      window.alert(
-        lang === 'ar'
-          ? 'يجب اختيار نوع الدعوى المرتبطة'
-          : 'יש לבחור את סוג התביעה הקשורה ללקוח',
-      );
+    const typedName = clientQuery.trim();
+    const selectedClient = state.clients.find((c) => c.id === selectedClientId);
+    // Who the appointment is for: the chosen client's name PER LANGUAGE, or the
+    // free-typed name (a potential client not yet in the system — identical in
+    // both languages). Stored on the event so Hebrew and Arabic both show it.
+    const contactHe = selectedClient ? clientDisplayName(selectedClient, 'he') : typedName;
+    const contactAr = selectedClient ? clientDisplayName(selectedClient, 'ar') : typedName;
+    if (!allowFreeClient) {
+      if (!selectedClientId) {
+        window.alert(
+          lang === 'ar' ? 'يجب اختيار موكل من القائمة' : 'יש לבחור לקוח מהרשימה',
+        );
+        return;
+      }
+      if (!selectedCaseId) {
+        window.alert(
+          lang === 'ar'
+            ? 'يجب اختيار نوع الدعوى المرتبطة'
+            : 'יש לבחור את סוג התביעה הקשורה ללקוח',
+        );
+        return;
+      }
+    } else if (!selectedClientId && !typedName) {
+      // Reminder / meeting still needs SOMEONE — but a free-typed name is fine.
+      window.alert(lang === 'ar' ? 'أدخل اسم الموكل' : 'יש להזין שם לקוח');
       return;
     }
     const dtStr = composeDateTime(dateStr, hour, minute);
@@ -119,7 +138,16 @@ export function NewCalendarAppointmentModal() {
       if (!proceed) return;
     }
     const natureAr = NATURE_AR_MAP[nature] || nature;
-    const type = nature === 'פגישה עם הלקוח' ? 'meeting' : 'hearingMeeting';
+    const type =
+      nature === 'תזכורת'
+        ? 'reminder'
+        : nature === 'פגישה עם הלקוח'
+          ? 'meeting'
+          : 'hearingMeeting';
+    // With no linked case the calendar can't derive a client line from a case,
+    // so carry the person's name on the event's description — calendarCaseParts
+    // renders it as the client line (see its fallbackClient parameter).
+    const noCase = !selectedCaseId;
     const ev: CalendarEvent = {
       id: nextEventId(state.eventsList),
       caseId: selectedCaseId,
@@ -129,8 +157,8 @@ export function NewCalendarAppointmentModal() {
       title: nature,
       titleAr: natureAr,
       dateTime: newIso,
-      description: nature,
-      descriptionAr: natureAr,
+      description: noCase ? contactHe || nature : nature,
+      descriptionAr: noCase ? contactAr || natureAr : natureAr,
       type,
     };
     dispatch({ type: 'SET_EVENTS', events: [...state.eventsList, ev] });
@@ -271,6 +299,7 @@ export function NewCalendarAppointmentModal() {
             <option value="דיון הוכחות">דיון הוכחות</option>
             <option value="סיכומים בעל פה">סיכומים בעל פה</option>
             <option value="פגישה עם הלקוח">פגישה עם הלקוח</option>
+            <option value="תזכורת">{lang === 'ar' ? 'تذكير' : 'תזכורת'}</option>
           </select>
         </div>
 
@@ -325,7 +354,7 @@ export function NewCalendarAppointmentModal() {
           <label>{caseTypeLabel}</label>
           <select
             id="appointmentCaseInput"
-            required
+            required={!allowFreeClient}
             value={selectedCaseId}
             onChange={(e) => setSelectedCaseId(e.target.value)}
           >

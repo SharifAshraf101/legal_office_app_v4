@@ -6,6 +6,7 @@ import { useT } from '@/hooks/useT';
 import {
   calendarCaseLine,
   calendarCaseParts,
+  calendarContactName,
   calendarLocale,
   calendarSecondaryLine,
   eventTypeLabel,
@@ -36,7 +37,13 @@ export function CalendarAgendaRow({ entry }: { entry: CalendarItem }) {
     minute: '2-digit',
   });
 
-  const parts = calendarCaseParts(item.caseId, state.casesArr, state.clients, lang);
+  const parts = calendarCaseParts(
+    item.caseId,
+    state.casesArr,
+    state.clients,
+    lang,
+    calendarContactName(item, lang),
+  );
 
   // ALWAYS show the CASE DETAILS (client · case type · court · case number) as
   // the bold first line for every event, and the event nature / AI-import note
