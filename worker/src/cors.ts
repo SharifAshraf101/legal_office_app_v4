@@ -15,6 +15,9 @@ export function corsHeaders(request: Request, env: Env): Record<string, string> 
   const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+    // Better Auth signs sessions into cookies, so browser auth calls run with
+    // credentials — which requires a specific origin (never '*') + this header.
+    'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
   };

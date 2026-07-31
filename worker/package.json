@@ -7,6 +7,9 @@
     "deploy": "wrangler deploy",
     "schema": "wrangler d1 execute legal-office-v3 --remote --file=schema.sql"
   },
+  "dependencies": {
+    "better-auth": "^1.5.0"
+  },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250601.0",
     "typescript": "5.4.5",

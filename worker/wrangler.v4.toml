@@ -12,12 +12,21 @@
 name = "legal-office-api-v4"
 main = "src/index.ts"
 compatibility_date = "2025-06-01"
+# Better Auth (control-plane accounts/sessions) needs Node built-ins on the Worker.
+compatibility_flags = ["nodejs_compat"]
 
 # --- D1 database (relational data) — v4 clone ---
 [[d1_databases]]
 binding = "DB"
 database_name = "legal-office-v4"
 database_id = "18463aa2-b472-48a3-9169-8983c5cd3d54"
+
+# --- D1 database (CONTROL plane: accounts, sessions, office registry) ---
+# Phase 1. SEPARATE from office case data.
+[[d1_databases]]
+binding = "CONTROL_DB"
+database_name = "legal-office-control"
+database_id = "6cff26dc-bfb0-49ef-a1ec-531b17c35cfb"
 
 # --- R2 bucket (client photos) — v4 ---
 [[r2_buckets]]
@@ -31,6 +40,13 @@ USER_ID = "c0307382-5fd2-4a2b-88df-40b22bb9ad26"
 # Fresh token for the v4 stack (kept separate from v3). The app (.env.local)
 # and the make.com scenarios must send THIS token to the v4 Worker.
 APP_TOKEN = "ecd403f741827b30fcd7018ebaf5bc8fdf87b974b30ce8af"
+
+# --- Multi-tenant control plane (Phase 1) ---
+# AUTH_BASE_URL is optional — Better Auth infers it from the request if unset.
+# The two secrets below are NOT stored here; set them once:
+#   npx wrangler secret put BETTER_AUTH_SECRET -c wrangler.v4.toml
+#   npx wrangler secret put ADMIN_TOKEN        -c wrangler.v4.toml
+# AUTH_BASE_URL = "https://legal-office-api-v4.<your-subdomain>.workers.dev"
 
 # --- Server-side Dropbox (for GET /api/document) --------------------------
 # Lets a CLIENT device with no Dropbox connection of its own download a filing

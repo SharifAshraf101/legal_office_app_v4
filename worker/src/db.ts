@@ -22,6 +22,16 @@ export interface Env {
   DROPBOX_APP_KEY?: string;
   DROPBOX_REFRESH_TOKEN?: string;
   DROPBOX_BASE_FOLDER?: string;
+
+  // ── Multi-tenant control plane (Phase 1) ──────────────────────────────────
+  // A SEPARATE D1 that holds ONLY the SaaS registry — accounts + sessions
+  // (Better Auth) and the office/membership tables — never an office's case
+  // data. Added alongside the single-office path (DB / USER_ID / APP_TOKEN),
+  // which is left untouched.
+  CONTROL_DB: D1Database;
+  BETTER_AUTH_SECRET: string; // session-signing secret (set via wrangler secret)
+  AUTH_BASE_URL?: string;     // the Worker's public URL (auth links/cookies)
+  ADMIN_TOKEN?: string;       // gates /api/admin/* (migrate, list, approve)
 }
 
 // The tables read by /api/load and written by /api/save, in the SAME key order

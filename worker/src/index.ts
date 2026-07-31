@@ -19,12 +19,20 @@
 import { corsHeaders, json, preflight } from './cors';
 import { buildUpsert, LOAD_TABLES, safeParse, type Env } from './db';
 import { resolveTenant, type Ctx } from './tenant';
+import { createAuth, runAuthMigrations } from './auth';
 import { AR_GLOSSARY } from './arabicGlossary';
 
 // The office's own registered lawyer. Used to decide whether an incoming
 // document was authored by US (no draft needed) vs. the other side / court.
 // Overridable per-request via the `lawyer_name` body field.
 const DEFAULT_LAWYER_NAME = 'أشرف شريف / אשרף שריף / Ashraf Sharif';
+
+/** Gate for /api/admin/* — a separate operator token, NOT the app token. */
+function adminOk(request: Request, env: Env): boolean {
+  const hdr = request.headers.get('Authorization') || '';
+  const token = hdr.startsWith('Bearer ') ? hdr.slice(7).trim() : '';
+  return !!env.ADMIN_TOKEN && token === env.ADMIN_TOKEN;
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -41,6 +49,50 @@ export default {
     }
     if (method === 'GET' && path.startsWith('/api/photo/')) {
       return servePhoto(env, path.slice('/api/photo/'.length));
+    }
+
+    // ----- multi-tenant control plane (additive; the single-office data path
+    //       below is UNTOUCHED). Better Auth owns /api/auth/*; office-registry
+    //       admin ops live under /api/admin/*, gated by ADMIN_TOKEN. -----
+    if (path === '/api/auth' || path.startsWith('/api/auth/')) {
+      const res = await createAuth(env).handler(request);
+      // Re-attach CORS so the browser (Vercel) can read auth responses.
+      const headers = new Headers(res.headers);
+      for (const [k, v] of Object.entries(corsHeaders(request, env))) {
+        headers.set(k, v);
+      }
+      return new Response(res.body, {
+        status: res.status,
+        statusText: res.statusText,
+        headers,
+      });
+    }
+    if (path.startsWith('/api/admin/')) {
+      if (!adminOk(request, env)) {
+        return json({ error: 'unauthorized' }, request, env, 401);
+      }
+      if (method === 'POST' && path === '/api/admin/migrate') {
+        await runAuthMigrations(env);
+        return json({ ok: true, migrated: true }, request, env);
+      }
+      if (method === 'GET' && path === '/api/admin/offices') {
+        const rs = await env.CONTROL_DB.prepare(
+          'SELECT * FROM tenant ORDER BY created_at DESC',
+        ).all();
+        return json({ offices: rs.results ?? [] }, request, env);
+      }
+      if (method === 'POST' && path === '/api/admin/approve') {
+        const body = (await request.json().catch(() => ({}))) as { tenantId?: string };
+        const tenantId = String(body.tenantId || '');
+        if (!tenantId) return json({ error: 'tenantId required' }, request, env, 400);
+        await env.CONTROL_DB.prepare(
+          `UPDATE tenant SET status = 'active', approved_at = ?2 WHERE id = ?1`,
+        )
+          .bind(tenantId, new Date().toISOString())
+          .run();
+        return json({ ok: true }, request, env);
+      }
+      return json({ error: 'not found' }, request, env, 404);
     }
 
     // ----- everything below requires a shared token -----
