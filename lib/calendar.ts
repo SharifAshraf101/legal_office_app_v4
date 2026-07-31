@@ -1,13 +1,20 @@
 // Calendar helpers. Ports of source 4067-4106 + 4307-4310. Names preserved so ver 3sion of calendar modals can read directly from source without needing to import this module.
 // porting the calendar modals in Stage 4b-4 reads directly from the source.
 
-import { calendarDateValue, sameCalendarDay, formatDMY, formatDMYTime } from './dates';
+import {
+  calendarDateValue,
+  sameCalendarDay,
+  formatDMY,
+  formatDMYTime,
+  officeDateTimeToIso,
+} from './dates';
 import { caseName, clientName } from './cases';
 import type {
   CalendarEvent,
   Case,
   Client,
   Lang,
+  Task,
   TimelineItem,
 } from '@/types';
 
@@ -311,10 +318,22 @@ export function calendarAllItems(
 export function upcomingAgendaItems(
   events: CalendarEvent[],
   timeline: TimelineItem[],
+  tasks: Task[] = [],
 ): CalendarItem[] {
-  const now = new Date();
+  // "From today onward": anchor to the START of today (local day), so an
+  // appointment or task earlier TODAY still shows. Comparing against the
+  // current instant dropped anything already passed today. Mirrors the
+  // calendar list view's `startOfToday` filter.
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  // Every calendar appointment type — including 'reminder' (תזכורת), which was
+  // previously omitted so calendar reminders never reached this agenda.
   const eventItems: CalendarItem[] = events
-    .filter((e) => ['hearingMeeting', 'hearing', 'meeting', 'task'].includes(String(e.type ?? '')))
+    .filter((e) =>
+      ['hearingMeeting', 'hearing', 'meeting', 'reminder', 'task'].includes(
+        String(e.type ?? ''),
+      ),
+    )
     .map((e) => ({
       item: e,
       date: itemDateForAgenda(e as CalendarEvent & { dueDateTime?: string }) ?? new Date(NaN),
@@ -362,8 +381,62 @@ export function upcomingAgendaItems(
       };
     })
     .filter((x) => !eventTaskKeys.has(x.key));
-  return [...eventItems, ...timelineTaskItems]
-    .filter((x) => x.date && !isNaN(x.date.getTime()) && x.date >= now)
+
+  // Tasks straight from the canonical tasks list (state.tasksArr) — the Tasks
+  // screen's own source. A task created directly into tasksArr doesn't always
+  // have a timeline twin or a calendar-event twin, so it never reached this
+  // agenda before (the bug: a task shown on the Tasks screen was missing here).
+  // Include every OPEN task, de-duplicated against the task/reminder items
+  // already collected above: a procedural-deadline task ALSO spawns a
+  // "מועד דיוני: <title>" reminder event (same case, same day, same core
+  // title) — so keyed on (caseId, core-title, day) it must not appear twice.
+  const coreTitle = (s?: string): string =>
+    String(s || '')
+      .replace(/^\s*מועד דיוני:\s*/, '')
+      .replace(/^\s*موعد إجرائي:\s*/, '')
+      .trim();
+  const dayKey = (d: Date, caseId?: string, title?: string): string =>
+    `${caseId || ''}|${coreTitle(title)}|${
+      isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
+    }`;
+  const isTaskish = (type?: string): boolean =>
+    type === 'task' || type === 'reminder';
+  const seenTaskKeys = new Set<string>(
+    [
+      ...eventItems.filter((x) => isTaskish(String(x.item.type ?? ''))),
+      ...timelineTaskItems,
+    ].map((x) => {
+      const it = x.item as CalendarEvent & { titleAr?: string };
+      return dayKey(x.date, it.caseId, it.title || it.titleAr);
+    }),
+  );
+  const arrTaskItems: CalendarItem[] = (tasks || [])
+    .filter((tk) => tk.status !== 'done' && !!tk.dueDate)
+    .map((tk) => {
+      // Anchor to 09:00 office time (Asia/Jerusalem), matching how deadline
+      // reminders are filed, so the row shows a sensible time on any device.
+      const iso = officeDateTimeToIso(String(tk.dueDate), '09', '00') || String(tk.dueDate);
+      return {
+        item: {
+          ...tk,
+          type: 'task',
+          dateTime: iso,
+          dueDateTime: iso,
+        } as CalendarEvent & { dueDateTime?: string },
+        date: new Date(iso),
+        source: 'task' as const,
+      };
+    })
+    .filter((x) => {
+      const it = x.item as CalendarEvent;
+      const k = dayKey(x.date, it.caseId, it.title);
+      if (seenTaskKeys.has(k)) return false;
+      seenTaskKeys.add(k);
+      return true;
+    });
+
+  return [...eventItems, ...timelineTaskItems, ...arrTaskItems]
+    .filter((x) => x.date && !isNaN(x.date.getTime()) && x.date >= startOfToday)
     .sort((a, b) => a.date.getTime() - b.date.getTime())
     .slice(0, 40);
 }

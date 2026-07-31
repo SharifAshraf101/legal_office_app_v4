@@ -29,7 +29,11 @@ export function UpcomingAgendaModal() {
 
   const close = () => modalStack.close(modalStack.topId() ?? 0);
 
-  const items = upcomingAgendaItems(state.eventsList, state.timelineItems);
+  const items = upcomingAgendaItems(
+    state.eventsList,
+    state.timelineItems,
+    state.tasksArr,
+  );
   const counts: Record<string, number> = {};
   const clientsAtTime: Record<string, Set<string>> = {};
   items.forEach((x, i) => {
@@ -53,8 +57,16 @@ export function UpcomingAgendaModal() {
       : 'אין מועדים או משימות קרובים להצגה';
 
   const backLabel = lang === 'ar' ? 'رجوع' : 'חזרה';
+  // "Task to do" — shown as the type label for task rows instead of a
+  // hearing/appointment label.
+  const taskDoLabel = lang === 'ar' ? 'مهمة للتنفيذ' : 'משימה לביצוע';
   return (
-    <Modal onClose={close} className="upcoming-agenda-modal" hideBackBtn={true}>
+    <Modal
+      onClose={close}
+      className="upcoming-agenda-modal"
+      hideCloseX
+      hideBackBtn={true}
+    >
       <button
         type="button"
         className="case-detail-back-btn"
@@ -65,7 +77,10 @@ export function UpcomingAgendaModal() {
         <i className="fas fa-arrow-left" />
         <span>{backLabel}</span>
       </button>
-      <h2>{title}</h2>
+      {/* Centered title; side padding keeps it clear of the back button. */}
+      <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>
+        {title}
+      </h2>
       <p className="sub">{subtitle}</p>
       <div className="agenda-modal-list">
         {items.length === 0 ? (
@@ -94,6 +109,22 @@ export function UpcomingAgendaModal() {
             const conflict = counts[timeKey] > 1;
             const sameClient = conflict && clientsAtTime[timeKey]?.size === 1;
             const isTask = entry.item.type === 'task';
+            // Reminders and tasks are action items, not appointments — show them
+            // as "משימה לביצוע" (task to do) instead of a hearing/appointment
+            // title such as the AI-imported "מועד דיון".
+            const isTaskOrReminder = isTask || entry.item.type === 'reminder';
+            // Lead the row with "משימה לביצוע" but KEEP the item's own content.
+            // Procedural-deadline reminders are titled "מועד דיוני: <content>"
+            // (Arabic "موعد إجرائي: <content>") — strip just that prefix so the
+            // reminder/task content survives next to the label.
+            const taskContent = String(titleText || '')
+              .replace(/^\s*מועד דיוני:\s*/, '')
+              .replace(/^\s*موعد إجرائي:\s*/, '')
+              .trim();
+            const taskDoText =
+              taskContent && taskContent !== taskDoLabel
+                ? `${taskDoLabel}: ${taskContent}`
+                : taskDoLabel;
             return (
               <div
                 key={i}
@@ -109,12 +140,19 @@ export function UpcomingAgendaModal() {
                     <span
                       className={
                         'upcoming-agenda-icon-wrap ' +
-                        (isTask ? 'upcoming-agenda-task-icon' : 'upcoming-agenda-calendar-icon')
+                        (isTaskOrReminder
+                          ? 'upcoming-agenda-task-icon'
+                          : 'upcoming-agenda-calendar-icon')
                       }
                     >
-                      <i className={'fas ' + (isTask ? 'fa-list-check' : 'fa-calendar-check')} />
+                      <i
+                        className={
+                          'fas ' +
+                          (isTaskOrReminder ? 'fa-list-check' : 'fa-calendar-check')
+                        }
+                      />
                     </span>{' '}
-                    {titleText}
+                    {isTaskOrReminder ? taskDoText : titleText}
                     {conflict && (
                       <span className="agenda-conflict-badge">
                         <i className="fas fa-triangle-exclamation" />

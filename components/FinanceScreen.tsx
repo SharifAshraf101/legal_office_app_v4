@@ -29,6 +29,11 @@ export function FinanceScreen() {
       : 'ניתן לחפש לפי פרטי הלקוח גם אם אינם מוצגים בטבלה.';
   const searchLabel = lang === 'ar' ? 'بحث في الأتعاب' : 'חיפוש בשכר טרחה';
   const noPay = lang === 'ar' ? 'لا يوجد' : 'אין';
+  // Displayed value for a zero balance ("₪0"). A fully-paid case has no debt,
+  // so its balance is shown in neutral black instead of the red used for
+  // outstanding fees — matched on the rendered string so float residue that
+  // still prints as "₪0" counts as zero.
+  const zeroBalanceText = money(0);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -124,6 +129,8 @@ export function FinanceScreen() {
               {filtered.map((c) => {
                 const paidItems = financePaidItemsForCase(c.id, state.finances);
                 const last = paidItems[0];
+                const balanceText = money(financeCaseBalance(c, state.finances));
+                const balanceZero = balanceText === zeroBalanceText;
                 return (
                   <tr
                     key={c.id}
@@ -159,8 +166,13 @@ export function FinanceScreen() {
                         noPay
                       )}
                     </td>
-                    <td className="finance-balance-red">
-                      {money(financeCaseBalance(c, state.finances))}
+                    <td
+                      className={
+                        'finance-balance-red' +
+                        (balanceZero ? ' finance-balance-zero' : '')
+                      }
+                    >
+                      {balanceText}
                     </td>
                   </tr>
                 );

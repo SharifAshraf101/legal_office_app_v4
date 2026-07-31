@@ -9,7 +9,8 @@ import { useConflictConfirm } from '@/hooks/useConflictConfirm';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { caseName, clientName } from '@/lib/cases';
 import { removeTaskEverywhere } from '@/lib/tasks';
-import { calendarDateValue } from '@/lib/dates';
+import { rememberDismissedEventId } from '@/lib/dismissedEvents';
+import { officeInputParts, officeDateTimeToIso } from '@/lib/dates';
 import { pad } from '@/lib/utils';
 import { Modal } from './Modal';
 import { CalendarEventDetail } from './CalendarEventDetail';
@@ -36,7 +37,8 @@ const NATURE_AR_MAP: Record<string, string> = {
 };
 
 const HOURS = Array.from({ length: 24 }, (_, h) => pad(h));
-const MINUTES = Array.from({ length: 60 }, (_, m) => pad(m));
+// Quarter-hour steps, matching the "new appointment" modal (minuteOptions).
+const MINUTE_STEPS = ['00', '15', '30', '45'];
 
 export interface CalendarEventEditProps {
   source: 'event' | 'task';
@@ -62,6 +64,10 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
     );
     if (!ok) return;
     if (source === 'event') {
+      // Tombstone the event so it can't resurrect (a lingering D1 row that
+      // outlives the delete/poll race, or a make.com re-import) — it's filtered
+      // out on every subsequent load. See lib/dismissedEvents.ts.
+      rememberDismissedEventId(String(id));
       dispatch({
         type: 'SET_EVENTS',
         events: state.eventsList.filter((e) => String(e.id) !== String(id)),
@@ -105,10 +111,20 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
         (item as TimelineItem).date
       : (item as CalendarEvent).dateTime || (item as CalendarEvent & { date?: string }).date;
   const initialDate = initialRaw ? new Date(initialRaw) : new Date();
+  // Pre-fill the date/hour/minute inputs with the event's OFFICE-time wall clock
+  // (Asia/Jerusalem), not the viewing machine's, so editing on any device shows
+  // — and keeps — the real Israel hearing time.
+  const initialParts = officeInputParts(initialDate);
+  // Offer the four quarter-hour steps, but keep the event's real minute as an
+  // extra option when it's off-grid (e.g. an AI-imported :23) so opening the
+  // edit form never silently snaps — and loses — the stored hearing time.
+  const minuteChoices = MINUTE_STEPS.includes(initialParts.minute)
+    ? MINUTE_STEPS
+    : [...MINUTE_STEPS, initialParts.minute].sort();
 
-  const [dateStr, setDateStr] = useState(calendarDateValue(initialDate));
-  const [hour, setHour] = useState(pad(initialDate.getHours()));
-  const [minute, setMinute] = useState(pad(initialDate.getMinutes()));
+  const [dateStr, setDateStr] = useState(initialParts.date);
+  const [hour, setHour] = useState(initialParts.hour);
+  const [minute, setMinute] = useState(initialParts.minute);
   // The canonical nature is stored in `title`; use it directly when it's a known
   // nature (covers client-less reminders/meetings whose description holds the
   // contact name — calendarItemTitle would otherwise return that name). Fall
@@ -136,14 +152,13 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const composed = new Date(`${dateStr}T${hour}:${minute}:00`);
-    if (!dateStr || isNaN(composed.getTime())) {
+    const iso = officeDateTimeToIso(dateStr, hour, minute);
+    if (!dateStr || !iso) {
       window.alert(lang === 'ar' ? 'أدخل تاريخاً صحيحاً' : 'יש להזין תאריך תקין');
       return;
     }
     const desc = description.trim() || nature;
     const natureAr = NATURE_AR_MAP[nature] || nature;
-    const iso = composed.toISOString();
 
     if (source === 'task') {
       const next = state.timelineItems.map((x) => {
@@ -201,12 +216,14 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
       dispatch({ type: 'SET_EVENTS', events: next });
     }
 
-    dispatch({ type: 'SET_CALENDAR_FOCUS', date: composed });
+    dispatch({ type: 'SET_CALENDAR_FOCUS', date: new Date(iso) });
     backToDetail();
   };
 
   const title = lang === 'ar' ? 'تفاصيل الموعد' : 'פרטי יומן';
   const natureLabel = lang === 'ar' ? 'ماهية الموعد' : 'מהות המועד';
+  // Same shared header the "new appointment" modal uses over its date/time row.
+  const dateTimeLabel = lang === 'ar' ? 'تاريخ ووقت الجلسة' : 'תאריך ושעת דיון';
   const hourLabel = lang === 'ar' ? 'الساعة' : 'שעה';
   const minuteLabel = lang === 'ar' ? 'الدقائق' : 'דקות';
 
@@ -221,8 +238,25 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
   ];
 
   return (
-    <Modal onClose={close}>
-      <h2>{title}</h2>
+    <Modal onClose={close} className="calendar-edit-v1" hideCloseX hideBackBtn>
+      {/* One dark "X" close chip at the top-left — replaces BOTH the Modal's
+          default top-right × and the back arrow. Styled in globals.css to match
+          the reference (navy rounded square, white glyph, inset from the edge). */}
+      <button
+        type="button"
+        className="calendar-edit-close-x"
+        aria-label={lang === 'ar' ? 'إغلاق' : 'סגור'}
+        title={lang === 'ar' ? 'إغلاق' : 'סגור'}
+        onClick={close}
+      >
+        ×
+      </button>
+      {/* Centered like the "new appointment" modal's title. Side padding keeps
+          it clear of the close chip (so it isn't a :first-child and the generic
+          centering rule misses it). */}
+      <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>
+        {title}
+      </h2>
       <div className="calendar-detail-toolbar">
         <button type="button" className="case-edit-btn active">
           <i className="fas fa-pen" />
@@ -259,46 +293,55 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
             ))}
           </select>
         </label>
-        <label>
-          {t('date')}
-          <input
-            id="editCalendarDate"
-            type="date"
-            // en-IL: built-in calendar starts the week on Sunday (keeps DD/MM/YYYY).
-            lang="en-IL"
-            value={dateStr}
-            onChange={(e) => setDateStr(e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          {hourLabel}
-          <select
-            id="editCalendarHour"
-            value={hour}
-            onChange={(e) => setHour(e.target.value)}
-          >
-            {HOURS.map((h) => (
-              <option key={h} value={h}>
-                {h}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {minuteLabel}
-          <select
-            id="editCalendarMinute"
-            value={minute}
-            onChange={(e) => setMinute(e.target.value)}
-          >
-            {MINUTES.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* Date + hour + minute share the exact layout of the "new
+            appointment" modal: one full-width field with a shared header and a
+            1.5fr/.75fr/.75fr time-row. Styling lives under
+            `.calendar-edit-time-field` in globals.css. */}
+        <div className="full calendar-edit-time-field">
+          <label>{dateTimeLabel}</label>
+          <div className="time-row">
+            <div>
+              <label>{t('date')}</label>
+              <input
+                id="editCalendarDate"
+                type="date"
+                // en-IL: built-in calendar starts the week on Sunday (keeps DD/MM/YYYY).
+                lang="en-IL"
+                value={dateStr}
+                onChange={(e) => setDateStr(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label>{hourLabel}</label>
+              <select
+                id="editCalendarHour"
+                value={hour}
+                onChange={(e) => setHour(e.target.value)}
+              >
+                {HOURS.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label>{minuteLabel}</label>
+              <select
+                id="editCalendarMinute"
+                value={minute}
+                onChange={(e) => setMinute(e.target.value)}
+              >
+                {minuteChoices.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
         <label className="full">
           {t('description')}
           <textarea

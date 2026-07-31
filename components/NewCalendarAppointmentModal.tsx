@@ -8,7 +8,7 @@ import { caseName } from '@/lib/cases';
 import { findConflictingEvent } from '@/lib/calendar';
 import { useConflictConfirm } from '@/hooks/useConflictConfirm';
 import { clientDisplayName } from '@/lib/clients';
-import { composeDateTime, localDateParts, limitedHourOptions, minuteOptions } from '@/lib/dates';
+import { composeDateTime, localDateParts, limitedHourOptions, minuteOptions, officeDateTimeToIso } from '@/lib/dates';
 import { pad } from '@/lib/utils';
 import type { CalendarEvent } from '@/types';
 
@@ -130,8 +130,10 @@ export function NewCalendarAppointmentModal() {
       );
       return;
     }
-    const composed = new Date(dtStr);
-    const newIso = composed.toISOString();
+    // Interpret the picked wall-clock as OFFICE time (Asia/Jerusalem), so the
+    // stored instant is correct even when this device isn't on Israel time.
+    const newIso = officeDateTimeToIso(dateStr, hour, minute);
+    const composed = new Date(newIso);
     const conflict = findConflictingEvent(newIso, state.eventsList);
     if (conflict) {
       const proceed = await confirmConflict(conflict);

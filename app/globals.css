@@ -605,6 +605,120 @@ body.font-large{font-size:18px;}
 .calendar-detail-toolbar{display:flex;gap:.55rem;flex-wrap:wrap;margin:-.25rem 0 .85rem;}
 .calendar-detail-toolbar .case-edit-btn{margin:0;}
 @media(max-width:640px){.calendar-detail-form{grid-template-columns:1fr}.calendar-detail-actions{justify-content:stretch}.calendar-detail-actions button{flex:1}}
+/* ===================================================================
+ * Calendar EDIT modal — single top-left "X" close chip.
+ * Replaces both the default top-right × and the back arrow with one dark
+ * navy rounded-square button carrying a white ×, inset from the corner
+ * (matches the reference design). Shows on every width — desktop and
+ * mobile — since it doesn't rely on the mobile-only back-button rules.
+ * The .ls×8 chain outweighs the generic .modal.ls×6 corner-button rules. */
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.calendar-edit-v1 .calendar-edit-close-x{
+  position:absolute!important;
+  top:12px!important;
+  left:12px!important;
+  right:auto!important;
+  width:42px!important;
+  height:42px!important;
+  display:inline-grid!important;
+  place-items:center!important;
+  padding:0!important;
+  margin:0!important;
+  border:1px solid rgba(255,255,255,.12)!important;
+  border-radius:11px!important;
+  background:#1f2b47!important;
+  color:#fff!important;
+  font-size:19px!important;
+  font-weight:900!important;
+  line-height:1!important;
+  cursor:pointer!important;
+  box-shadow:0 8px 20px rgba(15,23,42,.22)!important;
+  z-index:60!important;
+  transition:background .16s ease, transform .12s ease!important;
+}
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.calendar-edit-v1 .calendar-edit-close-x:hover{
+  background:#111827!important;
+}
+html body .modal.ls.ls.ls.ls.ls.ls.ls.ls.calendar-edit-v1 .calendar-edit-close-x:active{
+  transform:scale(.94)!important;
+}
+/* ===================================================================
+ * Calendar EDIT modal — date / hour / minute row.
+ * Mirrors the "new appointment" modal (NewCalendarAppointmentModal):
+ * one full-width field with a shared header ("תאריך ושעת דיון") and a
+ * 1.5fr / .75fr / .75fr time-row, so the edit screen matches the add
+ * screen exactly. The extra `.calendar-detail-form .calendar-edit-time-field`
+ * classes outweigh the generic `.modal.ls×6 .form-field input/select`
+ * overrides (radius-8 / surface bg) that would otherwise win here. */
+.modal.ls.ls.ls.ls.ls.ls .calendar-detail-form .calendar-edit-time-field{
+  grid-column:1/-1!important;
+  display:grid!important;
+  gap:6px!important;
+  margin:0!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .calendar-detail-form .calendar-edit-time-field > label{
+  display:block!important;
+  flex-direction:row!important;
+  font-size:12px!important;
+  font-weight:850!important;
+  color:var(--muted)!important;
+  text-transform:none!important;
+  letter-spacing:normal!important;
+  margin:0!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .calendar-detail-form .calendar-edit-time-field .time-row{
+  display:grid!important;
+  grid-template-columns:1.5fr .75fr .75fr!important;
+  gap:10px!important;
+  align-items:end!important;
+  margin:0!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .calendar-detail-form .calendar-edit-time-field .time-row > div{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:6px!important;
+  min-width:0!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .calendar-detail-form .calendar-edit-time-field .time-row label{
+  display:block!important;
+  font-size:12px!important;
+  font-weight:850!important;
+  color:var(--muted)!important;
+  text-transform:none!important;
+  letter-spacing:normal!important;
+  margin:0!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .calendar-detail-form .calendar-edit-time-field input,
+.modal.ls.ls.ls.ls.ls.ls .calendar-detail-form .calendar-edit-time-field select{
+  width:100%!important;
+  min-width:0!important;
+  height:auto!important;
+  min-height:0!important;
+  border:1px solid var(--line)!important;
+  border-radius:16px!important;
+  background:var(--surface-soft)!important;
+  padding:12px 13px!important;
+  font:inherit!important;
+  font-size:14px!important;
+  color:var(--text)!important;
+  box-shadow:none!important;
+  outline:none!important;
+}
+.modal.ls.ls.ls.ls.ls.ls .calendar-detail-form .calendar-edit-time-field input:focus,
+.modal.ls.ls.ls.ls.ls.ls .calendar-detail-form .calendar-edit-time-field select:focus{
+  border-color:#b9cbff!important;
+  background:var(--surface)!important;
+  box-shadow:0 0 0 4px rgba(79,124,255,.10)!important;
+}
+/* Light theme: match the add modal's cream input surface (var(--bg)),
+   turning solid white on focus — exactly like the new-appointment modal. */
+html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls .calendar-detail-form .calendar-edit-time-field input,
+html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls .calendar-detail-form .calendar-edit-time-field select{
+  background:var(--bg)!important;
+}
+html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls .calendar-detail-form .calendar-edit-time-field input:focus,
+html body:not(.dark) .modal.ls.ls.ls.ls.ls.ls .calendar-detail-form .calendar-edit-time-field select:focus{
+  background:#fff!important;
+}
 
 
 .client-avatar.editable{cursor:pointer;position:relative}.client-avatar.editable:after{content:'\f030';font-family:'Font Awesome 6 Free';font-weight:900;position:absolute;bottom:6px;left:6px;width:26px;height:26px;border-radius:50%;background:#2563eb;color:#fff;display:grid;place-items:center;font-size:12px}.client-photo-actions{display:flex;gap:8px;justify-content:center;margin-top:10px}.client-photo-actions.is-hidden{display:none}.client-photo-actions .save,.client-photo-actions .cancel{border:0;border-radius:999px;padding:8px 16px;font-weight:900;cursor:pointer}.client-photo-actions .save{background:#16a34a;color:#fff}.client-photo-actions .cancel{background:#e5e7eb;color:#111827}.finance-detail-title{font-size:20px;font-weight:950;margin:0 0 8px;color:var(--text)}.finance-edit-toolbar{margin-bottom:12px}.finance-edit-payment-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:10px;border:1px solid var(--line);border-radius:16px;background:#fff;margin-bottom:10px}.finance-edit-payment-row label{font-size:12px;font-weight:900;color:#64748b}.finance-edit-payment-row input,.finance-edit-payment-row select{width:100%;margin-top:5px;border:1px solid var(--line);border-radius:12px;padding:9px 10px;background:#fff;color:var(--text)}@media(max-width:680px){.finance-edit-payment-row{grid-template-columns:1fr}}
@@ -7166,6 +7280,50 @@ body.dark .status{
 .finance-table .finance-balance-red{
   text-align:center!important;
   vertical-align:middle!important;
+}
+
+/* ===================================================================
+ * Fee balance (יתרת שכר הטרחה) on the finance SEARCH screen — always RED.
+ * The balance cell carries `.finance-balance-red`; force a clear red on
+ * every theme. `-webkit-text-fill-color` is set alongside `color` so no
+ * finance-cell color reset can wash it out.
+ *   • Light / professional-light: solid red #dc2626.
+ *   • Professional-dark: brighter #FCA5A5 — its generic
+ *     `.finance-table td{color:#c0c0c0}` rule (~line 41026) otherwise
+ *     greys the balance out (canonical dark already forces #FCA5A5).
+ * =================================================================== */
+html body:not(.dark) .finance-screen-panel .finance-table > tbody > tr > td.finance-balance-red,
+html body:not(.dark) .finance-screen-panel .finance-table td.finance-balance-red,
+html body:not(.dark) td.finance-balance-red{
+  color:#dc2626!important;
+  -webkit-text-fill-color:#dc2626!important;
+  font-weight:900!important;
+}
+html body.professional.dark.dark
+  .finance-screen-panel.finance-screen-panel.finance-screen-panel
+  .finance-table > tbody > tr > td.finance-balance-red{
+  color:#FCA5A5!important;
+  -webkit-text-fill-color:#FCA5A5!important;
+  font-weight:800!important;
+}
+/* A fully-paid case shows a 0 ₪ balance — no debt, so render it in the
+ * neutral text color (black in the light theme) instead of red. The extra
+ * .finance-balance-zero class outweighs every red rule above. */
+html body:not(.dark) .finance-screen-panel .finance-table > tbody > tr > td.finance-balance-red.finance-balance-zero,
+html body:not(.dark) .finance-screen-panel .finance-table td.finance-balance-red.finance-balance-zero,
+html body:not(.dark) td.finance-balance-red.finance-balance-zero{
+  color:var(--text)!important;
+  -webkit-text-fill-color:var(--text)!important;
+}
+html body.dark.dark
+  .finance-screen-panel.finance-screen-panel.finance-screen-panel
+  .finance-table > tbody > tr > td.finance-balance-red.finance-balance-zero,
+html body.professional.dark.dark
+  .finance-screen-panel.finance-screen-panel.finance-screen-panel
+  .finance-table > tbody > tr > td.finance-balance-red.finance-balance-zero,
+html body.dark .finance-balance-red.finance-balance-zero{
+  color:var(--text)!important;
+  -webkit-text-fill-color:var(--text)!important;
 }
 
 @media(max-width:620px){
@@ -20805,6 +20963,24 @@ html body:not(.dark) .calendar-grid .cal-event .cal-event-details {
   color: #0F172A !important;
 }
 
+/* Event chips inside WEEK cells — same treatment as the month grid above.
+ * Without this they inherit the dark-navy --primary-2 fill (the
+ * .content:not(.home-content) scope) and render as black boxes on the cream
+ * week grid. Give them the identical cream card so week matches month. */
+html body:not(.dark) .content:not(.home-content) .calendar-week-grid .cal-event,
+html body:not(.dark) .calendar-week-grid .cal-event {
+  background: #F2ECDD !important;
+  background-color: #F2ECDD !important;
+  color: #0F172A !important;
+  border: 1px solid #EDE5D2 !important;
+}
+html body:not(.dark) .content:not(.home-content) .calendar-week-grid .cal-event .calendar-week-event-title,
+html body:not(.dark) .content:not(.home-content) .calendar-week-grid .cal-event .calendar-week-event-details,
+html body:not(.dark) .calendar-week-grid .cal-event .calendar-week-event-title,
+html body:not(.dark) .calendar-week-grid .cal-event .calendar-week-event-details {
+  color: #0F172A !important;
+}
+
 /* =====================================================================
  * Calendar list-view title — sits above the search box, anchored to the
  * start side (RTL = right). Renders only when view === 'list'.
@@ -25433,7 +25609,7 @@ html body .cases-v2-fluid .cases-scroll-list .table > tbody {
  * at (0, 6, 0). */
 html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row.case-row.case-row.case-row.case-row {
   display: grid !important;
-  grid-template-columns: 1fr 1fr auto !important;
+  grid-template-columns: minmax(0, auto) auto minmax(0, 1fr) auto !important;
   grid-template-rows: auto !important;
   grid-auto-rows: 0 !important;
   grid-auto-flow: row !important;
@@ -25524,11 +25700,21 @@ html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[d
   content: none !important;
 }
 
-/* Col 2 (RTL middle): CASE TYPE — bold, content lives in .row-title.
+/* Col 2 (RTL): CASE CODE (CS-NNN) — inline between the client name and the
+ * case type, on the SAME single row. Previously it had no grid placement, so
+ * the grid dropped it into a 0-height implicit row that spilled out below as a
+ * second line under the case type. */
+html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="number"] {
+  grid-row: 1 !important;
+  grid-column: 2 !important;
+  font-size: var(--cases-sub-fs) !important;
+}
+
+/* Col 3 (RTL): CASE TYPE — bold, content lives in .row-title.
  * Hide the inner .sub (case-number) so only the case name shows. */
 html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] {
   grid-row: 1 !important;
-  grid-column: 2 !important;
+  grid-column: 3 !important;
   font-size: var(--cases-cell-fs) !important;
   font-weight: 700 !important;
 }
@@ -25571,11 +25757,11 @@ html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[d
   pointer-events: none !important;
 }
 
-/* Col 3 (RTL left): STATUS PILL — fixed compact width, doesn't
+/* Col 4 (RTL left): STATUS PILL — fixed compact width, doesn't
  * influence the 1fr columns. Pinned to the END of the row. */
 html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="status"] {
   grid-row: 1 !important;
-  grid-column: 3 !important;
+  grid-column: 4 !important;
   justify-self: end !important;
   text-align: center !important;
 }
@@ -25647,7 +25833,7 @@ html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row .statu
   }
   html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row.case-row.case-row.case-row.case-row {
     display: grid !important;
-    grid-template-columns: 1fr 1fr auto !important;
+    grid-template-columns: minmax(0, auto) auto minmax(0, 1fr) auto !important;
     grid-template-rows: auto !important;
     grid-auto-rows: 0 !important;
     align-items: center !important;
@@ -25689,9 +25875,13 @@ html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row .statu
     grid-column: 1 !important;
     font-weight: 700 !important;
   }
-  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] {
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="number"] {
     grid-row: 1 !important;
     grid-column: 2 !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] {
+    grid-row: 1 !important;
+    grid-column: 3 !important;
     font-weight: 700 !important;
   }
   html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] > .row-title {
@@ -25713,7 +25903,7 @@ html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row .statu
   }
   html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="status"] {
     grid-row: 1 !important;
-    grid-column: 3 !important;
+    grid-column: 4 !important;
     justify-self: end !important;
   }
   html body .cases-v2-fluid .cases-scroll-list .table .status {
@@ -26037,13 +26227,15 @@ html body .clients-v2-fluid .clients-scroll-list .table * {
   margin-block: 0 !important;
 }
 
-/* Client row — 4-column tight grid: client | phone | active | closed.
- * Both status pills sit side-by-side at the END of the row.
+/* Client row — 5-column tight grid: code | client | phone | active | closed.
+ * The client CODE (CLT-NNN) leads the row (RTL rightmost), right beside the
+ * name, mirroring the desktop table. Both status pills sit side-by-side at the
+ * END of the row.
  * Specificity chain `.client-row × 5` to beat the legacy
  * `.content × 4 :not(.home-content) .client-row` (0, 6, 0). */
 html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row.client-row.client-row.client-row.client-row {
   display: grid !important;
-  grid-template-columns: 1fr 1fr auto auto !important;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto !important;
   grid-template-rows: auto !important;
   grid-auto-rows: 0 !important;
   align-items: center !important;
@@ -26105,13 +26297,30 @@ html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row 
   content: none !important;
 }
 
-/* Col 1 (RTL right): CLIENT NAME (bold). Hide the inline .sub
+/* Col 1 (RTL rightmost): CLIENT CODE (CLT-NNN) — shown beside the name,
+ * matching the desktop table. Previously it had no grid placement, so the grid
+ * dropped it into a 0-height implicit row (visible only on hover). */
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="number"] {
+  display: block !important;
+  grid-row: 1 !important;
+  grid-column: 1 !important;
+  font-size: var(--clients-sub-fs) !important;
+}
+html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="number"] > .client-code {
+  font-weight: 800 !important;
+  color: var(--primary) !important;
+  white-space: nowrap !important;
+  direction: ltr !important;
+  unicode-bidi: plaintext !important;
+}
+
+/* Col 2 (RTL): CLIENT NAME (bold). Hide the inline .sub
  * (ID number) — only the name shows on mobile. `display: block`
  * overrides any legacy `display: none` from nth-child hiding rules. */
 html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="client"] {
   display: block !important;
   grid-row: 1 !important;
-  grid-column: 1 !important;
+  grid-column: 2 !important;
   font-size: var(--clients-cell-fs) !important;
   font-weight: 700 !important;
 }
@@ -26138,24 +26347,24 @@ html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row 
 html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="phone"] {
   display: block !important;
   grid-row: 1 !important;
-  grid-column: 2 !important;
+  grid-column: 3 !important;
   font-size: var(--clients-cell-fs) !important;
   font-weight: 600 !important;
   color: #64748b !important;
 }
 
-/* Col 3 + 4 (RTL left side): ACTIVE pill then CLOSED pill, side-by-side. */
+/* Col 4 + 5 (RTL left side): ACTIVE pill then CLOSED pill, side-by-side. */
 html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="active"] {
   display: block !important;
   grid-row: 1 !important;
-  grid-column: 3 !important;
+  grid-column: 4 !important;
   justify-self: end !important;
   text-align: center !important;
 }
 html body .clients-v2-fluid .clients-scroll-list .table > tbody > tr.client-row > td[data-col="closed"] {
   display: block !important;
   grid-row: 1 !important;
-  grid-column: 4 !important;
+  grid-column: 5 !important;
   justify-self: end !important;
   text-align: center !important;
 }
@@ -41597,19 +41806,25 @@ body.professional.dark .modal.case-brain-modal .case-brain-header{background: #0
 /* === END generated professional-theme overrides === */
 
 /* ============================================================ *
- * Cases screen (mobile card): show the case UNIQUE number (CS-NNN).
- * The mobile view is a compact grid card keyed by data-col, and any
- * cell not explicitly placed collapses (grid-auto-rows:0). So we add
- * a 2nd grid row and pin the number cell there, under the case type.
- * Appended at end-of-file so it wins the ordering vs. the card grid
- * rule (same specificity, later wins).
+ * Cases screen (mobile card): show the case UNIQUE number (CS-NNN)
+ * INLINE — between the client name and the case type, so all FOUR
+ * fields (client name · code · case type · status pill) sit on ONE
+ * row. A slightly smaller font (11px) lets the code fit between the
+ * name and the case type without crowding. Appended at end-of-file
+ * so it wins the ordering vs. the card grid rule (later wins) — an
+ * earlier version of this block pinned the code to a 2nd row.
  * ============================================================ */
 @media (max-width: 620px) {
   html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row.case-row.case-row.case-row.case-row {
-    grid-template-rows: auto auto !important;
+    grid-template-columns: minmax(0, auto) auto minmax(0, 1fr) auto !important;
+    grid-template-rows: auto !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="client"] {
+    grid-row: 1 !important;
+    grid-column: 1 !important;
   }
   html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="number"] {
-    grid-row: 2 !important;
+    grid-row: 1 !important;
     grid-column: 2 !important;
     display: flex !important;
     align-items: center !important;
@@ -41620,6 +41835,15 @@ body.professional.dark .modal.case-brain-modal .case-brain-header{background: #0
     white-space: nowrap !important;
     overflow: visible !important;
     color: var(--primary) !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="case"] {
+    grid-row: 1 !important;
+    grid-column: 3 !important;
+  }
+  html body .cases-v2-fluid .cases-scroll-list .table > tbody > tr.case-row > td[data-col="status"] {
+    grid-row: 1 !important;
+    grid-column: 4 !important;
+    justify-self: end !important;
   }
 }
 

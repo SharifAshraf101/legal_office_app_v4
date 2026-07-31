@@ -15,6 +15,7 @@ import {
   hourOptions,
   localDateParts,
   minuteOptions,
+  officeDateTimeToIso,
 } from '@/lib/dates';
 import { pad } from '@/lib/utils';
 import { isFileSystemAccessAvailable } from '@/lib/dropbox';
@@ -340,11 +341,15 @@ export function NewEventModal({
       return;
     }
 
+    // The task's deadline is a wall-clock the user picked in OFFICE time; store
+    // and display it via the office-tz instant so it doesn't shift on a device
+    // whose clock isn't set to Israel time.
+    const dueIso = dueDateTimeStr ? officeDateTimeToIso(taskDate, taskHour, taskMinute) : '';
     let desc = description.trim();
     if (type === 'task' && dueDateTimeStr) {
       const dueText =
         (lang === 'ar' ? 'موعد الانتهاء: ' : 'מועד אחרון: ') +
-        formatDMYTime(new Date(dueDateTimeStr));
+        formatDMYTime(new Date(dueIso));
       desc = desc ? `${desc} · ${dueText}` : dueText;
     }
 
@@ -355,7 +360,7 @@ export function NewEventModal({
         : clientOnlyId;
 
     if (type === 'hearingMeeting' || type === 'meeting' || type === 'reminder') {
-      const newIso = new Date(dateTimeStr).toISOString();
+      const newIso = officeDateTimeToIso(eventDate, eventHour, eventMinute);
       // Only hearings and meetings hold a courtroom/office slot; reminders
       // are reference markers and shouldn't block other items.
       if (type !== 'reminder') {
@@ -503,8 +508,8 @@ export function NewEventModal({
         descriptionAr: noteOnly ? '' : desc,
       };
       if (type === 'task' && dueDateTimeStr) {
-        ti.dueDateTime = new Date(dueDateTimeStr).toISOString();
-        ti.dueDate = new Date(dueDateTimeStr).toISOString().slice(0, 10);
+        ti.dueDateTime = dueIso;
+        ti.dueDate = taskDate; // the office-local day the user picked
       }
       dispatch({ type: 'SET_TIMELINE', timeline: [...state.timelineItems, ti] });
 
@@ -519,9 +524,7 @@ export function NewEventModal({
           title: trimmedTitle,
           caseId,
           clientId: c?.clientId || clientId || '',
-          dueDate: dueDateTimeStr
-            ? new Date(dueDateTimeStr).toISOString().slice(0, 10)
-            : '',
+          dueDate: dueDateTimeStr ? taskDate : '',
           status: 'open',
           priority: 'normal',
           notes: desc,

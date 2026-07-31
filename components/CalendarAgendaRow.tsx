@@ -12,7 +12,7 @@ import {
   eventTypeLabel,
   type CalendarItem,
 } from '@/lib/calendar';
-import { formatDMY, localizedWeekday } from '@/lib/dates';
+import { formatDMY, localizedWeekday, OFFICE_TZ } from '@/lib/dates';
 import { CalendarEventDetail } from './CalendarEventDetail';
 
 /**
@@ -35,6 +35,7 @@ export function CalendarAgendaRow({ entry }: { entry: CalendarItem }) {
   const timeStr = entry.date.toLocaleTimeString(calendarLocale(lang), {
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: OFFICE_TZ,
   });
 
   const parts = calendarCaseParts(

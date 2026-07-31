@@ -9,6 +9,7 @@
 import { applyLegalOfficeData, persistCurrentDataToLocalStorage } from './storage';
 import { firstNonEmpty, isNonEmpty } from './utils';
 import { FILING_ROOT, filingFolderSegments, filingFileName } from './filing';
+import { loadDismissedEventIds } from './dismissedEvents';
 import type {
   AppState,
   Case,
@@ -366,9 +367,16 @@ export async function legalOfficeLoadFromSupabaseV88(
     const loadedTasks = taskRows
       .map((r) => normalizeTask(r, clientByUuid, caseByUuid, caseBySource))
       .filter((x) => x.id && x.title);
+    // Filter out events the user manually deleted. AI-imported events (make.com
+    // hearings, app auto-import reminders) can otherwise resurrect — a D1 row
+    // that outlived a delete/poll race, or a make.com re-import — so a deleted
+    // hearing reappears. The persisted tombstone keeps them gone. See
+    // lib/dismissedEvents.ts.
+    const dismissedEventIds = loadDismissedEventIds();
     const loadedEvents = eventRows
       .map((r) => normalizeEvent(r, clientByUuid, caseByUuid, caseBySource))
-      .filter((x): x is CalendarEvent => x !== null);
+      .filter((x): x is CalendarEvent => x !== null)
+      .filter((e) => !dismissedEventIds.has(String(e.id)));
     const loadedDocs = docRows
       .map((r) => normalizeDocument(r, clientByUuid, caseByUuid, caseBySource))
       .filter((x) => x.id && (x.title || x.fileName));

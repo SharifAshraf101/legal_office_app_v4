@@ -44,7 +44,7 @@ import {
   type SuggestedActionDetail,
 } from '@/lib/summary';
 import { buildDeadlineView, type DeadlineTone } from '@/lib/deadlines';
-import { calendarDateValue, formatDMYTime } from '@/lib/dates';
+import { calendarDateValue, formatDMYTime, officeDateTimeToIso } from '@/lib/dates';
 import { filingFileName } from '@/lib/filing';
 import { caseDocumentsForCase } from '@/lib/documents';
 import { aggregateCaseNotes, caseNotesContext } from '@/lib/caseNotes';
@@ -246,9 +246,9 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
       // is filed (title "מועד דיון" — no decision content), tagged as
       // AI-imported in the description.
       if (d.hearingDate) {
-        const hd = new Date(d.hearingDate + 'T09:00:00');
-        const hearingIso = isNaN(hd.getTime()) ? '' : hd.toISOString();
         const day = d.hearingDate.slice(0, 10);
+        // 09:00 is the office-local (Asia/Jerusalem) default hearing time.
+        const hearingIso = officeDateTimeToIso(day, '09', '00');
         const hearingKey = 'hearing:' + caseId + ':' + day;
         const hearingExists = eventsRef.current.some(
           (e) =>
@@ -1741,8 +1741,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         const time = /^\d{2}:\d{2}$/.test(split.hearingTime)
           ? split.hearingTime
           : '09:00';
-        const hd = new Date(`${hearingDay}T${time}:00`);
-        const hearingIso = isNaN(hd.getTime()) ? '' : hd.toISOString();
+        const hearingIso = officeDateTimeToIso(hearingDay, time.slice(0, 2), time.slice(3, 5));
         const hearingKey = 'hearing:' + caseId + ':' + hearingDay;
         const hearingExists = eventsRef.current.some(
           (e) =>
@@ -2193,8 +2192,7 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
           String(e.type) === 'reminder' &&
           String(e.dateTime).slice(0, 10) === dueYmd,
       );
-      const dt = new Date(dueYmd + 'T09:00:00');
-      const iso = isNaN(dt.getTime()) ? '' : dt.toISOString();
+      const iso = officeDateTimeToIso(dueYmd, '09', '00');
       if (iso && !decisionImportKeys.has(evKey) && !evExists) {
         rememberDecisionImportKey(decisionImportKeys, evKey);
         dispatch({

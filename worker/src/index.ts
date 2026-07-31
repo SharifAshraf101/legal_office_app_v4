@@ -18,6 +18,7 @@
 
 import { corsHeaders, json, preflight } from './cors';
 import { buildUpsert, LOAD_TABLES, safeParse, type Env } from './db';
+import { resolveTenant, type Ctx } from './tenant';
 import { AR_GLOSSARY } from './arabicGlossary';
 
 // The office's own registered lawyer. Used to decide whether an incoming
@@ -53,7 +54,14 @@ export default {
       return json({ error: 'unauthorized' }, request, env, 401);
     }
 
-    if (method === 'GET' && path === '/api/load') return handleLoad(request, env);
+    // Commercialization step 1a: resolve the tenant ONCE, here, right after auth.
+    // Handlers read `ctx.tenantId` instead of `env.USER_ID`; today they're
+    // identical, but this is the single place that becomes multi-tenant later.
+    // (Handlers are migrated to accept `ctx` incrementally — the rest still read
+    // env.USER_ID directly and behave identically until converted.)
+    const ctx = resolveTenant(request, env);
+
+    if (method === 'GET' && path === '/api/load') return handleLoad(request, env, ctx);
     if (method === 'GET' && path === '/api/file-summary') {
       return handleFileSummary(request, env);
     }
@@ -136,21 +144,21 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
 // ---------------------------------------------------------------------------
 // GET /api/load
 // ---------------------------------------------------------------------------
-async function handleLoad(request: Request, env: Env): Promise<Response> {
+async function handleLoad(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   const out: Record<string, unknown> = {};
   for (const table of LOAD_TABLES) {
     const extra = table === 'documents' ? " AND source_id NOT LIKE '%/%'" : '';
     const rs = await env.DB.prepare(
       `SELECT * FROM ${table} WHERE user_id = ?${extra}`,
     )
-      .bind(env.USER_ID)
+      .bind(ctx.tenantId)
       .all();
     out[table] = rs.results ?? [];
   }
   const asRow = await env.DB.prepare(
     `SELECT state, payload, data FROM app_state WHERE user_id = ?`,
   )
-    .bind(env.USER_ID)
+    .bind(ctx.tenantId)
     .first<{ state?: string; payload?: string; data?: string }>();
   out.app_state = asRow
     ? safeParse(asRow.state) ?? safeParse(asRow.payload) ?? safeParse(asRow.data)

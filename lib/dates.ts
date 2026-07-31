@@ -3,25 +3,118 @@
 
 import { pad } from './utils';
 
-/** `YYYY-MM-DDTHH:MM` for a date `days` from today. Source: line 4398. */
-export function localInputDate(days = 0): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+// ------------------------------------------------------------------ *
+//  OFFICE TIMEZONE PINNING
+//
+//  The firm and every court it appears before are in Israel, so a hearing is
+//  at a fixed Israel wall-clock time (e.g. 11:30) REGARDLESS of what device
+//  displays it. Event instants are stored in the DB as true UTC (both make.com
+//  and the app's own save path call `.toISOString()`), so on an Israel-time
+//  machine the round-trip was already correct — but on ANY device whose clock
+//  is NOT set to Israel time, machine-local rendering shifted every hearing by
+//  the offset (e.g. a UTC device showed 11:30 as 09:30). We therefore pin all
+//  calendar date/time DISPLAY and ENTRY to Asia/Jerusalem, so the office's
+//  times are authoritative on every device. This is a no-op on a machine
+//  already in Israel time (no regression) and a correction on any other.
+// ------------------------------------------------------------------ */
+export const OFFICE_TZ = 'Asia/Jerusalem';
+
+/** The Asia/Jerusalem wall-clock parts of an absolute instant (DST-correct via
+ *  the platform tz database). Used so every formatter reads the office-local
+ *  wall clock instead of the viewing machine's. */
+function officeParts(d: Date): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone: OFFICE_TZ,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const m: Record<string, string> = {};
+  for (const p of dtf.formatToParts(d)) if (p.type !== 'literal') m[p.type] = p.value;
+  const hour = Number(m.hour) === 24 ? 0 : Number(m.hour); // h23 guards this; belt-and-braces
+  return {
+    year: Number(m.year),
+    month: Number(m.month),
+    day: Number(m.day),
+    hour,
+    minute: Number(m.minute),
+    second: Number(m.second),
+  };
 }
 
-/** Current date split into pieces, with minutes rounded to nearest 15.
+/** `{date, hour, minute}` (padded strings) of an instant, in office time — for
+ *  pre-filling the date/hour/minute inputs of the edit/appointment modals so
+ *  they show the Israel wall-clock, not the machine's. */
+export function officeInputParts(d: Date): { date: string; hour: string; minute: string } {
+  const p = officeParts(d);
+  return {
+    date: `${p.year}-${pad(p.month)}-${pad(p.day)}`,
+    hour: pad(p.hour),
+    minute: pad(p.minute),
+  };
+}
+
+/** Milliseconds Asia/Jerusalem is ahead of UTC at the given instant. */
+function officeOffsetMs(d: Date): number {
+  const p = officeParts(d);
+  const asUTC = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+  return asUTC - d.getTime();
+}
+
+/** Interpret a picked wall-clock (date + hour + minute) as OFFICE-LOCAL
+ *  (Asia/Jerusalem) and return the matching UTC instant as an ISO string.
+ *  Replaces the old `new Date(\`${date}T${hour}:${minute}\`).toISOString()`,
+ *  which interpreted the wall clock in the MACHINE's timezone — wrong on any
+ *  non-Israel device. DST-correct via a two-pass offset resolution. Returns ''
+ *  for an invalid/empty date. */
+export function officeDateTimeToIso(date: string, hour: string, minute: string): string {
+  if (!date) return '';
+  const [y, mo, d] = date.split('-').map(Number);
+  const h = Number(hour || '0');
+  const mi = Number(minute || '0');
+  if (!y || !mo || !d || Number.isNaN(h) || Number.isNaN(mi)) return '';
+  // Treat the wall clock as if it were UTC, then subtract the office offset at
+  // that instant; refine once so a DST boundary resolves to the right side.
+  const guessUtc = Date.UTC(y, mo - 1, d, h, mi, 0);
+  let offset = officeOffsetMs(new Date(guessUtc));
+  let instant = new Date(guessUtc - offset);
+  offset = officeOffsetMs(instant);
+  instant = new Date(guessUtc - offset);
+  return isNaN(instant.getTime()) ? '' : instant.toISOString();
+}
+
+/** `YYYY-MM-DDTHH:MM` for a date `days` from today, in OFFICE time. Source: line 4398. */
+export function localInputDate(days = 0): string {
+  const base = new Date();
+  base.setDate(base.getDate() + days);
+  const p = officeInputParts(base);
+  return `${p.date}T${p.hour}:${p.minute}`;
+}
+
+/** Current date split into pieces (OFFICE time), minutes rounded to nearest 15.
  *  Source: line 4407. */
 export function localDateParts(): { date: string; hour: string; minute: string } {
-  const d = new Date();
-  let minutes = Math.round(d.getMinutes() / 15) * 15;
+  const p = officeParts(new Date());
+  let hour = p.hour;
+  let minutes = Math.round(p.minute / 15) * 15;
   if (minutes === 60) {
-    d.setHours(d.getHours() + 1);
+    hour = (hour + 1) % 24;
     minutes = 0;
   }
   return {
-    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
-    hour: pad(d.getHours()),
+    date: `${p.year}-${pad(p.month)}-${pad(p.day)}`,
+    hour: pad(hour),
     minute: pad(minutes),
   };
 }
@@ -68,21 +161,19 @@ export function minuteOptionsRegular(selected: string): string {
     .join('');
 }
 
-/** Are two date-like values the same calendar day? Source: implied by name
- *  `sameCalendarDay` used at line 4102. */
+/** Are two date-like values the same calendar day (in OFFICE time, so the
+ *  day-grouping matches the office-local date shown on each row)? Source:
+ *  implied by name `sameCalendarDay` used at line 4102. */
 export function sameCalendarDay(a: string | Date, b: string | Date): boolean {
-  const da = a instanceof Date ? a : new Date(a);
-  const db = b instanceof Date ? b : new Date(b);
-  return (
-    da.getFullYear() === db.getFullYear() &&
-    da.getMonth() === db.getMonth() &&
-    da.getDate() === db.getDate()
-  );
+  const pa = officeParts(a instanceof Date ? a : new Date(a));
+  const pb = officeParts(b instanceof Date ? b : new Date(b));
+  return pa.year === pb.year && pa.month === pb.month && pa.day === pb.day;
 }
 
-/** `YYYY-MM-DD` value for a `<input type="date">`. Source name: line 4098. */
+/** `YYYY-MM-DD` value for a `<input type="date">`, in OFFICE time. Source name: line 4098. */
 export function calendarDateValue(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const p = officeParts(d);
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
 }
 
 /* ------------------------------------------------------------------ *
@@ -98,19 +189,23 @@ export function calendarDateValue(d: Date): string {
  *  `localizedWeekday`) — only the digits are formatted manually.
  * ------------------------------------------------------------------ */
 
-/** `DD.MM.YYYY` — same output in every language. */
+/** `DD.MM.YYYY` — same output in every language, in OFFICE time. */
 export function formatDMY(d: Date): string {
-  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+  const p = officeParts(d);
+  return `${pad(p.day)}.${pad(p.month)}.${p.year}`;
 }
 
-/** `DD.MM` — day + month only (no year). */
+/** `DD.MM` — day + month only (no year), in OFFICE time. */
 export function formatDM(d: Date): string {
-  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}`;
+  const p = officeParts(d);
+  return `${pad(p.day)}.${pad(p.month)}`;
 }
 
-/** `HH:MM`, 24-hour. */
+/** `HH:MM`, 24-hour, in OFFICE time (Asia/Jerusalem) — a court hearing shows its
+ *  Israel wall-clock on every device, not the viewer's local time. */
 export function formatHM(d: Date): string {
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const p = officeParts(d);
+  return `${pad(p.hour)}:${pad(p.minute)}`;
 }
 
 /** `DD.MM.YYYY, HH:MM` — matches he-IL's "05.10.2026, 14:30". */
@@ -125,5 +220,5 @@ export function localizedWeekday(
   locale: string,
   style: 'long' | 'short' = 'long',
 ): string {
-  return d.toLocaleDateString(locale, { weekday: style });
+  return d.toLocaleDateString(locale, { weekday: style, timeZone: OFFICE_TZ });
 }

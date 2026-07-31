@@ -23,7 +23,7 @@ import {
   type CalendarView,
 } from '@/lib/calendar';
 import { caseSearchText } from '@/lib/cases';
-import { formatDM } from '@/lib/dates';
+import { formatDM, OFFICE_TZ } from '@/lib/dates';
 import { CalendarAgendaRow } from './CalendarAgendaRow';
 import { MainScreenBackButton } from './MainScreenBackButton';
 
@@ -238,6 +238,7 @@ function WeekView({ focus, items }: { focus: Date; items: ReturnType<typeof cale
                         {entry.date.toLocaleTimeString(calendarLocale(lang), {
                           hour: '2-digit',
                           minute: '2-digit',
+                          timeZone: OFFICE_TZ,
                         })}{' '}
                         · {calendarCaseLine(parts, title)}
                       </div>
