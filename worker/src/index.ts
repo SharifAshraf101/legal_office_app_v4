@@ -95,23 +95,14 @@ export default {
       return json({ error: 'not found' }, request, env, 404);
     }
 
-    // ----- everything below requires a shared token -----
-    const auth = request.headers.get('Authorization') || '';
-    const provided = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-    const allowed = (env.APP_TOKEN || '')
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean);
-    if (!provided || !allowed.includes(provided)) {
+    // ----- everything below requires EITHER a logged-in office (Better Auth
+    //       session -> its own DB) or the legacy app-token (your office -> the
+    //       native binding). resolveTenant checks both and returns which tenant
+    //       + database this request may touch, or null if unauthorized. -----
+    const ctx = await resolveTenant(request, env);
+    if (!ctx) {
       return json({ error: 'unauthorized' }, request, env, 401);
     }
-
-    // Commercialization step 1a: resolve the tenant ONCE, here, right after auth.
-    // Handlers read `ctx.tenantId` instead of `env.USER_ID`; today they're
-    // identical, but this is the single place that becomes multi-tenant later.
-    // (Handlers are migrated to accept `ctx` incrementally — the rest still read
-    // env.USER_ID directly and behave identically until converted.)
-    const ctx = resolveTenant(request, env);
 
     if (method === 'GET' && path === '/api/load') return handleLoad(request, env, ctx);
     if (method === 'GET' && path === '/api/file-summary') {
