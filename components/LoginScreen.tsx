@@ -37,6 +37,7 @@ const STRINGS = {
     minPass: 'הסיסמה חייבת להכיל לפחות 8 תווים.',
     showPass: 'הצג סיסמה',
     hidePass: 'הסתר סיסמה',
+    adminLink: 'ניהול מערכת',
     emailPh: 'name@office.com',
   },
   ar: {
@@ -59,6 +60,7 @@ const STRINGS = {
     minPass: 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.',
     showPass: 'إظهار كلمة المرور',
     hidePass: 'إخفاء كلمة المرور',
+    adminLink: 'إدارة النظام',
     emailPh: 'name@office.com',
   },
 } as const;
@@ -337,6 +339,34 @@ export function LoginScreen({ lang, onAuthed }: LoginScreenProps) {
             >
               {mode === 'signin' ? t.toSignUp : t.toSignIn}
             </button>
+
+            {/* Discreet operator entry to the standalone admin console. Regular
+                offices ignore it; it just opens /admin (which is useless without
+                the admin token, so exposing the link here is harmless). */}
+            <div
+              style={{
+                marginTop: 20,
+                paddingTop: 14,
+                borderTop: '1px solid var(--line)',
+              }}
+            >
+              <a
+                href="/admin"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  color: 'var(--muted)',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  opacity: 0.7,
+                }}
+              >
+                <i className="fas fa-user-shield" />
+                {t.adminLink}
+              </a>
+            </div>
           </>
         )}
       </div>
