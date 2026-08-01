@@ -20,6 +20,7 @@ import { corsHeaders, json, preflight } from './cors';
 import { buildUpsert, LOAD_TABLES, safeParse, type Env } from './db';
 import { resolveTenant, type Ctx } from './tenant';
 import { createAuth, runAuthMigrations } from './auth';
+import { provisionOfficeDb } from './provision';
 import { AR_GLOSSARY } from './arabicGlossary';
 
 // The office's own registered lawyer. Used to decide whether an incoming
@@ -85,12 +86,24 @@ export default {
         const body = (await request.json().catch(() => ({}))) as { tenantId?: string };
         const tenantId = String(body.tenantId || '');
         if (!tenantId) return json({ error: 'tenantId required' }, request, env, 400);
-        await env.CONTROL_DB.prepare(
-          `UPDATE tenant SET status = 'active', approved_at = ?2 WHERE id = ?1`,
+        const office = await env.CONTROL_DB.prepare(
+          'SELECT id, name, status, data_db_name FROM tenant WHERE id = ?1',
         )
-          .bind(tenantId, new Date().toISOString())
+          .bind(tenantId)
+          .first<{ id: string; name: string; status: string; data_db_name: string | null }>();
+        if (!office) return json({ error: 'office not found' }, request, env, 404);
+        // Provision the office's OWN database on first approval, then activate.
+        // Idempotent: re-approving reuses the existing database.
+        let dataDbId = office.data_db_name;
+        if (!dataDbId) {
+          dataDbId = await provisionOfficeDb(env, office.name);
+        }
+        await env.CONTROL_DB.prepare(
+          `UPDATE tenant SET status = 'active', data_db_name = ?2, approved_at = ?3 WHERE id = ?1`,
+        )
+          .bind(tenantId, dataDbId, new Date().toISOString())
           .run();
-        return json({ ok: true }, request, env);
+        return json({ ok: true, tenantId, dataDbId }, request, env);
       }
       return json({ error: 'not found' }, request, env, 404);
     }
@@ -1135,7 +1148,9 @@ async function handleLegalActions(request: Request, env: Env, ctx: Ctx): Promise
   if (!courtType) {
     return json({ error: 'court_type parameter required' }, request, env, 400);
   }
-  const rs = await ctx.db.prepare(
+  // legal_actions is shared reference data — it lives in the CONTROL DB, not
+  // in each office's database.
+  const rs = await env.CONTROL_DB.prepare(
     `SELECT id, stage, action_name, responsible, deadline, deadline_from, legal_source, practical_notes
      FROM legal_actions
      WHERE court_type = ?
@@ -1269,7 +1284,8 @@ async function handleSuggestAction(request: Request, env: Env, ctx: Ctx): Promis
 
   const courtTypes = mapCourtTypes(court);
   const placeholders = courtTypes.map((_, i) => '?' + (i + 1)).join(', ');
-  const rs = await ctx.db.prepare(
+  // legal_actions is shared reference data — read it from the CONTROL DB.
+  const rs = await env.CONTROL_DB.prepare(
     `SELECT court_type, stage, action_name, responsible, deadline, deadline_from, legal_source, practical_notes
      FROM legal_actions WHERE court_type IN (${placeholders}) ORDER BY court_type, id`,
   )
