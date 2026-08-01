@@ -147,6 +147,35 @@ export default {
         await env.CONTROL_DB.batch(stmts);
         return json({ ok: true, tenantId, rejected: true }, request, env);
       }
+      if (method === 'POST' && path === '/api/admin/deactivate') {
+        const body = (await request.json().catch(() => ({}))) as { tenantId?: string };
+        const tenantId = String(body.tenantId || '');
+        if (!tenantId) return json({ error: 'tenantId required' }, request, env, 400);
+        const office = await env.CONTROL_DB.prepare(
+          'SELECT id, status FROM tenant WHERE id = ?1',
+        )
+          .bind(tenantId)
+          .first<{ id: string; status: string }>();
+        if (!office) return json({ error: 'office not found' }, request, env, 404);
+        if (office.status !== 'active') {
+          return json(
+            { error: 'only active offices can be deactivated' },
+            request,
+            env,
+            400,
+          );
+        }
+        // Suspend access WITHOUT deleting anything — the office's database and
+        // data are kept intact. resolveTenant only serves data to an 'active'
+        // office, so a suspended office is locked out until re-approved. Reuse
+        // /api/admin/approve to reactivate (it keeps the existing database).
+        await env.CONTROL_DB.prepare(
+          `UPDATE tenant SET status = 'suspended' WHERE id = ?1`,
+        )
+          .bind(tenantId)
+          .run();
+        return json({ ok: true, tenantId, status: 'suspended' }, request, env);
+      }
       return json({ error: 'not found' }, request, env, 404);
     }
 

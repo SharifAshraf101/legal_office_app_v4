@@ -107,17 +107,25 @@ export default function AdminPage() {
     setToken(t);
   };
 
-  const act = async (o: Office, kind: 'approve' | 'reject') => {
-    if (
-      kind === 'reject' &&
-      !window.confirm(`לדחות ולמחוק את בקשת "${o.name}"? הפעולה בלתי הפיכה.`)
-    ) {
-      return;
-    }
+  const act = async (
+    o: Office,
+    kind: 'approve' | 'reject' | 'deactivate' | 'activate',
+  ) => {
+    const confirmMsg =
+      kind === 'reject'
+        ? `לדחות ולמחוק את בקשת "${o.name}"? הפעולה בלתי הפיכה.`
+        : kind === 'deactivate'
+          ? `להשבית את המשרד "${o.name}"? הגישה שלו לאפליקציה תיחסם עד להפעלה מחדש (הנתונים נשמרים).`
+          : '';
+    if (confirmMsg && !window.confirm(confirmMsg)) return;
+
+    // Reactivating a suspended office reuses the approve endpoint — it keeps the
+    // already-provisioned database and just flips the status back to active.
+    const endpoint = kind === 'activate' ? 'approve' : kind;
     setBusyId(o.id);
     setNotice(null);
     try {
-      const res = await fetch(`${WORKER_URL}/api/admin/${kind}`, {
+      const res = await fetch(`${WORKER_URL}/api/admin/${endpoint}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -130,13 +138,13 @@ export default function AdminPage() {
         setNotice({ ok: false, text: data.error || 'הפעולה נכשלה.' });
         return;
       }
-      setNotice({
-        ok: true,
-        text:
-          kind === 'approve'
-            ? `המשרד "${o.name}" אושר — הוקצה לו בסיס נתונים נפרד.`
-            : `בקשת "${o.name}" נדחתה ונמחקה.`,
-      });
+      const texts: Record<'approve' | 'reject' | 'deactivate' | 'activate', string> = {
+        approve: `המשרד "${o.name}" אושר — הוקצה לו בסיס נתונים נפרד.`,
+        activate: `המשרד "${o.name}" הופעל מחדש.`,
+        reject: `בקשת "${o.name}" נדחתה ונמחקה.`,
+        deactivate: `המשרד "${o.name}" הושבת — הגישה שלו חסומה.`,
+      };
+      setNotice({ ok: true, text: texts[kind] });
       await load(token);
     } catch {
       setNotice({ ok: false, text: 'שגיאת רשת בעת ביצוע הפעולה.' });
@@ -408,45 +416,77 @@ export default function AdminPage() {
             )}
 
             {/* All active offices */}
-            <SectionTitle text="משרדים פעילים" icon="fa-building" color={indigo} />
+            <SectionTitle text="משרדים" icon="fa-building" color={indigo} />
             {others.length === 0 ? (
               <div style={emptyBox}>
-                {q ? 'לא נמצאו תוצאות לחיפוש.' : 'עדיין אין משרדים פעילים.'}
+                {q ? 'לא נמצאו תוצאות לחיפוש.' : 'עדיין אין משרדים.'}
               </div>
             ) : (
               <div style={{ display: 'grid', gap: 10 }}>
-                {others.map((o) => (
-                  <div key={o.id} style={card}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 800, fontSize: 15 }}>{o.name}</div>
-                      <div style={metaLine}>
-                        <i className="fas fa-envelope" style={metaIcon} />
-                        <span dir="ltr">{o.owner_email || '—'}</span>
+                {others.map((o) => {
+                  const suspended = o.status === 'suspended';
+                  return (
+                    <div
+                      key={o.id}
+                      style={{ ...card, borderColor: suspended ? '#f2caca' : line }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 800, fontSize: 15 }}>{o.name}</div>
+                        <div style={metaLine}>
+                          <i className="fas fa-envelope" style={metaIcon} />
+                          <span dir="ltr">{o.owner_email || '—'}</span>
+                        </div>
+                        <div style={metaLine}>
+                          <i className="fas fa-database" style={metaIcon} />
+                          <span dir="ltr">{(o.data_db_name || '—').slice(0, 8)}…</span>
+                          <span style={{ marginInlineStart: 10 }}>
+                            אושר: {fmt(o.approved_at)}
+                          </span>
+                        </div>
                       </div>
-                      <div style={metaLine}>
-                        <i className="fas fa-database" style={metaIcon} />
-                        <span dir="ltr">{(o.data_db_name || '—').slice(0, 8)}…</span>
-                        <span style={{ marginInlineStart: 10 }}>
-                          אושר: {fmt(o.approved_at)}
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-end',
+                          gap: 8,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 800,
+                            color: suspended ? '#b91c1c' : '#15803d',
+                            background: suspended ? '#fee2e2' : '#dcfce7',
+                            borderRadius: 999,
+                            padding: '4px 12px',
+                          }}
+                        >
+                          {suspended ? 'מושבת' : 'פעיל'}
                         </span>
+                        <button
+                          type="button"
+                          disabled={busyId === o.id}
+                          onClick={() =>
+                            act(o, suspended ? 'activate' : 'deactivate')
+                          }
+                          style={{
+                            ...solidBtn,
+                            padding: '7px 15px',
+                            fontSize: 13,
+                            minWidth: 0,
+                            background: suspended ? '#059669' : '#fff',
+                            color: suspended ? '#fff' : '#b45309',
+                            border: suspended ? 0 : '1px solid #fcd9a8',
+                          }}
+                        >
+                          {busyId === o.id ? '…' : suspended ? 'הפעלה' : 'השבתה'}
+                        </button>
                       </div>
                     </div>
-                    <span
-                      style={{
-                        flexShrink: 0,
-                        alignSelf: 'flex-start',
-                        fontSize: 12,
-                        fontWeight: 800,
-                        color: '#15803d',
-                        background: '#dcfce7',
-                        borderRadius: 999,
-                        padding: '4px 12px',
-                      }}
-                    >
-                      פעיל
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </>
