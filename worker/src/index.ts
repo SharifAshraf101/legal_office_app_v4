@@ -78,7 +78,11 @@ export default {
       }
       if (method === 'GET' && path === '/api/admin/offices') {
         const rs = await env.CONTROL_DB.prepare(
-          'SELECT * FROM tenant ORDER BY created_at DESC',
+          `SELECT t.*,
+                  (SELECT u.email FROM membership m JOIN user u ON u.id = m.user_id
+                    WHERE m.tenant_id = t.id ORDER BY m.created_at ASC LIMIT 1) AS owner_email
+             FROM tenant t
+            ORDER BY t.created_at DESC`,
         ).all();
         return json({ offices: rs.results ?? [] }, request, env);
       }
@@ -104,6 +108,44 @@ export default {
           .bind(tenantId, dataDbId, new Date().toISOString())
           .run();
         return json({ ok: true, tenantId, dataDbId }, request, env);
+      }
+      if (method === 'POST' && path === '/api/admin/reject') {
+        const body = (await request.json().catch(() => ({}))) as { tenantId?: string };
+        const tenantId = String(body.tenantId || '');
+        if (!tenantId) return json({ error: 'tenantId required' }, request, env, 400);
+        const office = await env.CONTROL_DB.prepare(
+          'SELECT id, status FROM tenant WHERE id = ?1',
+        )
+          .bind(tenantId)
+          .first<{ id: string; status: string }>();
+        if (!office) return json({ error: 'office not found' }, request, env, 404);
+        // Only PENDING offices can be rejected — an active office has a
+        // provisioned database and real data, so it is never deleted from here.
+        if (office.status !== 'pending') {
+          return json(
+            { error: 'only pending offices can be rejected' },
+            request,
+            env,
+            400,
+          );
+        }
+        const members = await env.CONTROL_DB.prepare(
+          'SELECT user_id FROM membership WHERE tenant_id = ?1',
+        )
+          .bind(tenantId)
+          .all<{ user_id: string }>();
+        const userIds = (members.results ?? []).map((m) => m.user_id);
+        const stmts = [
+          env.CONTROL_DB.prepare('DELETE FROM membership WHERE tenant_id = ?1').bind(tenantId),
+          env.CONTROL_DB.prepare('DELETE FROM tenant WHERE id = ?1').bind(tenantId),
+        ];
+        for (const uid of userIds) {
+          stmts.push(env.CONTROL_DB.prepare('DELETE FROM session WHERE userId = ?1').bind(uid));
+          stmts.push(env.CONTROL_DB.prepare('DELETE FROM account WHERE userId = ?1').bind(uid));
+          stmts.push(env.CONTROL_DB.prepare('DELETE FROM user WHERE id = ?1').bind(uid));
+        }
+        await env.CONTROL_DB.batch(stmts);
+        return json({ ok: true, tenantId, rejected: true }, request, env);
       }
       return json({ error: 'not found' }, request, env, 404);
     }
