@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { getOfficeToken } from '@/lib/officeToken';
 import {
   Bot,
   CalendarDays,
@@ -1134,14 +1133,11 @@ function ClientChatScreen({
   // Poll D1 for WhatsApp messages every 5 seconds
   useEffect(() => {
     if (!pollPhone) return;
-  const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'https://legal-office-api.sharifashraf.workers.dev';
-  const APP_TOKEN = getOfficeToken() || process.env.NEXT_PUBLIC_APP_TOKEN || '';
-
   const poll = async () => {
     try {
-      const res = await fetch(`${WORKER_URL}/api/whatsapp-messages/${pollPhone}`, {
-        headers: { Authorization: `Bearer ${APP_TOKEN}` },
-      });
+      // Same-origin proxy — the office token stays on the server (see
+      // app/api/whatsapp/messages/[phone]). No token in the client portal.
+      const res = await fetch(`/api/whatsapp/messages/${pollPhone}`);
       const data = await res.json();
 
       const msgs = (data.messages || []).map((m: any) => {

@@ -163,7 +163,7 @@ export async function POST(req: Request) {
       /\/$/,
       '',
     );
-    const token = process.env.NEXT_PUBLIC_APP_TOKEN || '';
+    const token = process.env.APP_TOKEN || process.env.NEXT_PUBLIC_APP_TOKEN || '';
     if (workerUrl && token) {
       await fetch(workerUrl + '/api/file-summary', {
         method: 'POST',

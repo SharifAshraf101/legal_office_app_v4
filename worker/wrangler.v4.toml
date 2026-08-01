@@ -35,7 +35,7 @@ bucket_name = "legal-office-photos-v4"
 
 # --- Non-secret config (committed) ---
 [vars]
-ALLOWED_ORIGIN = "http://localhost:3000,http://localhost:3001,https://legal-office-app-v4.vercel.app,https://*.vercel.app"
+ALLOWED_ORIGIN = "http://localhost:3000,http://localhost:3001,https://legal-office-app-v4.vercel.app"
 USER_ID = "c0307382-5fd2-4a2b-88df-40b22bb9ad26"
 # Fresh token for the v4 stack (kept separate from v3). The app (.env.local)
 # and the make.com scenarios must send THIS token to the v4 Worker.

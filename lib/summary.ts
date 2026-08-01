@@ -17,12 +17,11 @@ import { getOfficeToken } from './officeToken';
 
 // Same Worker config the rest of the app uses (see lib/cloudflare.ts).
 const WORKER_URL = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(/\/$/, '');
-const APP_TOKEN = process.env.NEXT_PUBLIC_APP_TOKEN || '';
 
-// Authorization value: the logged-in office's SESSION token when present,
-// otherwise the legacy app token. Read per-call so the current session is used.
+// Authorization value: the logged-in office's SESSION token, read per-call so
+// the current session is always used (no shared app-token in the browser).
 function bearer(): string {
-  return 'Bearer ' + (getOfficeToken() || APP_TOKEN);
+  return 'Bearer ' + getOfficeToken();
 }
 
 // Persisted "already attempted on-demand generation" set, so a slow/costly

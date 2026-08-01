@@ -77,7 +77,7 @@ export async function POST(req: Request) {
 
   // 2. Forward to the Worker's /api/draft (it owns the Anthropic key + skill).
   const workerUrl = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(/\/$/, '');
-  const token = process.env.NEXT_PUBLIC_APP_TOKEN || '';
+  const token = process.env.APP_TOKEN || process.env.NEXT_PUBLIC_APP_TOKEN || '';
   if (!workerUrl || !token) {
     return NextResponse.json({ error: 'worker_unconfigured' }, { status: 500 });
   }

@@ -27,17 +27,16 @@ import type {
 // into the client bundle at build time, the same way the Supabase URL/key were
 // hardcoded before — only now they live outside the committed source.
 const WORKER_URL = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(/\/$/, '');
-const APP_TOKEN = process.env.NEXT_PUBLIC_APP_TOKEN || '';
 
 // Only Authorization + Content-Type — any extra custom request header would have
 // to be added to the Worker's Access-Control-Allow-Headers or the preflight fails.
 // Freshness is enforced with `cache: 'no-store'` on the fetch instead.
-// Authorization for Worker calls: the logged-in office's SESSION token when
-// present, otherwise the legacy app token (your office, before login). Built
-// per-call (not at module load) so the current session is always attached.
+// Authorization for Worker calls: the logged-in office's SESSION token, attached
+// per-call (not at module load) so the current session is always used. The
+// office app no longer ships a shared app-token to the browser — data access
+// requires a real login (see lib/officeToken and the AppShell auth gate).
 function authHeader(): Record<string, string> {
-  const t = getOfficeToken();
-  return { Authorization: 'Bearer ' + (t || APP_TOKEN) };
+  return { Authorization: 'Bearer ' + getOfficeToken() };
 }
 function jsonHeaders(): Record<string, string> {
   return { ...authHeader(), 'Content-Type': 'application/json' };

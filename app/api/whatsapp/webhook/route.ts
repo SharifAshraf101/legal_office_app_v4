@@ -21,6 +21,7 @@ const WORKER_URL =
   process.env.NEXT_PUBLIC_WORKER_URL ||
   'https://legal-office-api-v4.sharifashraf.workers.dev';
 const APP_TOKEN =
+  process.env.APP_TOKEN ||
   process.env.NEXT_PUBLIC_APP_TOKEN ||
   'ecd403f741827b30fcd7018ebaf5bc8fdf87b974b30ce8af';
 

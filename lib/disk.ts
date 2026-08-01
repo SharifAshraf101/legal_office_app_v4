@@ -511,7 +511,7 @@ async function fetchFilingBlobViaWorker(
   relativePath: string,
 ): Promise<Blob | null> {
   const base = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(/\/$/, '');
-  const token = getOfficeToken() || process.env.NEXT_PUBLIC_APP_TOKEN || '';
+  const token = getOfficeToken();
   if (!base || !relativePath) return null;
   if (/^https?:\/\//i.test(relativePath)) return null;
   try {
