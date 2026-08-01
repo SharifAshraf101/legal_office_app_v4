@@ -32,6 +32,15 @@ export function createAuth(env: Env) {
     // the client send the session token as `Authorization: Bearer <token>`
     // instead — which resolveTenant already reads via getSession().
     plugins: [bearer()],
+    // Stay-signed-in by default ("remember me"). The bearer token lives in the
+    // browser's localStorage; the matching server session lasts 30 days and is
+    // extended on every authenticated request (resolveTenant calls getSession
+    // on each data call), so an office that keeps using the app effectively
+    // never has to re-enter its password — until it explicitly logs out.
+    session: {
+      expiresIn: 60 * 60 * 24 * 30, // 30 days
+      updateAge: 60 * 60 * 24, // sliding refresh: extend once per day of use
+    },
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 8,
