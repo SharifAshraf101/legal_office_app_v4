@@ -48,6 +48,12 @@ APP_TOKEN = "ecd403f741827b30fcd7018ebaf5bc8fdf87b974b30ce8af"
 #   npx wrangler secret put ADMIN_TOKEN        -c wrangler.v4.toml
 # AUTH_BASE_URL = "https://legal-office-api-v4.<your-subdomain>.workers.dev"
 
+# --- Multi-tenant data plane (Phase 2) ---
+# The Worker reaches each office's OWN D1 by id via the Cloudflare REST API.
+# The account id is not sensitive; the D1 token IS a secret (needs D1:Edit):
+#   npx wrangler secret put CF_D1_TOKEN -c wrangler.v4.toml
+CF_ACCOUNT_ID = "4c8392bcc78337b08ecf5ac78ec21012"
+
 # --- Server-side Dropbox (for GET /api/document) --------------------------
 # Lets a CLIENT device with no Dropbox connection of its own download a filing
 # document: the Worker fetches it from the office's Dropbox and streams it.

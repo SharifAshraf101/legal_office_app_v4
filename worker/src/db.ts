@@ -32,6 +32,13 @@ export interface Env {
   BETTER_AUTH_SECRET: string; // session-signing secret (set via wrangler secret)
   AUTH_BASE_URL?: string;     // the Worker's public URL (auth links/cookies)
   ADMIN_TOKEN?: string;       // gates /api/admin/* (migrate, list, approve)
+
+  // Cloudflare REST creds so the Worker can reach each office's OWN D1 by id
+  // (Phase 2 · D1-over-HTTP) and, later, provision new office databases. The
+  // token needs D1 edit permission. The account id is not sensitive; the token
+  // is a secret (wrangler secret put CF_D1_TOKEN).
+  CF_ACCOUNT_ID?: string;
+  CF_D1_TOKEN?: string;
 }
 
 // The tables read by /api/load and written by /api/save, in the SAME key order
