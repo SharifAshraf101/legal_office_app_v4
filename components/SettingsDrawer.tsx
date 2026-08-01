@@ -596,6 +596,24 @@ function ChangePasswordSection({
   const [next, setNext] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNext, setShowNext] = useState(false);
+  const eyeBtn: React.CSSProperties = {
+    position: 'absolute',
+    top: '50%',
+    right: 10,
+    transform: 'translateY(-50%)',
+    display: 'grid',
+    placeItems: 'center',
+    background: 'none',
+    border: 0,
+    padding: 6,
+    margin: 0,
+    cursor: 'pointer',
+    color: 'var(--muted)',
+    fontSize: 14,
+    lineHeight: 1,
+  };
 
   const submit = async () => {
     setMsg(null);
@@ -654,29 +672,59 @@ function ChangePasswordSection({
         <label htmlFor="cur-pass">
           {settingsText('סיסמה נוכחית', 'كلمة المرور الحالية')}
         </label>
-        <input
-          id="cur-pass"
-          className="clean-office-input"
-          type="password"
-          dir="ltr"
-          autoComplete="current-password"
-          value={current}
-          onChange={(e) => setCurrent(e.target.value)}
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            id="cur-pass"
+            className="clean-office-input"
+            type={showCurrent ? 'text' : 'password'}
+            dir="ltr"
+            autoComplete="current-password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            style={{ paddingInlineEnd: 40 }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowCurrent((v) => !v)}
+            aria-label={
+              showCurrent
+                ? settingsText('הסתר סיסמה', 'إخفاء كلمة المرور')
+                : settingsText('הצג סיסמה', 'إظهار كلمة المرور')
+            }
+            style={eyeBtn}
+          >
+            <i className={showCurrent ? 'fas fa-eye-slash' : 'fas fa-eye'} />
+          </button>
+        </div>
       </div>
       <div className="settings-field clean-office-field">
         <label htmlFor="new-pass">
           {settingsText('סיסמה חדשה', 'كلمة المرور الجديدة')}
         </label>
-        <input
-          id="new-pass"
-          className="clean-office-input"
-          type="password"
-          dir="ltr"
-          autoComplete="new-password"
-          value={next}
-          onChange={(e) => setNext(e.target.value)}
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            id="new-pass"
+            className="clean-office-input"
+            type={showNext ? 'text' : 'password'}
+            dir="ltr"
+            autoComplete="new-password"
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+            style={{ paddingInlineEnd: 40 }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowNext((v) => !v)}
+            aria-label={
+              showNext
+                ? settingsText('הסתר סיסמה', 'إخفاء كلمة المرور')
+                : settingsText('הצג סיסמה', 'إظهار كلمة المرور')
+            }
+            style={eyeBtn}
+          >
+            <i className={showNext ? 'fas fa-eye-slash' : 'fas fa-eye'} />
+          </button>
+        </div>
       </div>
       {msg && (
         <div

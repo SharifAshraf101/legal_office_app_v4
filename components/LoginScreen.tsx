@@ -35,6 +35,8 @@ const STRINGS = {
     backToSignIn: 'חזרה להתחברות',
     errGeneric: 'אירעה שגיאה. בדוק את הפרטים ונסה שוב.',
     minPass: 'הסיסמה חייבת להכיל לפחות 8 תווים.',
+    showPass: 'הצג סיסמה',
+    hidePass: 'הסתר סיסמה',
     emailPh: 'name@office.com',
   },
   ar: {
@@ -55,6 +57,8 @@ const STRINGS = {
     backToSignIn: 'العودة لتسجيل الدخول',
     errGeneric: 'حدث خطأ. تحقق من البيانات وحاول مجدداً.',
     minPass: 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.',
+    showPass: 'إظهار كلمة المرور',
+    hidePass: 'إخفاء كلمة المرور',
     emailPh: 'name@office.com',
   },
 } as const;
@@ -68,6 +72,7 @@ export function LoginScreen({ lang, onAuthed }: LoginScreenProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -123,6 +128,22 @@ export function LoginScreen({ lang, onAuthed }: LoginScreenProps) {
     color: 'var(--muted)',
     margin: '0 0 6px 2px',
   };
+  const eyeBtn: React.CSSProperties = {
+    position: 'absolute',
+    top: '50%',
+    right: 10,
+    transform: 'translateY(-50%)',
+    display: 'grid',
+    placeItems: 'center',
+    background: 'none',
+    border: 0,
+    padding: 6,
+    margin: 0,
+    cursor: 'pointer',
+    color: 'var(--muted)',
+    fontSize: 15,
+    lineHeight: 1,
+  };
 
   return (
     <div
@@ -150,23 +171,23 @@ export function LoginScreen({ lang, onAuthed }: LoginScreenProps) {
           textAlign: 'center',
         }}
       >
-        <div
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/icons/app-icon-512.png"
+          alt=""
           aria-hidden="true"
+          width={78}
+          height={78}
           style={{
-            width: 66,
-            height: 66,
-            borderRadius: 22,
+            display: 'block',
+            width: 78,
+            height: 78,
+            borderRadius: 20,
             margin: '0 auto 16px',
-            display: 'grid',
-            placeItems: 'center',
-            background: 'linear-gradient(135deg, var(--primary), #6c8dff)',
-            color: '#fff',
-            fontSize: 30,
-            boxShadow: '0 14px 28px rgba(79,124,255,.28)',
+            objectFit: 'contain',
+            boxShadow: '0 14px 28px rgba(15,23,42,.14)',
           }}
-        >
-          <i className="fas fa-scale-balanced" />
-        </div>
+        />
 
         {pending ? (
           <>
@@ -235,16 +256,27 @@ export function LoginScreen({ lang, onAuthed }: LoginScreenProps) {
               </div>
               <div>
                 <label style={label} htmlFor="office-password">{t.password}</label>
-                <input
-                  id="office-password"
-                  type="password"
-                  required
-                  dir="ltr"
-                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  style={{ ...field, textAlign: 'left' }}
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="office-password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    dir="ltr"
+                    autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    style={{ ...field, textAlign: 'left', paddingInlineEnd: 42 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? t.hidePass : t.showPass}
+                    title={showPassword ? t.hidePass : t.showPass}
+                    style={eyeBtn}
+                  >
+                    <i className={showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'} />
+                  </button>
+                </div>
               </div>
 
               {error && (
