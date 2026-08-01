@@ -6,8 +6,9 @@
 // office that starts PENDING admin approval (so it shows a waiting state rather
 // than entering the app).
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { signIn, signUp } from '@/lib/officeAuth';
+import { hasAdminToken } from '@/lib/officeToken';
 import type { Lang } from '@/types';
 
 interface LoginScreenProps {
@@ -75,6 +76,12 @@ export function LoginScreen({ lang, onAuthed }: LoginScreenProps) {
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // The admin link is shown ONLY on the operator's own device (where the admin
+  // token was stored). Every other office never sees it.
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    setIsAdmin(hasAdminToken());
+  }, []);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -340,33 +347,35 @@ export function LoginScreen({ lang, onAuthed }: LoginScreenProps) {
               {mode === 'signin' ? t.toSignUp : t.toSignIn}
             </button>
 
-            {/* Discreet operator entry to the standalone admin console. Regular
-                offices ignore it; it just opens /admin (which is useless without
-                the admin token, so exposing the link here is harmless). */}
-            <div
-              style={{
-                marginTop: 20,
-                paddingTop: 14,
-                borderTop: '1px solid var(--line)',
-              }}
-            >
-              <a
-                href="/admin"
+            {/* Discreet operator entry to the standalone admin console — shown
+                ONLY on the operator's own device (gated on the stored admin
+                token), so other offices never see it. */}
+            {isAdmin && (
+              <div
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  color: 'var(--muted)',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textDecoration: 'none',
-                  opacity: 0.7,
+                  marginTop: 20,
+                  paddingTop: 14,
+                  borderTop: '1px solid var(--line)',
                 }}
               >
-                <i className="fas fa-user-shield" />
-                {t.adminLink}
-              </a>
-            </div>
+                <a
+                  href="/admin"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    color: 'var(--muted)',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    opacity: 0.7,
+                  }}
+                >
+                  <i className="fas fa-user-shield" />
+                  {t.adminLink}
+                </a>
+              </div>
+            )}
           </>
         )}
       </div>

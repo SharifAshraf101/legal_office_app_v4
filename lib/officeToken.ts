@@ -41,3 +41,19 @@ export function officeAuthHeader(): Record<string, string> {
   const t = getOfficeToken();
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
+
+// --- Admin console token (operator-only) ---------------------------------
+// Separate from the office session token. Only the operator's OWN device ever
+// stores this — it's typed once on the /admin page. Its presence is therefore a
+// reliable "this is the admin's browser" signal, used to show the discreet
+// admin link ONLY to the operator (regular offices never have it).
+export const OFFICE_ADMIN_TOKEN_KEY = 'office_admin_token';
+
+export function hasAdminToken(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return !!window.localStorage.getItem(OFFICE_ADMIN_TOKEN_KEY);
+  } catch {
+    return false;
+  }
+}

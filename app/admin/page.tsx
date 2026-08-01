@@ -7,9 +7,10 @@
 // come here and can't do anything here without the token.
 
 import { useCallback, useEffect, useState } from 'react';
+import { OFFICE_ADMIN_TOKEN_KEY } from '@/lib/officeToken';
 
 const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || '';
-const ADMIN_TOKEN_KEY = 'office_admin_token';
+const ADMIN_TOKEN_KEY = OFFICE_ADMIN_TOKEN_KEY;
 
 interface Office {
   id: string;
