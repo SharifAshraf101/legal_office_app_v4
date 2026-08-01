@@ -106,36 +106,36 @@ export default {
 
     if (method === 'GET' && path === '/api/load') return handleLoad(request, env, ctx);
     if (method === 'GET' && path === '/api/file-summary') {
-      return handleFileSummary(request, env);
+      return handleFileSummary(request, env, ctx);
     }
     if (method === 'POST' && path === '/api/file-summary') {
-      return handleStoreFileSummary(request, env);
+      return handleStoreFileSummary(request, env, ctx);
     }
-    if (method === 'POST' && path === '/api/save') return handleSave(request, env);
-    if (method === 'POST' && path === '/api/draft') return handleDraft(request, env);
+    if (method === 'POST' && path === '/api/save') return handleSave(request, env, ctx);
+    if (method === 'POST' && path === '/api/draft') return handleDraft(request, env, ctx);
     if (method === 'POST' && path === '/api/draft-decision') {
-      return handleDraftDecision(request, env);
+      return handleDraftDecision(request, env, ctx);
     }
     if (method === 'GET' && path === '/api/case-notes') {
-      return handleCaseNotes(request, env);
+      return handleCaseNotes(request, env, ctx);
     }
     if (method === 'GET' && path === '/api/drafts') {
-      return handleDrafts(request, env);
+      return handleDrafts(request, env, ctx);
     }
     if (method === 'GET' && path === '/api/skills') {
-      return handleSkills(request, env);
+      return handleSkills(request, env, ctx);
     }
     if (method === 'POST' && path === '/api/upload-photo') {
-      return handleUploadPhoto(request, env);
+      return handleUploadPhoto(request, env, ctx);
     }
     if (method === 'GET' && path === '/api/legal-actions') {
-      return handleLegalActions(request, env);
+      return handleLegalActions(request, env, ctx);
     }
     if (method === 'POST' && path === '/api/suggested-actions') {
-      return handleSaveSuggestedAction(request, env);
+      return handleSaveSuggestedAction(request, env, ctx);
     }
     if (method === 'POST' && path === '/api/suggest-action') {
-      return handleSuggestAction(request, env);
+      return handleSuggestAction(request, env, ctx);
     }
     if (method === 'POST' && path === '/api/split-decision') {
       return handleSplitDecision(request, env);
@@ -144,13 +144,13 @@ export default {
       return handleTranslate(request, env);
     }
     if (method === 'GET' && path.startsWith('/api/suggested-actions/')) {
-      return handleGetSuggestedActions(request, env);
+      return handleGetSuggestedActions(request, env, ctx);
     }
 if (method === 'POST' && path === '/api/whatsapp-messages') {
-    return handleSaveWhatsAppMessage(request, env);
+    return handleSaveWhatsAppMessage(request, env, ctx);
   }
   if (method === 'GET' && path.startsWith('/api/whatsapp-messages/')) {
-    return handleGetWhatsAppMessages(request, env);
+    return handleGetWhatsAppMessages(request, env, ctx);
   }
     if (method === 'GET' && path === '/api/document') {
       return handleDocument(request, env);
@@ -191,14 +191,14 @@ async function handleLoad(request: Request, env: Env, ctx: Ctx): Promise<Respons
   const out: Record<string, unknown> = {};
   for (const table of LOAD_TABLES) {
     const extra = table === 'documents' ? " AND source_id NOT LIKE '%/%'" : '';
-    const rs = await env.DB.prepare(
+    const rs = await ctx.db.prepare(
       `SELECT * FROM ${table} WHERE user_id = ?${extra}`,
     )
       .bind(ctx.tenantId)
       .all();
     out[table] = rs.results ?? [];
   }
-  const asRow = await env.DB.prepare(
+  const asRow = await ctx.db.prepare(
     `SELECT state, payload, data FROM app_state WHERE user_id = ?`,
   )
     .bind(ctx.tenantId)
@@ -213,7 +213,7 @@ async function handleLoad(request: Request, env: Env, ctx: Ctx): Promise<Respons
 // ---------------------------------------------------------------------------
 // GET /api/file-summary
 // ---------------------------------------------------------------------------
-async function handleFileSummary(request: Request, env: Env): Promise<Response> {
+async function handleFileSummary(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   const url = new URL(request.url);
   const file = (url.searchParams.get('file') || '').trim();
   const orig = (url.searchParams.get('orig') || '').trim();
@@ -223,7 +223,7 @@ async function handleFileSummary(request: Request, env: Env): Promise<Response> 
   }
   const docMatch = /(DOC-\d+)/i.exec(file) || /(DOC-\d+)/i.exec(orig);
   const docId = docMatch ? docMatch[1].toUpperCase() : '';
-  const row = await env.DB.prepare(
+  const row = await ctx.db.prepare(
     'SELECT summary_he, summary_ar, summary_orig, language FROM file_summary ' +
       'WHERE file_name = ?1 OR file_name = ?2 ' +
       "OR (?4 <> '' AND (upper(file_name) LIKE '%' || ?4 || '.%' OR upper(file_name) LIKE '%' || ?4)) " +
@@ -258,6 +258,7 @@ async function handleFileSummary(request: Request, env: Env): Promise<Response> 
 async function handleStoreFileSummary(
   request: Request,
   env: Env,
+  ctx: Ctx,
 ): Promise<Response> {
   let body: Record<string, unknown>;
   try {
@@ -276,7 +277,7 @@ async function handleStoreFileSummary(
   const docMatch = /(DOC-\d+)/i.exec(fileName);
   const docId = docMatch ? docMatch[1].toUpperCase() : '';
   if (docId) {
-    await env.DB.prepare(
+    await ctx.db.prepare(
       'DELETE FROM file_summary WHERE file_name = ?1 ' +
         "OR upper(file_name) LIKE '%' || ?2 || '.%' " +
         "OR upper(file_name) LIKE '%' || ?2",
@@ -284,11 +285,11 @@ async function handleStoreFileSummary(
       .bind(fileName, docId)
       .run();
   } else {
-    await env.DB.prepare('DELETE FROM file_summary WHERE file_name = ?')
+    await ctx.db.prepare('DELETE FROM file_summary WHERE file_name = ?')
       .bind(fileName)
       .run();
   }
-  await env.DB.prepare(
+  await ctx.db.prepare(
     'INSERT INTO file_summary (client_id, case_id, file_name, summary_he, summary_ar, summary_orig, language, ai_model) ' +
       'VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)',
   )
@@ -304,7 +305,7 @@ async function handleStoreFileSummary(
     )
     .run();
   if (docId) {
-    await env.DB.prepare(
+    await ctx.db.prepare(
       'UPDATE documents SET summary_he = COALESCE(?1, summary_he), ' +
         'summary_ar = COALESCE(?2, summary_ar), updated_at = ?3 ' +
         "WHERE user_id = ?4 AND (upper(source_id) = ?5 " +
@@ -314,7 +315,7 @@ async function handleStoreFileSummary(
         str(body.summary_he),
         str(body.summary_ar),
         new Date().toISOString(),
-        env.USER_ID,
+        ctx.tenantId,
         docId,
       )
       .run();
@@ -325,7 +326,7 @@ async function handleStoreFileSummary(
 // ---------------------------------------------------------------------------
 // POST /api/save
 // ---------------------------------------------------------------------------
-async function handleSave(request: Request, env: Env): Promise<Response> {
+async function handleSave(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -338,12 +339,12 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
     const rows = Array.isArray(body[table]) ? (body[table] as unknown[]) : [];
     for (const row of rows) {
       if (!row || typeof row !== 'object') continue;
-      const built = buildUpsert(table, row as Record<string, unknown>, env.USER_ID);
-      if (built) statements.push(env.DB.prepare(built.sql).bind(...built.binds));
+      const built = buildUpsert(table, row as Record<string, unknown>, ctx.tenantId);
+      if (built) statements.push(ctx.db.prepare(built.sql).bind(...built.binds));
     }
   }
 
-  if (statements.length) await env.DB.batch(statements);
+  if (statements.length) await ctx.db.batch(statements);
 
   // Explicit deletions: rows the user removed locally. The upsert above only
   // adds/updates, so a deleted record would otherwise linger in D1 and come
@@ -369,19 +370,19 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
         const chunk = ids.slice(i, i + 50);
         const ph = chunk.map((_, j) => '?' + (j + 2)).join(', ');
         delStatements.push(
-          env.DB.prepare(
+          ctx.db.prepare(
             `DELETE FROM ${table} WHERE user_id = ?1 AND source_id IN (${ph})`,
-          ).bind(env.USER_ID, ...chunk),
+          ).bind(ctx.tenantId, ...chunk),
         );
         deleted += chunk.length;
       }
     }
-    if (delStatements.length) await env.DB.batch(delStatements);
+    if (delStatements.length) await ctx.db.batch(delStatements);
   }
 
   if (Array.isArray(body.timeline_items) || Array.isArray(body.cases)) {
     try {
-      await syncCaseNotes(env);
+      await syncCaseNotes(env, ctx);
     } catch {
       // never fail the save because the mirror rebuild hiccuped
     }
@@ -390,7 +391,7 @@ async function handleSave(request: Request, env: Env): Promise<Response> {
   // pipeline may have created for the same case + day.
   if (Array.isArray(body.calendar_events)) {
     try {
-      await consolidateHearings(env);
+      await consolidateHearings(env, ctx);
     } catch {
       // never fail the save because the consolidation hiccuped
     }
@@ -439,14 +440,14 @@ function hearingSourceType(
 //     that both point to the same hearing) → MERGE into one event with a clear
 //     note that it was merged from those sources.
 // Only hearing-type events are touched; meetings, reminders, etc. are left alone.
-async function consolidateHearings(env: Env): Promise<void> {
-  const rs = await env.DB.prepare(
+async function consolidateHearings(env: Env, ctx: Ctx): Promise<void> {
+  const rs = await ctx.db.prepare(
     `SELECT id, source_id, title, description, case_source_id, date_time
      FROM calendar_events
      WHERE user_id = ?1 AND lower(type) IN ('hearing', 'hearingmeeting')
      ORDER BY created_at ASC, id ASC`,
   )
-    .bind(env.USER_ID)
+    .bind(ctx.tenantId)
     .all();
   const rows = (rs.results ?? []) as Array<{
     id: string;
@@ -515,29 +516,29 @@ async function consolidateHearings(env: Env): Promise<void> {
     // currently holds the decision summary — so the calendar shows only the
     // clean note, never the decision content or its abridgement.
     if (he && String(keep.description ?? '') !== he) {
-      await env.DB.prepare(
+      await ctx.db.prepare(
         'UPDATE calendar_events SET description = ?2, description_ar = ?3, title = ?6, title_ar = ?7, updated_at = ?4 WHERE user_id = ?1 AND id = ?5',
       )
-        .bind(env.USER_ID, he, ar, now, keep.id, 'דיון', 'جلسة')
+        .bind(ctx.tenantId, he, ar, now, keep.id, 'דיון', 'جلسة')
         .run();
     }
   }
   for (let i = 0; i < toDelete.length; i += 50) {
     const chunk = toDelete.slice(i, i + 50);
     const ph = chunk.map((_, j) => '?' + (j + 2)).join(', ');
-    await env.DB.prepare(
+    await ctx.db.prepare(
       `DELETE FROM calendar_events WHERE user_id = ?1 AND id IN (${ph})`,
     )
-      .bind(env.USER_ID, ...chunk)
+      .bind(ctx.tenantId, ...chunk)
       .run();
   }
 }
 
-async function syncCaseNotes(env: Env): Promise<void> {
-  await env.DB.prepare('DELETE FROM case_notes WHERE user_id = ?')
-    .bind(env.USER_ID)
+async function syncCaseNotes(env: Env, ctx: Ctx): Promise<void> {
+  await ctx.db.prepare('DELETE FROM case_notes WHERE user_id = ?')
+    .bind(ctx.tenantId)
     .run();
-  await env.DB.prepare(
+  await ctx.db.prepare(
     'INSERT INTO case_notes ' +
       '(id, user_id, source_id, client_id, case_id, note, note_ar, date, created_at, updated_at) ' +
       'SELECT ti.id, ti.user_id, ti.source_id, c.client_source_id, ti.case_source_id, ' +
@@ -547,14 +548,14 @@ async function syncCaseNotes(env: Env): Promise<void> {
       "WHERE ti.user_id = ?1 AND lower(coalesce(ti.type, 'note')) = 'note' " +
       "AND coalesce(trim(ti.description), '') <> ''",
   )
-    .bind(env.USER_ID)
+    .bind(ctx.tenantId)
     .run();
 }
 
 // ---------------------------------------------------------------------------
 // POST /api/draft
 // ---------------------------------------------------------------------------
-async function handleDraft(request: Request, env: Env): Promise<Response> {
+async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -605,15 +606,15 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
   }
   const documentSourceId = docId || sourceId;
 
-  const skillRow = await env.DB.prepare(
+  const skillRow = await ctx.db.prepare(
     'SELECT content FROM skills WHERE user_id = ? AND skill_key = ? ' +
       "AND lower(coalesce(status, 'active')) = 'active' ORDER BY updated_at DESC LIMIT 1",
   )
-    .bind(env.USER_ID, skillKey)
+    .bind(ctx.tenantId, skillKey)
     .first<{ content?: string }>();
   const skill = skillRow?.content || '';
 
-  const notes = await fetchDraftNotes(env, clientSrc, caseSrc);
+  const notes = await fetchDraftNotes(env, ctx, clientSrc, caseSrc);
   // All notes the app aggregated for this case (client note + document-upload
   // notes + brain quick-action notes), passed straight from the client so the
   // draft reflects sources that aren't in the case_notes table.
@@ -776,14 +777,14 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
   };
   let count = 0;
   let persistError = '';
-  const built = buildUpsert('drafts', row, env.USER_ID);
+  const built = buildUpsert('drafts', row, ctx.tenantId);
   if (built) {
     // Guard the write like /api/suggest-action does: the draft has already been
     // generated (the expensive part), so a D1 write failure here must NOT throw
     // out of the request — an unhandled throw becomes an opaque 502 for the
     // make.com draft step. Report it in the response instead.
     try {
-      await env.DB.prepare(built.sql)
+      await ctx.db.prepare(built.sql)
         .bind(...built.binds)
         .run();
       count = 1;
@@ -827,7 +828,7 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
 // failure it defaults to 'approved' so a possibly-required reply is never
 // silently hidden.
 // ---------------------------------------------------------------------------
-async function handleDraftDecision(request: Request, env: Env): Promise<Response> {
+async function handleDraftDecision(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -959,9 +960,9 @@ async function handleDraftDecision(request: Request, env: Env): Promise<Response
   };
   if (clientSrc) row.client_source_id = clientSrc;
   if (caseSrc) row.case_source_id = caseSrc;
-  const built = buildUpsert('drafts', row, env.USER_ID);
+  const built = buildUpsert('drafts', row, ctx.tenantId);
   if (built) {
-    await env.DB.prepare(built.sql)
+    await ctx.db.prepare(built.sql)
       .bind(...built.binds)
       .run();
   }
@@ -982,25 +983,26 @@ async function handleDraftDecision(request: Request, env: Env): Promise<Response
 
 async function fetchDraftNotes(
   env: Env,
+  ctx: Ctx,
   clientSrc: string,
   caseSrc: string,
 ): Promise<{ he: string; ar: string; count: number; scope: string }> {
   let rows: Array<{ note?: string; note_ar?: string }> = [];
   let scope = 'none';
   if (caseSrc) {
-    const rs = await env.DB.prepare(
+    const rs = await ctx.db.prepare(
       'SELECT note, note_ar FROM case_notes WHERE user_id = ? AND upper(case_id) = upper(?) ORDER BY date ASC, created_at ASC',
     )
-      .bind(env.USER_ID, caseSrc)
+      .bind(ctx.tenantId, caseSrc)
       .all<{ note?: string; note_ar?: string }>();
     rows = rs.results ?? [];
     if (rows.length) scope = 'case';
   }
   if (!rows.length && clientSrc) {
-    const rs = await env.DB.prepare(
+    const rs = await ctx.db.prepare(
       'SELECT note, note_ar FROM case_notes WHERE user_id = ? AND lower(client_id) = lower(?) ORDER BY date ASC, created_at ASC',
     )
-      .bind(env.USER_ID, clientSrc)
+      .bind(ctx.tenantId, clientSrc)
       .all<{ note?: string; note_ar?: string }>();
     rows = rs.results ?? [];
     if (rows.length) scope = 'client';
@@ -1013,11 +1015,11 @@ async function fetchDraftNotes(
 // ---------------------------------------------------------------------------
 // GET /api/case-notes
 // ---------------------------------------------------------------------------
-async function handleCaseNotes(request: Request, env: Env): Promise<Response> {
+async function handleCaseNotes(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   const url = new URL(request.url);
   const caseId = (url.searchParams.get('caseId') || '').trim();
   const clientId = (url.searchParams.get('clientId') || '').trim();
-  const binds: unknown[] = [env.USER_ID];
+  const binds: unknown[] = [ctx.tenantId];
   let sql =
     'SELECT source_id, client_id, case_id, note, note_ar, date, created_at ' +
     'FROM case_notes WHERE user_id = ?1';
@@ -1030,7 +1032,7 @@ async function handleCaseNotes(request: Request, env: Env): Promise<Response> {
     sql += ` AND lower(client_id) = lower(?${binds.length})`;
   }
   sql += ' ORDER BY date DESC, created_at DESC';
-  const rs = await env.DB.prepare(sql)
+  const rs = await ctx.db.prepare(sql)
     .bind(...binds)
     .all();
   return json({ notes: rs.results ?? [] }, request, env);
@@ -1039,12 +1041,12 @@ async function handleCaseNotes(request: Request, env: Env): Promise<Response> {
 // ---------------------------------------------------------------------------
 // GET /api/drafts
 // ---------------------------------------------------------------------------
-async function handleDrafts(request: Request, env: Env): Promise<Response> {
+async function handleDrafts(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   const url = new URL(request.url);
   const caseId = (url.searchParams.get('caseId') || '').trim();
   const clientId = (url.searchParams.get('clientId') || '').trim();
   const documentId = (url.searchParams.get('documentId') || '').trim();
-  const binds: unknown[] = [env.USER_ID];
+  const binds: unknown[] = [ctx.tenantId];
   let sql =
     'SELECT source_id, case_source_id, client_source_id, document_source_id, ' +
     'file_name, title, title_ar, draft_he, draft_ar, draft_orig, language, doc_type, ' +
@@ -1063,7 +1065,7 @@ async function handleDrafts(request: Request, env: Env): Promise<Response> {
     sql += ` AND upper(document_source_id) = upper(?${binds.length})`;
   }
   sql += ' ORDER BY date DESC, updated_at DESC';
-  const rs = await env.DB.prepare(sql)
+  const rs = await ctx.db.prepare(sql)
     .bind(...binds)
     .all();
   return json({ drafts: rs.results ?? [] }, request, env);
@@ -1072,11 +1074,11 @@ async function handleDrafts(request: Request, env: Env): Promise<Response> {
 // ---------------------------------------------------------------------------
 // GET /api/skills
 // ---------------------------------------------------------------------------
-async function handleSkills(request: Request, env: Env): Promise<Response> {
+async function handleSkills(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   const url = new URL(request.url);
   const key = (url.searchParams.get('key') || '').trim();
   const all = (url.searchParams.get('all') || '').trim() === '1';
-  const binds: unknown[] = [env.USER_ID];
+  const binds: unknown[] = [ctx.tenantId];
   let sql =
     'SELECT source_id, skill_key, title, title_ar, content, language, ' +
     'status, date, updated_at FROM skills WHERE user_id = ?1';
@@ -1086,7 +1088,7 @@ async function handleSkills(request: Request, env: Env): Promise<Response> {
     sql += ` AND skill_key = ?${binds.length}`;
   }
   sql += ' ORDER BY updated_at DESC';
-  const rs = await env.DB.prepare(sql)
+  const rs = await ctx.db.prepare(sql)
     .bind(...binds)
     .all();
   return json({ skills: rs.results ?? [] }, request, env);
@@ -1095,7 +1097,7 @@ async function handleSkills(request: Request, env: Env): Promise<Response> {
 // ---------------------------------------------------------------------------
 // POST /api/upload-photo
 // ---------------------------------------------------------------------------
-async function handleUploadPhoto(request: Request, env: Env): Promise<Response> {
+async function handleUploadPhoto(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   let form: FormData;
   try {
     form = await request.formData();
@@ -1114,7 +1116,7 @@ async function handleUploadPhoto(request: Request, env: Env): Promise<Response> 
   };
 
   const fileName = typeof file.name === 'string' ? file.name : 'file';
-  const key = `${env.USER_ID}/client-photos/${clientId}/${Date.now()}-${safeName(fileName)}`;
+  const key = `${ctx.tenantId}/client-photos/${clientId}/${Date.now()}-${safeName(fileName)}`;
   await env.PHOTOS.put(key, await file.arrayBuffer(), {
     httpMetadata: { contentType: file.type || 'image/jpeg' },
   });
@@ -1127,13 +1129,13 @@ async function handleUploadPhoto(request: Request, env: Env): Promise<Response> 
 // ---------------------------------------------------------------------------
 // GET /api/legal-actions?court_type=sharia
 // ---------------------------------------------------------------------------
-async function handleLegalActions(request: Request, env: Env): Promise<Response> {
+async function handleLegalActions(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   const url = new URL(request.url);
   const courtType = (url.searchParams.get('court_type') || '').trim();
   if (!courtType) {
     return json({ error: 'court_type parameter required' }, request, env, 400);
   }
-  const rs = await env.DB.prepare(
+  const rs = await ctx.db.prepare(
     `SELECT id, stage, action_name, responsible, deadline, deadline_from, legal_source, practical_notes
      FROM legal_actions
      WHERE court_type = ?
@@ -1147,7 +1149,7 @@ async function handleLegalActions(request: Request, env: Env): Promise<Response>
 // ---------------------------------------------------------------------------
 // POST /api/suggested-actions
 // ---------------------------------------------------------------------------
-async function handleSaveSuggestedAction(request: Request, env: Env): Promise<Response> {
+async function handleSaveSuggestedAction(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -1159,7 +1161,7 @@ async function handleSaveSuggestedAction(request: Request, env: Env): Promise<Re
   // can't throw a constraint error (which would surface as HTTP 1101).
   const req = (v: unknown) => String(v ?? '').trim();
   try {
-    await env.DB.prepare(
+    await ctx.db.prepare(
       `INSERT INTO case_suggested_actions
        (client_id, case_id, document_name, court_type, suggested_action, deadline, legal_source, confidence, reasoning)
        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
@@ -1204,7 +1206,7 @@ function mapCourtTypes(court: string): string[] {
 // given the latest document/context. Saves it to case_suggested_actions (so
 // the existing GET still serves it) and returns it.
 // ---------------------------------------------------------------------------
-async function handleSuggestAction(request: Request, env: Env): Promise<Response> {
+async function handleSuggestAction(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -1238,13 +1240,13 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
   // missing) and propose the next logical step accordingly.
   let docsChain = '';
   try {
-    const dRs = await env.DB.prepare(
+    const dRs = await ctx.db.prepare(
       `SELECT title, title_ar, file_name, date, created_at
        FROM documents
        WHERE user_id = ?1 AND upper(case_source_id) = upper(?2)
        ORDER BY COALESCE(NULLIF(date, ''), created_at) ASC, created_at ASC`,
     )
-      .bind(env.USER_ID, caseId)
+      .bind(ctx.tenantId, caseId)
       .all();
     const caseDocs = (dRs.results ?? []) as Array<Record<string, unknown>>;
     docsChain = caseDocs
@@ -1267,7 +1269,7 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
 
   const courtTypes = mapCourtTypes(court);
   const placeholders = courtTypes.map((_, i) => '?' + (i + 1)).join(', ');
-  const rs = await env.DB.prepare(
+  const rs = await ctx.db.prepare(
     `SELECT court_type, stage, action_name, responsible, deadline, deadline_from, legal_source, practical_notes
      FROM legal_actions WHERE court_type IN (${placeholders}) ORDER BY court_type, id`,
   )
@@ -1416,7 +1418,7 @@ async function handleSuggestAction(request: Request, env: Env): Promise<Response
   // "הצעה לפעולה" card empty). Wrap the write too, so a suggestion is still
   // returned even if persistence hiccups.
   try {
-    await env.DB.prepare(
+    await ctx.db.prepare(
       `INSERT INTO case_suggested_actions
        (client_id, case_id, document_name, court_type, suggested_action, deadline, deadline_days, represented_party, legal_source, confidence, reasoning)
        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)`,
@@ -1638,13 +1640,13 @@ async function handleTranslate(request: Request, env: Env): Promise<Response> {
 // ---------------------------------------------------------------------------
 // GET /api/suggested-actions/:case_id
 // ---------------------------------------------------------------------------
-async function handleGetSuggestedActions(request: Request, env: Env): Promise<Response> {
+async function handleGetSuggestedActions(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   const url = new URL(request.url);
   const caseId = url.pathname.replace('/api/suggested-actions/', '').trim();
   if (!caseId) {
     return json({ error: 'case_id required' }, request, env, 400);
   }
-  const rs = await env.DB.prepare(
+  const rs = await ctx.db.prepare(
     `SELECT * FROM case_suggested_actions
      WHERE case_id = ?
      ORDER BY created_at DESC`,
@@ -1957,7 +1959,7 @@ function safeName(name: string): string {
 // -----------------------------------------------------------------------
 // POST /api/whatsapp-messages
 // -----------------------------------------------------------------------
-async function handleSaveWhatsAppMessage(request: Request, env: Env): Promise<Response> {
+async function handleSaveWhatsAppMessage(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   let body: {
     client_phone: string;
     direction: string;
@@ -1978,7 +1980,7 @@ async function handleSaveWhatsAppMessage(request: Request, env: Env): Promise<Re
     return json({ error: 'missing client_phone' }, request, env, 400);
   }
   try {
-    await env.DB.prepare(
+    await ctx.db.prepare(
       'INSERT INTO whatsapp_messages (client_phone, direction, message_text, timestamp, message_type, media_url, media_mime_type, media_id, file_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)'
     ).bind(
       body.client_phone,
@@ -2001,10 +2003,10 @@ async function handleSaveWhatsAppMessage(request: Request, env: Env): Promise<Re
 // -----------------------------------------------------------------------
 // GET /api/whatsapp-messages/:phone
 // -----------------------------------------------------------------------
-async function handleGetWhatsAppMessages(request: Request, env: Env): Promise<Response> {
+async function handleGetWhatsAppMessages(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   const url = new URL(request.url);
   const phone = url.pathname.split('/').pop() ?? '';
-  const rs = await env.DB.prepare(
+  const rs = await ctx.db.prepare(
     'SELECT * FROM whatsapp_messages WHERE client_phone = ?1 ORDER BY timestamp ASC'
   ).bind(phone).all();
   return json({ messages: rs.results ?? [] }, request, env);
