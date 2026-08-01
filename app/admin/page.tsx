@@ -41,6 +41,7 @@ export default function AdminPage() {
   const [authError, setAuthError] = useState('');
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [busyId, setBusyId] = useState('');
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     try {
@@ -144,8 +145,14 @@ export default function AdminPage() {
     }
   };
 
-  const pending = offices.filter((o) => o.status === 'pending');
-  const others = offices.filter((o) => o.status !== 'pending');
+  const q = query.trim().toLowerCase();
+  const match = (o: Office) =>
+    !q ||
+    o.name.toLowerCase().includes(q) ||
+    (o.owner_email || '').toLowerCase().includes(q) ||
+    (o.data_db_name || '').toLowerCase().includes(q);
+  const pending = offices.filter((o) => o.status === 'pending' && match(o));
+  const others = offices.filter((o) => o.status !== 'pending' && match(o));
 
   const shell: React.CSSProperties = {
     direction: 'rtl',
@@ -289,6 +296,43 @@ export default function AdminPage() {
           </button>
         </div>
 
+        {offices.length > 0 && (
+          <div style={{ position: 'relative', marginBottom: 16 }}>
+            <i
+              className="fas fa-magnifying-glass"
+              style={{
+                position: 'absolute',
+                top: '50%',
+                insetInlineStart: 14,
+                transform: 'translateY(-50%)',
+                color: '#9aa1ac',
+                fontSize: 14,
+                pointerEvents: 'none',
+              }}
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="חיפוש לפי שם משרד או דוא״ל…"
+              aria-label="חיפוש משרד"
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '12px 16px',
+                paddingInlineStart: 42,
+                fontSize: 14.5,
+                borderRadius: 12,
+                border: `1px solid ${line}`,
+                background: surface,
+                color: ink,
+                outline: 'none',
+                fontFamily: 'inherit',
+              }}
+            />
+          </div>
+        )}
+
         {notice && (
           <div
             style={{
@@ -317,7 +361,9 @@ export default function AdminPage() {
               color={gold}
             />
             {pending.length === 0 ? (
-              <div style={emptyBox}>אין בקשות שממתינות לאישור.</div>
+              <div style={emptyBox}>
+                {q ? 'לא נמצאו תוצאות לחיפוש.' : 'אין בקשות שממתינות לאישור.'}
+              </div>
             ) : (
               <div style={{ display: 'grid', gap: 12, marginBottom: 26 }}>
                 {pending.map((o) => (
@@ -364,7 +410,9 @@ export default function AdminPage() {
             {/* All active offices */}
             <SectionTitle text="משרדים פעילים" icon="fa-building" color={indigo} />
             {others.length === 0 ? (
-              <div style={emptyBox}>עדיין אין משרדים פעילים.</div>
+              <div style={emptyBox}>
+                {q ? 'לא נמצאו תוצאות לחיפוש.' : 'עדיין אין משרדים פעילים.'}
+              </div>
             ) : (
               <div style={{ display: 'grid', gap: 10 }}>
                 {others.map((o) => (
