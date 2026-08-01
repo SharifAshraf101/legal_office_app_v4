@@ -52,6 +52,27 @@ export function LanguageSelector({ onChoose }: { onChoose: (lang: 'he' | 'ar') =
             العربية
           </button>
         </div>
+        {/* Discreet operator entry to the standalone /admin console. Shown on
+            every app open (this screen always appears first), so the operator
+            can reach it without typing the URL. Harmless to expose — the
+            console does nothing without the admin token. */}
+        <a
+          href="/admin"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            marginTop: 24,
+            color: '#8a8f98',
+            fontSize: 12.5,
+            fontWeight: 700,
+            textDecoration: 'none',
+            opacity: 0.85,
+          }}
+        >
+          <i className="fas fa-user-shield" />
+          ניהול מערכת
+        </a>
       </div>
     </div>
   );
