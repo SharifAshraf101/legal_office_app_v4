@@ -8,6 +8,7 @@
 // the instance is built inside the fetch handler via createAuth(env).
 
 import { betterAuth } from 'better-auth';
+import { bearer } from 'better-auth/plugins';
 import { getMigrations } from 'better-auth/db/migration';
 import type { Env } from './db';
 
@@ -26,6 +27,11 @@ export function createAuth(env: Env) {
     // and cookies use the real Worker URL; otherwise it's inferred per request.
     ...(env.AUTH_BASE_URL ? { baseURL: env.AUTH_BASE_URL } : {}),
     basePath: '/api/auth',
+    // Bearer sessions: the SPA and the Worker are on different origins, so
+    // cookie sessions would be blocked as third-party. The bearer plugin lets
+    // the client send the session token as `Authorization: Bearer <token>`
+    // instead — which resolveTenant already reads via getSession().
+    plugins: [bearer()],
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 8,

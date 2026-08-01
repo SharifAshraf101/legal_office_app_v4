@@ -39,6 +39,11 @@ export interface Env {
   // is a secret (wrangler secret put CF_D1_TOKEN).
   CF_ACCOUNT_ID?: string;
   CF_D1_TOKEN?: string;
+
+  // The database_id of THIS Worker's native `DB` binding (your original office,
+  // = tenant #1). When a resolved office's data_db matches it, the resolver
+  // serves it from the fast native binding instead of the REST client.
+  NATIVE_DB_ID?: string;
 }
 
 // The tables read by /api/load and written by /api/save, in the SAME key order

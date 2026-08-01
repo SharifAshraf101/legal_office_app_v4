@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { LanguageSelector } from './LanguageSelector';
+import { LoginScreen } from './LoginScreen';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { MobileNav } from './MobileNav';
@@ -18,6 +19,7 @@ import {
   hasDropboxFolder,
   isDropboxConfigured,
 } from '@/lib/dropbox';
+import { hasOfficeToken } from '@/lib/officeToken';
 
 /**
  * Top-level shell. Mirrors the original HTML structure:
@@ -49,7 +51,7 @@ function ShellInner() {
   useThemeAndFont();
   useAutoSync();
 
-  const { state, dispatch } = useAppState();
+  const { state, dispatch, reloadFromSupabase } = useAppState();
   const modalStack = useModalStack();
 
   // On first paint after a Dropbox auth redirect, the URL has `?code=...`.
@@ -82,10 +84,24 @@ function ShellInner() {
   const [splashDone, setSplashDone] = useState(false);
   const finishSplash = useCallback(() => setSplashDone(true), []);
 
+  // Auth gate: after a language is chosen, an office session is required.
+  // Returning offices (token in localStorage) skip straight to the app; new
+  // ones see the login screen. Synced from storage on mount — which happens
+  // while the language screen is still up, so there's no login-screen flash.
+  const [authed, setAuthed] = useState(false);
+  useEffect(() => {
+    setAuthed(hasOfficeToken());
+  }, []);
+  const onAuthed = useCallback(() => {
+    setAuthed(true);
+    // Pull THIS office's data with the freshly-issued session token.
+    void reloadFromSupabase();
+  }, [reloadFromSupabase]);
+
   // Professional task-deadline alert on open (and while open when a task crosses
   // the 3-day / 1-day / today / overdue mark). Gated on the app being ready so
   // it never shows over the language screen or before data hydrates.
-  useTaskDeadlineAlerts(langChosen && state.hydrated && splashDone);
+  useTaskDeadlineAlerts(langChosen && authed && state.hydrated && splashDone);
 
   if (!langChosen) {
     return (
@@ -99,6 +115,13 @@ function ShellInner() {
         }}
       />
     );
+  }
+
+  // Second gate: require a logged-in office before the app (and its data sync)
+  // come up. New offices sign up here (then wait for approval); existing ones
+  // sign in and land straight in the app.
+  if (!authed) {
+    return <LoginScreen lang={state.currentLang} onAuthed={onAuthed} />;
   }
 
   // After the choice, the flower splash plays on top while the app hydrates

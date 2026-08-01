@@ -13,10 +13,17 @@
 
 import type { Lang } from '@/types';
 import { dropboxPathForRelative, getDropboxTemporaryLink } from './dropbox';
+import { getOfficeToken } from './officeToken';
 
 // Same Worker config the rest of the app uses (see lib/cloudflare.ts).
 const WORKER_URL = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(/\/$/, '');
 const APP_TOKEN = process.env.NEXT_PUBLIC_APP_TOKEN || '';
+
+// Authorization value: the logged-in office's SESSION token when present,
+// otherwise the legacy app token. Read per-call so the current session is used.
+function bearer(): string {
+  return 'Bearer ' + (getOfficeToken() || APP_TOKEN);
+}
 
 // Persisted "already attempted on-demand generation" set, so a slow/costly
 // Claude generation (summary or draft) for a given document is tried at most
@@ -78,7 +85,7 @@ export async function fetchDocumentSummaryBoth(
       WORKER_URL + '/api/file-summary?' + params.toString(),
       {
         method: 'GET',
-        headers: { Authorization: 'Bearer ' + APP_TOKEN },
+        headers: { Authorization: bearer() },
       },
     );
     if (!res.ok) return null;
@@ -284,7 +291,7 @@ export async function translateToArabic(text: string): Promise<string> {
     const res = await fetch(WORKER_URL + '/api/translate', {
       method: 'POST',
       headers: {
-        Authorization: 'Bearer ' + APP_TOKEN,
+        Authorization: bearer(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ text: key, target: 'ar' }),
@@ -369,7 +376,7 @@ export async function fetchDocumentDraft(
   try {
     const res = await fetch(WORKER_URL + '/api/drafts?' + params.toString(), {
       method: 'GET',
-      headers: { Authorization: 'Bearer ' + APP_TOKEN },
+      headers: { Authorization: bearer() },
     });
     if (!res.ok) return null;
     const data = (await res.json()) as {
@@ -411,7 +418,7 @@ async function fetchSuggestedActionFor(id: string): Promise<string | null> {
   try {
     const res = await fetch(
       WORKER_URL + '/api/suggested-actions/' + encodeURIComponent(id),
-      { method: 'GET', headers: { Authorization: 'Bearer ' + APP_TOKEN } },
+      { method: 'GET', headers: { Authorization: bearer() } },
     );
     if (!res.ok) return null;
     const data = (await res.json()) as {
@@ -492,7 +499,7 @@ async function fetchSuggestedActionRowFor(
   try {
     const res = await fetch(
       WORKER_URL + '/api/suggested-actions/' + encodeURIComponent(id),
-      { method: 'GET', headers: { Authorization: 'Bearer ' + APP_TOKEN } },
+      { method: 'GET', headers: { Authorization: bearer() } },
     );
     if (!res.ok) return null;
     const data = (await res.json()) as {
@@ -650,7 +657,7 @@ export async function splitDecisionSummary(
     const res = await fetch(WORKER_URL + '/api/split-decision', {
       method: 'POST',
       headers: {
-        Authorization: 'Bearer ' + APP_TOKEN,
+        Authorization: bearer(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -707,7 +714,7 @@ export async function generateSuggestedAction(opts: {
     const res = await fetch(WORKER_URL + '/api/suggest-action', {
       method: 'POST',
       headers: {
-        Authorization: 'Bearer ' + APP_TOKEN,
+        Authorization: bearer(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -776,7 +783,7 @@ export async function generateSuggestedActionDetailed(opts: {
     const res = await fetch(WORKER_URL + '/api/suggest-action', {
       method: 'POST',
       headers: {
-        Authorization: 'Bearer ' + APP_TOKEN,
+        Authorization: bearer(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -904,7 +911,7 @@ export async function fetchDraftState(
   try {
     const res = await fetch(WORKER_URL + '/api/drafts?' + params.toString(), {
       method: 'GET',
-      headers: { Authorization: 'Bearer ' + APP_TOKEN },
+      headers: { Authorization: bearer() },
     });
     if (!res.ok) return { text: null, status: null };
     const data = (await res.json()) as {

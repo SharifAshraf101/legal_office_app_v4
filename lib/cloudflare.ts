@@ -10,6 +10,7 @@ import { applyLegalOfficeData, persistCurrentDataToLocalStorage } from './storag
 import { firstNonEmpty, isNonEmpty } from './utils';
 import { FILING_ROOT, filingFolderSegments, filingFileName } from './filing';
 import { loadDismissedEventIds } from './dismissedEvents';
+import { getOfficeToken } from './officeToken';
 import type {
   AppState,
   Case,
@@ -31,10 +32,16 @@ const APP_TOKEN = process.env.NEXT_PUBLIC_APP_TOKEN || '';
 // Only Authorization + Content-Type — any extra custom request header would have
 // to be added to the Worker's Access-Control-Allow-Headers or the preflight fails.
 // Freshness is enforced with `cache: 'no-store'` on the fetch instead.
-const jsonHeaders = {
-  Authorization: 'Bearer ' + APP_TOKEN,
-  'Content-Type': 'application/json',
-};
+// Authorization for Worker calls: the logged-in office's SESSION token when
+// present, otherwise the legacy app token (your office, before login). Built
+// per-call (not at module load) so the current session is always attached.
+function authHeader(): Record<string, string> {
+  const t = getOfficeToken();
+  return { Authorization: 'Bearer ' + (t || APP_TOKEN) };
+}
+function jsonHeaders(): Record<string, string> {
+  return { ...authHeader(), 'Content-Type': 'application/json' };
+}
 
 type Row = Record<string, unknown>;
 const first = firstNonEmpty as <T = string>(o: Row | null | undefined, names: string[], def: T) => T;
@@ -331,7 +338,7 @@ export async function legalOfficeLoadFromSupabaseV88(
   if (!options.force && loadedOnce) return { loaded: true };
   loading = true;
   try {
-    const res = await fetch(WORKER_URL + '/api/load', { headers: jsonHeaders, cache: 'no-store' });
+    const res = await fetch(WORKER_URL + '/api/load', { headers: jsonHeaders(), cache: 'no-store' });
     if (!res.ok) {
       console.warn('[LegalOffice Cloudflare load] failed', res.status, await res.text());
       return { loaded: false };
@@ -631,7 +638,7 @@ export async function legalOfficeSaveToSupabase(s: SupabaseSaveInput): Promise<b
   try {
     const res = await fetch(WORKER_URL + '/api/save', {
       method: 'POST',
-      headers: jsonHeaders,
+      headers: jsonHeaders(),
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -660,7 +667,7 @@ export async function uploadClientPhotoToStorage(
     const res = await fetch(WORKER_URL + '/api/upload-photo', {
       method: 'POST',
       // NOTE: no Content-Type header — the browser sets the multipart boundary.
-      headers: { Authorization: 'Bearer ' + APP_TOKEN },
+      headers: authHeader(),
       body: form,
     });
     if (!res.ok) {
@@ -715,7 +722,7 @@ export async function uploadDocumentViaWorker(
     const res = await fetch(WORKER_URL + '/api/document', {
       method: 'POST',
       // No Content-Type — the browser sets the multipart boundary.
-      headers: { Authorization: 'Bearer ' + APP_TOKEN },
+      headers: authHeader(),
       body: form,
     });
     if (!res.ok) {

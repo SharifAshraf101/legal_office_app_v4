@@ -264,6 +264,25 @@ export function persistCurrentDataToLocalStorage(state: {
 }
 
 // ---------------------------------------------------------------------------
+// clearOfficeDataFromLocalStorage — logout hygiene. Wipes the cached case data
+// so that a DIFFERENT office signing in on the same browser never briefly sees
+// the previous office's clients/cases before the server pull replaces them.
+// Leaves UI prefs (language/theme/font) and per-device settings alone.
+// ---------------------------------------------------------------------------
+
+export function clearOfficeDataFromLocalStorage(): void {
+  if (!isBrowser) return;
+  lsRemove(LS.CLIENTS);
+  lsRemove(LS.CASES);
+  lsRemove(LS.EVENTS);
+  lsRemove(LS.FINANCES);
+  lsRemove(LS.TIMELINE);
+  lsRemove(LS.DOCUMENTS);
+  lsRemove(LS.TASKS);
+  lsRemove(LS.DATA_VERSION);
+}
+
+// ---------------------------------------------------------------------------
 // collectLegalOfficeData — source line 3088. Used by backup export and by the
 // Supabase live-save batches.
 // ---------------------------------------------------------------------------

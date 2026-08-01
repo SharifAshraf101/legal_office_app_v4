@@ -35,7 +35,7 @@ bucket_name = "legal-office-photos-v4"
 
 # --- Non-secret config (committed) ---
 [vars]
-ALLOWED_ORIGIN = "http://localhost:3000,http://localhost:3001,https://legal-office-app-v4.vercel.app"
+ALLOWED_ORIGIN = "http://localhost:3000,http://localhost:3001,https://legal-office-app-v4.vercel.app,https://*.vercel.app"
 USER_ID = "c0307382-5fd2-4a2b-88df-40b22bb9ad26"
 # Fresh token for the v4 stack (kept separate from v3). The app (.env.local)
 # and the make.com scenarios must send THIS token to the v4 Worker.
@@ -53,6 +53,9 @@ APP_TOKEN = "ecd403f741827b30fcd7018ebaf5bc8fdf87b974b30ce8af"
 # The account id is not sensitive; the D1 token IS a secret (needs D1:Edit):
 #   npx wrangler secret put CF_D1_TOKEN -c wrangler.v4.toml
 CF_ACCOUNT_ID = "4c8392bcc78337b08ecf5ac78ec21012"
+# The native DB binding's id (legal-office-v4). tenant #1 (your office) points
+# here, so the resolver uses the fast native binding for it instead of REST.
+NATIVE_DB_ID = "18463aa2-b472-48a3-9169-8983c5cd3d54"
 
 # --- Server-side Dropbox (for GET /api/document) --------------------------
 # Lets a CLIENT device with no Dropbox connection of its own download a filing

@@ -7,7 +7,10 @@ import { useT } from '@/hooks/useT';
 import {
   exportLegalOfficeBackupFile,
   importLegalOfficeBackupFile,
+  clearOfficeDataFromLocalStorage,
 } from '@/lib/storage';
+import { signOut, changePassword } from '@/lib/officeAuth';
+import { clearOfficeToken } from '@/lib/officeToken';
 import {
   loadSavedLegalOfficeDirectoryHandle,
   pickAndSaveDirectory,
@@ -127,6 +130,29 @@ export function SettingsDrawer() {
     } finally {
       if (fileRef.current) fileRef.current.value = '';
     }
+  };
+
+  // --- Logout -----------------------------------------------------------
+  // End the office session: clear the Better Auth session + local bearer
+  // token, wipe cached case data, then reload back to the login screen.
+  const [loggingOut, setLoggingOut] = useState(false);
+  const onLogout = async () => {
+    const ok = window.confirm(
+      settingsText(
+        'להתנתק מהמערכת? תוחזר למסך ההתחברות.',
+        'تسجيل الخروج من النظام؟ ستعود إلى شاشة تسجيل الدخول.',
+      ),
+    );
+    if (!ok) return;
+    setLoggingOut(true);
+    try {
+      await signOut();
+    } catch {
+      /* even if the network sign-out fails, drop the local session below */
+    }
+    clearOfficeToken();
+    clearOfficeDataFromLocalStorage();
+    window.location.reload();
   };
 
   return (
@@ -494,6 +520,37 @@ export function SettingsDrawer() {
           </>
         )}
       </Section>
+
+      {/* Change password */}
+      <ChangePasswordSection settingsText={settingsText} />
+
+      {/* Account — sign out of this office */}
+      <Section
+        title={settingsText('חשבון', 'الحساب')}
+        icon="fa-right-from-bracket"
+        pillClass="logout"
+      >
+        <div className="settings-actions">
+          <button
+            type="button"
+            className="mini-btn"
+            onClick={onLogout}
+            disabled={loggingOut}
+            style={{ color: '#be123c', borderColor: '#fecdd3' }}
+          >
+            <i className="fas fa-right-from-bracket" style={{ marginInlineEnd: 6 }} />
+            {loggingOut
+              ? settingsText('מתנתק…', 'جارٍ الخروج…')
+              : settingsText('התנתקות', 'تسجيل الخروج')}
+          </button>
+        </div>
+        <div className="settings-save-hint">
+          {settingsText(
+            'התנתקות מסיימת את החיבור למשרד ומחזירה למסך ההתחברות.',
+            'تسجيل الخروج ينهي الاتصال بالمكتب ويعيدك إلى شاشة الدخول.',
+          )}
+        </div>
+      </Section>
     </Modal>
   );
 }
@@ -522,5 +579,120 @@ function Section({
       </div>
       <div className="settings-section-body">{children}</div>
     </div>
+  );
+}
+
+/**
+ * Change-password section. Lets the signed-in office replace its password from
+ * inside the app (Better Auth requires the current password to confirm). Used
+ * to retire the temporary password every office is bootstrapped with.
+ */
+function ChangePasswordSection({
+  settingsText,
+}: {
+  settingsText: (he: string, ar: string) => string;
+}) {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const submit = async () => {
+    setMsg(null);
+    if (next.length < 8) {
+      setMsg({
+        ok: false,
+        text: settingsText(
+          'הסיסמה החדשה חייבת להכיל לפחות 8 תווים.',
+          'يجب أن تتكون كلمة المرور الجديدة من 8 أحرف على الأقل.',
+        ),
+      });
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await changePassword({
+        currentPassword: current,
+        newPassword: next,
+        revokeOtherSessions: false,
+      });
+      if (res.error) {
+        setMsg({
+          ok: false,
+          text:
+            res.error.message ||
+            settingsText(
+              'שינוי הסיסמה נכשל. ודא שהסיסמה הנוכחית נכונה.',
+              'فشل تغيير كلمة المرور. تأكد من صحة كلمة المرور الحالية.',
+            ),
+        });
+      } else {
+        setMsg({
+          ok: true,
+          text: settingsText('הסיסמה עודכנה בהצלחה.', 'تم تحديث كلمة المرور بنجاح.'),
+        });
+        setCurrent('');
+        setNext('');
+      }
+    } catch {
+      setMsg({
+        ok: false,
+        text: settingsText('שינוי הסיסמה נכשל.', 'فشل تغيير كلمة المرور.'),
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Section
+      title={settingsText('שינוי סיסמה', 'تغيير كلمة المرور')}
+      icon="fa-key"
+      pillClass="password"
+    >
+      <div className="settings-field clean-office-field">
+        <label htmlFor="cur-pass">
+          {settingsText('סיסמה נוכחית', 'كلمة المرور الحالية')}
+        </label>
+        <input
+          id="cur-pass"
+          className="clean-office-input"
+          type="password"
+          dir="ltr"
+          autoComplete="current-password"
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+        />
+      </div>
+      <div className="settings-field clean-office-field">
+        <label htmlFor="new-pass">
+          {settingsText('סיסמה חדשה', 'كلمة المرور الجديدة')}
+        </label>
+        <input
+          id="new-pass"
+          className="clean-office-input"
+          type="password"
+          dir="ltr"
+          autoComplete="new-password"
+          value={next}
+          onChange={(e) => setNext(e.target.value)}
+        />
+      </div>
+      {msg && (
+        <div
+          className="settings-save-hint"
+          style={{ color: msg.ok ? '#047857' : '#be123c', fontWeight: 700 }}
+        >
+          {msg.text}
+        </div>
+      )}
+      <div className="settings-actions">
+        <button type="button" className="mini-btn" onClick={submit} disabled={busy}>
+          {busy
+            ? settingsText('שומר…', 'جارٍ الحفظ…')
+            : settingsText('עדכן סיסמה', 'تحديث كلمة المرور')}
+        </button>
+      </div>
+    </Section>
   );
 }

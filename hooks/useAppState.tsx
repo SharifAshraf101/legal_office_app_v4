@@ -11,6 +11,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { hasOfficeToken } from '@/lib/officeToken';
 import {
   applyLegalOfficeData,
   fontFamilyKey,
@@ -409,30 +410,35 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     // the next persist — the exact "payment vanishes after saving" bug. This
     // mirrors the flush-before-pull the visibility/focus refresh already does.
     void (async () => {
-      if (lsGet(LS.PENDING_SYNC) === '1') {
-        const dels = snapshotDeletions();
-        const ok = await legalOfficeSaveToSupabase({
-          clients: data.clients,
-          casesArr: data.casesArr,
-          eventsList: data.eventsList,
-          finances: data.finances,
-          timelineItems: data.timelineItems,
-          documentsArr: data.documentsArr,
-          tasksArr: data.tasksArr,
-          deletions: dels,
-        });
-        // On failure keep the flag (and the deletions) so the next reload
-        // retries the flush.
-        if (ok) {
-          lsSet(LS.PENDING_SYNC, '0');
-          clearDeletions(dels);
+      // Multi-tenant: only sync with the Worker once an office is logged in.
+      // Before login the app shows the login screen; syncing here would fall
+      // back to the legacy app-token and pull the wrong office's data.
+      if (hasOfficeToken()) {
+        if (lsGet(LS.PENDING_SYNC) === '1') {
+          const dels = snapshotDeletions();
+          const ok = await legalOfficeSaveToSupabase({
+            clients: data.clients,
+            casesArr: data.casesArr,
+            eventsList: data.eventsList,
+            finances: data.finances,
+            timelineItems: data.timelineItems,
+            documentsArr: data.documentsArr,
+            tasksArr: data.tasksArr,
+            deletions: dels,
+          });
+          // On failure keep the flag (and the deletions) so the next reload
+          // retries the flush.
+          if (ok) {
+            lsSet(LS.PENDING_SYNC, '0');
+            clearDeletions(dels);
+          }
         }
-      }
-      const result = await legalOfficeLoadFromSupabaseV88();
-      // Don't clobber an edit made DURING the boot window (dirtyRef set) — the
-      // pending auto-save will push it once supaSaveReady flips true below.
-      if (result.loaded && result.state && !dirtyRef.current) {
-        dispatch({ type: 'REPLACE_ALL', payload: result.state });
+        const result = await legalOfficeLoadFromSupabaseV88();
+        // Don't clobber an edit made DURING the boot window (dirtyRef set) — the
+        // pending auto-save will push it once supaSaveReady flips true below.
+        if (result.loaded && result.state && !dirtyRef.current) {
+          dispatch({ type: 'REPLACE_ALL', payload: result.state });
+        }
       }
       setSupaSaveReady(true);
     })();
@@ -474,6 +480,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
     const refresh = async () => {
       if (document.hidden) return;
+      if (!hasOfficeToken()) return; // no office logged in -> nothing to sync
       const now = Date.now();
       if (now - lastRefreshAt.current < COOLDOWN_MS) return;
       lastRefreshAt.current = now;

@@ -5,6 +5,28 @@
 
 import type { Env } from './db';
 
+/**
+ * Match an Origin against one ALLOWED_ORIGIN entry. Exact string match, or a
+ * wildcard pattern where `*` stands for any run of characters — so a single
+ * `https://*.vercel.app` entry covers every per-deploy preview URL (Better
+ * Auth's trustedOrigins understands the same wildcard form, so the two stay in
+ * sync from the one env var).
+ */
+function matchOrigin(origin: string, pattern: string): boolean {
+  if (!origin) return false;
+  if (pattern === origin) return true;
+  if (!pattern.includes('*')) return false;
+  const rx = new RegExp(
+    '^' +
+      pattern
+        .split('*')
+        .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('.*') +
+      '$',
+  );
+  return rx.test(origin);
+}
+
 export function corsHeaders(request: Request, env: Env): Record<string, string> {
   const origin = request.headers.get('Origin') || '';
   const list = (env.ALLOWED_ORIGIN || '')
@@ -21,7 +43,7 @@ export function corsHeaders(request: Request, env: Env): Record<string, string> 
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
   };
-  if (list.includes(origin)) {
+  if (list.some((pattern) => matchOrigin(origin, pattern))) {
     headers['Access-Control-Allow-Origin'] = origin;
   }
   return headers;

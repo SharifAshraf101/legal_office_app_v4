@@ -59,18 +59,21 @@ export async function resolveTenant(
     )
       .bind(userId)
       .first<{ tenant_id: string; status: string; data_db: string | null }>();
-    if (
-      row?.status === 'active' &&
-      row.data_db &&
-      env.CF_ACCOUNT_ID &&
-      env.CF_D1_TOKEN
-    ) {
-      const db = new D1HttpDatabase({
-        accountId: env.CF_ACCOUNT_ID,
-        apiToken: env.CF_D1_TOKEN,
-        databaseId: row.data_db,
-      }) as unknown as D1Database;
-      return { tenantId: row.tenant_id, db, mode: 'tenant' };
+    if (row?.status === 'active' && row.data_db) {
+      // Fast path: an office whose database IS this Worker's native binding
+      // (your original office = tenant #1) uses env.DB directly — no REST hop.
+      if (row.data_db === env.NATIVE_DB_ID) {
+        return { tenantId: row.tenant_id, db: env.DB, mode: 'tenant' };
+      }
+      // Every other office is reached over the D1 REST API.
+      if (env.CF_ACCOUNT_ID && env.CF_D1_TOKEN) {
+        const db = new D1HttpDatabase({
+          accountId: env.CF_ACCOUNT_ID,
+          apiToken: env.CF_D1_TOKEN,
+          databaseId: row.data_db,
+        }) as unknown as D1Database;
+        return { tenantId: row.tenant_id, db, mode: 'tenant' };
+      }
     }
   }
 

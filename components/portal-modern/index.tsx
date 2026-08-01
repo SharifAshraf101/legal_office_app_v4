@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { getOfficeToken } from '@/lib/officeToken';
 import {
   Bot,
   CalendarDays,
@@ -1134,7 +1135,7 @@ function ClientChatScreen({
   useEffect(() => {
     if (!pollPhone) return;
   const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'https://legal-office-api.sharifashraf.workers.dev';
-  const APP_TOKEN = process.env.NEXT_PUBLIC_APP_TOKEN || '';
+  const APP_TOKEN = getOfficeToken() || process.env.NEXT_PUBLIC_APP_TOKEN || '';
 
   const poll = async () => {
     try {
