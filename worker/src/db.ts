@@ -6,6 +6,11 @@
 export interface Env {
   DB: D1Database;
   PHOTOS: R2Bucket;
+  // Per-office filing-document storage. Every office EXCEPT the operator office
+  // (tenant #1, which keeps its Dropbox + make.com pipeline) stores its
+  // documents here under `${tenantId}/documents/...` keys — isolated per office,
+  // exactly like client photos in PHOTOS.
+  DOCS: R2Bucket;
   ALLOWED_ORIGIN: string;
   USER_ID: string;
   APP_TOKEN: string;

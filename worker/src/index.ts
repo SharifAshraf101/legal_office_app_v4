@@ -237,13 +237,13 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
     return handleGetWhatsAppMessages(request, env, ctx);
   }
     if (method === 'GET' && path === '/api/document') {
-      return handleDocument(request, env);
+      return handleDocument(request, env, ctx);
     }
     if (method === 'POST' && path === '/api/document') {
-      return handleUploadDocument(request, env);
+      return handleUploadDocument(request, env, ctx);
     }
     if (method === 'GET' && path === '/api/document-link') {
-      return handleDocumentLink(request, env);
+      return handleDocumentLink(request, env, ctx);
     }
     return json({ error: 'not found' }, request, env, 404);
     } catch (e) {
@@ -1849,12 +1849,29 @@ function mimeFromExt(name: string): string {
   }
 }
 
-async function handleDocument(request: Request, env: Env): Promise<Response> {
+async function handleDocument(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   const url = new URL(request.url);
   const relativePath = (url.searchParams.get('path') || '').trim();
   if (!relativePath) {
     return json({ error: 'missing_path' }, request, env, 400);
   }
+
+  // Per-office R2 storage (every office except the operator's Dropbox-backed one).
+  if (!usesDropbox(env, ctx)) {
+    const obj = await env.DOCS.get(docKey(ctx, relativePath));
+    if (!obj) {
+      return json({ error: 'document_unavailable' }, request, env, 404);
+    }
+    const fileName = relativePath.split('/').filter(Boolean).pop() || 'document';
+    const headers = new Headers(corsHeaders(request, env));
+    obj.writeHttpMetadata(headers);
+    if (!headers.get('Content-Type')) {
+      headers.set('Content-Type', mimeFromExt(fileName));
+    }
+    headers.set('Cache-Control', 'private, max-age=3600');
+    return new Response(obj.body, { status: 200, headers });
+  }
+
   const token = await getDropboxAccessToken(env);
   if (!token) {
     // The office hasn't provisioned server-side Dropbox credentials yet.
@@ -1905,7 +1922,7 @@ async function handleDocument(request: Request, env: Env): Promise<Response> {
 // document record (derived from Dropbox's ACTUAL final path, so an autorename is
 // reflected). The office desktop keeps writing to its local synced folder.
 // -----------------------------------------------------------------------
-async function handleUploadDocument(request: Request, env: Env): Promise<Response> {
+async function handleUploadDocument(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   let form: FormData;
   try {
     form = await request.formData();
@@ -1921,6 +1938,18 @@ async function handleUploadDocument(request: Request, env: Env): Promise<Respons
     return json({ error: 'missing_path' }, request, env, 400);
   }
   const file = entry as unknown as { arrayBuffer(): Promise<ArrayBuffer> };
+
+  // Per-office R2 storage (every office except the operator's Dropbox-backed one).
+  if (!usesDropbox(env, ctx)) {
+    const rel = relPath.replace(/^\/+/, '').replace(/\/{2,}/g, '/');
+    const fileName = rel.split('/').filter(Boolean).pop() || 'document';
+    await env.DOCS.put(docKey(ctx, rel), await file.arrayBuffer(), {
+      httpMetadata: { contentType: mimeFromExt(fileName) },
+    });
+    // R2 keys are exact (no autorename); the client's _DOC-NNN suffix already
+    // makes names unique, so store the same filing-relative path on the record.
+    return json({ ok: true, path: rel }, request, env);
+  }
 
   const token = await getDropboxAccessToken(env);
   if (!token) {
@@ -1978,12 +2007,20 @@ async function handleUploadDocument(request: Request, env: Env): Promise<Respons
 // document attachment) can fetch the file directly. Called server-to-server by
 // the app's /api/whatsapp/send route with the shared APP_TOKEN.
 // -----------------------------------------------------------------------
-async function handleDocumentLink(request: Request, env: Env): Promise<Response> {
+async function handleDocumentLink(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   const url = new URL(request.url);
   const relativePath = (url.searchParams.get('path') || '').trim();
   if (!relativePath) {
     return json({ error: 'missing_path' }, request, env, 400);
   }
+
+  // R2-backed offices have no public share link yet (this is used only by the
+  // WhatsApp send flow, which is the operator office for now). Return null so
+  // callers degrade gracefully instead of erroring.
+  if (!usesDropbox(env, ctx)) {
+    return json({ link: null }, request, env);
+  }
+
   const token = await getDropboxAccessToken(env);
   if (!token) {
     return json({ error: 'dropbox_not_configured' }, request, env, 500);
@@ -2042,6 +2079,20 @@ async function servePhoto(env: Env, rawKey: string): Promise<Response> {
 
 function safeName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 180) || 'file';
+}
+
+// Per-office document storage backend. The operator office (tenant #1) keeps
+// using Dropbox — that's where its existing files live and what make.com scans.
+// EVERY OTHER office stores its filing documents in its own isolated R2 space.
+function usesDropbox(env: Env, ctx: Ctx): boolean {
+  return ctx.tenantId === env.USER_ID && !!env.DROPBOX_REFRESH_TOKEN;
+}
+
+// R2 object key for a filing document, namespaced per office (mirrors how client
+// photos are keyed at `${tenantId}/client-photos/...`).
+function docKey(ctx: Ctx, relativePath: string): string {
+  const rel = (relativePath || '').replace(/^\/+/, '').replace(/\/{2,}/g, '/');
+  return `${ctx.tenantId}/documents/${rel}`;
 }
 // -----------------------------------------------------------------------
 // POST /api/whatsapp-messages

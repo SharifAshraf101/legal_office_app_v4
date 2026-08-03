@@ -33,6 +33,13 @@ database_id = "6cff26dc-bfb0-49ef-a1ec-531b17c35cfb"
 binding = "PHOTOS"
 bucket_name = "legal-office-photos-v4"
 
+# --- R2 bucket (per-office filing documents) ---
+# New offices store their documents here, isolated under `${tenantId}/documents/`.
+# The operator office (tenant #1) keeps using Dropbox (its make.com pipeline).
+[[r2_buckets]]
+binding = "DOCS"
+bucket_name = "legal-office-docs-v4"
+
 # --- Non-secret config (committed) ---
 [vars]
 ALLOWED_ORIGIN = "http://localhost:3000,http://localhost:3001,https://legal-office-app-v4.vercel.app"

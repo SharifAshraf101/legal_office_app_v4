@@ -1098,11 +1098,24 @@ interface TimelineEntry {
   fileName?: string;
 }
 
+/** Lower-cased extension of a file name ('' when there is none). */
+function fileExt(fileName?: string): string {
+  const name = fileName || '';
+  if (!name.includes('.')) return '';
+  return name.split('.').pop()?.toLowerCase() || '';
+}
+
+/** Extra class for the timeline icon wrapper so PDFs read red while Word
+ *  files (and everything else) keep the standard blue document color. */
+function documentToneClass(fileName?: string): string {
+  return fileExt(fileName) === 'pdf' ? ' timeline-icon-pdf' : '';
+}
+
 /** Pick a file-type FontAwesome 6 (`fas`) icon from a document's file name.
  *  Falls back to the generic file icon when the extension is unknown or the
  *  name is missing (e.g. timeline-sourced rows that carry no actual file). */
 function documentTypeIcon(fileName?: string): string {
-  const ext = (fileName || '').split('.').pop()?.toLowerCase() || '';
+  const ext = fileExt(fileName);
   switch (ext) {
     case 'pdf':
       return 'fa-file-pdf';
@@ -1218,7 +1231,17 @@ function caseTimelineEntries(
             : d.description || d.descriptionAr) || '',
         date: d.date || '',
         docId: d.id,
-        fileName: d.fileName || (d as { storedFileName?: string }).storedFileName || '',
+        // The icon (and its color) is derived from the extension, so prefer a
+        // candidate that actually carries one — `fileName` sometimes falls
+        // back to the plain title, which has none.
+        fileName:
+          [
+            d.fileName,
+            (d as { storedFileName?: string }).storedFileName,
+            d.relativePath,
+          ].find((n) => n && n.includes('.')) ||
+          d.fileName ||
+          '',
         sortKey: upTs || idTs || dateTs,
       });
     });
@@ -1311,7 +1334,13 @@ function CaseTimelineSection({
               <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <span className="timeline-title-line" style={{ fontWeight: 850 }}>
                   <span className="timeline-leading-meta">
-                    <span className={'timeline-icon timeline-icon-' + e.type}>
+                    <span
+                      className={
+                        'timeline-icon timeline-icon-' +
+                        e.type +
+                        (e.type === 'document' ? documentToneClass(e.fileName) : '')
+                      }
+                    >
                       <i
                         className={
                           'fas ' +
