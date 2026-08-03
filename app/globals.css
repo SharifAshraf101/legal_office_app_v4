@@ -41951,3 +41951,35 @@ body.professional.dark .modal.case-brain-modal .case-brain-header{background: #0
   }
   .splash-flower { animation: splashOverlayOut .4s ease 1.3s forwards; }
 }
+
+/* =========================================================================
+   CASE TIMELINE — PDF documents get a red icon
+   ---------------------------------------------------------------------------
+   Word (and every other) document keeps the standard blue document icon;
+   only PDFs are recolored so the two are told apart at a glance.
+   The `.ls` / `case-detail-*` repetitions mirror the blue document rules
+   above — each selector here carries one class more, so it wins wherever
+   its blue counterpart applies.
+   ========================================================================= */
+.modal.case-detail-mobile-v140 #caseTimelineList .timeline-icon-document.timeline-icon-pdf,
+.modal.case-detail-mobile-v140 #caseTimelineList .timeline-icon-document.timeline-icon-pdf i,
+.modal.case-detail-desktop-v215 #caseTimelineList .timeline-icon-document.timeline-icon-pdf,
+.modal.case-detail-desktop-v215 #caseTimelineList .timeline-icon-document.timeline-icon-pdf i,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls #caseTimelineList .timeline-icon-document.timeline-icon-pdf,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls #caseTimelineList .timeline-icon-document.timeline-icon-pdf i,
+#caseTimelineList .timeline-icon-document.timeline-icon-pdf,
+#caseTimelineList .timeline-icon-document.timeline-icon-pdf i {
+  color: #dc2626 !important;
+  -webkit-text-fill-color: #dc2626 !important;
+}
+
+/* Same thing keyed on the FontAwesome glyph itself. `fa-file-pdf` is only
+   ever rendered for an actual .pdf, so this catches the row even without
+   the wrapper class. */
+.modal.case-detail-mobile-v140 #caseTimelineList .timeline-icon-document .fa-file-pdf,
+.modal.case-detail-desktop-v215 #caseTimelineList .timeline-icon-document .fa-file-pdf,
+.modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls #caseTimelineList .timeline-icon-document .fa-file-pdf,
+#caseTimelineList .timeline-icon .fa-file-pdf {
+  color: #dc2626 !important;
+  -webkit-text-fill-color: #dc2626 !important;
+}

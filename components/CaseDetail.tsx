@@ -1812,10 +1812,12 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // box decodes (primaryDoc).
   const [replyDraft, setReplyDraft] = useState<string | null>(null);
   const [draftLoaded, setDraftLoaded] = useState(false);
-  // Gate: a reply draft is only shown when it's actually needed — i.e. the
-  // document was authored by the OTHER side, or the court ordered a reply. Our
-  // own document with no court order → no draft (the "הצעה לפעולה" card covers
-  // that case). `draftNeeded` drives whether the "טיוטת תגובה" card renders.
+  // Gate: a reply draft is only shown when it's actually needed. Who filed the
+  // document is read off the SIGNATURE at its END — signed by our registered
+  // lawyer (Settings) / עו"ד אשרף שריף, or filed for the client we represent →
+  // it's our own filing, no draft. Signed by the OPPOSING party's counsel →
+  // draft. A judge's decision ALWAYS gets a draft written to the decision's
+  // content. `draftNeeded` drives whether the "טיוטת תגובה" card renders.
   const [draftNeeded, setDraftNeeded] = useState(true);
   // True while the "עדכן טיוטה" button is re-running Claude (skill + notes) for
   // the focused document — disables the button and swaps its label to a busy one.
@@ -1860,8 +1862,57 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
         setDraftLoaded(true);
       };
 
-      // 1. Already classified.
-      if (state0.status === 'not_needed') return apply(null, false);
+      // 1. Already classified as "no draft needed". Rows classified BEFORE the
+      //    signature rule (author = whoever signs at the END of the document,
+      //    and a judge's decision ALWAYS gets a reply draft) may be stale, so
+      //    re-check each such document ONCE with the cheap classifier. If it
+      //    now needs a draft the row has no text, so generate it right after.
+      if (state0.status === 'not_needed') {
+        if (!primary || !isPdf || genAttempts.has('draftsignrule:' + primary.id))
+          return apply(null, false);
+        rememberGenAttempt(genAttempts, 'draftsignrule:' + primary.id);
+        const { draftNeeded: neededNow } = await classifyDraftDecision({
+          relativePath: primary.relativePath,
+          fileName: renamed || primary.fileName || '',
+          clientId: primary.clientId,
+          caseId,
+          documentId: primary.id,
+          lawyerName: state.officeName || undefined,
+          clientName: representedClientName || undefined,
+        });
+        if (!neededNow) return apply(null, false);
+        const notesContext = caseNotesContext(
+          aggregateCaseNotes({
+            caseId,
+            clients: state.clients,
+            cases: state.casesArr,
+            documents: state.documentsArr,
+            timeline: state.timelineItems,
+            lang,
+          }),
+        );
+        const { draftNeeded: needed } = await generateDocumentDraft({
+          relativePath: primary.relativePath,
+          fileName: renamed || primary.fileName || '',
+          clientId: primary.clientId,
+          caseId,
+          documentId: primary.id,
+          lawyerName: state.officeName || undefined,
+          clientName: representedClientName || undefined,
+          notesContext,
+        });
+        if (!needed) return apply(null, false);
+        const re = await fetchDraftState(
+          {
+            caseId,
+            documentId: primary.id,
+            preferLang: docLang,
+            forceArabic: forceArabicCourt,
+          },
+          lang,
+        );
+        return apply(re.text, true);
+      }
       // Approved WITH text → show it. Approved but EMPTY (e.g. an older
       // generation that produced no draft) falls through to (3) to regenerate,
       // so an opposing document always ends up with a counter-draft.
