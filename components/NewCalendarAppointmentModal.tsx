@@ -134,7 +134,14 @@ export function NewCalendarAppointmentModal() {
     // stored instant is correct even when this device isn't on Israel time.
     const newIso = officeDateTimeToIso(dateStr, hour, minute);
     const composed = new Date(newIso);
-    const conflict = findConflictingEvent(newIso, state.eventsList);
+    const conflict = findConflictingEvent(
+      newIso,
+      state.eventsList,
+      30,
+      undefined,
+      selectedClientId,
+      state.casesArr,
+    );
     if (conflict) {
       const proceed = await confirmConflict(conflict);
       if (!proceed) return;

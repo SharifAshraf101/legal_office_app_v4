@@ -493,12 +493,19 @@ export { calendarDateValue, sameCalendarDay };
  * candidate dateTime. Used by the "new event" flow to warn the user about a
  * scheduling conflict before saving. Excludes `excludeId` so editing an event
  * doesn't flag the event-being-edited as colliding with itself.
+ *
+ * When `clientId` is given, events of that SAME client are not conflicts: one
+ * client's related claims (e.g. divorce + spousal + child support) are heard
+ * together, so the same slot across their cases is expected. An event's client
+ * is its clientId, or its case's client when the event row lacks one.
  */
 export function findConflictingEvent(
   candidateIso: string,
   events: CalendarEvent[],
   windowMinutes = 30,
   excludeId?: string,
+  clientId?: string,
+  cases: Case[] = [],
 ): CalendarEvent | null {
   const candidate = new Date(candidateIso).getTime();
   if (!Number.isFinite(candidate)) return null;
@@ -506,6 +513,11 @@ export function findConflictingEvent(
   for (const ev of events) {
     if (excludeId && String(ev.id) === String(excludeId)) continue;
     if (!ev.dateTime) continue;
+    if (clientId) {
+      const evClient =
+        ev.clientId || cases.find((c) => c.id === ev.caseId)?.clientId || '';
+      if (String(evClient) === String(clientId)) continue;
+    }
     const evTime = new Date(ev.dateTime).getTime();
     if (!Number.isFinite(evTime)) continue;
     if (Math.abs(evTime - candidate) <= windowMs) return ev;

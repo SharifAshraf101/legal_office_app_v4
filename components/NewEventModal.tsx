@@ -364,7 +364,14 @@ export function NewEventModal({
       // Only hearings and meetings hold a courtroom/office slot; reminders
       // are reference markers and shouldn't block other items.
       if (type !== 'reminder') {
-        const conflict = findConflictingEvent(newIso, state.eventsList);
+        const conflict = findConflictingEvent(
+          newIso,
+          state.eventsList,
+          30,
+          undefined,
+          clientId,
+          state.casesArr,
+        );
         if (conflict) {
           const proceed = await confirmConflict(conflict);
           if (!proceed) return;

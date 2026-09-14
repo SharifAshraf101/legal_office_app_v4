@@ -201,7 +201,18 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
     } else {
       // Conflict check — exclude the event being edited so it isn't flagged
       // against itself when the time hasn't moved.
-      const conflict = findConflictingEvent(iso, state.eventsList, 30, String(id));
+      const editedClientId =
+        state.casesArr.find((c) => c.id === caseId)?.clientId ||
+        (item as CalendarEvent | undefined)?.clientId ||
+        '';
+      const conflict = findConflictingEvent(
+        iso,
+        state.eventsList,
+        30,
+        String(id),
+        editedClientId,
+        state.casesArr,
+      );
       if (conflict) {
         const proceed = await confirmConflict(conflict);
         if (!proceed) return;

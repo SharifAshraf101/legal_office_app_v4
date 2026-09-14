@@ -22459,6 +22459,12 @@ html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only
 .confirm-delete-dialog-overlay {
   z-index: 2147483600 !important;
 }
+/* ConfirmDialog (conflict warning / delete confirm) is opened FROM a new-X
+ * popup, so it must sit one level above that family — otherwise it renders
+ * hidden behind the popup, which then swallows every click. */
+.confirm-dialog-overlay {
+  z-index: 2147483601 !important;
+}
 
 @media (max-width: 1050px) {
   .new-event-popup-overlay,

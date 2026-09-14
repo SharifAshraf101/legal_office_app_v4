@@ -92,6 +92,9 @@ export function ConfirmDialog({
   return (
     <div
       dir="rtl"
+      // The class lifts the dialog above the "new-X" popups (globals.css) —
+      // it's opened FROM them (e.g. the calendar conflict warning).
+      className="confirm-dialog-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget) onResult(false);
       }}
