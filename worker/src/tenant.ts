@@ -13,6 +13,7 @@
 
 import { createAuth } from './auth';
 import { D1HttpDatabase } from './d1http';
+import { computeBilling, operatorBilling, type BillingState } from './billing';
 import type { Env } from './db';
 
 /** The resolved identity + database a request may read/write. */
@@ -23,6 +24,8 @@ export interface Ctx {
   db: D1Database;
   /** How we resolved: your office ('legacy') vs a logged-in tenant ('tenant'). */
   mode: 'legacy' | 'tenant';
+  /** Subscription standing (Phase 4). `blocked` means reads only. */
+  billing: BillingState;
 }
 
 /**
@@ -41,7 +44,12 @@ export async function resolveTenant(
     .map((t) => t.trim())
     .filter(Boolean);
   if (bearer && appTokens.includes(bearer)) {
-    return { tenantId: env.USER_ID, db: env.DB, mode: 'legacy' };
+    return {
+      tenantId: env.USER_ID,
+      db: env.DB,
+      mode: 'legacy',
+      billing: operatorBilling(),
+    };
   }
 
   // 2) Better Auth session → the caller's OWN office, on its own D1 (REST).
@@ -51,19 +59,37 @@ export async function resolveTenant(
   const userId = authResult?.user?.id;
   if (userId) {
     const row = await env.CONTROL_DB.prepare(
-      `SELECT t.id AS tenant_id, t.status AS status, t.data_db_name AS data_db
+      `SELECT t.id AS tenant_id, t.status AS status, t.data_db_name AS data_db,
+              t.plan AS plan, t.billing_status AS billing_status,
+              t.trial_ends_at AS trial_ends_at, t.paid_until AS paid_until,
+              t.price_amount AS price_amount, t.price_currency AS price_currency
          FROM membership m
          JOIN tenant t ON t.id = m.tenant_id
         WHERE m.user_id = ?1
         LIMIT 1`,
     )
       .bind(userId)
-      .first<{ tenant_id: string; status: string; data_db: string | null }>();
+      .first<{
+        tenant_id: string;
+        status: string;
+        data_db: string | null;
+        plan: string | null;
+        billing_status: string | null;
+        trial_ends_at: string | null;
+        paid_until: string | null;
+        price_amount: number | null;
+        price_currency: string | null;
+      }>();
     if (row?.status === 'active' && row.data_db) {
+      // The operator's own office is never billed. It is identified the same way
+      // usesDropbox() identifies it — tenant #1's registry id IS env.USER_ID,
+      // because the native DB's rows are keyed by that value.
+      const billing =
+        row.tenant_id === env.USER_ID ? operatorBilling() : computeBilling(row);
       // Fast path: an office whose database IS this Worker's native binding
       // (your original office = tenant #1) uses env.DB directly — no REST hop.
       if (row.data_db === env.NATIVE_DB_ID) {
-        return { tenantId: row.tenant_id, db: env.DB, mode: 'tenant' };
+        return { tenantId: row.tenant_id, db: env.DB, mode: 'tenant', billing };
       }
       // Every other office is reached over the D1 REST API.
       if (env.CF_ACCOUNT_ID && env.CF_D1_TOKEN) {
@@ -72,7 +98,7 @@ export async function resolveTenant(
           apiToken: env.CF_D1_TOKEN,
           databaseId: row.data_db,
         }) as unknown as D1Database;
-        return { tenantId: row.tenant_id, db, mode: 'tenant' };
+        return { tenantId: row.tenant_id, db, mode: 'tenant', billing };
       }
     }
   }

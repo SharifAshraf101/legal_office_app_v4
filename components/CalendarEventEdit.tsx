@@ -8,9 +8,14 @@ import { calendarItemTitle, findConflictingEvent } from '@/lib/calendar';
 import { useConflictConfirm } from '@/hooks/useConflictConfirm';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { caseName, clientName } from '@/lib/cases';
-import { removeTaskEverywhere } from '@/lib/tasks';
+import {
+  loadDecisionImportKeys,
+  rememberDecisionImportKey,
+  removeTaskEverywhere,
+} from '@/lib/tasks';
 import { rememberDismissedEventId } from '@/lib/dismissedEvents';
-import { officeInputParts, officeDateTimeToIso } from '@/lib/dates';
+import { hearingImportKey } from '@/lib/hearings';
+import { calendarDateValue, officeInputParts, officeDateTimeToIso } from '@/lib/dates';
 import { pad } from '@/lib/utils';
 import { Modal } from './Modal';
 import { CalendarEventDetail } from './CalendarEventDetail';
@@ -68,6 +73,20 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
       // outlives the delete/poll race, or a make.com re-import) — it's filtered
       // out on every subsequent load. See lib/dismissedEvents.ts.
       rememberDismissedEventId(String(id));
+      // A hearing is ALSO tombstoned by (case, day): the document that states it
+      // is still on file, so without this the hearing sweep would read it back
+      // out of that document and file a fresh event — under a different id, which
+      // the id-tombstone above cannot catch. See lib/hearings.ts.
+      const deleted = state.eventsList.find((e) => String(e.id) === String(id));
+      if (deleted && String(deleted.type ?? '').toLowerCase().startsWith('hearing')) {
+        const when = new Date(deleted.dateTime);
+        if (deleted.caseId && !isNaN(when.getTime())) {
+          rememberDecisionImportKey(
+            loadDecisionImportKeys(),
+            hearingImportKey(String(deleted.caseId), calendarDateValue(when)),
+          );
+        }
+      }
       dispatch({
         type: 'SET_EVENTS',
         events: state.eventsList.filter((e) => String(e.id) !== String(id)),

@@ -6,11 +6,21 @@
 // POST /api/upload-photo). The Worker returns rows in the exact snake_case
 // shape PostgREST used, so the normalize*/`*ToRow` helpers are ported verbatim.
 
-import { applyLegalOfficeData, persistCurrentDataToLocalStorage } from './storage';
+import {
+  applyLegalOfficeData,
+  clearOfficeDataFromLocalStorage,
+  persistCurrentDataToLocalStorage,
+} from './storage';
 import { firstNonEmpty, isNonEmpty } from './utils';
 import { FILING_ROOT, filingFolderSegments, filingFileName } from './filing';
 import { loadDismissedEventIds } from './dismissedEvents';
-import { getOfficeToken } from './officeToken';
+import { getOfficeToken, setOperatorOffice } from './officeToken';
+import {
+  clearOfficeBilling,
+  markBillingBlocked,
+  setOfficeBilling,
+  type OfficeBilling,
+} from './officeBilling';
 import type {
   AppState,
   Case,
@@ -303,6 +313,9 @@ function normalizeFinance(
 
 // ---- /api/load boot loader (name kept for call-site compatibility) --------
 
+/** Which office the cached localStorage dataset belongs to (see the load path). */
+const OFFICE_DATA_OWNER_KEY = 'office_data_owner';
+
 export interface SupabaseLoadResult {
   loaded: boolean;
   state?: ReturnType<typeof applyLegalOfficeData>['state'];
@@ -322,6 +335,12 @@ interface LoadResponse {
   payments?: Row[];
   timeline_items?: Row[];
   app_state?: Record<string, unknown> | null;
+  /** Who this office is — drives the operator-only feature gate + billing UI. */
+  office?: {
+    is_operator?: boolean;
+    tenant_id?: string;
+    billing?: OfficeBilling;
+  };
 }
 
 let loading = false;
@@ -343,6 +362,50 @@ export async function legalOfficeLoadFromSupabaseV88(
       return { loaded: false };
     }
     const data = (await res.json()) as LoadResponse;
+
+    // Record whether this is the operator office, so the UI can hide the
+    // features that run on the operator's single shared infrastructure.
+    // Only when the Worker actually answered: a Worker deployed before this
+    // field existed omits it, and treating that silence as "not the operator"
+    // would strip the operator's own portal tab.
+    if (data.office) {
+      // WHOSE data is cached in this browser? The localStorage dataset is not
+      // namespaced per office, so anything left behind — a previous office
+      // signed in here, or an older version of this app — renders for whoever
+      // logs in next. Stamp the cache with its owner and wipe it the moment the
+      // owner changes, BEFORE any of it can be shown or saved up as this
+      // office's data.
+      const tenantId = String(data.office.tenant_id || '');
+      if (tenantId) {
+        let cachedOwner = '';
+        try {
+          cachedOwner = window.localStorage.getItem(OFFICE_DATA_OWNER_KEY) || '';
+        } catch {
+          cachedOwner = '';
+        }
+        if (cachedOwner !== tenantId) {
+          clearOfficeDataFromLocalStorage();
+          try {
+            window.localStorage.setItem(OFFICE_DATA_OWNER_KEY, tenantId);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      setOperatorOffice(!!data.office.is_operator);
+      // Subscription standing, for the trial watermark. Cache only — the Worker
+      // enforces; this just explains.
+      if (data.office.is_operator || !data.office.billing) {
+        // The operator is never billed, so it must never hold a billing state
+        // at all — and a response that carries no billing must CLEAR what is
+        // cached rather than leave it. Otherwise a value picked up once (from
+        // an older deploy, or from a different office signed in on this same
+        // browser) would outlive its truth and mark the app forever.
+        clearOfficeBilling();
+      } else {
+        setOfficeBilling(data.office.billing);
+      }
+    }
 
     const clientRows = data.clients ?? [];
     const caseRows = data.cases ?? [];
@@ -434,7 +497,30 @@ export async function legalOfficeLoadFromSupabaseV88(
         loadedOnce = true;
         return { loaded: true, state: applied.state };
       }
-      return { loaded: false };
+      // A BRAND-NEW office genuinely has zero rows, and that is an answer, not a
+      // failure — every failure path above already returned before this point,
+      // so reaching here means the server responded OK and said "nothing".
+      //
+      // This used to `return { loaded: false }`, leaving whatever was cached in
+      // the browser on screen. For a single-office app that was a safety net
+      // against wiping real data on a bad response; for a multi-tenant one it
+      // meant a clean office displayed someone else's clients and cases. The
+      // server is the source of truth, so an empty office renders empty.
+      clearOfficeDataFromLocalStorage();
+      const empty = applyLegalOfficeData({
+        clients: [],
+        cases: [],
+        tasks: [],
+        events: [],
+        documents: [],
+        payments: [],
+        timeline: [],
+      });
+      if (options.currentState) {
+        persistCurrentDataToLocalStorage({ ...options.currentState, ...empty.state });
+      }
+      loadedOnce = true;
+      return { loaded: true, state: empty.state };
     }
 
     const applied = applyLegalOfficeData({
@@ -641,6 +727,11 @@ export async function legalOfficeSaveToSupabase(s: SupabaseSaveInput): Promise<b
       body: JSON.stringify(body),
     });
     if (!res.ok) {
+      // 402 = the subscription lapsed. Returning false keeps the edit marked
+      // un-synced (so nothing is lost and it retries), and flipping the cached
+      // billing state makes the read-only banner appear immediately instead of
+      // leaving the office typing into a screen the server is refusing.
+      if (res.status === 402) markBillingBlocked();
       console.warn('[LegalOffice Cloudflare save] failed', res.status, await res.text());
       return false;
     }

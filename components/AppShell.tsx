@@ -7,19 +7,23 @@ import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { MobileNav } from './MobileNav';
 import { ScreenRouter } from './ScreenRouter';
+import { TrialWatermark } from './TrialWatermark';
 import { SplashFlower } from './SplashFlower';
 import { DropboxConnectModal } from './DropboxConnectModal';
 import { AppStateProvider, useAppState } from '@/hooks/useAppState';
 import { useThemeAndFont } from '@/hooks/useThemeAndFont';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useTaskDeadlineAlerts } from '@/hooks/useTaskDeadlineAlerts';
+import { useHearingSweep } from '@/hooks/useHearingSweep';
 import { ModalStackProvider, useModalStack } from '@/hooks/useModalStack';
 import {
   handleDropboxAuthCallback,
   hasDropboxFolder,
   isDropboxConfigured,
 } from '@/lib/dropbox';
-import { hasOfficeToken } from '@/lib/officeToken';
+import { hasOfficeToken, setOperatorOffice } from '@/lib/officeToken';
+import { clearOfficeBilling } from '@/lib/officeBilling';
+import { clearOfficeDataFromLocalStorage } from '@/lib/storage';
 
 /**
  * Top-level shell. Mirrors the original HTML structure:
@@ -51,7 +55,7 @@ function ShellInner() {
   useThemeAndFont();
   useAutoSync();
 
-  const { state, dispatch, reloadFromSupabase } = useAppState();
+  const { state, dispatch, reloadFromSupabase, syncReady } = useAppState();
   const modalStack = useModalStack();
 
   // On first paint after a Dropbox auth redirect, the URL has `?code=...`.
@@ -94,6 +98,18 @@ function ShellInner() {
   }, []);
   const onAuthed = useCallback(() => {
     setAuthed(true);
+    // Drop the PREVIOUS office's identity before the new one's data arrives.
+    // Both flags are per-office, and a browser can sign in as a different
+    // office without signing out first — without this, that office's trial
+    // mark (or the operator's exemption) would carry over until /api/load
+    // returns and replaces it.
+    clearOfficeBilling();
+    setOperatorOffice(false);
+    // Same for the cached case data: a browser can sign in as a second office
+    // without signing out of the first, and this dataset is not namespaced per
+    // office. Clearing here means the new office never renders the previous
+    // one's clients and cases, not even for the moment before /api/load lands.
+    clearOfficeDataFromLocalStorage();
     // Pull THIS office's data with the freshly-issued session token.
     void reloadFromSupabase();
   }, [reloadFromSupabase]);
@@ -102,6 +118,13 @@ function ShellInner() {
   // the 3-day / 1-day / today / overdue mark). Gated on the app being ready so
   // it never shows over the language screen or before data hydrates.
   useTaskDeadlineAlerts(langChosen && authed && state.hydrated && splashDone);
+
+  // File any hearing the documents state but the calendar is missing — for every
+  // case, not just the one on screen. The pipeline (make.com) stays the primary
+  // writer; this is the backstop for when it doesn't fire, so a new "הזמנה
+  // לדיון" can never sit in a case with nothing in the calendar. Waits for
+  // `syncReady` so it never writes before the office's own data has landed.
+  useHearingSweep(langChosen && authed && state.hydrated && syncReady);
 
   if (!langChosen) {
     return (
@@ -144,6 +167,11 @@ function ShellInner() {
             </main>
             <MobileNav />
           </div>
+          {/* Outside .main so it spans the whole shell (sidebar included) and
+              is unaffected by the content container's scrolling. Held back
+              until the splash clears, so its five seconds are five seconds the
+              office actually sees rather than time spent behind the intro. */}
+          {splashDone && <TrialWatermark />}
         </div>
       )}
       {!splashDone && <SplashFlower onDone={finishSplash} />}

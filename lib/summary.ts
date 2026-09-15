@@ -132,7 +132,7 @@ export async function generateDocumentSummary(opts: {
     // Trailing slash matches next.config `trailingSlash: true` (avoids a 308).
     const res = await fetch('/api/generate-summary/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: bearer() },
       body: JSON.stringify({ fileUrl, fileName, clientId, caseId }),
     });
     if (!res.ok) return null;
@@ -863,7 +863,7 @@ export async function generateDocumentDraft(opts: {
   try {
     const res = await fetch('/api/generate-draft/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: bearer() },
       body: JSON.stringify({
         fileUrl,
         fileName,
@@ -945,10 +945,12 @@ export async function fetchDraftState(
   }
 }
 
-/** Ask the Worker whether a reply draft is actually needed for a document:
- *  true when the OTHER side authored it or the court ordered a reply; false for
- *  our own document with no court order. Updates the draft row's status as a
- *  side effect (caches the decision). Non-PDF or any failure → defaults to
+/** Ask the Worker whether a reply draft is actually needed for a document.
+ *  Authorship is decided by the SIGNATURE at the END of the document: signed by
+ *  our registered lawyer (or filed for the client we represent) → false; signed
+ *  by the opposing party's counsel → true. A judge's decision → always true,
+ *  whether or not it explicitly orders a reply. Updates the draft row's status
+ *  as a side effect (caches the decision). Non-PDF or any failure → defaults to
  *  `true` so a possibly-required reply is never hidden. */
 export async function classifyDraftDecision(opts: {
   relativePath?: string;
@@ -974,7 +976,7 @@ export async function classifyDraftDecision(opts: {
   try {
     const res = await fetch('/api/classify-draft/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: bearer() },
       body: JSON.stringify({
         fileUrl,
         fileName,
@@ -999,21 +1001,26 @@ export interface DecisionInfo {
   hearingDate: string;
 }
 
-/** Task + hearing derived from a ruling document, from the Cloudflare D1
- *  decisions/tasks/hearings tables. Matched by the document's renamed name,
- *  falling back to the client's latest decision. */
+/** Task + hearing derived from a ruling document. Matched by the document's
+ *  renamed name, then by the CASE. Always pass `caseId` when the answer is going
+ *  to be filed onto a case: without it the lookup falls back to the client's
+ *  latest decision, and a client with several open cases would get one case's
+ *  hearing date filed onto another. */
 export async function fetchDecisionInfo(opts: {
   renamed?: string;
   clientId?: string;
+  caseId?: string;
 }): Promise<DecisionInfo | null> {
-  const { renamed, clientId } = opts;
-  if (!renamed && !clientId) return null;
+  const { renamed, clientId, caseId } = opts;
+  if (!renamed && !clientId && !caseId) return null;
   const params = new URLSearchParams();
   if (renamed) params.set('file', renamed);
   if (clientId) params.set('clientId', clientId);
+  if (caseId) params.set('caseId', caseId);
   try {
     const res = await fetch('/api/decision/?' + params.toString(), {
       method: 'GET',
+      headers: { Authorization: bearer() },
     });
     if (!res.ok) return null;
     const data = (await res.json()) as Partial<DecisionInfo>;

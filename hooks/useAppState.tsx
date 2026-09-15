@@ -199,6 +199,11 @@ interface AppStateContextValue {
   loadBackup: (data: Partial<LegalOfficeBackup>) => void;
   /** Trigger the v88 Supabase boot loader manually (e.g. user pressed "refresh"). */
   reloadFromSupabase: () => Promise<boolean>;
+  /** True once the boot pull has settled and saves are allowed to flow. Any
+   *  automatic data-healing effect (e.g. the hearing sweep) must wait for this:
+   *  writing before it would mark the state dirty, which makes the boot pull
+   *  stand down and pushes the stale localStorage copy back to the office DB. */
+  syncReady: boolean;
 }
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
@@ -704,8 +709,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AppStateContextValue>(
-    () => ({ state, dispatch, loadBackup, reloadFromSupabase }),
-    [state, loadBackup, reloadFromSupabase],
+    () => ({ state, dispatch, loadBackup, reloadFromSupabase, syncReady: supaSaveReady }),
+    [state, loadBackup, reloadFromSupabase, supaSaveReady],
   );
 
   return (

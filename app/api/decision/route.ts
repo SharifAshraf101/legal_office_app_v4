@@ -1,73 +1,70 @@
 import { NextResponse } from 'next/server';
+import { forwardAuth, workerBase } from '@/lib/serverAuth';
 
 /**
  * Decision-derived task + hearing lookup.
  *
- * When a ruling document is analysed, Cloudflare D1 records the decision
- * (decisions), the task it imposes (tasks: task_description, due_date) and
- * the hearing it sets (hearings: hearing_date), all linked by decision_id /
- * client_id. This route returns that task + hearing for the decision that
- * matches a document (by its renamed document_name) or, failing that, the
- * latest decision for the client.
+ * A ruling document imposes a task (description + due date) and often sets a
+ * hearing. This route returns them for the document that matches `file`, or
+ * failing that the latest decision of `caseId` — falling back to the client's
+ * latest decision ONLY when no case was named. Passing `caseId` matters: a
+ * client has several open cases, and the caller files whatever comes back onto
+ * the case it asked about, so a client-wide answer put one case's hearing date
+ * on another case of the same client.
  *
- * GET /api/decision?file=<renamed doc name>&clientId=<CLT-xxx>
+ * MULTI-TENANT: the lookup runs on the Worker's `GET /api/decision`, against
+ * whichever office database the CALLER's session resolves to. This route holds
+ * no database id and no operator token — it only forwards the caller's own
+ * `Authorization` header. (It used to query a hard-coded D1 id, so every office
+ * read the operator's decisions.)
+ *
+ * GET /api/decision?file=<renamed doc name>&clientId=<CLT-xxx>&caseId=<CS-xxxx>
+ *   headers: Authorization: Bearer <office session token>
  * → { taskDescription, taskDueDate, hearingDate }
  *
- * Uses the same server-side D1 token as /api/summary.
+ * Env: NEXT_PUBLIC_WORKER_URL.
  */
 export const runtime = 'nodejs';
+
+const EMPTY = { taskDescription: '', taskDueDate: '', hearingDate: '' };
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const file = (searchParams.get('file') || '').trim();
   const clientId = (searchParams.get('clientId') || '').trim();
-  if (!file && !clientId) return NextResponse.json({});
+  const caseId = (searchParams.get('caseId') || '').trim();
+  if (!file && !clientId && !caseId) return NextResponse.json(EMPTY);
 
-  const account = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const dbId = process.env.CLOUDFLARE_D1_DATABASE_ID;
-  const token = process.env.CLOUDFLARE_API_TOKEN;
-  if (!account || !dbId || !token) {
-    return NextResponse.json({ error: 'not_configured' });
+  const auth = forwardAuth(req);
+  if (!auth) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+  const workerUrl = workerBase();
+  if (!workerUrl) {
+    return NextResponse.json({ error: 'worker_unconfigured' }, { status: 500 });
   }
 
-  const sql =
-    'SELECT t.task_description AS taskDescription, t.due_date AS taskDueDate, ' +
-    'h.hearing_date AS hearingDate ' +
-    'FROM decisions d ' +
-    'LEFT JOIN tasks t ON t.decision_id = d.id ' +
-    'LEFT JOIN hearings h ON h.decision_id = d.id ' +
-    "WHERE d.document_name = ?1 OR (?2 <> '' AND d.client_id = ?2) " +
-    'ORDER BY (d.document_name = ?1) DESC, d.created_at DESC LIMIT 1';
+  const params = new URLSearchParams();
+  if (file) params.set('file', file);
+  if (clientId) params.set('clientId', clientId);
+  if (caseId) params.set('caseId', caseId);
 
   try {
-    const res = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${dbId}/query`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + token,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sql, params: [file, clientId] }),
-      },
-    );
-    if (!res.ok) return NextResponse.json({});
-    const json = (await res.json()) as {
-      result?: Array<{
-        results?: Array<{
-          taskDescription?: string;
-          taskDueDate?: string;
-          hearingDate?: string;
-        }>;
-      }>;
-    };
-    const row = json?.result?.[0]?.results?.[0] || {};
+    const res = await fetch(`${workerUrl}/api/decision?${params.toString()}`, {
+      headers: { Authorization: auth },
+      cache: 'no-store',
+    });
+    if (res.status === 401) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
+    if (!res.ok) return NextResponse.json(EMPTY);
+    const data = (await res.json().catch(() => ({}))) as Partial<typeof EMPTY>;
     return NextResponse.json({
-      taskDescription: (row.taskDescription || '').trim(),
-      taskDueDate: (row.taskDueDate || '').trim(),
-      hearingDate: (row.hearingDate || '').trim(),
+      taskDescription: (data.taskDescription || '').trim(),
+      taskDueDate: (data.taskDueDate || '').trim(),
+      hearingDate: (data.hearingDate || '').trim(),
     });
   } catch {
-    return NextResponse.json({});
+    return NextResponse.json(EMPTY);
   }
 }

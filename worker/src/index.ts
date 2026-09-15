@@ -21,6 +21,15 @@ import { buildUpsert, LOAD_TABLES, safeParse, type Env } from './db';
 import { resolveTenant, type Ctx } from './tenant';
 import { createAuth, runAuthMigrations } from './auth';
 import { provisionOfficeDb } from './provision';
+import {
+  billingPayload,
+  computeBilling,
+  isoPlusDays,
+  nextPeriodEnd,
+  operatorBilling,
+  TRIAL_DAYS,
+  type TenantBillingRow,
+} from './billing';
 import { AR_GLOSSARY } from './arabicGlossary';
 
 // The office's own registered lawyer. Used to decide whether an incoming
@@ -83,18 +92,209 @@ export default {
                     WHERE m.tenant_id = t.id ORDER BY m.created_at ASC LIMIT 1) AS owner_email
              FROM tenant t
             ORDER BY t.created_at DESC`,
-        ).all();
-        return json({ offices: rs.results ?? [] }, request, env);
+        ).all<TenantBillingRow & { id: string }>();
+        // Attach the DERIVED billing state (past_due / expired and days left are
+        // computed, never stored) so the console shows the same standing the
+        // office itself is subject to, without re-implementing the rules.
+        const offices = (rs.results ?? []).map((row) => ({
+          ...row,
+          billing: billingPayload(
+            row.id === env.USER_ID ? operatorBilling() : computeBilling(row),
+          ),
+        }));
+        return json({ offices }, request, env);
+      }
+      if (method === 'GET' && path === '/api/admin/payments') {
+        const tenantId = (url.searchParams.get('tenantId') || '').trim();
+        if (!tenantId) return json({ error: 'tenantId required' }, request, env, 400);
+        const rs = await env.CONTROL_DB.prepare(
+          `SELECT * FROM payment WHERE tenant_id = ?1
+            ORDER BY created_at DESC LIMIT 50`,
+        )
+          .bind(tenantId)
+          .all();
+        return json({ payments: rs.results ?? [] }, request, env);
+      }
+      // Record a payment received (manual collection) and/or change the plan.
+      // Recording a payment is what MOVES the subscription forward: it writes a
+      // ledger row and extends paid_until, flipping the office out of trial.
+      if (method === 'POST' && path === '/api/admin/billing') {
+        const body = (await request.json().catch(() => ({}))) as {
+          tenantId?: string;
+          months?: number;
+          amount?: number;
+          currency?: string;
+          reference?: string;
+          note?: string;
+          plan?: string;
+          priceAmount?: number;
+          billingNote?: string;
+          trialDays?: number;
+          cancel?: boolean;
+          reactivate?: boolean;
+        };
+        const tenantId = String(body.tenantId || '');
+        if (!tenantId) return json({ error: 'tenantId required' }, request, env, 400);
+        const office = await env.CONTROL_DB.prepare(
+          `SELECT id, billing_status, trial_ends_at, paid_until, price_amount,
+                  price_currency, plan
+             FROM tenant WHERE id = ?1`,
+        )
+          .bind(tenantId)
+          .first<{
+            id: string;
+            billing_status: string | null;
+            trial_ends_at: string | null;
+            paid_until: string | null;
+            price_amount: number | null;
+            price_currency: string | null;
+            plan: string | null;
+          }>();
+        if (!office) return json({ error: 'office not found' }, request, env, 404);
+
+        const nowIso = new Date().toISOString();
+        const stmts: D1PreparedStatement[] = [];
+
+        // 1. Plan / price / note edits.
+        if (body.plan !== undefined) {
+          stmts.push(
+            env.CONTROL_DB.prepare('UPDATE tenant SET plan = ?2 WHERE id = ?1').bind(
+              tenantId,
+              String(body.plan || 'standard'),
+            ),
+          );
+        }
+        if (body.priceAmount !== undefined) {
+          const minor = Math.round(Number(body.priceAmount) || 0);
+          if (minor < 0) {
+            return json({ error: 'priceAmount must be >= 0' }, request, env, 400);
+          }
+          stmts.push(
+            env.CONTROL_DB.prepare(
+              'UPDATE tenant SET price_amount = ?2, price_currency = ?3 WHERE id = ?1',
+            ).bind(tenantId, minor, String(body.currency || office.price_currency || 'ILS')),
+          );
+        }
+        if (body.billingNote !== undefined) {
+          stmts.push(
+            env.CONTROL_DB.prepare(
+              'UPDATE tenant SET billing_note = ?2 WHERE id = ?1',
+            ).bind(tenantId, String(body.billingNote || '')),
+          );
+        }
+
+        // 2. Extend the trial (e.g. an office that needs a few more days).
+        if (body.trialDays !== undefined) {
+          const days = Math.round(Number(body.trialDays) || 0);
+          if (days <= 0 || days > 365) {
+            return json({ error: 'trialDays must be 1..365' }, request, env, 400);
+          }
+          stmts.push(
+            env.CONTROL_DB.prepare(
+              `UPDATE tenant SET billing_status = 'trialing', trial_ends_at = ?2
+                WHERE id = ?1`,
+            ).bind(tenantId, isoPlusDays(days)),
+          );
+        }
+
+        // 3. Record a payment → ledger row + paid_until extension.
+        let periodEnd: string | null = null;
+        if (body.months !== undefined) {
+          const months = Math.round(Number(body.months) || 0);
+          if (months <= 0 || months > 60) {
+            return json({ error: 'months must be 1..60' }, request, env, 400);
+          }
+          const periodStart =
+            office.paid_until && Date.parse(office.paid_until) > Date.now()
+              ? office.paid_until
+              : nowIso;
+          periodEnd = nextPeriodEnd(office.paid_until, months);
+          const amount = Math.round(
+            Number(body.amount ?? office.price_amount ?? 0) || 0,
+          );
+          stmts.push(
+            env.CONTROL_DB.prepare(
+              `INSERT INTO payment (id, tenant_id, amount, currency, method,
+                                    reference, period_start, period_end, note, created_at)
+               VALUES (?1, ?2, ?3, ?4, 'manual', ?5, ?6, ?7, ?8, ?9)`,
+            ).bind(
+              crypto.randomUUID(),
+              tenantId,
+              amount,
+              String(body.currency || office.price_currency || 'ILS'),
+              String(body.reference || ''),
+              periodStart,
+              periodEnd,
+              String(body.note || ''),
+              nowIso,
+            ),
+            env.CONTROL_DB.prepare(
+              `UPDATE tenant SET billing_status = 'active', paid_until = ?2
+                WHERE id = ?1`,
+            ).bind(tenantId, periodEnd),
+          );
+        }
+
+        // 4. Cancel / reactivate. Cancelling does NOT delete or suspend — the
+        //    office drops to read-only and keeps every file it owns.
+        if (body.cancel) {
+          stmts.push(
+            env.CONTROL_DB.prepare(
+              `UPDATE tenant SET billing_status = 'canceled' WHERE id = ?1`,
+            ).bind(tenantId),
+          );
+        } else if (body.reactivate) {
+          // Back to whichever track still has time on it.
+          stmts.push(
+            env.CONTROL_DB.prepare(
+              `UPDATE tenant
+                  SET billing_status = CASE WHEN paid_until IS NOT NULL THEN 'active'
+                                            ELSE 'trialing' END
+                WHERE id = ?1`,
+            ).bind(tenantId),
+          );
+        }
+
+        if (!stmts.length) {
+          return json({ error: 'nothing to do' }, request, env, 400);
+        }
+        await env.CONTROL_DB.batch(stmts);
+
+        const updated = await env.CONTROL_DB.prepare(
+          `SELECT plan, billing_status, trial_ends_at, paid_until, price_amount,
+                  price_currency, billing_note
+             FROM tenant WHERE id = ?1`,
+        )
+          .bind(tenantId)
+          .first<TenantBillingRow>();
+        return json(
+          {
+            ok: true,
+            tenantId,
+            periodEnd,
+            billing: updated ? billingPayload(computeBilling(updated)) : null,
+          },
+          request,
+          env,
+        );
       }
       if (method === 'POST' && path === '/api/admin/approve') {
         const body = (await request.json().catch(() => ({}))) as { tenantId?: string };
         const tenantId = String(body.tenantId || '');
         if (!tenantId) return json({ error: 'tenantId required' }, request, env, 400);
         const office = await env.CONTROL_DB.prepare(
-          'SELECT id, name, status, data_db_name FROM tenant WHERE id = ?1',
+          `SELECT id, name, status, data_db_name, trial_ends_at, paid_until
+             FROM tenant WHERE id = ?1`,
         )
           .bind(tenantId)
-          .first<{ id: string; name: string; status: string; data_db_name: string | null }>();
+          .first<{
+            id: string;
+            name: string;
+            status: string;
+            data_db_name: string | null;
+            trial_ends_at: string | null;
+            paid_until: string | null;
+          }>();
         if (!office) return json({ error: 'office not found' }, request, env, 404);
         // Provision the office's OWN database on first approval, then activate.
         // Idempotent: re-approving reuses the existing database.
@@ -102,12 +302,27 @@ export default {
         if (!dataDbId) {
           dataDbId = await provisionOfficeDb(env, office.name);
         }
+        // The free trial starts on FIRST approval only. This endpoint doubles as
+        // "reactivate a suspended office", so granting a trial unconditionally
+        // would hand out a fresh 14 days on every suspend/reactivate cycle.
+        const startsTrial = !office.trial_ends_at && !office.paid_until;
+        const trialEnds = startsTrial ? isoPlusDays(TRIAL_DAYS) : null;
         await env.CONTROL_DB.prepare(
-          `UPDATE tenant SET status = 'active', data_db_name = ?2, approved_at = ?3 WHERE id = ?1`,
+          `UPDATE tenant
+              SET status = 'active',
+                  data_db_name = ?2,
+                  approved_at = ?3,
+                  billing_status = CASE WHEN ?4 IS NULL THEN billing_status ELSE 'trialing' END,
+                  trial_ends_at  = COALESCE(?4, trial_ends_at)
+            WHERE id = ?1`,
         )
-          .bind(tenantId, dataDbId, new Date().toISOString())
+          .bind(tenantId, dataDbId, new Date().toISOString(), trialEnds)
           .run();
-        return json({ ok: true, tenantId, dataDbId }, request, env);
+        return json(
+          { ok: true, tenantId, dataDbId, trialEndsAt: trialEnds },
+          request,
+          env,
+        );
       }
       if (method === 'POST' && path === '/api/admin/reject') {
         const body = (await request.json().catch(() => ({}))) as { tenantId?: string };
@@ -188,12 +403,33 @@ export default {
       return json({ error: 'unauthorized' }, request, env, 401);
     }
 
+    // ----- subscription gate (Phase 4). A lapsed office keeps FULL READ access
+    //       — its own case files are never held hostage — but loses every write
+    //       and every AI endpoint (which are all non-GET, so this single rule
+    //       covers both "don't mutate" and "don't spend on our model budget").
+    //       GET /api/load still succeeds, which is what lets the app boot and
+    //       render the paywall instead of showing a broken screen. -----
+    if (ctx.billing.blocked && method !== 'GET') {
+      return json(
+        {
+          error: 'subscription_required',
+          billing: billingPayload(ctx.billing),
+        },
+        request,
+        env,
+        402,
+      );
+    }
+
     if (method === 'GET' && path === '/api/load') return handleLoad(request, env, ctx);
     if (method === 'GET' && path === '/api/file-summary') {
       return handleFileSummary(request, env, ctx);
     }
     if (method === 'POST' && path === '/api/file-summary') {
       return handleStoreFileSummary(request, env, ctx);
+    }
+    if (method === 'GET' && path === '/api/decision') {
+      return handleDecisionInfo(request, env, ctx);
     }
     if (method === 'POST' && path === '/api/save') return handleSave(request, env, ctx);
     if (method === 'POST' && path === '/api/draft') return handleDraft(request, env, ctx);
@@ -291,6 +527,20 @@ async function handleLoad(request: Request, env: Env, ctx: Ctx): Promise<Respons
     ? safeParse(asRow.state) ?? safeParse(asRow.payload) ?? safeParse(asRow.data)
     : null;
 
+  // Who this office is, for features that are OPERATOR-ONLY because they run on
+  // shared, single-office infrastructure the tenant doesn't have: the WhatsApp
+  // business number + its inbound webhook, and the Dropbox/make.com pipeline.
+  // The client hides those features unless is_operator — otherwise a tenant's
+  // messages would go out from the operator's number and be stored against the
+  // operator's data. See usesDropbox(), which draws the same line for storage.
+  out.office = {
+    is_operator: ctx.tenantId === env.USER_ID,
+    tenant_id: ctx.tenantId,
+    // Subscription standing, so the app can warn during the trial / grace
+    // window and switch to read-only once entitlement runs out (Phase 4).
+    billing: billingPayload(ctx.billing),
+  };
+
   return json(out, request, env);
 }
 
@@ -334,6 +584,105 @@ async function handleFileSummary(request: Request, env: Env, ctx: Ctx): Promise<
     request,
     env,
   );
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/decision — the task + hearing a ruling document imposes.
+//
+// Runs against ctx.db, so every office reads its OWN decisions. Two shapes
+// exist, and this handler serves both:
+//
+//   • Operator DB (tenant #1): the make.com pipeline writes `decisions` +
+//     `hearings` and links them to `tasks.decision_id`. That join is the
+//     richest answer, so it is tried first.
+//   • Every other office: those pipeline tables don't exist in the office
+//     schema (see officeSchema.ts). The same facts live in `file_summary`
+//     (deadline_description / deadline_date / hearing_date), written by the
+//     Worker's own document analysis — so we fall back to that.
+//
+// A missing `decisions` table throws in D1; that throw IS the signal to use
+// the fallback, so it's caught rather than surfaced.
+// ---------------------------------------------------------------------------
+async function handleDecisionInfo(
+  request: Request,
+  env: Env,
+  ctx: Ctx,
+): Promise<Response> {
+  const url = new URL(request.url);
+  const file = (url.searchParams.get('file') || '').trim();
+  const clientId = (url.searchParams.get('clientId') || '').trim();
+  // The CASE the caller is asking about. A client usually has several open
+  // cases, so answering from `client_id` alone handed one case's hearing to
+  // another case of the same client — a real mis-filing, since the caller files
+  // whatever comes back onto the case it asked for. With a case id the answer is
+  // restricted to that case (or to the exact document named in `file`).
+  const caseId = (url.searchParams.get('caseId') || '').trim();
+  const empty = { taskDescription: '', taskDueDate: '', hearingDate: '' };
+  if (!file && !clientId && !caseId) return json(empty, request, env);
+
+  type Row = {
+    taskDescription?: string | null;
+    taskDueDate?: string | null;
+    hearingDate?: string | null;
+  };
+  const clean = (row: Row | null) => ({
+    taskDescription: (row?.taskDescription || '').trim(),
+    taskDueDate: (row?.taskDueDate || '').trim(),
+    hearingDate: (row?.hearingDate || '').trim(),
+  });
+
+  // 1. Pipeline tables. Only a THROW (the tables don't exist here) falls
+  //    through. The client-wide match is now allowed ONLY when the caller named
+  //    no case; with a case id the row must be the case's own.
+  try {
+    const row = await ctx.db.prepare(
+      'SELECT t.task_description AS taskDescription, t.due_date AS taskDueDate, ' +
+        'h.hearing_date AS hearingDate ' +
+        'FROM decisions d ' +
+        'LEFT JOIN tasks t ON t.decision_id = d.id ' +
+        'LEFT JOIN hearings h ON h.decision_id = d.id ' +
+        'WHERE d.document_name = ?1 ' +
+        "OR (?3 <> '' AND lower(d.case_id) = lower(?3)) " +
+        "OR (?3 = '' AND ?2 <> '' AND d.client_id = ?2) " +
+        'ORDER BY (d.document_name = ?1) DESC, d.created_at DESC LIMIT 1',
+    )
+      .bind(file, clientId, caseId)
+      .first<Row>();
+    return json(clean(row), request, env);
+  } catch {
+    // No decisions/hearings table in this office DB — use the fallback below.
+  }
+
+  // 2. file_summary — present in every office schema, and the column split
+  //    already distinguishes a HEARING (hearing_date) from a filing DEADLINE
+  //    (deadline_date/deadline_description), which is the same distinction the
+  //    caller relies on when it files a hearing vs a task.
+  const docMatch = /(DOC-\d+)/i.exec(file);
+  const docId = docMatch ? docMatch[1].toUpperCase() : '';
+  try {
+    const row = await ctx.db.prepare(
+      'SELECT deadline_description AS taskDescription, deadline_date AS taskDueDate, ' +
+        'hearing_date AS hearingDate FROM file_summary ' +
+        'WHERE file_name = ?1 ' +
+        "OR (?2 <> '' AND (upper(file_name) LIKE '%' || ?2 || '.%' OR upper(file_name) LIKE '%' || ?2)) " +
+        // case_id is the precise scope: the row belongs to THIS case.
+        "OR (?4 <> '' AND lower(case_id) = lower(?4)) " +
+        // Client-wide is the last resort and ONLY when no case was named —
+        // otherwise a sibling case's decision would be answered as this one's.
+        // client_id is stored either bare ("CLT-101") or labelled
+        // ("clt-101 - name"); match both WITHOUT a bare prefix LIKE, which
+        // would also match CLT-1011.
+        "OR (?4 = '' AND ?3 <> '' AND (lower(client_id) = lower(?3) OR lower(client_id) LIKE lower(?3) || ' %')) " +
+        'ORDER BY (file_name = ?1) DESC, ' +
+        "(?2 <> '' AND upper(file_name) LIKE '%' || ?2 || '.%') DESC, " +
+        "(?4 <> '' AND lower(case_id) = lower(?4)) DESC, id DESC LIMIT 1",
+    )
+      .bind(file, docId, clientId, caseId)
+      .first<Row>();
+    return json(clean(row), request, env);
+  } catch {
+    return json(empty, request, env);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -653,9 +1002,10 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
   const caseSrc = String(body.case_source_id || '').trim();
   const fileName = String(body.file_name || '').trim();
   const skillKey = String(body.skill_key || 'sharia-lawsuit').trim();
-  // The registered lawyer / our office. A draft is only needed when the
-  // document is from the OTHER side or the court orders a reply — never for
-  // documents our own office authored (unless the court ordered a reply).
+  // The registered lawyer / our office (Settings name appended to the built-in
+  // one). Authorship is read off the SIGNATURE at the END of the document: our
+  // own signature → no reply draft; opposing counsel's signature → draft. A
+  // judge's decision always gets a draft, whatever it orders.
   const lawyerName =
     DEFAULT_LAWYER_NAME +
     (String(body.lawyer_name || '').trim()
@@ -714,14 +1064,26 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
   const userText =
     'اقرأ المستند المرفق بالكامل كلمةً كلمةً. مكتبنا/المحامي صاحب الملف هو: ' +
     lawyerName +
-    '.\n\nأولاً صنِّف المستند:\n' +
-    '- author_side = من حرّر/قدّم هذا المستند فعلياً (المحامي الموقّع عليه أو الطرف الذي قدّمه)، وليس بالضرورة من ذُكر اسمه داخله: "ours" فقط إذا حرّره أو قدّمه مكتبنا/المحامي المذكور أعلاه ('  +
+    '.\n\nأولاً صنِّف المستند. طريقة تحديد مَن قدّم المستند إلزامية وواحدة لا غير: انظر في نهاية المستند (الصفحة الأخيرة، أسفل آخر فقرة) وحدِّد اسم الموقّع عليه — سطر التوقيع أو الخاتم أو عبارة «بكل احترام»/«בכבוד רב» يليها اسم محامٍ. الموقّع في نهاية المستند هو مَن حرّره وقدّمه. لا تعتمد إطلاقاً على الأسماء الواردة داخل متن المستند (أسماء الأطراف، أو المحامين المذكورين في الترويسة أو في سرد الوقائع)، بل على التوقيع في نهايته وحده.\n' +
+    '- author_side:\n' +
+    '  · "ours" إذا كان الموقّع في نهاية المستند هو مكتبنا/المحامي المسجَّل (' +
     lawyerName +
     ')' +
-    (clientName ? ' أو قُدّم نيابةً عن موكّلنا الذي نمثّله (' + clientName + ')' : '') +
-    '، أو "opposing" إذا قدّمه الطرف الآخر/الخصم أو محاميه، أو "court" إذا كان صادراً عن المحكمة/القاضي. إذا لم يكن المستند صادراً عن مكتبنا بوضوح، فاعتبره "opposing".\n' +
+    (clientName
+      ? ' أو كان المستند مقدَّماً باسم/نيابةً عن موكّلنا الذي نمثّله (' + clientName + ')'
+      : '') +
+    ' — أي أن المستند من إعداد وكيل موكّلنا في القضية.\n' +
+    '  · "opposing" إذا كان الموقّع في نهاية المستند محامياً آخر — وكيل الطرف المقابل/الخصم — أو الطرف المقابل نفسه.\n' +
+    '  · "court" إذا كان المستند صادراً عن المحكمة/القاضي (قرار، حكم، أمر، محضر/بروتوكول) وموقّعاً من القاضي أو من سكرتارية المحكمة.\n' +
+    '  وإذا لم يظهر في نهاية المستند توقيعُ مكتبنا ولا توقيعُ محامٍ يوقّع نيابةً عن موكّلنا، ولم يكن المستند صادراً عن المحكمة، فاعتبره "opposing".\n' +
+    '- signatory = اسم الموقّع كما ورد في نهاية المستند حرفياً (أو null إذا لم يوجد توقيع).\n' +
+    '- is_court_decision = true إذا كان المستند قراراً أو حكماً أو أمراً صادراً عن القاضي/المحكمة (החלטה / פסק דין / צו / قرار / حكم / أمر)، وإلا false.\n' +
     '- court_requires_response = true إذا كان المستند يأمر أو يطلب تقديم رد/جواب/تعقيب، وإلا false.\n\n' +
-    'قاعدة إعداد المسودة (مهمة جداً وإلزامية): إذا كان author_side = "opposing" أو court_requires_response = true، فيجب عليك إلزامياً ملء الحقل draft بنص مسودة رد قانونية كاملة على هذا المستند وفق القالب الحاكم — ولا تتركه null أبداً في هذه الحالة. أما إذا كان المستند من مكتبنا (author_side = "ours") ولم تأمر المحكمة بالرد، فلا حاجة لمسودة: اترك draft = null.\n\n' +
+    'قاعدة إعداد المسودة (إلزامية، طبّقها حرفياً):\n' +
+    '1. author_side = "opposing" (الموقّع في نهاية المستند هو وكيل الطرف المقابل) ← يجب إلزامياً ملء الحقل draft بنص مسودة رد قانونية كاملة على هذا المستند وفق القالب الحاكم، ولا تتركه null أبداً.\n' +
+    '2. is_court_decision = true (قرار/حكم صادر عن القاضي) ← يجب إلزامياً ملء الحقل draft في كل الأحوال، سواء طلب القرار رداً صراحةً أم لم يطلب، وتُصاغ المسودة وفق مضمون القرار نفسه وما يقتضيه من امتثال أو تعقيب أو إجراء تالٍ.\n' +
+    '3. court_requires_response = true ← يجب ملء الحقل draft كذلك.\n' +
+    '4. author_side = "ours" (المستند موقّع من مكتبنا/المحامي المسجَّل أو مقدَّم نيابةً عن موكّلنا) وليس قراراً قضائياً ولم تأمر المحكمة بالرد ← لا حاجة لمسودة: اترك draft = null.\n\n' +
     'هذه ملاحظات المحامي على هذه القضية، استخدمها في توجيه الرد:\n<case_notes_he>\n' +
     notes.he +
     '\n</case_notes_he>\n<case_notes_ar>\n' +
@@ -732,7 +1094,7 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
         notesContext +
         '\n</case_notes_all>\n'
       : '') +
-    '\n\nصُغ (عند الحاجة فقط) مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم، بلغة المستند نفسها. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "رمز لغة المستند مثل ar أو he أو en أو fr أو ru", "author_side": "ours or opposing or court", "court_requires_response": true or false, "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بلغة المستند أو null", "draft": "نص المسودة الكامل بلغة المستند أو null"}. لا تكتب أي شيء خارج JSON.';
+    '\n\nصُغ (عند الحاجة فقط) مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم، بلغة المستند نفسها. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "رمز لغة المستند مثل ar أو he أو en أو fr أو ru", "author_side": "ours or opposing or court", "signatory": "اسم الموقّع في نهاية المستند أو null", "is_court_decision": true or false, "court_requires_response": true or false, "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بلغة المستند أو null", "draft": "نص المسودة الكامل بلغة المستند أو null"}. لا تكتب أي شيء خارج JSON.';
 
   const anthropicBody = {
     model: 'claude-sonnet-4-6',
@@ -805,21 +1167,29 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
     );
   }
 
-  // Gate: a draft is needed only when the document is from the OTHER side, or
-  // the court ordered a reply. Our own document with no court order → no draft
-  // (the case's suggested-action/recommendation covers that case instead).
+  // Gate: authorship is decided by the SIGNATURE at the END of the document.
+  // Signed by our office / the lawyer registered in Settings (or filed on our
+  // client's behalf) → our own filing, no reply draft. Signed by opposing
+  // counsel → reply draft. A JUDGE'S DECISION always gets a reply draft written
+  // to the decision's content, whether or not it explicitly orders a reply.
   const authorSide = String(draft.author_side ?? '').toLowerCase().trim();
+  const signatory = String(draft.signatory ?? '').trim();
+  const isCourtDecision =
+    draft.is_court_decision === true ||
+    String(draft.is_court_decision ?? '').toLowerCase() === 'true';
   const courtRequiresResponse =
     draft.court_requires_response === true ||
     String(draft.court_requires_response ?? '').toLowerCase() === 'true';
-  // A draft is needed ONLY when the OTHER side authored the document, or the
-  // court ordered a reply. Our own document → no draft; a court document that
-  // does NOT order a reply → no draft (the suggested-action card covers those).
+  // Needed when: the OTHER side signed it, OR it is a judge's decision, OR the
+  // court ordered a reply. Our own signed document with no court order → no
+  // draft; a court document that is neither a decision nor a reply order (e.g.
+  // a filing receipt) → no draft (the suggested-action card covers those).
   // Unknown/unclassified author defaults to needing a draft — never silently
   // drop a reply that might be required (a missed deadline is far worse than an
   // extra draft).
   const draftNeeded =
     authorSide === 'opposing' ||
+    isCourtDecision ||
     courtRequiresResponse ||
     (authorSide !== 'ours' && authorSide !== 'court');
   // The model now returns ONE `draft` field written in the document's own
@@ -888,6 +1258,8 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
       title: draft.title || draft.title_ar || '',
       draft_needed: draftNeeded,
       author_side: authorSide || 'unknown',
+      signatory,
+      is_court_decision: isCourtDecision,
       court_requires_response: courtRequiresResponse,
       // A draft can be produced in ANY language (stored in draft_orig even when
       // it's not Hebrew/Arabic), so report presence from draftText — not only
@@ -906,8 +1278,10 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
 // POST /api/draft-decision
 // Cheap classification-only check for an EXISTING document (typically a
 // Make-written draft still marked status='draft'): reads the PDF with a small
-// model, decides whether a reply draft is actually needed, and updates the
-// draft row's status to 'approved' (needed) or 'not_needed' — WITHOUT
+// model, decides whether a reply draft is actually needed — by the SIGNATURE at
+// the END of the document (ours → no draft, opposing counsel → draft) and by
+// whether it is a judge's decision (always a draft) — and updates the draft
+// row's status to 'approved' (needed) or 'not_needed' — WITHOUT
 // regenerating the draft text (any existing draft is preserved). On any
 // failure it defaults to 'approved' so a possibly-required reply is never
 // silently hidden.
@@ -964,16 +1338,22 @@ async function handleDraftDecision(request: Request, env: Env, ctx: Ctx): Promis
     lawyerName +
     '. اقرأ المستند المرفق وأعِد كائن JSON واحداً فقط، دون أي نص آخر، وأول حرف {.';
   const userText =
-    'صنِّف هذا المستند حسب من حرّره/قدّمه فعلياً (المحامي الموقّع أو الطرف مقدّم الطلب)، لا حسب من ذُكر اسمه داخله:\n' +
-    '- author_side = "ours" فقط إذا حرّره أو قدّمه مكتبنا/المحامي ' +
+    'حدِّد مَن قدّم هذا المستند بطريقة واحدة إلزامية: انظر في نهاية المستند (الصفحة الأخيرة، أسفل آخر فقرة) واقرأ اسم الموقّع عليه — سطر التوقيع أو الخاتم أو عبارة «بكل احترام»/«בכבוד רב» يليها اسم محامٍ. الموقّع في النهاية هو مَن حرّر المستند وقدّمه؛ لا تعتمد على الأسماء الواردة في الترويسة أو في متن المستند.\n' +
+    '- author_side = "ours" فقط إذا كان الموقّع في نهاية المستند هو مكتبنا/المحامي ' +
     lawyerName +
-    (clientName ? ' أو قُدّم نيابةً عن موكّلنا الذي نمثّله (' + clientName + ')' : '') +
-    '، أو "opposing" إذا قدّمه الطرف الآخر/الخصم أو محاميه، أو "court" إذا صدر عن المحكمة/القاضي. إذا لم يكن صادراً عن مكتبنا بوضوح فاعتبره "opposing".\n' +
+    (clientName
+      ? ' أو كان المستند مقدَّماً نيابةً عن موكّلنا الذي نمثّله (' + clientName + ')'
+      : '') +
+    '، أو "opposing" إذا كان الموقّع في نهايته محامي الطرف الآخر/الخصم أو الطرف الآخر نفسه، أو "court" إذا صدر عن المحكمة/القاضي. إذا لم يظهر توقيع مكتبنا في نهايته ولم يكن صادراً عن المحكمة فاعتبره "opposing".\n' +
+    '- signatory = اسم الموقّع في نهاية المستند حرفياً (أو null).\n' +
+    '- is_court_decision = true إذا كان المستند قراراً أو حكماً أو أمراً صادراً عن القاضي/المحكمة (החלטה / פסק דין / צו / قرار / حكم / أمر)، وإلا false.\n' +
     '- court_requires_response = true إذا كان المستند يأمر أو يطلب تقديم رد/جواب/تعقيب، وإلا false.\n' +
-    'أعِد JSON فقط: {"author_side":"ours or opposing or court","court_requires_response":true or false}.';
+    'أعِد JSON فقط: {"author_side":"ours or opposing or court","signatory":"اسم الموقّع أو null","is_court_decision":true or false,"court_requires_response":true or false}.';
 
   let draftNeeded = true; // safe default on any failure
   let authorSide = 'unknown';
+  let signatory = '';
+  let isCourtDecision = false;
   let courtRequiresResponse = false;
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1022,11 +1402,19 @@ async function handleDraftDecision(request: Request, env: Env, ctx: Ctx): Promis
       const parsed = JSON.parse(cleaned) as Record<string, unknown>;
       authorSide =
         String(parsed.author_side ?? '').toLowerCase().trim() || 'unknown';
+      signatory = String(parsed.signatory ?? '').trim();
+      isCourtDecision =
+        parsed.is_court_decision === true ||
+        String(parsed.is_court_decision ?? '').toLowerCase() === 'true';
       courtRequiresResponse =
         parsed.court_requires_response === true ||
         String(parsed.court_requires_response ?? '').toLowerCase() === 'true';
+      // Same gate as /api/draft: opposing signature, a judge's decision (always),
+      // or an explicit reply order → a draft is needed. Our own signature with no
+      // court order → not needed.
       draftNeeded =
         authorSide === 'opposing' ||
+        isCourtDecision ||
         courtRequiresResponse ||
         (authorSide !== 'ours' && authorSide !== 'court');
     }
@@ -1058,6 +1446,8 @@ async function handleDraftDecision(request: Request, env: Env, ctx: Ctx): Promis
       document_source_id: documentSourceId,
       draft_needed: draftNeeded,
       author_side: authorSide,
+      signatory,
+      is_court_decision: isCourtDecision,
       court_requires_response: courtRequiresResponse,
     },
     request,
@@ -1397,7 +1787,7 @@ async function handleSuggestAction(request: Request, env: Env, ctx: Ctx): Promis
       : '1. קבע לפי שמות הצדדים בשרשרת המסמכים ובמסמך האחרון האם לקוח המשרד' +
         (clientName ? ' (' + clientName + ')' : '') +
         ' הוא התובע/המבקש/העותר או הנתבע/המשיב באותה ערכאה.\n') +
-    '2. קבע מי חיבר/הגיש בפועל את המסמך האחרון (לפי החתום/המגיש, לא לפי מי שמוזכר בגופו): צד המשרד (הלקוח שאנו מייצגים או עורך דיננו), הצד שכנגד, או בית המשפט/בית הדין.\n' +
+    '2. קבע מי חיבר/הגיש בפועל את המסמך האחרון לפי החתימה שבסוף המסמך (העמוד האחרון, מתחת לפסקה האחרונה — "בכבוד רב" ושם עורך הדין החתום), ולא לפי מי שמוזכר בכותרת או בגוף המסמך: אם החתום הוא עורך דיננו הרשום או מי שהגיש בשם הלקוח שאנו מייצגים — צד המשרד; אם החתום הוא בא כוח הצד שכנגד — הצד שכנגד; אם המסמך יצא מבית המשפט/בית הדין (החלטה, פסק דין, צו, פרוטוקול) — בית המשפט/בית הדין.\n' +
     '3. בחר אך ורק פעולה שעל הצד שאנו מייצגים לנקוט לפי סדר הדין. חל איסור מוחלט: אל תציע פעולה ששייכת לצד שכנגד (הצד שאיננו מייצגים), ואל תציע פעולה או תגובה לטובת הצד השני. כמו כן, אם את המסמך האחרון חיבר צד המשרד עצמו, אל תציע תגובה אליו — אלא אם קיימת חובה דיונית פתוחה שהמסמך מטיל דווקא על לקוח המשרד. אם המסמך האחרון חובר על ידי צד המשרד ואין פעולת המשך הנדרשת מאיתנו לפי סדר הדין, החזר את הודעת ההמתנה.\n\n' +
     'משימתך: תחילה קבע מהו השלב הנוכחי לפי שרשרת המסמכים, ואז בחר מתוך הרשימה שסופקה את הפעולה שעל הצד שאנו מייצגים לנקוט — התואמת גם לתוכן המסמך האחרון וגם לשלב, ומוקבלת לסדר הדין של אותה ערכאה. בחר אך ורק מתוך הרשימה שסופקה; אל תציע פעולה ששלבה כבר חלף, ואל תמציא פעולות, מועדים או מקורות שאינם ברשימה. החזר אובייקט JSON אחד בלבד, ללא טקסט נוסף, ותו ראשון {.';
   const userText =

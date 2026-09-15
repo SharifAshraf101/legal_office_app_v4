@@ -1,6 +1,7 @@
 'use client';
 
 import { useAppState } from '@/hooks/useAppState';
+import { useIsOperatorOffice } from '@/hooks/useIsOperatorOffice';
 import { useT } from '@/hooks/useT';
 import { useModalStack } from '@/hooks/useModalStack';
 import { getTimeGreeting } from '@/lib/greeting';
@@ -29,14 +30,28 @@ const HOME_CARDS: { id: string; icon: string; titleKey: string; titleAr?: string
   { id: 'portal', icon: 'fa-link', titleKey: 'portal' },
 ];
 
+// The portal runs on the OPERATOR's WhatsApp number, so a tenant office must
+// not see it. `.home-card-grid` is a fixed four-area grid, so the card is
+// SWAPPED (for tasks — the other daily driver) rather than dropped, which
+// would leave a hole in the layout.
+const TENANT_HOME_CARDS = HOME_CARDS.map((c) =>
+  c.id === 'portal' ? { id: 'tasks', icon: 'fa-circle-check', titleKey: 'tasks' } : c,
+);
+
 function portalLabel(lang: 'he' | 'ar'): string {
   return lang === 'ar' ? 'بوابة تواصل الموكلون' : 'שער תקשורת עם לקוחות';
+}
+
+function tasksLabel(lang: 'he' | 'ar'): string {
+  return lang === 'ar' ? 'مهام' : 'משימות';
 }
 
 export function HomeDashboard() {
   const { state, dispatch } = useAppState();
   const { t, lang } = useT();
   const modalStack = useModalStack();
+  const isOperator = useIsOperatorOffice();
+  const cards = isOperator ? HOME_CARDS : TENANT_HOME_CARDS;
 
   const brandName = state.officeName || t('firmName');
   const greetingText = getTimeGreeting(lang, brandName);
@@ -62,8 +77,13 @@ export function HomeDashboard() {
        *  that area. This places it at the exact geometric center
        *  of the four cards in any direction or viewport. */}
       <div className="home-card-grid home-only-grid">
-        {HOME_CARDS.map((card, idx) => {
-          const title = card.id === 'portal' ? portalLabel(lang) : t(card.titleKey);
+        {cards.map((card, idx) => {
+          const title =
+            card.id === 'portal'
+              ? portalLabel(lang)
+              : card.id === 'tasks'
+                ? tasksLabel(lang)
+                : t(card.titleKey);
           return (
             <button
               key={card.id}

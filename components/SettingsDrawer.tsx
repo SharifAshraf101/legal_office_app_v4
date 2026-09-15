@@ -11,6 +11,7 @@ import {
 } from '@/lib/storage';
 import { signOut, changePassword } from '@/lib/officeAuth';
 import { clearOfficeToken } from '@/lib/officeToken';
+import { clearOfficeBilling } from '@/lib/officeBilling';
 import {
   loadSavedLegalOfficeDirectoryHandle,
   pickAndSaveDirectory,
@@ -151,6 +152,9 @@ export function SettingsDrawer() {
       /* even if the network sign-out fails, drop the local session below */
     }
     clearOfficeToken();
+    // The next office to sign in on this device must not inherit the previous
+    // one's subscription banner.
+    clearOfficeBilling();
     clearOfficeDataFromLocalStorage();
     window.location.reload();
   };

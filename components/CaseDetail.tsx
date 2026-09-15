@@ -209,7 +209,9 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
       return;
     }
     let cancelled = false;
-    fetchDecisionInfo({ renamed, clientId }).then((d) => {
+    // caseId is what scopes the lookup: this importer files the answer onto THIS
+    // case, so a client-wide match (a sibling case's decision) must not win.
+    fetchDecisionInfo({ renamed, clientId, caseId }).then((d) => {
       if (cancelled || !d) return;
       setInfo(d);
 

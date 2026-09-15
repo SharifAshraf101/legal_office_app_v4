@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { forwardAuth, workerBase } from '@/lib/serverAuth';
 
 /**
  * On-demand reply-draft GENERATION for a document that has none yet.
@@ -13,11 +14,17 @@ import { NextResponse } from 'next/server';
  * The Worker holds ANTHROPIC_API_KEY, so this route needs NO Anthropic key of
  * its own (unlike /api/generate-summary).
  *
+ * MULTI-TENANT: the draft is written to whichever office database the CALLER's
+ * session resolves to — this route forwards the caller's own `Authorization`
+ * header and holds no operator token. An unauthenticated call is rejected
+ * rather than run at the operator's expense.
+ *
  * POST /api/generate-draft
+ *   headers: Authorization: Bearer <office session token>
  *   body: { fileUrl, fileName, clientId?, caseId?, documentId? }
  *   → the Worker's JSON ({ ok, has_draft, source_id, document_source_id, … })
  *
- * Env: NEXT_PUBLIC_WORKER_URL, NEXT_PUBLIC_APP_TOKEN.
+ * Env: NEXT_PUBLIC_WORKER_URL.
  */
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -56,6 +63,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'unsupported_type' }, { status: 415 });
   }
 
+  // Authorize BEFORE the download + model call, so an anonymous request costs
+  // nothing. The Worker re-checks the token; this only rejects missing ones.
+  const auth = forwardAuth(req);
+  if (!auth) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+  const workerUrl = workerBase();
+  if (!workerUrl) {
+    return NextResponse.json({ error: 'worker_unconfigured' }, { status: 500 });
+  }
+
   // 1. Fetch the PDF server-side (no browser CORS on the Dropbox link).
   let base64: string;
   try {
@@ -75,17 +93,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'fetch_error' }, { status: 502 });
   }
 
-  // 2. Forward to the Worker's /api/draft (it owns the Anthropic key + skill).
-  const workerUrl = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(/\/$/, '');
-  const token = process.env.APP_TOKEN || process.env.NEXT_PUBLIC_APP_TOKEN || '';
-  if (!workerUrl || !token) {
-    return NextResponse.json({ error: 'worker_unconfigured' }, { status: 500 });
-  }
+  // 2. Forward to the Worker's /api/draft (it owns the Anthropic key + skill),
+  //    as the CALLING office.
   try {
     const res = await fetch(workerUrl + '/api/draft', {
       method: 'POST',
       headers: {
-        Authorization: 'Bearer ' + token,
+        Authorization: auth,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -100,6 +114,9 @@ export async function POST(req: Request) {
       }),
     });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 401) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
     if (!res.ok) {
       return NextResponse.json({ error: 'worker_error', detail: data }, { status: 502 });
     }

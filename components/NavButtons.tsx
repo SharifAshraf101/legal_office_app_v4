@@ -1,6 +1,7 @@
 'use client';
 
 import { useAppState } from '@/hooks/useAppState';
+import { useIsOperatorOffice } from '@/hooks/useIsOperatorOffice';
 import { useT } from '@/hooks/useT';
 
 /**
@@ -64,11 +65,14 @@ function tabLabel(
 export function NavButtons({ mobile = false }: { mobile?: boolean } = {}) {
   const { state, dispatch } = useAppState();
   const { t, lang } = useT();
+  // The portal runs on the operator's WhatsApp number — hidden for tenants.
+  const isOperator = useIsOperatorOffice();
+  const tabs = isOperator ? ORDER : ORDER.filter((id) => id !== 'portal');
   void mobile; // mobile vs desktop styling is fully handled by CSS now
 
   return (
     <>
-      {ORDER.map((id) => {
+      {tabs.map((id) => {
         const active =
           state.currentTab === id ||
           (id === 'finance' && state.currentTab === 'financeDetail');

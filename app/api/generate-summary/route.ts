@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 import { AR_GLOSSARY } from '@/lib/arabicGlossary';
+import { forwardAuth, workerBase } from '@/lib/serverAuth';
 
 /**
  * On-demand document-summary GENERATION.
@@ -11,12 +12,17 @@ import { AR_GLOSSARY } from '@/lib/arabicGlossary';
  * the file server-side (avoiding browser CORS), asks Claude for a concise
  * bilingual summary, stores it in `file_summary` via the Worker, and returns it.
  *
+ * MULTI-TENANT: the summary is stored in whichever office database the CALLER's
+ * session resolves to — this route forwards the caller's own `Authorization`
+ * header and holds no operator token. Authorization is checked BEFORE the model
+ * call, so an anonymous request can't spend the operator's Anthropic budget.
+ *
  * POST /api/generate-summary
+ *   headers: Authorization: Bearer <office session token>
  *   body: { fileUrl, fileName, clientId?, caseId? }
  *   → { he, ar, language }
  *
- * Env: ANTHROPIC_API_KEY (server-side), NEXT_PUBLIC_WORKER_URL,
- *      NEXT_PUBLIC_APP_TOKEN (to store the result back in D1).
+ * Env: ANTHROPIC_API_KEY (server-side), NEXT_PUBLIC_WORKER_URL.
  */
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -79,6 +85,13 @@ export async function POST(req: Request) {
   // Claude reads PDFs natively; other formats (.docx, …) aren't supported here.
   if (!/\.pdf$/i.test(fileName)) {
     return NextResponse.json({ error: 'unsupported_type' }, { status: 415 });
+  }
+
+  // Authorize BEFORE the download + model call, so an anonymous request costs
+  // nothing. The Worker re-checks the token on the store-back below.
+  const auth = forwardAuth(req);
+  if (!auth) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -157,18 +170,15 @@ export async function POST(req: Request) {
   // it so `orig` is always populated even if the model left it blank.
   if (!orig) orig = language.startsWith('ar') ? ar : language.startsWith('he') ? he : '';
 
-  // 3. Persist into file_summary (via the Worker) so future loads just fetch it.
+  // 3. Persist into the CALLING office's file_summary (via the Worker) so
+  //    future loads just fetch it.
   try {
-    const workerUrl = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(
-      /\/$/,
-      '',
-    );
-    const token = process.env.APP_TOKEN || process.env.NEXT_PUBLIC_APP_TOKEN || '';
-    if (workerUrl && token) {
+    const workerUrl = workerBase();
+    if (workerUrl) {
       await fetch(workerUrl + '/api/file-summary', {
         method: 'POST',
         headers: {
-          Authorization: 'Bearer ' + token,
+          Authorization: auth,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
