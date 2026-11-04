@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 import { AR_GLOSSARY } from '@/lib/arabicGlossary';
+import { checkPdfSize, PDF_FETCH_TIMEOUT_MS } from '@/lib/pdfLimits';
 import { forwardAuth, workerBase } from '@/lib/serverAuth';
 
 /**
@@ -100,9 +101,13 @@ export async function POST(req: Request) {
   }
 
   // 1. Fetch the PDF server-side (no browser CORS on the Dropbox link).
+  //    Bounded by an explicit timeout: a stalled Dropbox link would otherwise
+  //    hang until the platform kills the function, with no usable error.
   let base64: string;
   try {
-    const res = await fetch(fileUrl);
+    const res = await fetch(fileUrl, {
+      signal: AbortSignal.timeout(PDF_FETCH_TIMEOUT_MS),
+    });
     if (!res.ok) {
       return NextResponse.json(
         { error: 'fetch_failed', status: res.status },
@@ -110,12 +115,22 @@ export async function POST(req: Request) {
       );
     }
     const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > 28 * 1024 * 1024) {
-      return NextResponse.json({ error: 'file_too_large' }, { status: 413 });
+    // Reject on the ENCODED size — see lib/pdfLimits. The old 28 MB raw cap let
+    // through files that base64-expanded past Anthropic's 32 MB request limit.
+    const tooLarge = checkPdfSize(buf.length);
+    if (tooLarge) {
+      return NextResponse.json(tooLarge, { status: 413 });
     }
     base64 = buf.toString('base64');
-  } catch {
-    return NextResponse.json({ error: 'fetch_error' }, { status: 502 });
+  } catch (e) {
+    const timedOut = e instanceof Error && e.name === 'TimeoutError';
+    return NextResponse.json(
+      {
+        error: timedOut ? 'fetch_timeout' : 'fetch_error',
+        detail: e instanceof Error ? e.message : String(e),
+      },
+      { status: timedOut ? 504 : 502 },
+    );
   }
 
   // 2. Summarize with Claude (PDF in, native + bilingual JSON out).
