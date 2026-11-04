@@ -1818,8 +1818,8 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
   // document is read off the SIGNATURE at its END — signed by our registered
   // lawyer (Settings) / עו"ד אשרף שריף, or filed for the client we represent →
   // it's our own filing, no draft. Signed by the OPPOSING party's counsel →
-  // draft. A judge's decision ALWAYS gets a draft written to the decision's
-  // content. `draftNeeded` drives whether the "טיוטת תגובה" card renders.
+  // draft. A judge's decision, or any document containing one, ALWAYS gets a
+  // draft. `draftNeeded` drives whether the "טיוטת תגובה" card renders.
   const [draftNeeded, setDraftNeeded] = useState(true);
   // True while the "עדכן טיוטה" button is re-running Claude (skill + notes) for
   // the focused document — disables the button and swaps its label to a busy one.
@@ -1865,14 +1865,14 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       };
 
       // 1. Already classified as "no draft needed". Rows classified BEFORE the
-      //    signature rule (author = whoever signs at the END of the document,
-      //    and a judge's decision ALWAYS gets a reply draft) may be stale, so
-      //    re-check each such document ONCE with the cheap classifier. If it
-      //    now needs a draft the row has no text, so generate it right after.
+      //    current rule (a decision INSIDE a document also gets a reply draft)
+      //    may be stale, so re-check each such document ONCE with the cheap
+      //    classifier. If it now needs a draft the row has no text, so generate
+      //    it right after.
       if (state0.status === 'not_needed') {
-        if (!primary || !isPdf || genAttempts.has('draftsignrule:' + primary.id))
+        if (!primary || !isPdf || genAttempts.has('draftdecisionrule:' + primary.id))
           return apply(null, false);
-        rememberGenAttempt(genAttempts, 'draftsignrule:' + primary.id);
+        rememberGenAttempt(genAttempts, 'draftdecisionrule:' + primary.id);
         const { draftNeeded: neededNow } = await classifyDraftDecision({
           relativePath: primary.relativePath,
           fileName: renamed || primary.fileName || '',

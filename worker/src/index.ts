@@ -31,6 +31,11 @@ import {
   type TenantBillingRow,
 } from './billing';
 import { AR_GLOSSARY } from './arabicGlossary';
+import {
+  callAnthropicWithRetry,
+  oversizedPdfBody,
+  oversizedPdfField,
+} from './pdfLimits';
 
 // The office's own registered lawyer. Used to decide whether an incoming
 // document was authored by US (no draft needed) vs. the other side / court.
@@ -989,14 +994,28 @@ async function syncCaseNotes(env: Env, ctx: Ctx): Promise<void> {
 // POST /api/draft
 // ---------------------------------------------------------------------------
 async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Response> {
+  // Refuse an oversized body from its Content-Length, BEFORE reading it. A
+  // Worker isolate has a hard 128 MB ceiling and this endpoint holds several
+  // copies of the base64 PDF; parsing first is what killed the isolate.
+  const tooBig = oversizedPdfBody(request);
+  if (tooBig) {
+    return json({ error: 'file_too_large', detail: tooBig }, request, env, 413);
+  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
     return json({ error: 'invalid json' }, request, env, 400);
   }
-  const pdfB64 = String(body.pdf_base64 || '').trim();
+  // NO .trim() here: on a ~37 MB base64 string that is a pointless full copy at
+  // exactly the moment the isolate can least afford one. Base64 from our own
+  // routes never has surrounding whitespace.
+  const pdfB64 = typeof body.pdf_base64 === 'string' ? body.pdf_base64 : '';
   if (!pdfB64) return json({ error: 'pdf_base64 required' }, request, env, 400);
+  const fieldTooBig = oversizedPdfField(pdfB64.length);
+  if (fieldTooBig) {
+    return json({ error: 'file_too_large', detail: fieldTooBig }, request, env, 413);
+  }
 
   const clientSrc = String(body.client_source_id || '').trim();
   const caseSrc = String(body.case_source_id || '').trim();
@@ -1011,9 +1030,9 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
     (String(body.lawyer_name || '').trim()
       ? ' / ' + String(body.lawyer_name).trim()
       : '');
-  // The party we represent — a document submitted ON THEIR BEHALF is also
-  // "ours" (no reply drafted against our own side).
-  const clientName = String(body.client_name || '').trim();
+  // The party we represent — a document signed by them or submitted ON THEIR
+  // BEHALF is also "ours" (no reply drafted against our own side).
+  const clientName = await resolveClientName(ctx, clientSrc, body.client_name);
 
   const docMatch =
     /(DOC-\d+)/i.exec(fileName) ||
@@ -1048,11 +1067,20 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
     .first<{ content?: string }>();
   const skill = skillRow?.content || '';
 
-  const notes = await fetchDraftNotes(env, ctx, clientSrc, caseSrc);
-  // All notes the app aggregated for this case (client note + document-upload
-  // notes + brain quick-action notes), passed straight from the client so the
-  // draft reflects sources that aren't in the case_notes table.
-  const notesContext = String(body.notes_context ?? '').trim();
+  const notes = await fetchDraftNotes(env, ctx, clientSrc, caseSrc, docId);
+  // The app also sends the notes it aggregated (it may hold notes not yet synced
+  // to D1). Keep only the paragraphs the D1 read didn't already include; the app
+  // prefixes each with "label: ", so compare the start of the body after it.
+  const notesContext = String(body.notes_context ?? '')
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter((p) => {
+      const colon = p.indexOf(': ');
+      const head = (colon >= 0 ? p.slice(colon + 2) : p).slice(0, 200);
+      return p && !notes.text.includes(p.slice(0, 200)) && !notes.text.includes(head);
+    })
+    .join('\n\n')
+    .slice(0, DRAFT_NOTES_MAX_CHARS);
 
   const systemPrompt =
     'أنت محامٍ خبير في الأحوال الشخصية للمسلمين في إسرائيل، تترافع أمام المحاكم الشرعية ومحاكم شؤون العائلة. مهمتك: قراءة المستند المرفق بالكامل (وهو مستند وارد مثل قرار محكمة أو لائحة دعوى أو طلب من الطرف الآخر) وصياغة مسودة رد قانوني عليه. القالب الحاكم للصياغة والتنسيق وتفاصيل المحامي وبنية الفقرات المرقّمة هو الوثيقة المرجعية التالية، والتزم بها حرفياً كمرجع للأسلوب والشكل:\n\n<skill>\n' +
@@ -1070,7 +1098,7 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
     lawyerName +
     ')' +
     (clientName
-      ? ' أو كان المستند مقدَّماً باسم/نيابةً عن موكّلنا الذي نمثّله (' + clientName + ')'
+      ? ' أو كان موقَّعاً من موكّلنا الذي نمثّله (' + clientName + ') أو مقدَّماً باسمه/نيابةً عنه'
       : '') +
     ' — أي أن المستند من إعداد وكيل موكّلنا في القضية.\n' +
     '  · "opposing" إذا كان الموقّع في نهاية المستند محامياً آخر — وكيل الطرف المقابل/الخصم — أو الطرف المقابل نفسه.\n' +
@@ -1078,23 +1106,23 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
     '  وإذا لم يظهر في نهاية المستند توقيعُ مكتبنا ولا توقيعُ محامٍ يوقّع نيابةً عن موكّلنا، ولم يكن المستند صادراً عن المحكمة، فاعتبره "opposing".\n' +
     '- signatory = اسم الموقّع كما ورد في نهاية المستند حرفياً (أو null إذا لم يوجد توقيع).\n' +
     '- is_court_decision = true إذا كان المستند قراراً أو حكماً أو أمراً صادراً عن القاضي/المحكمة (החלטה / פסק דין / צו / قرار / حكم / أمر)، وإلا false.\n' +
+    CONTAINS_DECISION_RULE +
     '- court_requires_response = true إذا كان المستند يأمر أو يطلب تقديم رد/جواب/تعقيب، وإلا false.\n\n' +
     'قاعدة إعداد المسودة (إلزامية، طبّقها حرفياً):\n' +
     '1. author_side = "opposing" (الموقّع في نهاية المستند هو وكيل الطرف المقابل) ← يجب إلزامياً ملء الحقل draft بنص مسودة رد قانونية كاملة على هذا المستند وفق القالب الحاكم، ولا تتركه null أبداً.\n' +
     '2. is_court_decision = true (قرار/حكم صادر عن القاضي) ← يجب إلزامياً ملء الحقل draft في كل الأحوال، سواء طلب القرار رداً صراحةً أم لم يطلب، وتُصاغ المسودة وفق مضمون القرار نفسه وما يقتضيه من امتثال أو تعقيب أو إجراء تالٍ.\n' +
-    '3. court_requires_response = true ← يجب ملء الحقل draft كذلك.\n' +
-    '4. author_side = "ours" (المستند موقّع من مكتبنا/المحامي المسجَّل أو مقدَّم نيابةً عن موكّلنا) وليس قراراً قضائياً ولم تأمر المحكمة بالرد ← لا حاجة لمسودة: اترك draft = null.\n\n' +
-    'هذه ملاحظات المحامي على هذه القضية، استخدمها في توجيه الرد:\n<case_notes_he>\n' +
-    notes.he +
-    '\n</case_notes_he>\n<case_notes_ar>\n' +
-    notes.ar +
-    '\n</case_notes_ar>\n' +
+    '3. contains_court_decision = true (يتضمن المستند قراراً قضائياً في داخله، حتى لو كان موقّعاً من جانبنا) ← يجب إلزامياً ملء الحقل draft، وتُصاغ المسودة وفق مضمون ذلك القرار.\n' +
+    '4. author_side = "court" و court_requires_response = true ← يجب ملء الحقل draft كذلك.\n' +
+    '5. author_side = "ours" (المستند موقّع من مكتبنا/المحامي المسجَّل أو من موكّلنا أو مقدَّم نيابةً عنه) ولا يتضمن أي قرار قضائي ← لا حاجة لمسودة: اترك draft = null.\n\n' +
+    'قبل صياغة المسودة اقرأ كل ملاحظات الموكل والقضية التالية (ملاحظات القضية، ملاحظة الموكل، ملاحظات المحامي في شاشة الملف، ملاحظات عند رفع المستندات، وملخصات باقي مستندات الملف). لا تؤثر هذه الملاحظات على التصنيف أعلاه، لكن عند إعداد المسودة يجب أن تُكيِّف الرد على المستند وفقها: اعتمد الوقائع والمواقف والتعليمات والخلفية الواردة فيها، وابنِ الرد على موقف موكّلنا كما يظهر منها، ولا تخالفها. إذا ادّعى المستند خلاف ما في الملاحظات فاعرض موقف موكّلنا كما في الملاحظات ورُدّ على ادعاء المستند صراحةً. لا تختلق ما لم يرد في المستند أو في الملاحظات:\n<case_notes>\n' +
+    (notes.text || '(لا توجد ملاحظات محفوظة)') +
+    '\n</case_notes>\n' +
     (notesContext
-      ? 'ملاحظات إضافية جُمعت من كل مصادر الملف (ملاحظة الموكل + ملاحظات عند رفع المستندات + ملاحظات الإجراءات السريعة) — التزم بها أيضاً في صياغة الرد:\n<case_notes_all>\n' +
+      ? 'ملاحظات إضافية من شاشة الملف في التطبيق — التزم بها أيضاً:\n<case_notes_app>\n' +
         notesContext +
-        '\n</case_notes_all>\n'
+        '\n</case_notes_app>\n'
       : '') +
-    '\n\nصُغ (عند الحاجة فقط) مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم، بلغة المستند نفسها. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "رمز لغة المستند مثل ar أو he أو en أو fr أو ru", "author_side": "ours or opposing or court", "signatory": "اسم الموقّع في نهاية المستند أو null", "is_court_decision": true or false, "court_requires_response": true or false, "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بلغة المستند أو null", "draft": "نص المسودة الكامل بلغة المستند أو null"}. لا تكتب أي شيء خارج JSON.';
+    '\n\nصُغ (عند الحاجة فقط) مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم، بلغة المستند نفسها. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "رمز لغة المستند مثل ar أو he أو en أو fr أو ru", "author_side": "ours or opposing or court", "signatory": "اسم الموقّع في نهاية المستند أو null", "is_court_decision": true or false, "contains_court_decision": true or false, "court_requires_response": true or false, "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بلغة المستند أو null", "draft": "نص المسودة الكامل بلغة المستند أو null"}. لا تكتب أي شيء خارج JSON.';
 
   const anthropicBody = {
     model: 'claude-sonnet-4-6',
@@ -1114,29 +1142,35 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
     ],
   };
 
-  let resp: Response;
-  try {
-    resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': env.ANTHROPIC_API_KEY || '',
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(anthropicBody),
-    });
-  } catch (e) {
+  // Retries with backoff on 429/529/5xx. A bare fetch (no retry) meant one
+  // transient overload surfaced as a hard failure and stopped the make.com
+  // module driving this endpoint.
+  const call = await callAnthropicWithRetry(
+    env.ANTHROPIC_API_KEY || '',
+    JSON.stringify(anthropicBody),
+  );
+  if (!call.response) {
     return json(
-      { error: 'anthropic_fetch_failed', detail: String(e).slice(0, 300) },
+      {
+        error: 'anthropic_fetch_failed',
+        detail: (call.networkError || '').slice(0, 300),
+        attempts: call.attempts,
+      },
       request,
       env,
       502,
     );
   }
+  const resp = call.response;
   if (!resp.ok) {
     const errText = await resp.text();
     return json(
-      { error: 'anthropic_error', status: resp.status, detail: errText.slice(0, 500) },
+      {
+        error: 'anthropic_error',
+        status: resp.status,
+        detail: errText.slice(0, 500),
+        attempts: call.attempts,
+      },
       request,
       env,
       502,
@@ -1167,31 +1201,25 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
     );
   }
 
-  // Gate: authorship is decided by the SIGNATURE at the END of the document.
-  // Signed by our office / the lawyer registered in Settings (or filed on our
-  // client's behalf) → our own filing, no reply draft. Signed by opposing
-  // counsel → reply draft. A JUDGE'S DECISION always gets a reply draft written
-  // to the decision's content, whether or not it explicitly orders a reply.
+  // Gate: see replyDraftNeeded. Authorship is decided by the SIGNATURE at the END
+  // of the document.
   const authorSide = String(draft.author_side ?? '').toLowerCase().trim();
   const signatory = String(draft.signatory ?? '').trim();
   const isCourtDecision =
     draft.is_court_decision === true ||
     String(draft.is_court_decision ?? '').toLowerCase() === 'true';
+  const containsCourtDecision =
+    draft.contains_court_decision === true ||
+    String(draft.contains_court_decision ?? '').toLowerCase() === 'true';
   const courtRequiresResponse =
     draft.court_requires_response === true ||
     String(draft.court_requires_response ?? '').toLowerCase() === 'true';
-  // Needed when: the OTHER side signed it, OR it is a judge's decision, OR the
-  // court ordered a reply. Our own signed document with no court order → no
-  // draft; a court document that is neither a decision nor a reply order (e.g.
-  // a filing receipt) → no draft (the suggested-action card covers those).
-  // Unknown/unclassified author defaults to needing a draft — never silently
-  // drop a reply that might be required (a missed deadline is far worse than an
-  // extra draft).
-  const draftNeeded =
-    authorSide === 'opposing' ||
-    isCourtDecision ||
-    courtRequiresResponse ||
-    (authorSide !== 'ours' && authorSide !== 'court');
+  const draftNeeded = replyDraftNeeded(
+    authorSide,
+    isCourtDecision,
+    containsCourtDecision,
+    courtRequiresResponse,
+  );
   // The model now returns ONE `draft` field written in the document's own
   // language (any language). `draft_orig` always holds it; `draft_he`/`draft_ar`
   // mirror it ONLY for Hebrew/Arabic documents so the existing bilingual screens
@@ -1260,6 +1288,7 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
       author_side: authorSide || 'unknown',
       signatory,
       is_court_decision: isCourtDecision,
+      contains_court_decision: containsCourtDecision,
       court_requires_response: courtRequiresResponse,
       // A draft can be produced in ANY language (stored in draft_orig even when
       // it's not Hebrew/Arabic), so report presence from draftText — not only
@@ -1267,6 +1296,7 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
       has_draft: draftText != null,
       notes_scope: notes.scope,
       notes_count: notes.count,
+      notes_sources: notes.sources,
       persist_error: persistError || undefined,
     },
     request,
@@ -1287,14 +1317,25 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
 // silently hidden.
 // ---------------------------------------------------------------------------
 async function handleDraftDecision(request: Request, env: Env, ctx: Ctx): Promise<Response> {
+  // Same early guard as handleDraft — reject before the body is read, so an
+  // oversized archive file can't push the isolate past its 128 MB ceiling.
+  const tooBig = oversizedPdfBody(request);
+  if (tooBig) {
+    return json({ error: 'file_too_large', detail: tooBig }, request, env, 413);
+  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
     return json({ error: 'invalid json' }, request, env, 400);
   }
-  const pdfB64 = String(body.pdf_base64 || '').trim();
+  // No .trim() — see handleDraft.
+  const pdfB64 = typeof body.pdf_base64 === 'string' ? body.pdf_base64 : '';
   if (!pdfB64) return json({ error: 'pdf_base64 required' }, request, env, 400);
+  const fieldTooBig = oversizedPdfField(pdfB64.length);
+  if (fieldTooBig) {
+    return json({ error: 'file_too_large', detail: fieldTooBig }, request, env, 413);
+  }
 
   const clientSrc = String(body.client_source_id || '').trim();
   const caseSrc = String(body.case_source_id || '').trim();
@@ -1304,9 +1345,9 @@ async function handleDraftDecision(request: Request, env: Env, ctx: Ctx): Promis
     (String(body.lawyer_name || '').trim()
       ? ' / ' + String(body.lawyer_name).trim()
       : '');
-  // The party we represent — a document submitted ON THEIR BEHALF is also
-  // "ours" (no reply drafted against our own side).
-  const clientName = String(body.client_name || '').trim();
+  // The party we represent — a document signed by them or submitted ON THEIR
+  // BEHALF is also "ours" (no reply drafted against our own side).
+  const clientName = await resolveClientName(ctx, clientSrc, body.client_name);
 
   const docMatch =
     /(DOC-\d+)/i.exec(fileName) ||
@@ -1342,30 +1383,28 @@ async function handleDraftDecision(request: Request, env: Env, ctx: Ctx): Promis
     '- author_side = "ours" فقط إذا كان الموقّع في نهاية المستند هو مكتبنا/المحامي ' +
     lawyerName +
     (clientName
-      ? ' أو كان المستند مقدَّماً نيابةً عن موكّلنا الذي نمثّله (' + clientName + ')'
+      ? ' أو كان موقَّعاً من موكّلنا الذي نمثّله (' + clientName + ') أو مقدَّماً نيابةً عنه'
       : '') +
     '، أو "opposing" إذا كان الموقّع في نهايته محامي الطرف الآخر/الخصم أو الطرف الآخر نفسه، أو "court" إذا صدر عن المحكمة/القاضي. إذا لم يظهر توقيع مكتبنا في نهايته ولم يكن صادراً عن المحكمة فاعتبره "opposing".\n' +
     '- signatory = اسم الموقّع في نهاية المستند حرفياً (أو null).\n' +
     '- is_court_decision = true إذا كان المستند قراراً أو حكماً أو أمراً صادراً عن القاضي/المحكمة (החלטה / פסק דין / צו / قرار / حكم / أمر)، وإلا false.\n' +
+    CONTAINS_DECISION_RULE +
     '- court_requires_response = true إذا كان المستند يأمر أو يطلب تقديم رد/جواب/تعقيب، وإلا false.\n' +
-    'أعِد JSON فقط: {"author_side":"ours or opposing or court","signatory":"اسم الموقّع أو null","is_court_decision":true or false,"court_requires_response":true or false}.';
+    'أعِد JSON فقط: {"author_side":"ours or opposing or court","signatory":"اسم الموقّع أو null","is_court_decision":true or false,"contains_court_decision":true or false,"court_requires_response":true or false}.';
 
   let draftNeeded = true; // safe default on any failure
   let authorSide = 'unknown';
   let signatory = '';
   let isCourtDecision = false;
+  let containsCourtDecision = false;
   let courtRequiresResponse = false;
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': env.ANTHROPIC_API_KEY || '',
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
+    // Retries with backoff on 429/529/5xx — see handleDraft.
+    const call = await callAnthropicWithRetry(
+      env.ANTHROPIC_API_KEY || '',
+      JSON.stringify({
         model: 'claude-haiku-4-5',
-        max_tokens: 200,
+        max_tokens: 300,
         system: systemPrompt,
         messages: [
           {
@@ -1384,8 +1423,17 @@ async function handleDraftDecision(request: Request, env: Env, ctx: Ctx): Promis
           },
         ],
       }),
-    });
-    if (resp.ok) {
+    );
+    const resp = call.response;
+    if (resp && !resp.ok) {
+      // Surface WHY instead of silently falling through to draftNeeded=true.
+      // A 400 here is usually the 100-page cap on this 200K-context model.
+      console.error(
+        `[worker] draft-decision anthropic ${resp.status} after ${call.attempts} ` +
+          `attempt(s): ${(await resp.text()).slice(0, 300)}`,
+      );
+    }
+    if (resp && resp.ok) {
       const data = (await resp.json()) as {
         content?: Array<{ type: string; text?: string }>;
       };
@@ -1406,17 +1454,19 @@ async function handleDraftDecision(request: Request, env: Env, ctx: Ctx): Promis
       isCourtDecision =
         parsed.is_court_decision === true ||
         String(parsed.is_court_decision ?? '').toLowerCase() === 'true';
+      containsCourtDecision =
+        parsed.contains_court_decision === true ||
+        String(parsed.contains_court_decision ?? '').toLowerCase() === 'true';
       courtRequiresResponse =
         parsed.court_requires_response === true ||
         String(parsed.court_requires_response ?? '').toLowerCase() === 'true';
-      // Same gate as /api/draft: opposing signature, a judge's decision (always),
-      // or an explicit reply order → a draft is needed. Our own signature with no
-      // court order → not needed.
-      draftNeeded =
-        authorSide === 'opposing' ||
-        isCourtDecision ||
-        courtRequiresResponse ||
-        (authorSide !== 'ours' && authorSide !== 'court');
+      // Same gate as /api/draft.
+      draftNeeded = replyDraftNeeded(
+        authorSide,
+        isCourtDecision,
+        containsCourtDecision,
+        courtRequiresResponse,
+      );
     }
   } catch {
     // keep safe defaults (draftNeeded = true)
@@ -1448,6 +1498,7 @@ async function handleDraftDecision(request: Request, env: Env, ctx: Ctx): Promis
       author_side: authorSide,
       signatory,
       is_court_decision: isCourtDecision,
+      contains_court_decision: containsCourtDecision,
       court_requires_response: courtRequiresResponse,
     },
     request,
@@ -1455,35 +1506,189 @@ async function handleDraftDecision(request: Request, env: Env, ctx: Ctx): Promis
   );
 }
 
+// Shared classifier instruction: a judicial decision INSIDE a document, as
+// opposed to a document that IS a decision.
+const CONTAINS_DECISION_RULE =
+  '- contains_court_decision = true إذا تضمّن المستند في أي موضع منه قراراً أو حكماً أو أمراً صادراً عن القاضي/المحكمة، حتى لو كان المستند نفسه لائحة أو طلباً موقّعاً من أي طرف (مثل قرار مدوَّن أو مختوم على الطلب، أو قرار مرفق به)، وإلا false. لا يُعدّ مجرد ذكر قرار سابق في المتن أو إشعار استلام أو دعوة لجلسة قراراً.\n';
+
+// The reply-draft rule. A draft is prepared ONLY for a judge's decision, a
+// document containing one, or a filing by the other side. Our own document
+// (signed by our lawyer or the client we represent) with no decision in it never
+// gets one, even if it asks for a response; nor does a court document that is
+// neither a decision nor a reply order (e.g. a filing receipt — the
+// suggested-action card covers those). An unknown author still gets a draft: a
+// missed deadline is far worse than an extra draft.
+function replyDraftNeeded(
+  authorSide: string,
+  isCourtDecision: boolean,
+  containsCourtDecision: boolean,
+  courtRequiresResponse: boolean,
+): boolean {
+  if (isCourtDecision || containsCourtDecision) return true;
+  if (authorSide === 'ours') return false;
+  if (authorSide === 'court') return courtRequiresResponse;
+  return true;
+}
+
+// The client's name for the "ours" check. The app sends it; the make.com pipeline
+// doesn't, so fall back to this office's client row (names in both languages).
+async function resolveClientName(
+  ctx: Ctx,
+  clientSrc: string,
+  provided: unknown,
+): Promise<string> {
+  const given = String(provided || '').trim();
+  if (given || !clientSrc) return given;
+  try {
+    const row = await ctx.db.prepare(
+      'SELECT full_name, full_name_ar FROM clients WHERE user_id = ? AND lower(source_id) = lower(?) LIMIT 1',
+    )
+      .bind(ctx.tenantId, clientSrc)
+      .first<{ full_name?: string; full_name_ar?: string }>();
+    return [row?.full_name, row?.full_name_ar]
+      .map((n) => String(n || '').trim())
+      .filter(Boolean)
+      .join(' / ');
+  } catch {
+    return '';
+  }
+}
+
+// Every note the office holds on this client and case, read from D1 so the draft
+// sees them even when the caller (make.com) sends no notes_context. Mirrors the
+// brain "הערות" tab (lib/caseNotes.ts): case_notes for the case AND the client,
+// the client's own note, brain quick-action notes, document-upload notes, and the
+// AI summary of every OTHER document in the case. Each source is read on its own
+// so one missing table/column in an office DB doesn't drop the rest.
+const DRAFT_NOTE_MAX_CHARS = 2000;
+const DRAFT_NOTES_MAX_CHARS = 30000;
+
 async function fetchDraftNotes(
   env: Env,
   ctx: Ctx,
   clientSrc: string,
   caseSrc: string,
-): Promise<{ he: string; ar: string; count: number; scope: string }> {
-  let rows: Array<{ note?: string; note_ar?: string }> = [];
-  let scope = 'none';
+  excludeDocId = '',
+): Promise<{ text: string; count: number; scope: string; sources: Record<string, number> }> {
+  const pick = (he?: unknown, ar?: unknown) => String(he || ar || '').trim();
+  const clip = (s: string) =>
+    s.length > DRAFT_NOTE_MAX_CHARS ? s.slice(0, DRAFT_NOTE_MAX_CHARS) + '…' : s;
+  const sources: Record<string, number> = {};
+  const lines: string[] = [];
+  const seen = new Set<string>();
+  const add = (source: string, label: string, body: string, date?: unknown) => {
+    const text = clip(body.trim());
+    if (!text || seen.has(text)) return;
+    seen.add(text);
+    const d = String(date || '').slice(0, 10);
+    lines.push(`[${label}${d ? ' | ' + d : ''}] ${text}`);
+    sources[source] = (sources[source] || 0) + 1;
+  };
+  const all = async <T>(sql: string, ...binds: unknown[]): Promise<T[]> => {
+    try {
+      const rs = await ctx.db.prepare(sql).bind(...binds).all<T>();
+      return rs.results ?? [];
+    } catch {
+      return [];
+    }
+  };
+  // case ids are stored bare ("CS-1024") or labelled ("cs-1024 - title").
+  const sameId = (col: string, n: number) =>
+    `(upper(${col}) = upper(?${n}) OR upper(${col}) LIKE upper(?${n}) || ' %')`;
+
+  type NoteRow = { note?: string; note_ar?: string; date?: string; case_id?: string };
+  if (caseSrc || clientSrc) {
+    const rows = await all<NoteRow>(
+      'SELECT note, note_ar, date, case_id FROM case_notes WHERE user_id = ?1 AND (' +
+        `(?2 <> '' AND ${sameId('case_id', 2)}) OR ` +
+        // Client-level notes only: another case's notes would steer this reply.
+        `(?3 <> '' AND ${sameId('client_id', 3)} AND coalesce(case_id, '') = '')` +
+        ') ORDER BY date ASC, created_at ASC',
+      ctx.tenantId,
+      caseSrc,
+      clientSrc,
+    );
+    for (const r of rows) {
+      add(r.case_id ? 'case_note' : 'client_case_note', r.case_id ? 'הערת תיק' : 'הערת לקוח', pick(r.note, r.note_ar), r.date);
+    }
+  }
+
+  if (clientSrc) {
+    const rows = await all<{ notes?: string; notes_ar?: string }>(
+      'SELECT notes, notes_ar FROM clients WHERE user_id = ?1 AND lower(source_id) = lower(?2) LIMIT 1',
+      ctx.tenantId,
+      clientSrc,
+    );
+    for (const r of rows) add('client_note', 'הערת לקוח', pick(r.notes, r.notes_ar));
+  }
+
   if (caseSrc) {
-    const rs = await ctx.db.prepare(
-      'SELECT note, note_ar FROM case_notes WHERE user_id = ? AND upper(case_id) = upper(?) ORDER BY date ASC, created_at ASC',
-    )
-      .bind(ctx.tenantId, caseSrc)
-      .all<{ note?: string; note_ar?: string }>();
-    rows = rs.results ?? [];
-    if (rows.length) scope = 'case';
+    const timeline = await all<{
+      title?: string; title_ar?: string; description?: string; description_ar?: string; date?: string;
+    }>(
+      "SELECT title, title_ar, description, description_ar, date FROM timeline_items WHERE user_id = ?1 AND lower(coalesce(type, 'note')) = 'note' AND " +
+        sameId('case_source_id', 2) +
+        ' ORDER BY date ASC, created_at ASC',
+      ctx.tenantId,
+      caseSrc,
+    );
+    for (const r of timeline) {
+      add(
+        'brain_note',
+        'הערה במסך המוח',
+        [pick(r.title, r.title_ar), pick(r.description, r.description_ar)].filter(Boolean).join(' — '),
+        r.date,
+      );
+    }
+
+    type DocRow = {
+      source_id?: string; title?: string; title_ar?: string; file_name?: string; date?: string;
+      description?: string; description_ar?: string; summary_he?: string; summary_ar?: string;
+    };
+    const docs = await all<DocRow>(
+      'SELECT source_id, title, title_ar, file_name, date, description, description_ar, summary_he, summary_ar ' +
+        'FROM documents WHERE user_id = ?1 AND ' +
+        sameId('case_source_id', 2) +
+        ' ORDER BY date ASC, created_at ASC',
+      ctx.tenantId,
+      caseSrc,
+    );
+    const docIdOf = (s: unknown) => (/(DOC-\d+)/i.exec(String(s || ''))?.[1] || '').toUpperCase();
+    const summarized = new Set<string>();
+    for (const d of docs) {
+      const name = pick(d.title, d.title_ar) || String(d.file_name || '').trim();
+      add('document_note', 'הערה על מסמך' + (name ? ' — ' + name : ''), pick(d.description, d.description_ar), d.date);
+      const id = docIdOf(d.source_id) || docIdOf(d.file_name);
+      // The document being answered is attached in full; its summary adds nothing.
+      if (excludeDocId && id === excludeDocId) continue;
+      const summary = pick(d.summary_he, d.summary_ar);
+      if (summary) {
+        if (id) summarized.add(id);
+        add('document_summary', 'תקציר מסמך' + (name ? ' — ' + name : ''), summary, d.date);
+      }
+    }
+    // file_summary holds summaries the documents row may not have mirrored yet.
+    const fileSummaries = await all<{ file_name?: string; summary_he?: string; summary_ar?: string; created_at?: string }>(
+      'SELECT file_name, summary_he, summary_ar, created_at FROM file_summary WHERE ' +
+        sameId('case_id', 1) +
+        ' ORDER BY id ASC',
+      caseSrc,
+    );
+    for (const s of fileSummaries) {
+      const id = docIdOf(s.file_name);
+      if ((excludeDocId && id === excludeDocId) || (id && summarized.has(id))) continue;
+      if (id) summarized.add(id);
+      add('document_summary', 'תקציר מסמך — ' + String(s.file_name || '').split('/').pop(), pick(s.summary_he, s.summary_ar), s.created_at);
+    }
   }
-  if (!rows.length && clientSrc) {
-    const rs = await ctx.db.prepare(
-      'SELECT note, note_ar FROM case_notes WHERE user_id = ? AND lower(client_id) = lower(?) ORDER BY date ASC, created_at ASC',
-    )
-      .bind(ctx.tenantId, clientSrc)
-      .all<{ note?: string; note_ar?: string }>();
-    rows = rs.results ?? [];
-    if (rows.length) scope = 'client';
+
+  let text = '';
+  for (const line of lines) {
+    if (text.length + line.length > DRAFT_NOTES_MAX_CHARS) break;
+    text += (text ? '\n\n' : '') + line;
   }
-  const he = rows.map((r) => r.note).filter(Boolean).join('\n\n');
-  const ar = rows.map((r) => r.note_ar).filter(Boolean).join('\n\n');
-  return { he, ar, count: rows.length, scope };
+  const scope = caseSrc && clientSrc ? 'case+client' : caseSrc ? 'case' : clientSrc ? 'client' : 'none';
+  return { text, count: lines.length, scope, sources };
 }
 
 // ---------------------------------------------------------------------------
