@@ -42129,3 +42129,13 @@ html body #topbar.topbar .actions .home-only-settings-wrap.home-only-settings-wr
 .agenda-modal-list .agenda-row-timed .agenda-modal-meta,.agenda-modal-list .agenda-row-timed .agenda-row-actions{grid-column:1 / -1}
 .agenda-modal-list .agenda-row-timed .agenda-row-actions{margin-top:2px}
 @media(max-width:620px){.agenda-modal-list .agenda-modal-row.agenda-row-timed{grid-template-columns:auto 1fr;column-gap:10px}.agenda-modal-list .agenda-day-date{font-size:18px}}
+
+/* Upcoming agenda: the back button + title stay pinned while the list
+ * scrolls. Sticky to the modal's scroll area, on the modal's own background;
+ * the back button (absolutely placed) stays inside this header. */
+html body .modal.upcoming-agenda-modal .agenda-sticky-head{position:sticky;top:0;z-index:20;background:inherit;padding:10px 0 12px;min-height:46px;display:flex;align-items:center;justify-content:center}
+html body .modal.upcoming-agenda-modal .modal-box{background-clip:padding-box}
+/* The box's top padding stays above a sticky header; cover that strip in the
+ * same background so rows don't show through it while scrolling. */
+html body .modal.upcoming-agenda-modal .agenda-sticky-head::before{content:"";position:absolute;left:-24px;right:-24px;top:-30px;height:30px;background:inherit}
+html body .modal.upcoming-agenda-modal .agenda-sticky-head{box-shadow:0 1px 0 var(--line)}

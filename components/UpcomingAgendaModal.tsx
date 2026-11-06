@@ -182,6 +182,9 @@ export function UpcomingAgendaModal() {
       hideCloseX
       hideBackBtn={true}
     >
+      {/* Pinned header: the back button and the title stay on screen while the
+          list scrolls, so going back never needs a scroll to the top. */}
+      <div className="agenda-sticky-head">
       <button
         type="button"
         className="case-detail-back-btn"
@@ -196,6 +199,7 @@ export function UpcomingAgendaModal() {
       <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>
         {title}
       </h2>
+      </div>
       <p className="sub">{subtitle}</p>
       <div className="agenda-modal-list">
         {items.length === 0 ? (
