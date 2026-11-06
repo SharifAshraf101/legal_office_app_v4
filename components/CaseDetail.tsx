@@ -93,6 +93,9 @@ import {
  */
 export interface CaseDetailProps {
   caseId: string;
+  /** Open with the timeline (note / call / task / document) in edit mode —
+   *  the cases screen's right-click "edit entries". */
+  startTimelineEdit?: boolean;
 }
 
 // Imported decision items, tracked across hook instances so the same task /
@@ -289,7 +292,7 @@ function useCaseDecisionImport(caseId: string): DecisionInfo | null {
   return info;
 }
 
-export function CaseDetail({ caseId }: CaseDetailProps) {
+export function CaseDetail({ caseId, startTimelineEdit = false }: CaseDetailProps) {
   const { state, dispatch } = useAppState();
   const { t, lang } = useT();
   const modalStack = useModalStack();
@@ -711,7 +714,7 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
         </div>
 
 
-        <CaseTimelineSection caseId={caseId} onOpenDoc={onOpenDoc} />
+        <CaseTimelineSection caseId={caseId} onOpenDoc={onOpenDoc} startEdit={startTimelineEdit} />
       </div>
     </Modal>
   );
@@ -1272,9 +1275,11 @@ function deleteDocumentEverywhere(
 function CaseTimelineSection({
   caseId,
   onOpenDoc,
+  startEdit = false,
 }: {
   caseId: string;
   onOpenDoc: (docId: string) => void;
+  startEdit?: boolean;
 }) {
   const { state, dispatch } = useAppState();
   const { lang } = useT();
@@ -1283,7 +1288,7 @@ function CaseTimelineSection({
   const [searchQuery, setSearchQuery] = useState('');
   // "עריכה" mode: each row shows a delete button, for removing an entry that was
   // added to the wrong case.
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(startEdit);
 
   const removeEntry = async (e: TimelineEntry) => {
     const name = e.title ? ' "' + e.title + '"' : '';
@@ -1476,7 +1481,7 @@ function CaseTimelineSection({
 /** Open the reply draft as a new Word document: build a Word-openable .doc
  *  (HTML-based, RTL for Hebrew/Arabic, line breaks preserved) and download it.
  *  Double-clicking the downloaded file opens Word with the draft text. */
-function openDraftInWord(text: string, title: string): void {
+export function openDraftInWord(text: string, title: string): void {
   const esc = (s: string) =>
     s
       .replace(/&/g, '&amp;')

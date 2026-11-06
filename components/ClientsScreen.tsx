@@ -6,6 +6,7 @@ import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { clientCaseCounts, clientSearchText } from '@/lib/clients';
 import { ClientDetail } from './ClientDetail';
+import { ClientContextMenu, hasFineMouse } from './ClientContextMenu';
 import { MainScreenBackButton } from './MainScreenBackButton';
 
 /**
@@ -63,6 +64,9 @@ export function ClientsScreen() {
     modalStack.open(<ClientDetail clientId={id} />);
   };
 
+  // Right-click on a client (desktop mouse): edit details, balance, open cases.
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+
   return (
     <section className="panel clients-screen-panel clients-v2-fluid">
       <MainScreenBackButton />
@@ -104,6 +108,12 @@ export function ClientsScreen() {
                     className="client-row"
                     data-id={c.id}
                     onClick={() => openClient(c.id)}
+                    onContextMenu={(e) => {
+                      // A phone's long-press keeps its usual behaviour.
+                      if (!hasFineMouse()) return;
+                      e.preventDefault();
+                      setMenu({ id: c.id, x: e.clientX, y: e.clientY });
+                    }}
                   >
                     <td data-col="number" data-label={numberHead}>
                       <span className="client-code" dir="ltr">
@@ -130,6 +140,14 @@ export function ClientsScreen() {
           </table>
         </div>
       </div>
+      {menu && (
+        <ClientContextMenu
+          clientId={menu.id}
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+        />
+      )}
     </section>
   );
 }

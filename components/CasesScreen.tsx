@@ -6,6 +6,8 @@ import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { caseName, caseSearchText, clientName } from '@/lib/cases';
 import { CaseDetail } from './CaseDetail';
+import { CaseContextMenu } from './CaseContextMenu';
+import { hasFineMouse } from './ClientContextMenu';
 import { MainScreenBackButton } from './MainScreenBackButton';
 
 /**
@@ -59,6 +61,9 @@ export function CasesScreen() {
     modalStack.open(<CaseDetail caseId={id} />);
   };
 
+  // Right-click on a case (desktop mouse): edit, entries, details, latest items.
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+
   return (
     <section className="panel cases-screen-panel cases-v2-fluid">
       <MainScreenBackButton />
@@ -105,6 +110,12 @@ export function CasesScreen() {
                     className="case-row"
                     data-id={c.id}
                     onClick={() => openCase(c.id)}
+                    onContextMenu={(e) => {
+                      // A phone's long-press keeps its usual behaviour.
+                      if (!hasFineMouse()) return;
+                      e.preventDefault();
+                      setMenu({ id: c.id, x: e.clientX, y: e.clientY });
+                    }}
                   >
                     <td
                       data-col="number"
@@ -132,6 +143,9 @@ export function CasesScreen() {
           </table>
         </div>
       </div>
+      {menu && (
+        <CaseContextMenu caseId={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />
+      )}
     </section>
   );
 }
