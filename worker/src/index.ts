@@ -44,6 +44,7 @@ import {
   webhookVerify,
 } from './whatsapp';
 import { portalContext, portalLink, verifyPortalToken } from './portal';
+import { handleDocQueue, idsFromFileName, type DocJob, type PipelineCtx } from './docpipeline';
 import {
   callAnthropicWithRetry,
   oversizedPdfBody,
@@ -94,6 +95,21 @@ async function adminOk(request: Request, env: Env): Promise<boolean> {
 }
 
 export default {
+  /** Document pipeline consumer (see docpipeline.ts). */
+  async queue(batch: MessageBatch<DocJob>, env: Env): Promise<void> {
+    await handleDocQueue(batch, env, (pctx: PipelineCtx, body: Record<string, unknown>) =>
+      handleDraft(
+        new Request('https://internal/api/draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
+        env,
+        { tenantId: pctx.tenantId, db: pctx.db, mode: 'tenant', billing: operatorBilling() },
+      ),
+    );
+  },
+
   async fetch(request: Request, env: Env, execCtx?: ExecutionContext): Promise<Response> {
     try {
     const url = new URL(request.url);
@@ -1249,11 +1265,12 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
   // one). Authorship is read off the SIGNATURE at the END of the document: our
   // own signature → no reply draft; opposing counsel's signature → draft. A
   // judge's decision always gets a draft, whatever it orders.
+  // Another office's "our side" is ITS lawyer, never the operator's name.
   const lawyerName =
-    DEFAULT_LAWYER_NAME +
-    (String(body.lawyer_name || '').trim()
-      ? ' / ' + String(body.lawyer_name).trim()
-      : '');
+    ctx.tenantId !== env.USER_ID
+      ? String(body.lawyer_name || '').trim() || 'עורך הדין של המשרד'
+      : DEFAULT_LAWYER_NAME +
+        (String(body.lawyer_name || '').trim() ? ' / ' + String(body.lawyer_name).trim() : '');
   // The party we represent — a document signed by them or submitted ON THEIR
   // BEHALF is also "ours" (no reply drafted against our own side).
   const clientName = await resolveClientName(ctx, clientSrc, body.client_name);
@@ -2765,6 +2782,29 @@ async function handleUploadDocument(request: Request, env: Env, ctx: Ctx): Promi
     await env.DOCS.put(docKey(ctx, rel), await file.arrayBuffer(), {
       httpMetadata: { contentType: mimeFromExt(fileName) },
     });
+    // Queue the automatic processing (summary + reply draft) — what make.com
+    // does for the operator. Ids come from the form, else the filing name.
+    if (/\.pdf$/i.test(fileName) && env.DOC_QUEUE) {
+      const fromName = idsFromFileName(fileName);
+      const field = (k: string) => String(form.get(k) || '').trim();
+      const job: DocJob = {
+        tenantId: ctx.tenantId,
+        key: docKey(ctx, rel),
+        fileName,
+        docId: (field('docId') || fromName.docId).toUpperCase(),
+        caseId: field('caseId') || fromName.caseId,
+        clientId: field('clientId') || fromName.clientId,
+        stage: 'process',
+        attempt: 0,
+      };
+      if (job.docId) {
+        try {
+          await env.DOC_QUEUE.send(job);
+        } catch (e) {
+          console.warn('[upload] could not queue document processing', e);
+        }
+      }
+    }
     // R2 keys are exact (no autorename); the client's _DOC-NNN suffix already
     // makes names unique, so store the same filing-relative path on the record.
     return json({ ok: true, path: rel }, request, env);

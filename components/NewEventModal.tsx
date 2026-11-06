@@ -19,6 +19,7 @@ import {
 } from '@/lib/dates';
 import { pad } from '@/lib/utils';
 import { isFileSystemAccessAvailable } from '@/lib/dropbox';
+import { isOperatorOffice } from '@/lib/officeToken';
 import { uploadDocumentViaWorker } from '@/lib/cloudflare';
 import { saveDocumentToLegalOfficeFolder } from '@/lib/disk';
 import { isOfficeDevice } from '@/lib/device';
@@ -419,7 +420,11 @@ export function NewEventModal({
         // abort message below explains WHY nothing was saved).
         let saveError = '';
         try {
-          if (isOfficeDevice() && isFileSystemAccessAvailable()) {
+          // The local synced folder is the OPERATOR's Dropbox setup. Every other
+          // office keeps its files in the system's storage, so its uploads
+          // always go through the Worker — where they also get processed
+          // (summary + reply draft). A local-only save would never reach it.
+          if (isOperatorOffice() && isOfficeDevice() && isFileSystemAccessAvailable()) {
             // OFFICE COMPUTER: write straight into the firm's local filing folder
             // (Clients/<clientCode>/<caseCode> - title/…). Whatever cloud
             // sync app watches that folder pushes it to the cloud on its own.

@@ -40,6 +40,8 @@ export interface Env {
   ADMIN_EMAILS?: string;
   /** Public app origin for client bot links (default: the Vercel app). */
   PORTAL_BASE_URL?: string;
+  /** Document pipeline queue: an uploaded PDF -> summary + reply draft. */
+  DOC_QUEUE?: Queue<import('./docpipeline').DocJob>;
   /** Workers AI — transcribes incoming WhatsApp voice messages (Whisper). */
   AI?: Ai;      // comma list; that login (in tenant #1) also opens /api/admin/*
 

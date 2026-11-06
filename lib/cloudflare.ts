@@ -850,6 +850,10 @@ export async function uploadDocumentViaWorker(
   const form = new FormData();
   form.append('file', file);
   form.append('path', relPath);
+  // Ids for the server's automatic processing (summary + reply draft).
+  if (opts.docId) form.append('docId', opts.docId);
+  if (opts.caseObj?.id) form.append('caseId', String(opts.caseObj.id));
+  if (opts.client?.id) form.append('clientId', String(opts.client.id));
   try {
     const res = await fetch(WORKER_URL + '/api/document', {
       method: 'POST',

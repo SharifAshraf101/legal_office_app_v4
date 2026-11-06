@@ -15,6 +15,17 @@ compatibility_date = "2025-06-01"
 # Better Auth (control-plane accounts/sessions) needs Node built-ins on the Worker.
 compatibility_flags = ["nodejs_compat"]
 
+# Document pipeline: an office's uploaded PDF is queued, then summarised and
+# given a reply draft by the consumer below (worker/src/docpipeline.ts).
+[[queues.producers]]
+binding = "DOC_QUEUE"
+queue = "legal-office-doc-pipeline"
+
+[[queues.consumers]]
+queue = "legal-office-doc-pipeline"
+max_batch_size = 1
+max_retries = 3
+
 # Workers AI — Whisper speech-to-text for incoming WhatsApp voice messages.
 [ai]
 binding = "AI"
