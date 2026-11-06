@@ -45,6 +45,33 @@ const WORKER_URL = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(/\/$/, '')
 // per-call (not at module load) so the current session is always used. The
 // office app no longer ships a shared app-token to the browser — data access
 // requires a real login (see lib/officeToken and the AppShell auth gate).
+// ---- Client bot portal mode ---------------------------------------------------
+// The /portal page runs on a CLIENT's phone with no office login. It carries a
+// signed link token instead; with it the loader reads ONLY that client's
+// records (GET /api/portal-context) and nothing is ever saved back.
+let portalToken = '';
+export interface PortalOfficeContact {
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+}
+let portalOffice: PortalOfficeContact | null = null;
+
+export function setPortalToken(token: string): void {
+  portalToken = token;
+}
+export function isPortalMode(): boolean {
+  return !!portalToken;
+}
+export function getPortalToken(): string {
+  return portalToken;
+}
+/** The client's office (name, phone, email, address) — for the bot's answers. */
+export function getPortalOffice(): PortalOfficeContact | null {
+  return portalOffice;
+}
+
 function authHeader(): Record<string, string> {
   return { Authorization: 'Bearer ' + getOfficeToken() };
 }
@@ -358,12 +385,21 @@ export async function legalOfficeLoadFromSupabaseV88(
   if (!options.force && loadedOnce) return { loaded: true };
   loading = true;
   try {
-    const res = await fetch(WORKER_URL + '/api/load', { headers: jsonHeaders(), cache: 'no-store' });
+    const res = portalToken
+      ? await fetch(
+          WORKER_URL + '/api/portal-context?t=' + encodeURIComponent(portalToken),
+          { cache: 'no-store' },
+        )
+      : await fetch(WORKER_URL + '/api/load', { headers: jsonHeaders(), cache: 'no-store' });
     if (!res.ok) {
       console.warn('[LegalOffice Cloudflare load] failed', res.status, await res.text());
       return { loaded: false };
     }
     const data = (await res.json()) as LoadResponse;
+    if (portalToken) {
+      portalOffice =
+        ((data.office as { contact?: PortalOfficeContact } | undefined)?.contact) || null;
+    }
 
     // Record whether this is the operator office, so the UI can hide the
     // features that run on the operator's single shared infrastructure.
@@ -710,6 +746,8 @@ export interface SupabaseSaveInput {
 // this to decide whether it's safe to clear the un-synced/dirty markers — a
 // failed save must keep them set so the edit is retried, not silently dropped.
 export async function legalOfficeSaveToSupabase(s: SupabaseSaveInput): Promise<boolean> {
+  // A client's portal is read-only: never write anything back.
+  if (portalToken) return true;
   const hasDeletions =
     !!s.deletions && Object.values(s.deletions).some((a) => Array.isArray(a) && a.length > 0);
   const body = {

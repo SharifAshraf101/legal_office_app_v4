@@ -5,6 +5,19 @@ import PortalModern from '@/components/portal-modern';
 import { AppStateProvider, useAppState } from '@/hooks/useAppState';
 import { ModalStackProvider } from '@/hooks/useModalStack';
 import type { Lang } from '@/types';
+import { setPortalToken } from '@/lib/cloudflare';
+
+/** The client phone inside a signed portal token (`<payload>.<sig>`). Read for
+ *  display/matching only — the Worker verifies the signature before serving. */
+function phoneFromPortalToken(token: string): string {
+  try {
+    const payload = token.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+    const data = JSON.parse(decodeURIComponent(escape(atob(payload)))) as { p?: string };
+    return String(data.p || '');
+  } catch {
+    return '';
+  }
+}
 
 /**
  * Client-facing portal route. WhatsApp links a known client here
@@ -31,7 +44,12 @@ export default function PortalPage() {
 
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
-    const phone = (sp.get('phone') || sp.get('p') || '').trim();
+    // Signed link (`?t=`): set the token BEFORE the data provider mounts, so its
+    // first load already reads this client's records. An old unsigned
+    // `?phone=` link can't load anything any more and ends on "not recognised".
+    const token = (sp.get('t') || '').trim();
+    if (token) setPortalToken(token);
+    const phone = token ? phoneFromPortalToken(token) : (sp.get('phone') || sp.get('p') || '').trim();
     const lang: Lang = sp.get('lang') === 'ar' ? 'ar' : 'he';
     setParams({ phone: phone || undefined, lang });
   }, []);

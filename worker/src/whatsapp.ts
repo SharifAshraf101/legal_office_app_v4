@@ -10,6 +10,11 @@
 
 import { D1HttpDatabase } from './d1http';
 import type { Env } from './db';
+import { normalizePhone, portalLink } from './portal';
+
+/** A client writing after this much silence starts a new conversation and gets
+ *  the bot link again (same window as the operator's webhook). */
+const SESSION_GAP_MS = 30 * 60 * 1000;
 
 const GRAPH = 'https://graph.facebook.com/v19.0';
 
@@ -409,15 +414,22 @@ export async function webhookReceive(
       if (!db) continue; // office suspended / not provisioned
       for (const m of messages) {
         const p = parseIncoming(m);
+        const ts = (parseInt(m.timestamp, 10) || Math.floor(Date.now() / 1000)) * 1000;
+        const from = String(m.from || '');
+        const prev = await db
+          .prepare('SELECT MAX(timestamp) AS ts FROM whatsapp_messages WHERE client_phone = ?1')
+          .bind(from)
+          .first<{ ts: number | null }>();
+        const newConversation = !prev?.ts || ts - Number(prev.ts) >= SESSION_GAP_MS;
         await db
           .prepare(
             'INSERT INTO whatsapp_messages (client_phone, direction, message_text, timestamp, message_type, media_url, media_mime_type, media_id, file_name) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8)',
           )
           .bind(
-            String(m.from || ''),
+            from,
             'incoming',
             p.text,
-            (parseInt(m.timestamp, 10) || Math.floor(Date.now() / 1000)) * 1000,
+            ts,
             p.type,
             p.mime,
             p.mediaId,
@@ -427,6 +439,7 @@ export async function webhookReceive(
         if (p.type === 'audio' && p.mediaId) {
           waitUntil(transcribeForOffice(env, db, cfg, p.mediaId));
         }
+        if (newConversation) waitUntil(inviteToBot(env, db, cfg, from));
       }
     }
   }
@@ -453,6 +466,36 @@ async function transcribeForOffice(env: Env, db: D1Database, cfg: WhatsAppConfig
       .run();
   } catch (e) {
     console.warn('[whatsapp] transcription failed', e);
+  }
+}
+
+/** First message of a conversation: a known client gets their signed bot
+ *  link, an unknown number the office's "not recognised" reply. */
+async function inviteToBot(env: Env, db: D1Database, cfg: WhatsAppConfig, from: string): Promise<void> {
+  try {
+    const rs = await db
+      .prepare('SELECT full_name, full_name_ar, phone FROM clients WHERE user_id = ?1')
+      .bind(cfg.tenant_id)
+      .all<{ full_name: string | null; full_name_ar: string | null; phone: string | null }>();
+    const me = normalizePhone(from);
+    const client = (rs.results ?? []).find((c) => c.phone && normalizePhone(c.phone) === me);
+    let message: string;
+    if (client) {
+      const name = String(client.full_name || client.full_name_ar || '').trim();
+      const link = await portalLink(env, cfg.tenant_id, from);
+      message =
+        `שלום${name ? ' ' + name : ''}, כדי לקבל מידע על התיק שלך — סטטוס, דיונים, תשלומים ומסמכים — ` +
+        `היכנס/י לבוט הלקוחות:\n${link}\n\n` +
+        `مرحباً، للاطلاع على معلومات ملفك (الحالة، الجلسات، المدفوعات والمستندات) ادخل إلى بوت الموكلين عبر الرابط أعلاه.`;
+    } else {
+      const phone = cfg.display_phone || '';
+      message =
+        `שלום, מספר הטלפון אינו מזוהה כלקוח במערכת.${phone ? ` לפניות נא ליצור קשר עם המשרד: ${phone}.` : ''}\n\n` +
+        `مرحباً، رقم هاتفك غير مسجّل كموكل لدينا.${phone ? ` للتواصل مع المكتب: ${phone}.` : ''}`;
+    }
+    await sendFromOffice(env, db, cfg, { to: from, message });
+  } catch (e) {
+    console.warn('[whatsapp] bot invite failed', e);
   }
 }
 

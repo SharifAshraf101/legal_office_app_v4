@@ -7,7 +7,7 @@ import {
   conversationHasBotInvite,
   isKnownClient,
   loadOfficeClients,
-  resolvePortalBase,
+  fetchPortalLink,
 } from '@/lib/whatsappBot';
 
 const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'https://legal-office-api-v4.sharifashraf.workers.dev';
@@ -108,7 +108,9 @@ async function maybeSendBotInvite(selfBase: string, to: string): Promise<void> {
     if (!isKnownClient(clients, to)) return;
 
     const name = clientNameForPhone(clients, to);
-    const message = botInviteMessage(name, resolvePortalBase(), to);
+    const link = await fetchPortalLink(WORKER_URL, APP_TOKEN, to);
+    if (!link) return; // no signed link — never fall back to an unsigned one
+    const message = botInviteMessage(name, link);
     await fetch(`${selfBase}/api/whatsapp/send`, {
       method: 'POST',
       headers: {

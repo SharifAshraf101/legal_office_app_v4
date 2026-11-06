@@ -20,7 +20,31 @@ export const OFFICE_PHONE = '02-6288479';
 // contains it). Used to detect, from the stored WhatsApp history, whether the
 // client already received the invite in the current conversation — so we never
 // re-send it on every outgoing message. Manual messages never contain this.
-export const BOT_INVITE_MARKER = '/portal?phone=';
+export const BOT_INVITE_MARKER = '/portal?t=';
+/** The old, unsigned link form — still recognised so a conversation that got
+ *  it isn't invited twice. */
+const LEGACY_BOT_INVITE_MARKER = '/portal?phone=';
+
+/** A signed bot link for one client of the office the token belongs to (the
+ *  Worker signs it: office + phone + expiry). '' on failure. */
+export async function fetchPortalLink(
+  workerUrl: string,
+  authToken: string,
+  phone: string,
+): Promise<string> {
+  try {
+    const res = await fetch(`${workerUrl}/api/portal-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+      body: JSON.stringify({ phone }),
+    });
+    if (!res.ok) return '';
+    const data = (await res.json()) as { url?: string };
+    return String(data.url || '');
+  } catch {
+    return '';
+  }
+}
 
 // Minimal shape of the client rows returned by the worker's /api/load.
 export interface ClientRow {
@@ -76,14 +100,9 @@ export function isKnownClient(
   return clients.some((c) => phonesMatch(c.phone, phone));
 }
 
-/** The bilingual bot-invitation message. `phone` is embedded in the deep link
- *  so the portal opens scoped to that client. */
-export function botInviteMessage(
-  name: string,
-  portalBase: string,
-  phone: string,
-): string {
-  const link = `${portalBase}/portal?phone=${encodeURIComponent(phone)}&lang=he`;
+/** The bilingual bot-invitation message around a SIGNED portal link (see
+ *  fetchPortalLink) — the link alone scopes the portal to this client. */
+export function botInviteMessage(name: string, link: string): string {
   return (
     `שלום${name ? ' ' + name : ''}, ` +
     `כדי לקבל מידע על התיק שלך — סטטוס, דיונים, תשלומים ומסמכים — ` +
@@ -129,7 +148,10 @@ export function conversationHasBotInvite(
     // A gap longer than the session window means everything from here back is a
     // previous conversation — stop looking.
     if (cursor - m.ts >= SESSION_GAP_MS) break;
-    if (m.direction === 'outgoing' && m.text.includes(BOT_INVITE_MARKER)) {
+    if (
+      m.direction === 'outgoing' &&
+      (m.text.includes(BOT_INVITE_MARKER) || m.text.includes(LEGACY_BOT_INVITE_MARKER))
+    ) {
       return true;
     }
     cursor = m.ts;

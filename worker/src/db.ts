@@ -38,6 +38,8 @@ export interface Env {
   AUTH_BASE_URL?: string;     // the Worker's public URL (auth links/cookies)
   ADMIN_TOKEN?: string;       // gates /api/admin/* (migrate, list, approve)
   ADMIN_EMAILS?: string;
+  /** Public app origin for client bot links (default: the Vercel app). */
+  PORTAL_BASE_URL?: string;
   /** Workers AI — transcribes incoming WhatsApp voice messages (Whisper). */
   AI?: Ai;      // comma list; that login (in tenant #1) also opens /api/admin/*
 

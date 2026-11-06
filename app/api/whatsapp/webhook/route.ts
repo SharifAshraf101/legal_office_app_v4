@@ -3,6 +3,7 @@ import {
   SESSION_GAP_MS,
   botInviteMessage,
   clientNameForPhone,
+  fetchPortalLink,
   isKnownClient,
   loadOfficeClients,
   resolvePortalBase,
@@ -147,7 +148,9 @@ async function routeToBot(
   // "unrecognised" reply — now such a client still gets the bot link.
   if (isKnownClient(clients, from)) {
     const name = clientNameForPhone(clients, from);
-    await sendText(selfBase, from, botInviteMessage(name, portalBase, from));
+    const link = await fetchPortalLink(WORKER_URL, APP_TOKEN, from);
+    if (!link) return; // no signed link — never fall back to an unsigned one
+    await sendText(selfBase, from, botInviteMessage(name, link));
     return;
   }
 

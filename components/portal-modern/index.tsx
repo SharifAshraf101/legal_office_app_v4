@@ -55,7 +55,8 @@ import {
 import { caseName } from '@/lib/cases';
 import { formatDMY } from '@/lib/dates';
 import { officeAuthHeader } from '@/lib/officeToken';
-import { useIsOperatorOffice } from '@/hooks/useIsOperatorOffice';
+import { getPortalOffice, getPortalToken } from '@/lib/cloudflare';
+import { useWhatsAppEnabled } from '@/hooks/useIsOperatorOffice';
 import {
   financeCaseBalance,
   financePaidItemsForCase,
@@ -808,7 +809,7 @@ function ChooserScreen({
   onPickBot: () => void;
   lang: 'he' | 'ar';
 }) {
-  const isOperator = useIsOperatorOffice();
+  const waEnabled = useWhatsAppEnabled();
   const T = {
     title: lang === 'ar' ? 'مركز التواصل' : 'מרכז תקשורת',
     subtitle:
@@ -862,10 +863,9 @@ function ChooserScreen({
             </div>
           </div>
         </button>
-        {/* The client bot answers from the OPERATOR's data and portal, so it is
-            offered to the operator only (an office that connected its own
-            WhatsApp gets the chat, not the bot, for now). */}
-        {isOperator && (
+        {/* The client bot works for every office with WhatsApp: each invite
+            carries a signed link scoped to that office and that client. */}
+        {waEnabled && (
         <button
           type="button"
           onClick={onPickBot}
@@ -2434,10 +2434,17 @@ function BotChatScreen({
     try {
       // Only call the LLM if the local handler didn't already answer.
       if (!answer) {
+        // The bot route needs either the client's signed portal link or an
+        // office login; the office contact details make the bot give THIS
+        // client's office, not the operator's.
         const resp = await fetch('/api/bot', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(getPortalToken() ? { 'X-Portal-Token': getPortalToken() } : officeAuthHeader()),
+          },
           body: JSON.stringify({
+            office: getPortalOffice() || undefined,
             clientId: client.id,
             question: text,
             history: portalHistoryForClient(client.id).map((h) => ({

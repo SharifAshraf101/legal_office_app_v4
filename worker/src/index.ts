@@ -43,6 +43,7 @@ import {
   webhookReceive,
   webhookVerify,
 } from './whatsapp';
+import { portalContext, portalLink, verifyPortalToken } from './portal';
 import {
   callAnthropicWithRetry,
   oversizedPdfBody,
@@ -115,6 +116,16 @@ export default {
     }
     if (method === 'GET' && path.startsWith('/api/whatsapp-media/')) {
       return serveMedia(env, url);
+    }
+    // ----- client bot portal: public, authorized by the SIGNED link token
+    //       (one office + one client phone + expiry) — see portal.ts.
+    if (method === 'GET' && path === '/api/portal-context') {
+      const r = await portalContext(env, url.searchParams.get('t') || '');
+      return json(r.body, request, env, r.status);
+    }
+    if (method === 'GET' && path === '/api/portal-verify') {
+      const who = await verifyPortalToken(env, url.searchParams.get('t') || '');
+      return json({ ok: !!who }, request, env, who ? 200 : 401);
     }
 
     if (path === '/api/health') {
@@ -619,6 +630,14 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
       if (!res.ok) return json({ error: res.error }, request, env, 400);
       return json({ ...(await publicConfig(env, ctx.tenantId, webhookUrl)), ...res }, request, env);
     }
+  }
+  // A signed bot link for one of THIS office's clients (the webhook's invite).
+  if (method === 'POST' && path === '/api/portal-link') {
+    const b = (await request.json().catch(() => ({}))) as { phone?: string };
+    if (!String(b.phone || '').replace(/\D/g, '')) {
+      return json({ error: 'phone required' }, request, env, 400);
+    }
+    return json({ url: await portalLink(env, ctx.tenantId, String(b.phone)) }, request, env);
   }
   if (method === 'POST' && path === '/api/whatsapp-send') {
     const cfg = await configForTenant(env, ctx.tenantId);

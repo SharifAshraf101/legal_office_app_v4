@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 import { AR_GLOSSARY } from '@/lib/arabicGlossary';
+import { isValidOfficeSession, workerBase } from '@/lib/serverAuth';
 import type {
   CalendarEvent,
   Case,
@@ -57,7 +58,17 @@ interface ScopedContext {
   timeline: TimelineItem[];
 }
 
+interface OfficeContact {
+  name?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+}
+
 interface BotRequestBody {
+  /** The client's own office (from the signed portal context). Absent for the
+   *  operator, whose details are the defaults below. */
+  office?: OfficeContact;
   clientId: string;
   question: string;
   history?: BotMessage[];
@@ -117,16 +128,46 @@ Clickable link markers (CRITICAL — the UI parses these tokens and renders them
 
 10. CONTACT-OFFICE REQUESTS. When the client asks how to contact the office / lawyer ("איך אפשר ליצור קשר", "كيف يمكنني التواصل"), reply with all four contact channels using marker syntax — WhatsApp, phone, email, and the office address:
     - WhatsApp: \`[[WHATSAPP:<this client's id>|WhatsApp]]\`
-    - Phone: \`[[TEL:02-6288479]]\`
-    - Email: \`[[MAIL:sharifashraf@gmail.com]]\`
-    - Address (plain text, no marker): "רח' הסורג 2, קומה ד', ירושלים" / "شارع هاسوريغ 2، الطابق الرابع، القدس"
+    - Phone: \`[[TEL:{{OFFICE_PHONE}}]]\`
+    - Email: \`[[MAIL:{{OFFICE_EMAIL}}]]\`
+    - Address (plain text, no marker): {{OFFICE_ADDRESS}}
+    Leave out any channel whose value above is empty.
     Use the CLIENT_DATA.client.id for the WHATSAPP marker. Format as a short bulleted list in the client's language.
 
 When summarizing across multiple cases or items, briefly state the count first ("You have 2 active cases…") then list each.
 
 If you are uncertain whether the data answers the question, prefer the safe response from rule 2.`;
 
+/** The operator's contact details — the defaults when no office is passed. */
+const OPERATOR_CONTACT = {
+  phone: '02-6288479',
+  email: 'sharifashraf@gmail.com',
+  address: `"רח' הסורג 2, קומה ד', ירושלים" / "شارع هاسوريغ 2، الطابق الرابع، القدس"`,
+};
+
+/** Who may ask the bot: a client holding a valid signed portal link, or a
+ *  logged-in office. It spends the office's model budget, so it is never open. */
+async function botAuthorized(req: Request): Promise<boolean> {
+  const portal = (req.headers.get('x-portal-token') || '').trim();
+  if (portal) {
+    const base = workerBase();
+    if (!base) return false;
+    try {
+      const res = await fetch(`${base}/api/portal-verify?t=${encodeURIComponent(portal)}`, {
+        cache: 'no-store',
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+  return isValidOfficeSession(req.headers.get('authorization') || '');
+}
+
 export async function POST(req: Request) {
+  if (!(await botAuthorized(req))) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
   // Defensive parse — bad JSON returns 400 instead of 500.
   let body: BotRequestBody;
   try {
@@ -135,7 +176,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
   }
 
-  const { clientId, question, history = [], scopedContext, lang } = body ?? {};
+  const { clientId, question, history = [], scopedContext, lang, office } = body ?? {};
+  // The office the client belongs to; empty values fall back to the operator
+  // only when no office was passed at all (the operator's own clients).
+  const contact = office
+    ? {
+        phone: String(office.phone || ''),
+        email: String(office.email || ''),
+        address: office.address ? `"${String(office.address)}"` : '',
+      }
+    : OPERATOR_CONTACT;
+  const officePrompt = BASE_SYSTEM_PROMPT.replace('{{OFFICE_PHONE}}', contact.phone || '(none)')
+    .replace('{{OFFICE_EMAIL}}', contact.email || '(none)')
+    .replace('{{OFFICE_ADDRESS}}', contact.address || '(none)');
 
   // Minimum sanity: client identity must match the scoped context. This is
   // a belt-and-suspenders check — the client side already enforces this,
@@ -179,7 +232,7 @@ export async function POST(req: Request) {
   const systemBlocks: Anthropic.Messages.TextBlockParam[] = [
     {
       type: 'text',
-      text: BASE_SYSTEM_PROMPT + langHint,
+      text: officePrompt + langHint,
       cache_control: { type: 'ephemeral' },
     },
     {
