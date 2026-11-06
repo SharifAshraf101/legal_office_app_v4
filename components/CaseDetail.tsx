@@ -34,6 +34,7 @@ import {
   generateDocumentDraft,
   loadGenAttempts,
   rememberGenAttempt,
+  forgetGenAttempts,
   fetchDecisionInfo,
   fetchSuggestedActionDetailed,
   generateSuggestedActionDetailed,
@@ -46,7 +47,7 @@ import {
 import { buildDeadlineView, type DeadlineTone } from '@/lib/deadlines';
 import { calendarDateValue, formatDMYTime, officeDateTimeToIso } from '@/lib/dates';
 import { filingFileName } from '@/lib/filing';
-import { caseDocumentsForCase } from '@/lib/documents';
+import { caseDocumentsForCase, removeDocumentEverywhere } from '@/lib/documents';
 import { aggregateCaseNotes, caseNotesContext } from '@/lib/caseNotes';
 import { financeCaseBalance } from '@/lib/finance';
 import {
@@ -343,10 +344,7 @@ export function CaseDetail({ caseId }: CaseDetailProps) {
         : 'למחוק את המסמך מרשימת התיק?',
     );
     if (!ok) return;
-    dispatch({
-      type: 'SET_DOCUMENTS',
-      documents: state.documentsArr.filter((d) => String(d.id) !== String(docId)),
-    });
+    deleteDocumentEverywhere(docId, state, dispatch);
   };
   const onNewTask = () => {
     modalStack.open(<TaskModal preselectedCaseId={caseId} />);
@@ -1090,6 +1088,8 @@ type TimelineFilterType = 'note' | 'call' | 'task' | 'document';
 
 interface TimelineEntry {
   id: string;
+  /** The record's own id in its store (timelineItems or documentsArr). */
+  sourceId: string;
   type: TimelineFilterType;
   title: string;
   description: string;
@@ -1204,6 +1204,7 @@ function caseTimelineEntries(
       const dateTs = t.date ? Date.parse(t.date) || 0 : 0;
       items.push({
         id: 't_' + t.id,
+        sourceId: String(t.id),
         type,
         title: (lang === 'ar' ? t.titleAr || t.title : t.title || t.titleAr) || '',
         description:
@@ -1225,6 +1226,7 @@ function caseTimelineEntries(
       const dateTs = d.date ? Date.parse(d.date) || 0 : 0;
       items.push({
         id: 'd_' + d.id,
+        sourceId: String(d.id),
         type: 'document',
         title: (lang === 'ar' ? d.titleAr || d.title : d.title || d.titleAr) || d.fileName || '-',
         description:
@@ -1252,6 +1254,21 @@ function caseTimelineEntries(
   return items.sort((a, b) => b.sortKey - a.sortKey);
 }
 
+/** Delete a document from every screen: the documents list (and with it its
+ *  upload note and summary in the brain "הערות" tab), the hearings auto-filed
+ *  from it, and this browser's generation markers. The save's deletion of the
+ *  documents row makes the Worker drop its summary, draft and suggested action. */
+function deleteDocumentEverywhere(
+  docId: string,
+  state: ReturnType<typeof useAppState>['state'],
+  dispatch: ReturnType<typeof useAppState>['dispatch'],
+): void {
+  const next = removeDocumentEverywhere(docId, state.documentsArr, state.eventsList);
+  dispatch({ type: 'SET_DOCUMENTS', documents: next.documents });
+  if (next.eventsChanged) dispatch({ type: 'SET_EVENTS', events: next.events });
+  forgetGenAttempts(docId);
+}
+
 function CaseTimelineSection({
   caseId,
   onOpenDoc,
@@ -1259,10 +1276,47 @@ function CaseTimelineSection({
   caseId: string;
   onOpenDoc: (docId: string) => void;
 }) {
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
   const { lang } = useT();
+  const confirmDelete = useDeleteConfirm();
   const [selected, setSelected] = useState<Set<TimelineFilterType>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  // "עריכה" mode: each row shows a delete button, for removing an entry that was
+  // added to the wrong case.
+  const [editMode, setEditMode] = useState(false);
+
+  const removeEntry = async (e: TimelineEntry) => {
+    const name = e.title ? ' "' + e.title + '"' : '';
+    const message =
+      e.type === 'document'
+        ? lang === 'ar'
+          ? `حذف المستند${name} من القضية؟ سيُحذف من كل الشاشات مع ملخصه ومسودة الرد والجلسة التي أُضيفت منه. الملف نفسه يبقى في Dropbox.`
+          : `למחוק את המסמך${name} מהתיק? הוא יימחק מכל המסכים, יחד עם התקציר, טיוטת התגובה והדיון שנוסף ממנו. הקובץ עצמו יישאר ב-Dropbox.`
+        : e.type === 'task'
+          ? lang === 'ar'
+            ? `حذف المهمة${name}؟ ستُحذف من قائمة المهام ومن الجدول الزمني.`
+            : `למחוק את המשימה${name}? היא תימחק מרשימת המשימות ומציר הזמן.`
+          : e.type === 'call'
+            ? lang === 'ar'
+              ? `حذف المكالمة${name}؟`
+              : `למחוק את השיחה${name}?`
+            : lang === 'ar'
+              ? `حذف الملاحظة${name}؟ ستُحذف أيضاً من ملاحظات القضية التي تُستخدم في صياغة الردود.`
+              : `למחוק את ההערה${name}? היא תימחק גם מהערות התיק שמשמשות להכנת טיוטות.`;
+    if (!(await confirmDelete(message))) return;
+    if (e.docId) {
+      deleteDocumentEverywhere(e.docId, state, dispatch);
+    } else if (e.type === 'task') {
+      const next = removeTaskEverywhere(e.sourceId, state.tasksArr, state.timelineItems);
+      dispatch({ type: 'SET_TASKS', tasks: next.tasks });
+      dispatch({ type: 'SET_TIMELINE', timeline: next.timeline });
+    } else {
+      dispatch({
+        type: 'SET_TIMELINE',
+        timeline: state.timelineItems.filter((t) => String(t.id) !== e.sourceId),
+      });
+    }
+  };
 
   const entries = caseTimelineEntries(caseId, state, lang);
   const q = searchQuery.trim().toLowerCase();
@@ -1287,8 +1341,8 @@ function CaseTimelineSection({
 
   const labels =
     lang === 'ar'
-      ? { clear: 'إلغاء التحديد', note: 'ملاحظة', call: 'مكالمة', task: 'مهمة', document: 'مستند', open: 'فتح المستند', empty: 'لا توجد إدخالات في الجدول الزمني.' }
-      : { clear: 'ניקוי בחירה', note: 'הערה', call: 'שיחה', task: 'משימה', document: 'מסמך', open: 'פתח מסמך', empty: 'אין רשומות בציר הזמן.' };
+      ? { clear: 'إلغاء التحديد', note: 'ملاحظة', call: 'مكالمة', task: 'مهمة', document: 'مستند', open: 'فتح المستند', empty: 'لا توجد إدخالات في الجدول الزمني.', edit: 'تحرير', done: 'إنهاء', remove: 'حذف' }
+      : { clear: 'ניקוי בחירה', note: 'הערה', call: 'שיחה', task: 'משימה', document: 'מסמך', open: 'פתח מסמך', empty: 'אין רשומות בציר הזמן.', edit: 'עריכה', done: 'סיום', remove: 'מחיקה' };
 
   const FILTERS: { key: TimelineFilterType; cls: string; icon: string }[] = [
     { key: 'note', cls: 'filter-note', icon: 'fa-note-sticky' },
@@ -1326,8 +1380,20 @@ function CaseTimelineSection({
             <span>{labels[f.key]}</span>
           </button>
         ))}
+        <button
+          type="button"
+          className={'case-timeline-filter-btn filter-edit' + (editMode ? ' active' : '')}
+          onClick={() => setEditMode((v) => !v)}
+          aria-pressed={editMode}
+        >
+          <i className={'fas ' + (editMode ? 'fa-check' : 'fa-pen')} />
+          <span>{editMode ? labels.done : labels.edit}</span>
+        </button>
       </div>
-      <div id="caseTimelineList" className="detail-grid">
+      <div
+        id="caseTimelineList"
+        className={'detail-grid' + (editMode ? ' timeline-edit-mode' : '')}
+      >
         {filtered.length === 0 ? (
           <div className="case-timeline-empty">{labels.empty}</div>
         ) : (
@@ -1376,6 +1442,17 @@ function CaseTimelineSection({
                   {e.description && <em className="sub timeline-inline-description">{e.description}</em>}
                 </span>
               </span>
+              {editMode && (
+                <button
+                  type="button"
+                  className="timeline-entry-delete-btn"
+                  onClick={() => void removeEntry(e)}
+                  aria-label={labels.remove + (e.title ? ' ' + e.title : '')}
+                  title={labels.remove}
+                >
+                  <i className="fas fa-trash" />
+                </button>
+              )}
             </div>
           ))
         )}

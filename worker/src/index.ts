@@ -816,6 +816,37 @@ async function handleSave(request: Request, env: Env, ctx: Ctx): Promise<Respons
       }
     }
     if (delStatements.length) await ctx.db.batch(delStatements);
+
+    // A deleted document takes its derived rows with it: the summary (which
+    // would otherwise keep feeding the case's reply drafts and the hearing
+    // sweep), the reply draft and the suggested action. Document numbers are
+    // reused (max + 1), so leftovers would also attach to the NEXT DOC-NNN.
+    // Matched only on an exact DOC-NNN token, so DOC-22 never hits DOC-226.
+    const docIds = (Array.isArray(deletions.documents) ? (deletions.documents as unknown[]) : [])
+      .map((x) => String(x ?? '').trim().toUpperCase())
+      .filter((x) => /^DOC-\d+$/.test(x));
+    for (const id of docIds) {
+      const cleanup = [
+        ctx.db.prepare(
+          'DELETE FROM drafts WHERE user_id = ?1 AND (upper(document_source_id) = ?2 OR upper(source_id) = ?3)',
+        ).bind(ctx.tenantId, id, 'DRAFT-' + id),
+        ctx.db.prepare(
+          "DELETE FROM file_summary WHERE upper(file_name) LIKE '%' || ?1 || '.%' OR upper(file_name) LIKE '%' || ?1",
+        ).bind(id),
+        ctx.db.prepare(
+          "DELETE FROM case_suggested_actions WHERE upper(document_name) LIKE '%' || ?1 || '.%' OR upper(document_name) LIKE '%' || ?1",
+        ).bind(id),
+      ];
+      // One statement at a time: an office DB without one of these tables must
+      // not stop the others (a D1 batch is all-or-nothing).
+      for (const stmt of cleanup) {
+        try {
+          await stmt.run();
+        } catch {
+          // table missing in this office schema — nothing to clean there
+        }
+      }
+    }
   }
 
   if (Array.isArray(body.timeline_items) || Array.isArray(body.cases)) {

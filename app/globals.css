@@ -41989,3 +41989,18 @@ body.professional.dark .modal.case-brain-modal .case-brain-header{background: #0
   color: #dc2626 !important;
   -webkit-text-fill-color: #dc2626 !important;
 }
+
+/* Case timeline "עריכה" mode: the toggle sits after the type filters, and each
+ * row gets a delete button for an entry added to the wrong case. */
+.case-timeline-filter-btn.filter-edit{border-color:#cbd5e1;color:#334155;background:#f8fafc}
+.case-timeline-filter-btn.filter-edit:hover,.case-timeline-filter-btn.filter-edit.active{background:#334155;border-color:#334155;color:#fff}
+#caseTimelineList .timeline-entry-delete-btn{flex:0 0 auto;align-self:center;width:34px;height:34px;margin-inline-start:8px;border-radius:10px;border:1px solid #fecaca;background:#fff5f5;color:var(--danger);display:grid;place-items:center;cursor:pointer;font-size:14px}
+#caseTimelineList .timeline-entry-delete-btn:hover{background:var(--danger);border-color:var(--danger);color:#fff}
+body.dark #caseTimelineList .timeline-entry-delete-btn{background:#3b1219 !important;border-color:#7f1d1d !important;color:#fca5a5 !important;-webkit-text-fill-color:#fca5a5 !important}/* Edit mode: 1cm between each entry's text (and its delete button) and the
+ * row's left/right borders, so nothing sits on the edge. */
+html body #caseTimelineList.timeline-edit-mode.timeline-edit-mode.timeline-edit-mode .detail-row{padding-inline:1cm !important;box-sizing:border-box !important}
+/* Every edit screen (case, client, payment, calendar event, task): 1cm between
+ * the fields/text and the screen's left and right edges. Shared modal rules
+ * zero or shrink the side padding (the case modal's mobile layout, inline
+ * paddings); the repeated class outranks every selector in this file. */
+html body .modal-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box{padding-left:1cm !important;padding-right:1cm !important;box-sizing:border-box !important}

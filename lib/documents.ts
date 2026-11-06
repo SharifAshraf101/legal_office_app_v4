@@ -1,9 +1,33 @@
 // Document helpers. Ports of source 3603-3656 + 4968. Names preserved.
 
-import type { Case, Client, DocumentRecord, Lang, Task } from '@/types';
+import type { CalendarEvent, Case, Client, DocumentRecord, Lang, Task } from '@/types';
 import { caseName, clientName } from './cases';
 import { clientDisplayName } from './clients';
 import { formatDMYTime } from './dates';
+
+/** Remove a document and the hearings that were auto-filed FROM it (ids carry
+ *  the document id: EV-HRG-DOC-226 from the sweep, EV-DEC-<case>-DOC-226 from
+ *  the brain, DOC-226-hearing from make.com). Hearings the lawyer typed by hand
+ *  never carry a document id, so they are never touched. Returns the new arrays
+ *  for SET_DOCUMENTS / SET_EVENTS. Its summary, draft and suggested action are
+ *  deleted server-side when the save carries the document's deletion. */
+export function removeDocumentEverywhere(
+  docId: string,
+  documents: DocumentRecord[],
+  events: CalendarEvent[],
+): { documents: DocumentRecord[]; events: CalendarEvent[]; eventsChanged: boolean } {
+  const id = String(docId).toUpperCase();
+  const fromDoc = new RegExp('(^|[^0-9A-Z])' + id.replace(/[-]/g, '\\-') + '($|[^0-9])', 'i');
+  const keptEvents = (events || []).filter(
+    (e) =>
+      !(String(e.type ?? '').toLowerCase().startsWith('hearing') && fromDoc.test(String(e.id ?? ''))),
+  );
+  return {
+    documents: (documents || []).filter((d) => String(d.id).toUpperCase() !== id),
+    events: keptEvents,
+    eventsChanged: keptEvents.length !== (events || []).length,
+  };
+}
 
 /** Next short, zero-padded running document number, e.g. "DOC-001".
  *  Mirrors nextClientId / nextCaseId: takes the max numeric tail + 1.

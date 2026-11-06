@@ -163,7 +163,7 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
       }}
     >
       <div
-        className="new-task-popup-box modal-box"
+        className={'new-task-popup-box modal-box' + (existing ? ' edit-screen-box' : '')}
         style={{
           position: 'relative',
           width: 'min(520px, 92vw)',

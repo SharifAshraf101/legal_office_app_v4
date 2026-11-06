@@ -138,7 +138,7 @@ export function ClientEdit({ clientId }: ClientEditProps) {
     <Modal
       onClose={close}
       className="client-mobile-fullscreen client-details-existing-v137 client-detail-stable-v229"
-      boxClassName="client-mobile-fullscreen-box client-detail-box-v225 client-detail-box-stable-v228"
+      boxClassName="client-mobile-fullscreen-box client-detail-box-v225 client-detail-box-stable-v228 edit-screen-box"
     >
       <h2>{title}</h2>
       <div className="case-edit-toolbar client-edit-toolbar">

@@ -53,6 +53,23 @@ export function rememberGenAttempt(set: Set<string>, key: string): void {
   }
 }
 
+/** Forget every generation attempt recorded for a document. Called when the
+ *  document is deleted: document numbers are reused (nextDocumentNumber takes
+ *  the max + 1), so a stale `summary:DOC-226` would otherwise stop the NEXT
+ *  DOC-226 from ever getting a summary or draft in this browser. */
+export function forgetGenAttempts(docId: string): void {
+  if (typeof window === 'undefined' || !docId) return;
+  const suffix = ':' + String(docId).toUpperCase();
+  const set = loadGenAttempts();
+  const next = [...set].filter((k) => !k.toUpperCase().endsWith(suffix));
+  if (next.length === set.size) return;
+  try {
+    localStorage.setItem(GEN_ATTEMPTS_LS, JSON.stringify(next));
+  } catch {
+    /* ignore quota / serialization errors */
+  }
+}
+
 export interface SummaryOpts {
   renamed?: string;
   original?: string;

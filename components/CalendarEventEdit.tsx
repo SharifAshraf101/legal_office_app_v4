@@ -268,7 +268,13 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
   ];
 
   return (
-    <Modal onClose={close} className="calendar-edit-v1" hideCloseX hideBackBtn>
+    <Modal
+      onClose={close}
+      className="calendar-edit-v1"
+      boxClassName="edit-screen-box"
+      hideCloseX
+      hideBackBtn
+    >
       {/* One dark "X" close chip at the top-left — replaces BOTH the Modal's
           default top-right × and the back arrow. Styled in globals.css to match
           the reference (navy rounded square, white glyph, inset from the edge). */}

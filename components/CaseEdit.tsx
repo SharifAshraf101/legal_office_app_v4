@@ -130,7 +130,7 @@ export function CaseEdit({ caseId }: CaseEditProps) {
     <Modal
       onClose={close}
       className="case-detail-mobile-v140 case-detail-desktop-v215"
-      boxClassName="case-detail-modal-box"
+      boxClassName="case-detail-modal-box edit-screen-box"
     >
       <div className="case-detail-title">
         <h2>{t('caseDetails')}</h2>

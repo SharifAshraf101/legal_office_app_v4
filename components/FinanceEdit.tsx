@@ -131,7 +131,7 @@ export function FinanceEdit({ caseId }: FinanceEditProps) {
   };
 
   return (
-    <Modal onClose={close}>
+    <Modal onClose={close} boxClassName="edit-screen-box">
       <h2>{lang === 'ar' ? 'الأتعاب' : 'שכר טרחה'}</h2>
       <div className="case-edit-toolbar finance-edit-toolbar">
         <button type="button" className="case-edit-btn active">
