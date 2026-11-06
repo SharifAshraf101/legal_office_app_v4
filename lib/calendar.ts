@@ -9,6 +9,7 @@ import {
   officeDateTimeToIso,
 } from './dates';
 import { caseName, clientName } from './cases';
+import { doneTaskKeys, taskIdentityKey } from './tasks';
 import type {
   CalendarEvent,
   Case,
@@ -435,8 +436,18 @@ export function upcomingAgendaItems(
       return true;
     });
 
+  // A task marked done leaves the agenda in every copy: its timeline entry
+  // and its "מועד דיוני" reminder too, not only the tasksArr record.
+  const done = doneTaskKeys(tasks);
+  const notDone = (x: CalendarItem): boolean => {
+    if (!isTaskish(String(x.item.type ?? ''))) return true;
+    const it = x.item as CalendarEvent & { titleAr?: string };
+    return !done.has(taskIdentityKey(it.caseId, it.title || it.titleAr));
+  };
+
   return [...eventItems, ...timelineTaskItems, ...arrTaskItems]
     .filter((x) => x.date && !isNaN(x.date.getTime()) && x.date >= startOfToday)
+    .filter(notDone)
     .sort((a, b) => a.date.getTime() - b.date.getTime())
     .slice(0, 40);
 }

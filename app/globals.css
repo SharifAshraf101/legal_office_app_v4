@@ -42102,3 +42102,14 @@ html body .modal-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen
 html body #topbar.topbar .actions .home-only-settings-wrap.home-only-settings-wrap {
   gap: 10px !important;
 }
+
+/* Upcoming agenda: done / edit / delete on every task & reminder row. */
+.agenda-modal-row .agenda-row-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.agenda-modal-row .agenda-row-action{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit;border:1px solid transparent;background:#fff}
+.agenda-modal-row .agenda-row-action i{font-size:12px}
+.agenda-modal-row .agenda-row-done{color:#15803d;border-color:#bbf7d0;background:#f0fdf4}
+.agenda-modal-row .agenda-row-done:hover{background:#15803d;color:#fff}
+.agenda-modal-row .agenda-row-edit{color:#4338ca;border-color:#c7d2fe;background:#eef2ff}
+.agenda-modal-row .agenda-row-edit:hover{background:#4338ca;color:#fff}
+.agenda-modal-row .agenda-row-delete{color:#b91c1c;border-color:#fecaca;background:#fff5f5}
+.agenda-modal-row .agenda-row-delete:hover{background:#b91c1c;color:#fff}

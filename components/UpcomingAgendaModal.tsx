@@ -11,7 +11,17 @@ import {
 } from '@/lib/calendar';
 import { caseName, clientName } from '@/lib/cases';
 import { formatDMYTime, localizedWeekday } from '@/lib/dates';
+import { rememberDismissedEventId } from '@/lib/dismissedEvents';
+import {
+  completeTaskEverywhere,
+  removeTaskEverywhere,
+  taskIdentityKey,
+} from '@/lib/tasks';
+import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
+import type { CalendarItem } from '@/lib/calendar';
+import { CalendarEventEdit } from './CalendarEventEdit';
 import { Modal } from './Modal';
+import { TaskModal } from './TaskModal';
 
 /**
  * Port of showUpcomingAgendaModal (source line 4331). Triggered from the Home
@@ -23,11 +33,83 @@ import { Modal } from './Modal';
  * `conflict-same-client`.
  */
 export function UpcomingAgendaModal() {
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
   const { t, lang } = useT();
   const modalStack = useModalStack();
+  const confirmDelete = useDeleteConfirm();
 
   const close = () => modalStack.close(modalStack.topId() ?? 0);
+
+  // ---- Task row actions ----------------------------------------------------
+  // A task can be in tasksArr, in the timeline and as a "מועד דיוני" reminder,
+  // under different ids — every action works on all copies (same case + core
+  // title), so the task changes on every screen at once.
+  const isTaskish = (type?: unknown) => type === 'task' || type === 'reminder';
+  const refOf = (entry: CalendarItem) => {
+    const it = entry.item as { caseId?: string; title?: string; titleAr?: string };
+    const title = it.title || it.titleAr || '';
+    const caseId = String(it.caseId || '');
+    return {
+      caseId,
+      title,
+      clientId: state.casesArr.find((c) => c.id === caseId)?.clientId || '',
+      key: taskIdentityKey(caseId, title),
+    };
+  };
+
+  /** Done: the task turns 'done' everywhere and leaves this agenda. */
+  const markDone = (entry: CalendarItem) => {
+    dispatch({ type: 'SET_TASKS', tasks: completeTaskEverywhere(refOf(entry), state.tasksArr) });
+  };
+
+  /** Edit in the editor that owns the row's source. */
+  const editRow = (entry: CalendarItem) => {
+    const id = String(entry.item.id ?? '');
+    if (entry.source === 'event') {
+      modalStack.open(<CalendarEventEdit source="event" id={id} />);
+    } else if (state.tasksArr.some((tk) => String(tk.id) === id)) {
+      modalStack.open(<TaskModal editTaskId={id} />);
+    } else {
+      modalStack.open(<CalendarEventEdit source="task" id={id} />);
+    }
+  };
+
+  /** Delete every copy: the task record, its timeline entry and its reminder. */
+  const deleteRow = async (entry: CalendarItem) => {
+    const ok = await confirmDelete(
+      lang === 'ar'
+        ? 'حذف المهمة؟ ستُحذف من قائمة المهام ومن الملف ومن التقويم.'
+        : 'למחוק את המשימה? היא תימחק מרשימת המשימות, מהתיק ומהיומן.',
+    );
+    if (!ok) return;
+    const ref = refOf(entry);
+    const sameTask = (x: { caseId?: string; title?: string; titleAr?: string }) =>
+      taskIdentityKey(x.caseId, x.title || x.titleAr) === ref.key;
+    const anchor =
+      state.tasksArr.find(sameTask) ||
+      state.timelineItems.find((ti) => ti.type === 'task' && sameTask(ti));
+    if (anchor) {
+      const next = removeTaskEverywhere(String(anchor.id), state.tasksArr, state.timelineItems);
+      dispatch({ type: 'SET_TASKS', tasks: next.tasks });
+      dispatch({ type: 'SET_TIMELINE', timeline: next.timeline });
+    }
+    // Reminder / task events of the same task. Tombstoned so a later import
+    // can't bring them back (see lib/dismissedEvents.ts).
+    const gone = state.eventsList.filter((e) => isTaskish(e.type) && sameTask(e));
+    if (gone.length) {
+      gone.forEach((e) => rememberDismissedEventId(String(e.id)));
+      const ids = new Set(gone.map((e) => String(e.id)));
+      dispatch({
+        type: 'SET_EVENTS',
+        events: state.eventsList.filter((e) => !ids.has(String(e.id))),
+      });
+    }
+  };
+
+  const actionLabels =
+    lang === 'ar'
+      ? { done: 'تم التنفيذ', edit: 'تعديل', remove: 'حذف' }
+      : { done: 'בוצע', edit: 'עריכה', remove: 'מחיקה' };
 
   const items = upcomingAgendaItems(
     state.eventsList,
@@ -166,6 +248,34 @@ export function UpcomingAgendaModal() {
                     {caseNumber}
                     {courtText}
                   </div>
+                  {isTaskOrReminder && (
+                    <div className="agenda-row-actions">
+                      <button
+                        type="button"
+                        className="agenda-row-action agenda-row-done"
+                        onClick={() => markDone(entry)}
+                      >
+                        <i className="fas fa-check" />
+                        <span>{actionLabels.done}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="agenda-row-action agenda-row-edit"
+                        onClick={() => editRow(entry)}
+                      >
+                        <i className="fas fa-pen" />
+                        <span>{actionLabels.edit}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="agenda-row-action agenda-row-delete"
+                        onClick={() => void deleteRow(entry)}
+                      >
+                        <i className="fas fa-trash" />
+                        <span>{actionLabels.remove}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );

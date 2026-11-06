@@ -194,6 +194,67 @@ export function rememberDecisionImportKey(set: Set<string>, key: string): void {
   }
 }
 
+// ---- One task, many copies ------------------------------------------------
+// The same logical task can sit in tasksArr, in the timeline (type 'task') and
+// as a calendar reminder titled "מועד דיוני: <title>" — under different ids and
+// sometimes different dates. They are matched by (case, core title).
+
+/** A task/reminder title without the procedural-deadline prefix. */
+export function taskCoreTitle(title?: string): string {
+  return String(title || '')
+    .replace(/^\s*מועד דיוני:\s*/, '')
+    .replace(/^\s*موعد إجرائي:\s*/, '')
+    .trim();
+}
+
+/** (case, core title) — the identity shared by every copy of one task. */
+export function taskIdentityKey(caseId?: string, title?: string): string {
+  return String(caseId || '') + '|' + taskCoreTitle(title);
+}
+
+/** Identity keys of the tasks marked done — their other copies (timeline
+ *  entry, reminder) are hidden from the upcoming agenda. */
+export function doneTaskKeys(tasks: Task[]): Set<string> {
+  return new Set(
+    (tasks || [])
+      .filter((t) => t.status === 'done')
+      .map((t) => taskIdentityKey(t.caseId, t.title)),
+  );
+}
+
+/** Mark a task done everywhere: every tasksArr record with its identity turns
+ *  'done'. When it has no record (it lives only in the timeline or as a
+ *  reminder), a done record is added so every screen agrees it is finished. */
+export function completeTaskEverywhere(
+  ref: { caseId?: string; clientId?: string; title?: string },
+  tasks: Task[],
+): Task[] {
+  const key = taskIdentityKey(ref.caseId, ref.title);
+  const now = new Date().toISOString();
+  let found = false;
+  const next = (tasks || []).map((t) => {
+    if (taskIdentityKey(t.caseId, t.title) !== key) return t;
+    found = true;
+    return { ...t, status: 'done', doneAt: now };
+  });
+  if (found) return next;
+  return [
+    ...next,
+    {
+      id: nextTaskId(),
+      createdAt: now,
+      title: taskCoreTitle(ref.title),
+      caseId: ref.caseId || '',
+      clientId: ref.clientId || '',
+      dueDate: '',
+      status: 'done',
+      priority: 'normal',
+      notes: '',
+      doneAt: now,
+    } as Task,
+  ];
+}
+
 /** Remove a task from BOTH stores at once — every `tasksArr` record and every
  *  `timelineItems` (type 'task') entry that is the SAME logical task: matched
  *  by id, or by (title + caseId) so duplicates and the differently-id'd
