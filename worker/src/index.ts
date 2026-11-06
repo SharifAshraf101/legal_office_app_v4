@@ -575,6 +575,9 @@ export default {
 if (method === 'POST' && path === '/api/whatsapp-messages') {
     return handleSaveWhatsAppMessage(request, env, ctx);
   }
+  if (method === 'POST' && path === '/api/whatsapp-transcribe') {
+    return handleWhatsAppTranscribe(request, env, ctx);
+  }
   if (method === 'GET' && path === '/api/whatsapp-summary') {
     return handleWhatsAppSummary(request, env, ctx);
   }
@@ -2875,6 +2878,56 @@ async function handleSaveWhatsAppMessage(request: Request, env: Env, ctx: Ctx): 
 // -----------------------------------------------------------------------
 // GET /api/whatsapp-messages/:phone
 // -----------------------------------------------------------------------
+// POST /api/whatsapp-transcribe — speech-to-text for an incoming voice message.
+// The webhook (which holds Meta's token) downloads the recording and sends it
+// here; Workers AI Whisper transcribes it inside Cloudflare, and the stored
+// message's "[הודעה קולית]" placeholder becomes "🎤 <transcript>". The
+// recording itself stays reachable through its media id.
+const VOICE_MAX_BASE64 = 25 * 1024 * 1024;
+async function handleWhatsAppTranscribe(
+  request: Request,
+  env: Env,
+  ctx: Ctx,
+): Promise<Response> {
+  if (!env.AI) return json({ error: 'ai_not_configured' }, request, env, 500);
+  const body = (await request.json().catch(() => ({}))) as {
+    media_id?: string;
+    audio_base64?: string;
+  };
+  const mediaId = String(body.media_id || '');
+  const audio = typeof body.audio_base64 === 'string' ? body.audio_base64 : '';
+  if (!/^\d+$/.test(mediaId) || !audio) {
+    return json({ error: 'media_id and audio_base64 required' }, request, env, 400);
+  }
+  if (audio.length > VOICE_MAX_BASE64) {
+    return json({ error: 'audio_too_large' }, request, env, 413);
+  }
+  let text = '';
+  try {
+    const out = (await env.AI.run('@cf/openai/whisper-large-v3-turbo', {
+      audio,
+      task: 'transcribe',
+      // Skip silence first — fewer invented words on a quiet clip.
+      vad_filter: true,
+    })) as { text?: string };
+    text = String(out?.text || '').trim();
+  } catch (e) {
+    return json(
+      { error: 'transcription_failed', detail: String(e).slice(0, 300) },
+      request,
+      env,
+      502,
+    );
+  }
+  const stored = text ? '🎤 ' + text : '🎤 [הודעה קולית — לא זוהה דיבור]';
+  await ctx.db.prepare(
+    "UPDATE whatsapp_messages SET message_text = ?1 WHERE media_id = ?2 AND message_type = 'audio'",
+  )
+    .bind(stored, mediaId)
+    .run();
+  return json({ ok: true, text }, request, env);
+}
+
 // GET /api/whatsapp-summary — one row per phone for the WhatsApp hub list:
 // the last message time, and how many incoming messages arrived after the
 // office's last reply ("unanswered"), so clients still waiting come first.

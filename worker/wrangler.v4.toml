@@ -15,6 +15,10 @@ compatibility_date = "2025-06-01"
 # Better Auth (control-plane accounts/sessions) needs Node built-ins on the Worker.
 compatibility_flags = ["nodejs_compat"]
 
+# Workers AI — Whisper speech-to-text for incoming WhatsApp voice messages.
+[ai]
+binding = "AI"
+
 # --- D1 database (relational data) — v4 clone ---
 [[d1_databases]]
 binding = "DB"

@@ -1209,6 +1209,8 @@ type ChatMessage = {
   imageUrl?: string;
   /** MIME type of the attached document, when available. */
   mimeType?: string;
+  /** Speech-to-text of an incoming voice message (empty until transcribed). */
+  transcript?: string;
 };
 
 function ClientChatScreen({
@@ -1253,8 +1255,10 @@ function ClientChatScreen({
       const msgs = (data.messages || []).map((m: any) => {
         const mime = String(m.media_mime_type || '');
         const isImage = m.message_type === 'image' || mime.startsWith('image/');
+        const isVoice = m.message_type === 'audio' || mime.startsWith('audio/');
         const isDocument =
           !isImage &&
+          !isVoice &&
           Boolean(
             m.message_type === 'document' || m.file_name || m.media_url || String(m.message_text || '').startsWith('📎')
           );
@@ -1272,6 +1276,20 @@ function ClientChatScreen({
         // caption only when the client sent one, else nothing.
         const imageCaption =
           label && !label.startsWith('[') ? label : '';
+        if (isVoice) {
+          // Stored as "🎤 <transcript>" once transcribed, "[הודעה קולית]" before.
+          const raw = String(m.message_text || '');
+          return {
+            id: m.id,
+            side: m.direction === 'incoming' ? 'client' : 'office',
+            type: 'voice',
+            text: lang === 'ar' ? 'رسالة صوتية' : 'הודעה קולית',
+            transcript: raw.startsWith('🎤') ? raw.replace(/^🎤\s*/, '') : '',
+            time: new Date(m.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+            voiceUrl: mediaSrc,
+            mimeType: m.media_mime_type || undefined,
+          };
+        }
         return {
           id: m.id,
           side: m.direction === 'incoming' ? 'client' : 'office',
@@ -1288,7 +1306,17 @@ function ClientChatScreen({
           const seen = new Set(prev.map((msg) => msg.id));
           const merged = [...prev];
           msgs.forEach((msg: ChatMessage) => {
-            if (seen.has(msg.id)) return;
+            if (seen.has(msg.id)) {
+              // A voice message is transcribed a few seconds after it lands —
+              // pick the transcript up on a later poll.
+              if (msg.type === 'voice' && msg.transcript) {
+                const at = merged.findIndex((x) => x.id === msg.id);
+                if (at !== -1 && merged[at].transcript !== msg.transcript) {
+                  merged[at] = { ...merged[at], transcript: msg.transcript };
+                }
+              }
+              return;
+            }
             // Reconcile an optimistic OUTGOING bubble (added on send with a
             // Date.now() id) with its now-persisted D1 twin, so a sent message
             // doesn't render TWICE. Match the first still-pending office bubble
@@ -3330,7 +3358,8 @@ function VoiceBubble({ message }: { message: ChatMessage }) {
     }
   };
   return (
-    <div className="tw-flex tw-min-w-[220px] tw-items-center tw-gap-3">
+    <div className="tw-min-w-[220px]">
+    <div className="tw-flex tw-items-center tw-gap-3">
       <button
         type="button"
         onClick={toggle}
@@ -3349,6 +3378,15 @@ function VoiceBubble({ message }: { message: ChatMessage }) {
           onEnded={() => setPlaying(false)}
           preload="none"
         />
+      )}
+      </div>
+      {message.transcript && (
+        // Automatic transcript — marked as such, since speech-to-text can
+        // mishear names and numbers; the recording above is the original.
+        <div className="tw-mt-2 tw-text-sm tw-leading-relaxed">
+          <span className="tw-text-[11px] tw-font-bold tw-opacity-60">🎤 תמלול אוטומטי: </span>
+          {message.transcript}
+        </div>
       )}
     </div>
   );

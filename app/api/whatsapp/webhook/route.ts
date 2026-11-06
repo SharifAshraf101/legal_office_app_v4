@@ -14,16 +14,48 @@ export const runtime = 'nodejs';
 // to finish after we've already acked Meta.
 export const maxDuration = 30;
 
-const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'sharif_law_office_2026';
-// v4 stack: incoming WhatsApp messages are stored in the v4 Worker / D1. Falls
-// back to the v4 defaults if the env vars aren't set on this deployment.
+// Credentials come from the environment only. They used to carry hardcoded
+// production fallbacks, which put the live Worker app-token and the Meta verify
+// token in committed source — anyone with repo access could read every office's
+// data straight off the Worker. Unset now means "fail closed" (see the guards in
+// GET/POST below) rather than "silently use the real token".
+const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || '';
+// v4 stack: incoming WhatsApp messages are stored in the v4 Worker / D1.
 const WORKER_URL =
   process.env.NEXT_PUBLIC_WORKER_URL ||
   'https://legal-office-api-v4.sharifashraf.workers.dev';
-const APP_TOKEN =
-  process.env.APP_TOKEN ||
-  process.env.NEXT_PUBLIC_APP_TOKEN ||
-  'ecd403f741827b30fcd7018ebaf5bc8fdf87b974b30ce8af';
+const APP_TOKEN = process.env.APP_TOKEN || process.env.NEXT_PUBLIC_APP_TOKEN || '';
+
+/**
+ * Transcribe an incoming voice message in the background: download the clip
+ * from Meta (needs the WhatsApp token, which only this server holds), hand it
+ * to the Worker, which runs Whisper in Cloudflare and rewrites the stored
+ * "[הודעה קולית]" as "🎤 <text>". Failures only log — the message itself is
+ * already stored, so nothing is lost.
+ */
+async function transcribeVoiceMessage(mediaId: string): Promise<void> {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!token || !/^\d+$/.test(mediaId)) return;
+  try {
+    const metaRes = await fetch(`https://graph.facebook.com/v19.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!metaRes.ok) throw new Error('media lookup ' + metaRes.status);
+    const meta = (await metaRes.json()) as { url?: string };
+    if (!meta.url) throw new Error('media url missing');
+    const fileRes = await fetch(meta.url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!fileRes.ok) throw new Error('media download ' + fileRes.status);
+    const audioBase64 = Buffer.from(await fileRes.arrayBuffer()).toString('base64');
+    const res = await fetch(`${WORKER_URL}/api/whatsapp-transcribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${APP_TOKEN}` },
+      body: JSON.stringify({ media_id: mediaId, audio_base64: audioBase64 }),
+    });
+    if (!res.ok) throw new Error('transcribe ' + res.status + ' ' + (await res.text()).slice(0, 200));
+  } catch (e) {
+    console.error('[WhatsApp webhook] voice transcription failed:', e);
+  }
+}
 
 export async function GET(req: NextRequest) {
   const searchParams = new URL(req.url).searchParams;
@@ -31,6 +63,13 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get('hub.verify_token');
   const challenge = searchParams.get('hub.challenge');
 
+  // Fail closed when the token isn't configured. Without this an unset
+  // VERIFY_TOKEN ('') would match a caller sending an empty `hub.verify_token`,
+  // letting anyone complete Meta's subscription handshake against this endpoint.
+  if (!VERIFY_TOKEN) {
+    console.error('[WhatsApp webhook] WHATSAPP_VERIFY_TOKEN is not configured');
+    return new NextResponse('Forbidden', { status: 403 });
+  }
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
     return new NextResponse(challenge, { status: 200 });
   }
@@ -74,7 +113,12 @@ async function sendText(origin: string, to: string, message: string): Promise<vo
   try {
     await fetch(`${origin}/api/whatsapp/send`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        // The send route is authenticated. This is a server-to-server self-call,
+        // so it presents APP_TOKEN, which never reaches a browser.
+        Authorization: `Bearer ${APP_TOKEN}`,
+      },
       body: JSON.stringify({ to, message, autoInvite: false }),
     });
   } catch (e) {
@@ -173,6 +217,14 @@ export async function POST(req: NextRequest) {
 
   // Persist the incoming message synchronously — this is the only thing Meta
   // needs us to do before we ack, and it's a single fast write.
+  // A missing APP_TOKEN makes every Worker call below 401. Say so once, loudly:
+  // otherwise the only symptom is messages quietly never appearing in the app.
+  if (!APP_TOKEN) {
+    console.error(
+      '[WhatsApp webhook] APP_TOKEN / NEXT_PUBLIC_APP_TOKEN is not configured — ' +
+        'incoming messages cannot be stored',
+    );
+  }
   try {
     const res = await fetch(`${WORKER_URL}/api/whatsapp-messages`, {
       method: 'POST',
@@ -229,6 +281,12 @@ export async function POST(req: NextRequest) {
       ? `${fwdProto}://${fwdHost}`
       : `http://127.0.0.1:${process.env.PORT || 3000}`)
   ).replace(/\/$/, '');
+
+  // A voice message gets its words written into the stored row, after the ack.
+  if (messageType === 'audio' && mediaId) {
+    const voiceId = mediaId;
+    after(() => transcribeVoiceMessage(voiceId));
+  }
 
   after(async () => {
     try {
