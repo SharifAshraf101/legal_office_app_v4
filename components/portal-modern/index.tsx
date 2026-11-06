@@ -54,6 +54,7 @@ import {
 } from '@/lib/portal';
 import { caseName } from '@/lib/cases';
 import { formatDMY } from '@/lib/dates';
+import { officeAuthHeader } from '@/lib/officeToken';
 import {
   financeCaseBalance,
   financePaidItemsForCase,
@@ -96,10 +97,38 @@ type ClientRow = {
    * new document" flow can pre-select it instead of starting empty. */
   initialCaseId?: string;
   time: string;
+  /** Incoming WhatsApp messages since the office's last reply. */
   unread: number;
   avatar: string;
+  /** 'online' = the client is waiting for a reply (drives the green dot). */
   status: 'online' | 'offline';
+  /** Last WhatsApp message, ms (0 = never wrote). Used for ordering. */
+  lastTs?: number;
+  /** Digits of the client's phone, for search. */
+  phoneDigits?: string;
 };
+
+/** One row of GET /api/whatsapp-summary. */
+type WhatsAppPhoneSummary = {
+  phone: string;
+  last_ts: number | null;
+  unanswered: number | null;
+  waiting_since: number | null;
+};
+
+/** Hub time label: today -> HH:MM, yesterday -> "אתמול", else DD/MM. */
+function hubTimeLabel(ts: number, lang: 'he' | 'ar'): string {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const now = new Date();
+  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diffDays = Math.round((day(now) - day(d)) / 86400000);
+  if (diffDays === 0) {
+    return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+  if (diffDays === 1) return lang === 'ar' ? 'أمس' : 'אתמול';
+  return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+}
 
 type Screen =
   | 'chooser'
@@ -177,8 +206,45 @@ function PortalShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.hydrated, state.clients.length, state.casesArr.length]);
 
+  // Real WhatsApp activity per phone (last message, unanswered count). Polled
+  // so a new incoming message moves its client to the top. Not in deep-link
+  // mode: a client's own browser has no office session.
+  const [waSummary, setWaSummary] = useState<Map<string, WhatsAppPhoneSummary>>(new Map());
+  useEffect(() => {
+    if (deepLink) return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch(
+          (process.env.NEXT_PUBLIC_WORKER_URL || '') + '/api/whatsapp-summary',
+          { headers: officeAuthHeader(), cache: 'no-store' },
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as { phones?: WhatsAppPhoneSummary[] };
+        if (!alive) return;
+        const m = new Map<string, WhatsAppPhoneSummary>();
+        for (const row of data.phones || []) {
+          const key = normalizePhoneForLinks(String(row.phone || ''));
+          if (key) m.set(key, row);
+        }
+        setWaSummary(m);
+      } catch {
+        /* keep the last good summary */
+      }
+    };
+    void load();
+    const id = window.setInterval(load, 20000);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [deepLink]);
+
+  // EVERY client (old and new). Clients still waiting for a reply come first
+  // (newest message first), then the rest by their last conversation, then
+  // clients who never wrote, by name.
   const clients = useMemo<ClientRow[]>(() => {
-    return state.clients.slice(0, 30).map((c: Client, i) => {
+    const rows = state.clients.map((c: Client) => {
       const allCases = state.casesArr.filter((cs) => cs.clientId === c.id);
       // Active cases only — closed/inactive shouldn't appear as chat targets.
       const activeCases = allCases.filter((cs) => cs.status !== 'inactive');
@@ -196,13 +262,32 @@ function PortalShell({
         caseNo: first?.caseNumber || '',
         caseType: first?.title || (lang === 'ar' ? 'بدون قضية' : 'ללא תיק'),
         cases: caseSummaries,
-        time: ['11:32', '10:18', 'אתמול', '12/05', '09:40', 'אתמול'][i % 6],
-        unread: i % 5 === 0 ? 2 : i % 3 === 0 ? 1 : 0,
+        ...(() => {
+          const phoneKey = normalizePhoneForLinks(c.phone);
+          const wa = phoneKey ? waSummary.get(phoneKey) : undefined;
+          const lastTs = Number(wa?.last_ts) || 0;
+          const unread = Number(wa?.unanswered) || 0;
+          return {
+            time: hubTimeLabel(lastTs, lang),
+            unread,
+            status: (unread > 0 ? 'online' : 'offline') as ClientRow['status'],
+            lastTs,
+            phoneDigits: String(c.phone || '').replace(/\D/g, ''),
+          };
+        })(),
         avatar: (name || '?').trim().charAt(0).toUpperCase(),
-        status: i % 2 === 0 ? 'online' : 'offline',
       };
     });
-  }, [state.clients, state.casesArr, lang]);
+    return rows.sort((a, b) => {
+      const wa = a.unread > 0 ? 1 : 0;
+      const wb = b.unread > 0 ? 1 : 0;
+      if (wa !== wb) return wb - wa; // waiting for a reply first
+      const ta = a.lastTs || 0;
+      const tb = b.lastTs || 0;
+      if (ta !== tb) return tb - ta; // most recent conversation next
+      return a.name.localeCompare(b.name, lang === 'ar' ? 'ar' : 'he');
+    });
+  }, [state.clients, state.casesArr, lang, waSummary]);
 
   const [screen, setScreen] = useState<Screen>(deepLink ? 'gate' : 'chooser');
   const [selectedClient, setSelectedClient] = useState<ClientRow | null>(null);
@@ -622,6 +707,21 @@ function HubScreen({
   };
 
   const backLabel = lang === 'ar' ? 'رجوع' : 'חזרה';
+  // Search by name, phone, or case number / title.
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const qDigits = q.replace(/\D/g, '');
+  const shown = !q
+    ? clients
+    : clients.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (qDigits.length >= 3 && (c.phoneDigits || '').includes(qDigits)) ||
+          c.cases.some(
+            (cs) =>
+              cs.caseNumber.toLowerCase().includes(q) || cs.title.toLowerCase().includes(q),
+          ),
+      );
   return (
     <div className="modern-portal-hub">
       {/* Back arrow — white pill (Global Search `.main-screen-back-btn`
@@ -651,7 +751,12 @@ function HubScreen({
           </div>
         }
       />
-      <SearchBox placeholder={T.searchPh} className="portal-hub-wa-search" />
+      <SearchBox
+        placeholder={T.searchPh}
+        className="portal-hub-wa-search"
+        value={query}
+        onChange={setQuery}
+      />
       <div className="tw-grid tw-flex-1 tw-grid-cols-1 tw-gap-5 tw-px-5 tw-pb-5 tw-pt-3 lg:tw-px-10 lg:tw-pb-10">
         <Panel className="tw-min-h-[520px]">
           <div>
@@ -664,7 +769,12 @@ function HubScreen({
                   {lang === 'ar' ? 'لا يوجد موكلون بعد' : 'אין לקוחות עדיין'}
                 </div>
               )}
-              {clients.slice(0, 8).map((client) => (
+              {q && shown.length === 0 && (
+                <div className="tw-rounded-3xl tw-border tw-border-slate-100 tw-bg-[#FDFBF5] tw-p-6 tw-text-center tw-text-sm tw-text-slate-400">
+                  {lang === 'ar' ? 'لا توجد نتائج' : 'לא נמצאו תוצאות'}
+                </div>
+              )}
+              {shown.map((client) => (
                 <ClientChatCard
                   key={client.id}
                   client={client}
@@ -1425,7 +1535,8 @@ function ClientChatScreen({
     try {
       const res = await fetch('/api/whatsapp/send/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // Authenticated route — send the logged-in office's session token.
+        headers: { 'Content-Type': 'application/json', ...officeAuthHeader() },
         body: JSON.stringify({
           to: phone,
           message: caption,
@@ -1482,7 +1593,8 @@ function ClientChatScreen({
      // The send route persists the outgoing message to D1 on success.
      await fetch('/api/whatsapp/send/', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  // Authenticated route — send the logged-in office's session token.
+  headers: { 'Content-Type': 'application/json', ...officeAuthHeader() },
   body: JSON.stringify({ to: phone, message: text }),
 });
     } catch (e) {

@@ -575,6 +575,9 @@ export default {
 if (method === 'POST' && path === '/api/whatsapp-messages') {
     return handleSaveWhatsAppMessage(request, env, ctx);
   }
+  if (method === 'GET' && path === '/api/whatsapp-summary') {
+    return handleWhatsAppSummary(request, env, ctx);
+  }
   if (method === 'GET' && path.startsWith('/api/whatsapp-messages/')) {
     return handleGetWhatsAppMessages(request, env, ctx);
   }
@@ -2872,6 +2875,31 @@ async function handleSaveWhatsAppMessage(request: Request, env: Env, ctx: Ctx): 
 // -----------------------------------------------------------------------
 // GET /api/whatsapp-messages/:phone
 // -----------------------------------------------------------------------
+// GET /api/whatsapp-summary — one row per phone for the WhatsApp hub list:
+// the last message time, and how many incoming messages arrived after the
+// office's last reply ("unanswered"), so clients still waiting come first.
+async function handleWhatsAppSummary(request: Request, env: Env, ctx: Ctx): Promise<Response> {
+  try {
+    const rs = await ctx.db.prepare(
+      `SELECT w.client_phone AS phone,
+              MAX(w.timestamp) AS last_ts,
+              SUM(CASE WHEN w.direction = 'incoming'
+                        AND w.timestamp > COALESCE(o.last_out, 0) THEN 1 ELSE 0 END) AS unanswered,
+              MAX(CASE WHEN w.direction = 'incoming'
+                        AND w.timestamp > COALESCE(o.last_out, 0) THEN w.timestamp END) AS waiting_since
+         FROM whatsapp_messages w
+         LEFT JOIN (SELECT client_phone, MAX(timestamp) AS last_out
+                      FROM whatsapp_messages WHERE direction = 'outgoing'
+                     GROUP BY client_phone) o ON o.client_phone = w.client_phone
+        GROUP BY w.client_phone`,
+    ).all();
+    return json({ phones: rs.results ?? [] }, request, env);
+  } catch {
+    // An office DB without the WhatsApp table (tenants don't use WhatsApp).
+    return json({ phones: [] }, request, env);
+  }
+}
+
 async function handleGetWhatsAppMessages(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   const url = new URL(request.url);
   const phone = url.pathname.split('/').pop() ?? '';
