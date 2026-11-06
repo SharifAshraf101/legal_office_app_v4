@@ -423,7 +423,7 @@ export default function AdminPage() {
         }}
       >
         <div style={{ ...card, border: 0, borderRadius: 0 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: '1 1 260px', minWidth: 0 }}>
             <div style={{ fontWeight: 800, fontSize: 15 }}>{o.name}</div>
             <div style={metaLine}>
               <i className="fas fa-envelope" style={metaIcon} />
@@ -693,9 +693,17 @@ export default function AdminPage() {
     );
   };
 
+  // Its own scroll container: the app's global CSS pins <body> to the viewport
+  // with overflow hidden (the office app scrolls inside its panels), so a page
+  // that relied on the body scrolling was frozen on mobile.
   const shell: React.CSSProperties = {
     direction: 'rtl',
-    minHeight: '100vh',
+    position: 'fixed',
+    inset: 0,
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
+    overscrollBehavior: 'contain',
+    boxSizing: 'border-box',
     background: bg,
     color: ink,
     padding: '28px 18px 64px',
@@ -955,7 +963,7 @@ export default function AdminPage() {
               <div style={{ display: 'grid', gap: 12, marginBottom: 26 }}>
                 {pending.map((o) => (
                   <div key={o.id} style={{ ...card, borderColor: '#f0d9a8' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: '1 1 260px', minWidth: 0 }}>
                       <div style={{ fontWeight: 800, fontSize: 16 }}>{o.name}</div>
                       <div style={metaLine}>
                         <i className="fas fa-envelope" style={metaIcon} />
@@ -1050,6 +1058,9 @@ const solidBtn: React.CSSProperties = {
 
 const card: React.CSSProperties = {
   display: 'flex',
+  // On a phone the action buttons drop below the details instead of
+  // squeezing them into a narrow column.
+  flexWrap: 'wrap',
   alignItems: 'center',
   gap: 14,
   background: surface,
