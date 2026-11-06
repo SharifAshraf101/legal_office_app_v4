@@ -100,8 +100,10 @@ type ClientRow = {
    * new document" flow can pre-select it instead of starting empty. */
   initialCaseId?: string;
   time: string;
-  /** Incoming WhatsApp messages since the office's last reply. */
+  /** Incoming WhatsApp messages neither answered nor opened (the badge). */
   unread: number;
+  /** The client is still waiting for an office reply (ordering + green dot). */
+  waiting?: boolean;
   avatar: string;
   /** 'online' = the client is waiting for a reply (drives the green dot). */
   status: 'online' | 'offline';
@@ -116,6 +118,8 @@ type WhatsAppPhoneSummary = {
   phone: string;
   last_ts: number | null;
   unanswered: number | null;
+  /** Unanswered AND arrived after the chat was last opened. */
+  unseen?: number | null;
   waiting_since: number | null;
 };
 
@@ -269,11 +273,15 @@ function PortalShell({
           const phoneKey = normalizePhoneForLinks(c.phone);
           const wa = phoneKey ? waSummary.get(phoneKey) : undefined;
           const lastTs = Number(wa?.last_ts) || 0;
-          const unread = Number(wa?.unanswered) || 0;
+          // Badge = not yet answered or opened (same count as the home bell);
+          // opening the chat clears it. Ordering still follows "waiting".
+          const unread = Number(wa?.unseen) || 0;
+          const waiting = (Number(wa?.unanswered) || 0) > 0;
           return {
             time: hubTimeLabel(lastTs, lang),
             unread,
-            status: (unread > 0 ? 'online' : 'offline') as ClientRow['status'],
+            waiting,
+            status: (waiting ? 'online' : 'offline') as ClientRow['status'],
             lastTs,
             phoneDigits: String(c.phone || '').replace(/\D/g, ''),
           };
@@ -282,8 +290,8 @@ function PortalShell({
       };
     });
     return rows.sort((a, b) => {
-      const wa = a.unread > 0 ? 1 : 0;
-      const wb = b.unread > 0 ? 1 : 0;
+      const wa = a.unread > 0 ? 2 : a.waiting ? 1 : 0;
+      const wb = b.unread > 0 ? 2 : b.waiting ? 1 : 0;
       if (wa !== wb) return wb - wa; // waiting for a reply first
       const ta = a.lastTs || 0;
       const tb = b.lastTs || 0;
@@ -433,6 +441,19 @@ function PortalShell({
       : client;
     setSelectedClient(focused);
     setScreen('chat');
+    // The chat screen marks this client's messages read on the server; clear
+    // the badge now rather than on the next summary poll.
+    const key = normalizePhoneForLinks(
+      String(state.clients.find((c) => c.id === client.id)?.phone || ''),
+    );
+    if (key && waSummary.get(key)?.unseen) {
+      setWaSummary((prev) => {
+        const next = new Map(prev);
+        const row = next.get(key);
+        if (row) next.set(key, { ...row, unseen: 0 });
+        return next;
+      });
+    }
   };
 
   return (
@@ -3568,7 +3589,16 @@ function MessageBubble({
             : 'tw-rounded-tl-md tw-bg-slate-100 tw-text-slate-700',
         )}
       >
-        {message.type === 'text' && <div className="tw-leading-7">{message.text}</div>}
+        {/* A long unbroken token (the bot's signed portal link) wraps inside
+         *  the bubble instead of running past its edge. */}
+        {message.type === 'text' && (
+          <div
+            className="tw-leading-7"
+            style={{ overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}
+          >
+            {message.text}
+          </div>
+        )}
         {message.type === 'file' && (
           <div
             className={cn(
