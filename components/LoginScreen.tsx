@@ -3,12 +3,13 @@
 // Office login / signup gate. Shown after the language screen when there is no
 // active session. Talks to the Worker's Better Auth endpoints via lib/officeAuth
 // (bearer tokens). Sign-in resolves an existing office; sign-up creates a new
-// office that starts PENDING admin approval (so it shows a waiting state rather
-// than entering the app).
+// office that gets access at once (a 3-day trial) and enters the app. Only if
+// the Worker couldn't set the office up does it show the waiting state, and the
+// operator approves it by hand.
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { signIn, signUp } from '@/lib/officeAuth';
-import { hasAdminToken } from '@/lib/officeToken';
+import { hasAdminToken, officeAuthHeader } from '@/lib/officeToken';
 import type { Lang } from '@/types';
 
 interface LoginScreenProps {
@@ -109,7 +110,17 @@ export function LoginScreen({ lang, onAuthed }: LoginScreenProps) {
           setError(res.error.message || t.errGeneric);
           return;
         }
-        setPending(true); // created, but awaiting approval — don't enter the app
+        // The office normally has access straight away (3-day trial). Ask the
+        // Worker: data access -> enter the app; refused -> it is still pending.
+        const probe = await fetch(
+          (process.env.NEXT_PUBLIC_WORKER_URL || '') + '/api/load',
+          { headers: officeAuthHeader(), cache: 'no-store' },
+        ).catch(() => null);
+        if (probe?.ok) {
+          onAuthed();
+        } else {
+          setPending(true); // created, but awaiting approval — don't enter the app
+        }
       }
     } catch {
       setError(t.errGeneric);

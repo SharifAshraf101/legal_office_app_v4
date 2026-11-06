@@ -52,7 +52,8 @@ export function TrialWatermark() {
   const isOperator = useIsOperatorOffice();
 
   if (isOperator) return null;
-  if (!billing || billing.effective === 'active') return null;
+  // Paid, or switched on by hand by the operator: nothing to warn about.
+  if (!billing || billing.effective === 'active' || billing.effective === 'manual') return null;
 
   // Mounting the countdown only once there IS something to show is what makes
   // the timing correct: billing arrives with GET /api/load, long after first

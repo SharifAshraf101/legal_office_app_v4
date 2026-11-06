@@ -13,8 +13,15 @@
 // unpaid invoice, so a lapsed office keeps full READ access and loses WRITES
 // (and the AI endpoints that spend money). See the router gate in index.ts.
 
-/** Free trial granted when an office is approved. */
-export const TRIAL_DAYS = 14;
+/** Free trial, granted the moment an office signs up (it gets access at once).
+ *  No grace follows it: when the trial ends without a payment, the office goes
+ *  read-only immediately. */
+export const TRIAL_DAYS = 3;
+
+/** Standard price, in agorot: 699 ₪ a month; a year is 12 months (8,388 ₪).
+ *  An office whose stored price is 0 (never set) is billed at this price. */
+export const STANDARD_MONTHLY_PRICE = 69900;
+export const STANDARD_ANNUAL_PRICE = STANDARD_MONTHLY_PRICE * 12;
 
 /**
  * Days after the entitlement date during which access continues untouched while
@@ -24,7 +31,9 @@ export const TRIAL_DAYS = 14;
 export const GRACE_DAYS = 7;
 
 /** What the tenant row stores. */
-export type StoredBillingStatus = 'trialing' | 'active' | 'canceled';
+//   'manual' = the operator switched the office on by hand, with no payment —
+//              never lapses, until the operator switches it off again.
+export type StoredBillingStatus = 'trialing' | 'active' | 'canceled' | 'manual';
 
 /** What a request actually sees, after comparing against the clock. */
 export type EffectiveBillingStatus =
@@ -32,7 +41,8 @@ export type EffectiveBillingStatus =
   | 'active'
   | 'past_due' // lapsed, still inside the grace window — full access + warning
   | 'expired' // lapsed past grace — reads only
-  | 'canceled'; // deliberately ended — reads only
+  | 'canceled' // deliberately ended — reads only
+  | 'manual'; // switched on by the operator without payment — full access
 
 /** The billing columns this module reads off a tenant row. */
 export interface TenantBillingRow {
@@ -95,15 +105,27 @@ export function computeBilling(
   now: number = Date.now(),
 ): BillingState {
   const plan = (row.plan || 'standard').trim() || 'standard';
-  const priceAmount = Number(row.price_amount ?? 0) || 0;
+  const priceAmount = Number(row.price_amount ?? 0) || STANDARD_MONTHLY_PRICE;
   const priceCurrency = (row.price_currency || 'ILS').trim() || 'ILS';
   const raw = (row.billing_status || 'trialing').trim();
   const status: StoredBillingStatus =
-    raw === 'active' || raw === 'canceled' || raw === 'trialing'
+    raw === 'active' || raw === 'canceled' || raw === 'trialing' || raw === 'manual'
       ? raw
       : 'trialing';
 
   const base = { plan, status, priceAmount, priceCurrency };
+
+  // Manual activation: full access with no date, until the operator ends it.
+  if (status === 'manual') {
+    return {
+      ...base,
+      effective: 'manual',
+      entitledUntil: null,
+      daysLeft: Number.POSITIVE_INFINITY,
+      inGrace: false,
+      blocked: false,
+    };
+  }
 
   // Cancelling is an explicit decision, so it takes effect immediately and no
   // grace applies — but it still only drops the office to read-only.
@@ -148,7 +170,9 @@ export function computeBilling(
     };
   }
 
-  const inGrace = now - until <= GRACE_DAYS * DAY_MS;
+  // Grace follows a PAID period only. A trial that ran out without a payment
+  // goes read-only at once.
+  const inGrace = status === 'active' && now - until <= GRACE_DAYS * DAY_MS;
   return {
     ...base,
     effective: inGrace ? 'past_due' : 'expired',

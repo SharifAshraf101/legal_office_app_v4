@@ -17,8 +17,8 @@ const ADMIN_TOKEN_KEY = OFFICE_ADMIN_TOKEN_KEY;
 /** Derived subscription standing, computed by the Worker (see billing.ts). */
 interface Billing {
   plan: string;
-  status: 'trialing' | 'active' | 'canceled';
-  effective: 'trialing' | 'active' | 'past_due' | 'expired' | 'canceled';
+  status: 'trialing' | 'active' | 'canceled' | 'manual';
+  effective: 'trialing' | 'active' | 'past_due' | 'expired' | 'canceled' | 'manual';
   entitled_until: string | null;
   days_left: number | null;
   in_grace: boolean;
@@ -62,6 +62,7 @@ const BILLING_LABEL: Record<Billing['effective'], string> = {
   past_due: 'בפיגור תשלום',
   expired: 'מנוי פג — קריאה בלבד',
   canceled: 'מנוי בוטל — קריאה בלבד',
+  manual: 'מנוי פעיל באישור המנהל',
 };
 
 const BILLING_COLOR: Record<Billing['effective'], { fg: string; bg: string }> = {
@@ -70,7 +71,11 @@ const BILLING_COLOR: Record<Billing['effective'], { fg: string; bg: string }> = 
   past_due: { fg: '#c2410c', bg: '#ffedd5' },
   expired: { fg: '#b91c1c', bg: '#fee2e2' },
   canceled: { fg: '#4b5563', bg: '#e5e7eb' },
+  manual: { fg: '#15803d', bg: '#dcfce7' },
 };
+
+/** Standard price in agorot: 699 ₪ a month, a year = 12 months (8,388 ₪). */
+const STANDARD_MONTHLY_PRICE = 69900;
 
 /** agorot -> "₪1,200". Money is stored in minor units and never as a float. */
 const money = (minor: number, currency = 'ILS') => {
@@ -105,6 +110,17 @@ const fmt = (iso: string | null) =>
 const periodStart = (o: Office) =>
   o.billing.status === 'trialing' ? o.approved_at : o.last_period_start || o.approved_at;
 
+/** Which subscription the office is on — drives how its period is counted. */
+const planLabel = (o: Office) => {
+  const b = o.billing;
+  if (b.plan === 'operator') return 'משרד המערכת';
+  if (b.status === 'manual') return 'הפעלה ידנית';
+  if (b.status === 'trialing') return 'תקופת ניסיון';
+  if (b.plan === 'annual') return 'מינוי שנתי';
+  if (b.plan === 'monthly') return 'מינוי חודשי';
+  return 'מינוי';
+};
+
 /** "Paid for the month in use?" — the question the operator chases. */
 const paidThisMonth = (o: Office): { text: string; fg: string; bg: string } => {
   const b = o.billing;
@@ -112,6 +128,7 @@ const paidThisMonth = (o: Office): { text: string; fg: string; bg: string } => {
   if (b.effective === 'trialing') return { text: 'תקופת ניסיון — טרם חויב', fg: '#b45309', bg: '#fef3c7' };
   if (b.effective === 'active') return { text: 'שולם', fg: '#15803d', bg: '#dcfce7' };
   if (b.effective === 'canceled') return { text: 'המנוי עצור', fg: '#4b5563', bg: '#e5e7eb' };
+  if (b.effective === 'manual') return { text: 'פטור מתשלום באישור המנהל', fg: '#15803d', bg: '#dcfce7' };
   return { text: 'לא שולם', fg: '#b91c1c', bg: '#fee2e2' };
 };
 
@@ -132,6 +149,13 @@ export default function AdminPage() {
   // Which office's billing panel is open, and that office's payment history.
   const [billingFor, setBillingFor] = useState('');
   const [payments, setPayments] = useState<Payment[]>([]);
+  // A temporary password just set for an office — shown once, in memory only
+  // (never stored), until hidden or the page is left.
+  const [tempPassword, setTempPassword] = useState<{ id: string; password: string } | null>(
+    null,
+  );
+  // The eye toggle: the temporary password starts hidden.
+  const [pwVisible, setPwVisible] = useState(false);
 
   useEffect(() => {
     try {
@@ -317,6 +341,58 @@ export default function AdminPage() {
     }
   };
 
+  // ---- Password reset ----------------------------------------------------
+  // The old password is a one-way hash and can't be shown, so "forgot my
+  // password" is answered with a fresh temporary one, displayed here once.
+  const resetPassword = async (o: Office) => {
+    if (
+      !window.confirm(
+        `לאפס את הסיסמה של "${o.name}" (${o.owner_email})? תיווצר סיסמה זמנית חדשה, והסיסמה הנוכחית תפסיק לעבוד.`,
+      )
+    ) {
+      return;
+    }
+    setBusyId(o.id);
+    setNotice(null);
+    try {
+      const res = await fetch(`${WORKER_URL}/api/admin/reset-password`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tenantId: o.id }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        password?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.password) {
+        setNotice({ ok: false, text: data.error || 'איפוס הסיסמה נכשל.' });
+        return;
+      }
+      setTempPassword({ id: o.id, password: data.password });
+      setPwVisible(false);
+      setNotice({
+        ok: true,
+        text: `נוצרה סיסמה זמנית ל"${o.name}". מסור אותה למשרד, והמלץ לו להחליף אותה בהגדרות אחרי הכניסה.`,
+      });
+    } catch {
+      setNotice({ ok: false, text: 'שגיאת רשת בעת איפוס הסיסמה.' });
+    } finally {
+      setBusyId('');
+    }
+  };
+
+  const copyPassword = async (password: string) => {
+    try {
+      await navigator.clipboard.writeText(password);
+      setNotice({ ok: true, text: 'הסיסמה הועתקה.' });
+    } catch {
+      setNotice({ ok: false, text: 'ההעתקה נכשלה — סמן את הסיסמה והעתק ידנית.' });
+    }
+  };
+
   const q = query.trim().toLowerCase();
   const match = (o: Office) =>
     !q ||
@@ -324,7 +400,298 @@ export default function AdminPage() {
     (o.owner_email || '').toLowerCase().includes(q) ||
     (o.data_db_name || '').toLowerCase().includes(q);
   const pending = offices.filter((o) => o.status === 'pending' && match(o));
-  const others = offices.filter((o) => o.status !== 'pending' && match(o));
+  // The system owner's own office is pinned above the search, always shown;
+  // the list below holds every other office.
+  const mine = offices.find((o) => o.billing.plan === 'operator');
+  const others = offices.filter(
+    (o) => o.status !== 'pending' && o !== mine && match(o),
+  );
+
+  /** One office's card (details, status chips, actions, billing panel). */
+  const officeCard = (o: Office) => {
+    const suspended = o.status === 'suspended';
+    const b = o.billing;
+    const tone = BILLING_COLOR[b.effective];
+    const open = billingFor === o.id;
+    return (
+      <div
+        key={o.id}
+        style={{
+          background: surface,
+          border: `1px solid ${suspended ? '#f2caca' : line}`,
+          borderRadius: 16,
+        }}
+      >
+        <div style={{ ...card, border: 0, borderRadius: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>{o.name}</div>
+            <div style={metaLine}>
+              <i className="fas fa-envelope" style={metaIcon} />
+              <span dir="ltr">{o.owner_email || '—'}</span>
+            </div>
+            <div style={metaLine}>
+              <i className="fas fa-key" style={metaIcon} />
+              סיסמה:
+              {tempPassword?.id === o.id && pwVisible ? (
+                <span
+                  dir="ltr"
+                  style={{
+                    marginInlineStart: 6,
+                    fontFamily: 'ui-monospace, Consolas, monospace',
+                    fontWeight: 800,
+                    fontSize: 14,
+                    color: ink,
+                    background: '#fef3c7',
+                    borderRadius: 8,
+                    padding: '2px 8px',
+                    userSelect: 'all',
+                  }}
+                >
+                  {tempPassword.password}
+                </span>
+              ) : (
+                <span style={{ marginInlineStart: 6 }}>••••••••</span>
+              )}
+              {/* Eye: shows / hides the temporary password set by the reset.
+                  The office's own password is a one-way hash — there is nothing
+                  to show until a reset creates a new one. */}
+              <button
+                type="button"
+                disabled={tempPassword?.id !== o.id}
+                onClick={() => setPwVisible((v) => !v)}
+                aria-label={pwVisible && tempPassword?.id === o.id ? 'הסתרת הסיסמה' : 'הצגת הסיסמה'}
+                title={
+                  tempPassword?.id === o.id
+                    ? pwVisible
+                      ? 'הסתרת הסיסמה'
+                      : 'הצגת הסיסמה'
+                    : 'הסיסמה הנוכחית שמורה מוצפנת ואי אפשר להציג אותה — לחץ "איפוס סיסמה" כדי ליצור סיסמה חדשה שתוכל להציג'
+                }
+                style={{
+                  ...linkBtn,
+                  padding: '2px 8px',
+                  opacity: tempPassword?.id === o.id ? 1 : 0.45,
+                  cursor: tempPassword?.id === o.id ? 'pointer' : 'not-allowed',
+                }}
+              >
+                <i
+                  className={
+                    'fas ' + (pwVisible && tempPassword?.id === o.id ? 'fa-eye-slash' : 'fa-eye')
+                  }
+                />
+              </button>
+              {tempPassword?.id === o.id && (
+                <button
+                  type="button"
+                  onClick={() => void copyPassword(tempPassword.password)}
+                  style={linkBtn}
+                >
+                  העתקה
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={busyId === o.id || !o.owner_email}
+                onClick={() => void resetPassword(o)}
+                style={linkBtn}
+              >
+                איפוס סיסמה
+              </button>
+            </div>
+            <div style={metaLine}>
+              <i className="fas fa-calendar-check" style={metaIcon} />
+              {planLabel(o)} · תחילת המינוי: {fmt(periodStart(o))}
+              <span style={{ marginInlineStart: 10 }}>
+                סיום: {o.billing.entitled_until ? fmt(o.billing.entitled_until) : '—'}
+              </span>
+            </div>
+            <div style={metaLine}>
+              <i className="fas fa-receipt" style={metaIcon} />
+              תשלום לחודש הנוכחי:
+              <span
+                style={{
+                  marginInlineStart: 6,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: paidThisMonth(o).fg,
+                  background: paidThisMonth(o).bg,
+                  borderRadius: 999,
+                  padding: '2px 10px',
+                }}
+              >
+                {paidThisMonth(o).text}
+              </span>
+              {o.last_paid_at && (
+                <span style={{ marginInlineStart: 8 }}>
+                  תשלום אחרון: {fmt(o.last_paid_at)}
+                </span>
+              )}
+            </div>
+            <div style={metaLine}>
+              <i className="fas fa-database" style={metaIcon} />
+              <span dir="ltr">{(o.data_db_name || '—').slice(0, 8)}…</span>
+              <span style={{ marginInlineStart: 10 }}>
+                אושר: {fmt(o.approved_at)}
+              </span>
+            </div>
+            {/* Subscription line — the number the operator chases. */}
+            <div style={metaLine}>
+              <i className="fas fa-credit-card" style={metaIcon} />
+              <span style={{ fontWeight: 700, color: tone.fg }}>
+                {BILLING_LABEL[b.effective]}
+              </span>
+              {b.entitled_until && (
+                <span style={{ marginInlineStart: 8 }}>
+                  עד {b.entitled_until.slice(0, 10)} · {daysPhrase(b.days_left)}
+                </span>
+              )}
+              {b.price_amount > 0 && (
+                <span style={{ marginInlineStart: 8 }}>
+                  · {money(b.price_amount, b.price_currency)} לחודש
+                </span>
+              )}
+            </div>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              gap: 8,
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ display: 'flex', gap: 6 }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: tone.fg,
+                  background: tone.bg,
+                  borderRadius: 999,
+                  padding: '4px 12px',
+                }}
+              >
+                {b.blocked ? 'קריאה בלבד' : BILLING_LABEL[b.effective]}
+              </span>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: suspended ? '#b91c1c' : '#15803d',
+                  background: suspended ? '#fee2e2' : '#dcfce7',
+                  borderRadius: 999,
+                  padding: '4px 12px',
+                }}
+              >
+                {suspended ? 'מושבת' : 'פעיל'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {/* Subscription mode — one of three, the current one in green:
+                  manual (free, by the operator), subscription running
+                  (billed by its dates), subscription stopped (read-only). */}
+              {b.plan !== 'operator' &&
+                (
+                  [
+                    {
+                      key: 'manual',
+                      label: 'הפעלה ידנית',
+                      on: b.status === 'manual',
+                      body: { manual: true },
+                      done: `"${o.name}" הופעל ידנית — פטור מתשלום באישור המנהל.`,
+                      confirm: '',
+                    },
+                    {
+                      key: 'run',
+                      label: 'הפעלת מינוי',
+                      on: b.status === 'trialing' || b.status === 'active',
+                      body: { reactivate: true },
+                      done: `המנוי של "${o.name}" הופעל — פועל לפי תקופת התשלום.`,
+                      confirm: '',
+                    },
+                    {
+                      key: 'stop',
+                      label: 'עצירת מינוי',
+                      on: b.status === 'canceled',
+                      body: { cancel: true },
+                      done: `המנוי של "${o.name}" נעצר — המשרד במצב קריאה בלבד.`,
+                      confirm: `לעצור את המנוי של "${o.name}"? המשרד יעבור למצב קריאה בלבד — הנתונים והקבצים שלו נשמרים במלואם.`,
+                    },
+                  ] as const
+                ).map((m) => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    disabled={busyId === o.id || m.on}
+                    aria-pressed={m.on}
+                    onClick={() => {
+                      if (m.confirm && !window.confirm(m.confirm)) return;
+                      void billingAction(o, { ...m.body }, m.done);
+                    }}
+                    style={{
+                      ...solidBtn,
+                      padding: '7px 15px',
+                      fontSize: 13,
+                      minWidth: 0,
+                      // Selected mode green; the other two red.
+                      background: m.on ? '#059669' : '#fee2e2',
+                      color: m.on ? '#fff' : '#b91c1c',
+                      border: m.on ? 0 : '1px solid #fecaca',
+                      cursor: m.on ? 'default' : 'pointer',
+                    }}
+                  >
+                    {m.on && <i className="fas fa-check" style={{ marginInlineEnd: 6 }} />}
+                    {m.label}
+                  </button>
+                ))}
+              <button
+                type="button"
+                onClick={() => void openBilling(o)}
+                style={{
+                  ...solidBtn,
+                  padding: '7px 15px',
+                  fontSize: 13,
+                  minWidth: 0,
+                  background: open ? indigo : '#fff',
+                  color: open ? '#fff' : indigo,
+                  border: open ? 0 : `1px solid ${indigo}33`,
+                }}
+              >
+                חיוב
+              </button>
+              <button
+                type="button"
+                disabled={busyId === o.id}
+                onClick={() =>
+                  act(o, suspended ? 'activate' : 'deactivate')
+                }
+                style={{
+                  ...solidBtn,
+                  padding: '7px 15px',
+                  fontSize: 13,
+                  minWidth: 0,
+                  background: suspended ? '#059669' : '#fff',
+                  color: suspended ? '#fff' : '#b45309',
+                  border: suspended ? 0 : '1px solid #fcd9a8',
+                }}
+              >
+                {busyId === o.id ? '…' : suspended ? 'הפעלה' : 'השבתה'}
+              </button>
+            </div>
+          </div>
+        </div>
+        {open && (
+          <BillingPanel
+            office={o}
+            payments={payments}
+            busy={busyId === o.id}
+            onAction={billingAction}
+          />
+        )}
+      </div>
+    );
+  };
 
   const shell: React.CSSProperties = {
     direction: 'rtl',
@@ -334,7 +701,9 @@ export default function AdminPage() {
     padding: '28px 18px 64px',
     fontFamily: 'Heebo, Assistant, system-ui, sans-serif',
   };
-  const wrap: React.CSSProperties = { maxWidth: 780, margin: '0 auto' };
+  // Side margins only: the gate screens add their own marginTop, and mixing that
+  // with a `margin` shorthand makes React warn when the screen switches.
+  const wrap: React.CSSProperties = { maxWidth: 780, marginLeft: 'auto', marginRight: 'auto' };
 
   // ---- No access (signed in, but not the system owner) --------------------
   if (denied) {
@@ -507,6 +876,13 @@ export default function AdminPage() {
           אי אפשר להציג אותן — גם לא למנהל המערכת.
         </div>
 
+        {mine && (
+          <div style={{ marginBottom: 18 }}>
+            <SectionTitle text="המשרד שלי" icon="fa-star" color={gold} />
+            {officeCard(mine)}
+          </div>
+        )}
+
         {offices.length > 0 && (
           <div style={{ position: 'relative', marginBottom: 16 }}>
             <i
@@ -622,199 +998,11 @@ export default function AdminPage() {
             <SectionTitle text="משרדים" icon="fa-building" color={indigo} />
             {others.length === 0 ? (
               <div style={emptyBox}>
-                {q ? 'לא נמצאו תוצאות לחיפוש.' : 'עדיין אין משרדים.'}
+                {q ? 'לא נמצאו תוצאות לחיפוש.' : 'עדיין אין משרדים נוספים.'}
               </div>
             ) : (
               <div style={{ display: 'grid', gap: 10 }}>
-                {others.map((o) => {
-                  const suspended = o.status === 'suspended';
-                  const b = o.billing;
-                  const tone = BILLING_COLOR[b.effective];
-                  const open = billingFor === o.id;
-                  return (
-                    <div
-                      key={o.id}
-                      style={{
-                        background: surface,
-                        border: `1px solid ${suspended ? '#f2caca' : line}`,
-                        borderRadius: 16,
-                      }}
-                    >
-                      <div style={{ ...card, border: 0, borderRadius: 0 }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 800, fontSize: 15 }}>{o.name}</div>
-                          <div style={metaLine}>
-                            <i className="fas fa-envelope" style={metaIcon} />
-                            <span dir="ltr">{o.owner_email || '—'}</span>
-                          </div>
-                          <div style={metaLine}>
-                            <i className="fas fa-calendar-check" style={metaIcon} />
-                            תחילת המינוי: {fmt(periodStart(o))}
-                            <span style={{ marginInlineStart: 10 }}>
-                              סיום: {o.billing.entitled_until ? fmt(o.billing.entitled_until) : '—'}
-                            </span>
-                          </div>
-                          <div style={metaLine}>
-                            <i className="fas fa-receipt" style={metaIcon} />
-                            תשלום לחודש הנוכחי:
-                            <span
-                              style={{
-                                marginInlineStart: 6,
-                                fontSize: 12,
-                                fontWeight: 800,
-                                color: paidThisMonth(o).fg,
-                                background: paidThisMonth(o).bg,
-                                borderRadius: 999,
-                                padding: '2px 10px',
-                              }}
-                            >
-                              {paidThisMonth(o).text}
-                            </span>
-                            {o.last_paid_at && (
-                              <span style={{ marginInlineStart: 8 }}>
-                                תשלום אחרון: {fmt(o.last_paid_at)}
-                              </span>
-                            )}
-                          </div>
-                          <div style={metaLine}>
-                            <i className="fas fa-database" style={metaIcon} />
-                            <span dir="ltr">{(o.data_db_name || '—').slice(0, 8)}…</span>
-                            <span style={{ marginInlineStart: 10 }}>
-                              אושר: {fmt(o.approved_at)}
-                            </span>
-                          </div>
-                          {/* Subscription line — the number the operator chases. */}
-                          <div style={metaLine}>
-                            <i className="fas fa-credit-card" style={metaIcon} />
-                            <span style={{ fontWeight: 700, color: tone.fg }}>
-                              {BILLING_LABEL[b.effective]}
-                            </span>
-                            {b.entitled_until && (
-                              <span style={{ marginInlineStart: 8 }}>
-                                עד {b.entitled_until.slice(0, 10)} · {daysPhrase(b.days_left)}
-                              </span>
-                            )}
-                            {b.price_amount > 0 && (
-                              <span style={{ marginInlineStart: 8 }}>
-                                · {money(b.price_amount, b.price_currency)} לחודש
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'flex-end',
-                            gap: 8,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <span
-                              style={{
-                                fontSize: 12,
-                                fontWeight: 800,
-                                color: tone.fg,
-                                background: tone.bg,
-                                borderRadius: 999,
-                                padding: '4px 12px',
-                              }}
-                            >
-                              {b.blocked ? 'קריאה בלבד' : BILLING_LABEL[b.effective]}
-                            </span>
-                            <span
-                              style={{
-                                fontSize: 12,
-                                fontWeight: 800,
-                                color: suspended ? '#b91c1c' : '#15803d',
-                                background: suspended ? '#fee2e2' : '#dcfce7',
-                                borderRadius: 999,
-                                padding: '4px 12px',
-                              }}
-                            >
-                              {suspended ? 'מושבת' : 'פעיל'}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                            {b.plan !== 'operator' && (
-                              <button
-                                type="button"
-                                disabled={busyId === o.id}
-                                onClick={() => {
-                                  if (b.status === 'canceled') {
-                                    void billingAction(o, { reactivate: true }, `המנוי של "${o.name}" הופעל.`);
-                                    return;
-                                  }
-                                  if (
-                                    !window.confirm(
-                                      `לעצור את המנוי של "${o.name}"? המשרד יעבור למצב קריאה בלבד — הנתונים והקבצים שלו נשמרים במלואם.`,
-                                    )
-                                  ) {
-                                    return;
-                                  }
-                                  void billingAction(o, { cancel: true }, `המנוי של "${o.name}" נעצר — המשרד במצב קריאה בלבד.`);
-                                }}
-                                style={{
-                                  ...solidBtn,
-                                  padding: '7px 15px',
-                                  fontSize: 13,
-                                  minWidth: 0,
-                                  background: b.status === 'canceled' ? '#059669' : '#fff',
-                                  color: b.status === 'canceled' ? '#fff' : '#b91c1c',
-                                  border: b.status === 'canceled' ? 0 : '1px solid #fecaca',
-                                }}
-                              >
-                                {busyId === o.id ? '…' : b.status === 'canceled' ? 'הפעלת מינוי' : 'עצירת מינוי'}
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => void openBilling(o)}
-                              style={{
-                                ...solidBtn,
-                                padding: '7px 15px',
-                                fontSize: 13,
-                                minWidth: 0,
-                                background: open ? indigo : '#fff',
-                                color: open ? '#fff' : indigo,
-                                border: open ? 0 : `1px solid ${indigo}33`,
-                              }}
-                            >
-                              חיוב
-                            </button>
-                            <button
-                              type="button"
-                              disabled={busyId === o.id}
-                              onClick={() =>
-                                act(o, suspended ? 'activate' : 'deactivate')
-                              }
-                              style={{
-                                ...solidBtn,
-                                padding: '7px 15px',
-                                fontSize: 13,
-                                minWidth: 0,
-                                background: suspended ? '#059669' : '#fff',
-                                color: suspended ? '#fff' : '#b45309',
-                                border: suspended ? 0 : '1px solid #fcd9a8',
-                              }}
-                            >
-                              {busyId === o.id ? '…' : suspended ? 'הפעלה' : 'השבתה'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      {open && (
-                        <BillingPanel
-                          office={o}
-                          payments={payments}
-                          busy={busyId === o.id}
-                          onAction={billingAction}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
+                {others.map(officeCard)}
               </div>
             )}
           </>
@@ -823,6 +1011,20 @@ export default function AdminPage() {
     </div>
   );
 }
+
+/** Small inline text button (password row). */
+const linkBtn: React.CSSProperties = {
+  marginInlineStart: 8,
+  padding: '2px 10px',
+  borderRadius: 999,
+  border: '1px solid #c7d2fe',
+  background: '#eef2ff',
+  color: '#4338ca',
+  fontWeight: 700,
+  fontSize: 12,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+};
 
 const ghostBtn: React.CSSProperties = {
   padding: '9px 14px',
@@ -928,13 +1130,17 @@ function BillingPanel({
   const b = office.billing;
   // Price is entered in SHEKELS here and stored in agorot — the conversion
   // happens once, on submit, so the input never shows a minor-unit number.
-  const [priceMajor, setPriceMajor] = useState(String((b.price_amount || 0) / 100));
+  const monthly = b.price_amount || STANDARD_MONTHLY_PRICE;
+  const [priceMajor, setPriceMajor] = useState(String(monthly / 100));
   const [months, setMonths] = useState('1');
-  const [amountMajor, setAmountMajor] = useState(
-    String((b.price_amount || 0) / 100),
-  );
+  // The amount follows the period: month = 699 ₪, year = 12 × 699 = 8,388 ₪.
+  const [amountMajor, setAmountMajor] = useState(String(monthly / 100));
+  const pickMonths = (value: string) => {
+    setMonths(value);
+    setAmountMajor(String(((Number(value) || 1) * monthly) / 100));
+  };
   const [reference, setReference] = useState('');
-  const [trialDays, setTrialDays] = useState('14');
+  const [trialDays, setTrialDays] = useState('3');
   const [note, setNote] = useState(office.billing_note || '');
 
   const toMinor = (major: string) => Math.round((Number(major) || 0) * 100);
@@ -965,18 +1171,16 @@ function BillingPanel({
         >
           <div>
             <label style={labelStyle} htmlFor={`months-${office.id}`}>
-              תקופה
+              סוג מינוי
             </label>
             <select
               id={`months-${office.id}`}
               value={months}
-              onChange={(e) => setMonths(e.target.value)}
+              onChange={(e) => pickMonths(e.target.value)}
               style={fieldStyle}
             >
-              <option value="1">חודש</option>
-              <option value="3">3 חודשים</option>
-              <option value="6">6 חודשים</option>
-              <option value="12">שנה</option>
+              <option value="1">מינוי חודשי — 699 ₪ (חודש אחד)</option>
+              <option value="12">מינוי שנתי — 8,388 ₪ (12 חודשים)</option>
             </select>
           </div>
           <div>
@@ -1017,7 +1221,9 @@ function BillingPanel({
                   amount: toMinor(amountMajor),
                   reference,
                 },
-                `נרשם תשלום עבור "${office.name}" — המנוי הוארך.`,
+                months === '12'
+                  ? `נרשם מינוי שנתי עבור "${office.name}" — פעיל ל-12 חודשים.`
+                  : `נרשם מינוי חודשי עבור "${office.name}" — פעיל לחודש.`,
               )
             }
             style={{ ...solidBtn, background: '#059669', padding: '10px 16px' }}
@@ -1138,53 +1344,9 @@ function BillingPanel({
           flexWrap: 'wrap',
         }}
       >
-        {b.status === 'canceled' ? (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() =>
-              void onAction(
-                office,
-                { reactivate: true },
-                `המנוי של "${office.name}" חודש.`,
-              )
-            }
-            style={{ ...solidBtn, background: '#059669', padding: '9px 16px' }}
-          >
-            חידוש מנוי
-          </button>
-        ) : (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              if (
-                !window.confirm(
-                  `לבטל את המנוי של "${office.name}"? המשרד יעבור למצב קריאה בלבד — הנתונים והקבצים שלו נשמרים במלואם.`,
-                )
-              ) {
-                return;
-              }
-              void onAction(
-                office,
-                { cancel: true },
-                `המנוי של "${office.name}" בוטל — המשרד במצב קריאה בלבד.`,
-              );
-            }}
-            style={{
-              ...solidBtn,
-              background: '#fff',
-              color: '#b91c1c',
-              border: '1px solid #fecaca',
-              padding: '9px 16px',
-            }}
-          >
-            ביטול מנוי
-          </button>
-        )}
         <span style={{ color: muted, fontSize: 12 }}>
-          ביטול אינו מוחק דבר — המשרד ממשיך לראות את התיקים והקבצים שלו, ורק
-          הכתיבה נחסמת.
+          עצירת מינוי אינה מוחקת דבר — המשרד ממשיך לראות את התיקים והקבצים שלו, ורק
+          הכתיבה נחסמת. הפעלה, עצירה והפעלה ידנית נבחרות בכפתורים שבכרטיס המשרד.
         </span>
       </div>
 

@@ -201,6 +201,32 @@ export function Topbar() {
       <div className="actions">
         {isHome && (
           <div className="home-only-settings-wrap">
+            {/* Right of Settings (RTL: first in the row). */}
+            {isAdmin && (
+              <button
+                type="button"
+                className="mini-btn home-settings-only-btn admin-dashboard-btn"
+                onClick={() => router.push('/admin')}
+                // Twin of #homeSettingsOnlyBtn: globals.css gives this id every
+                // rule the Settings button has, so the two match in every theme
+                // and screen size (with a shield where Settings draws a gear).
+                id="homeAdminDashboardBtn"
+              >
+                <i className="fas fa-user-shield" />
+                <svg
+                  className="topbar-mobile-dark-icon topbar-mobile-dark-icon-shield"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 512 512"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="#000000"
+                    d="M256 24 L456 96 V232 C456 368 368 456 256 488 C144 456 56 368 56 232 V96 Z"
+                  />
+                </svg>
+                <span> {settingsText('ניהול משתמשים', 'إدارة المستخدمين')}</span>
+              </button>
+            )}
             <button
               type="button"
               className="mini-btn home-settings-only-btn"
@@ -225,16 +251,6 @@ export function Topbar() {
               </svg>
               <span> {t('settings')}</span>
             </button>
-            {isAdmin && (
-              <button
-                type="button"
-                className="mini-btn home-settings-only-btn admin-dashboard-btn"
-                onClick={() => router.push('/admin')}
-              >
-                <i className="fas fa-user-shield" />
-                <span> {settingsText('ניהול משתמשים', 'إدارة المستخدمين')}</span>
-              </button>
-            )}
           </div>
         )}
 

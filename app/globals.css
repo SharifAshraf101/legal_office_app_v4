@@ -10951,13 +10951,13 @@ body.dark .inline-settings-panel.enhanced-settings.settings-v179-open{
  * <style id="legal-office-v180-home-settings-only-style">
  * ============================================================ */
 .home-only-settings-wrap{display:inline-flex!important;align-items:center!important;position:relative!important;z-index:420!important;}
-#homeSettingsOnlyBtn.home-settings-only-btn{
+#homeSettingsOnlyBtn.home-settings-only-btn,#homeAdminDashboardBtn.home-settings-only-btn{
   display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;
   pointer-events:auto!important;cursor:pointer!important;touch-action:manipulation!important;-webkit-tap-highlight-color:transparent!important;
   position:relative!important;z-index:2147483605!important;
 }
-#homeSettingsOnlyBtn.home-settings-only-btn i{pointer-events:none!important;}
-@media(max-width:620px){#homeSettingsOnlyBtn.home-settings-only-btn{width:44px!important;height:44px!important;padding:0!important;border-radius:999px!important;}#homeSettingsOnlyBtn.home-settings-only-btn span{display:none!important;}#homeSettingsOnlyBtn.home-settings-only-btn i{font-size:15px!important;margin:0!important;}}
+#homeSettingsOnlyBtn.home-settings-only-btn i,#homeAdminDashboardBtn.home-settings-only-btn i{pointer-events:none!important;}
+@media(max-width:620px){#homeSettingsOnlyBtn.home-settings-only-btn,#homeAdminDashboardBtn.home-settings-only-btn{width:44px!important;height:44px!important;padding:0!important;border-radius:999px!important;}#homeSettingsOnlyBtn.home-settings-only-btn span,#homeAdminDashboardBtn.home-settings-only-btn span{display:none!important;}#homeSettingsOnlyBtn.home-settings-only-btn i,#homeAdminDashboardBtn.home-settings-only-btn i{font-size:15px!important;margin:0!important;}}
 #homeSettingsOnlyBackdrop.v180-open{display:block!important;position:fixed!important;inset:0!important;background:rgba(15,23,42,.22)!important;z-index:2147483600!important;backdrop-filter:blur(4px)!important;}
 #homeSettingsOnlyDrawer.v180-open{display:grid!important;visibility:visible!important;opacity:1!important;gap:12px!important;position:fixed!important;z-index:2147483601!important;width:min(430px,calc(100vw - 28px))!important;max-height:calc(100vh - 76px)!important;overflow-y:auto!important;overflow-x:hidden!important;background:var(--surface)!important;color:var(--text,#152033)!important;border:1px solid #dbe3ef!important;border-radius:22px!important;padding:14px!important;box-shadow:0 24px 60px rgba(15,23,42,.26)!important;pointer-events:auto!important;}
 #homeSettingsOnlyDrawer.v180-open *{pointer-events:auto!important;}
@@ -12148,7 +12148,7 @@ body.dark #mobileTopSettingsPanel.settings-v211-open{
  * ============================================================ */
 /* v212: final settings click fix. Replace pointerdown-driven buttons with click-only buttons. */
 #homeSettingsOnlyBtnV212.home-settings-only-btn,
-#legalSettingsOpenBtnV212.mobile-settings-btn{
+#legalSettingsOpenBtnV212.mobile-settings-btn,#homeAdminDashboardBtnV212.home-settings-only-btn{
   display:inline-flex!important;
   align-items:center!important;
   justify-content:center!important;
@@ -12161,13 +12161,13 @@ body.dark #mobileTopSettingsPanel.settings-v211-open{
   z-index:2147483805!important;
 }
 #homeSettingsOnlyBtnV212.home-settings-only-btn i,
-#legalSettingsOpenBtnV212.mobile-settings-btn i{pointer-events:none!important;}
+#legalSettingsOpenBtnV212.mobile-settings-btn i,#homeAdminDashboardBtnV212.home-settings-only-btn i{pointer-events:none!important;}
 @media(max-width:620px){
   #homeSettingsOnlyBtnV212.home-settings-only-btn,
-  #legalSettingsOpenBtnV212.mobile-settings-btn{
+  #legalSettingsOpenBtnV212.mobile-settings-btn,#homeAdminDashboardBtnV212.home-settings-only-btn{
     width:44px!important;height:44px!important;padding:0!important;border-radius:999px!important;
   }
-  #homeSettingsOnlyBtnV212.home-settings-only-btn span{display:none!important;}
+  #homeSettingsOnlyBtnV212.home-settings-only-btn span,#homeAdminDashboardBtnV212.home-settings-only-btn span{display:none!important;}
 }
 #mobileTopSettingsPanel.settings-v212-open,
 .inline-settings-panel.enhanced-settings.settings-v212-open,
@@ -21128,7 +21128,7 @@ html[lang="ar"] .content.content.content.content:not(.home-content) .calendar-li
  * ===================================================================== */
 html body:not(.dark) .topbar.home-topbar .home-only-settings-wrap #homeSettingsOnlyBtn.home-settings-only-btn,
 html body:not(.dark) .topbar .home-only-settings-wrap #homeSettingsOnlyBtn.home-settings-only-btn,
-html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn {
+html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn,html body:not(.dark) .topbar.home-topbar .home-only-settings-wrap #homeAdminDashboardBtn.home-settings-only-btn,html body:not(.dark) .topbar .home-only-settings-wrap #homeAdminDashboardBtn.home-settings-only-btn,html body:not(.dark) #topbar.home-topbar #homeAdminDashboardBtn.home-settings-only-btn {
   height: auto !important;
   min-height: 0 !important;
   padding: 11px 16px !important;
@@ -21153,18 +21153,18 @@ html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only
   line-height: 1.15 !important;
 }
 html body:not(.dark) .topbar.home-topbar .home-only-settings-wrap #homeSettingsOnlyBtn.home-settings-only-btn span,
-html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn span {
+html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn span,html body:not(.dark) .topbar.home-topbar .home-only-settings-wrap #homeAdminDashboardBtn.home-settings-only-btn span,html body:not(.dark) #topbar.home-topbar #homeAdminDashboardBtn.home-settings-only-btn span {
   display: inline !important;
   font-size: 14px !important;
   color: #0F172A !important;
 }
 html body:not(.dark) .topbar.home-topbar .home-only-settings-wrap #homeSettingsOnlyBtn.home-settings-only-btn i,
-html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn i {
+html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn i,html body:not(.dark) .topbar.home-topbar .home-only-settings-wrap #homeAdminDashboardBtn.home-settings-only-btn i,html body:not(.dark) #topbar.home-topbar #homeAdminDashboardBtn.home-settings-only-btn i {
   font-size: 14px !important;
   color: #0F172A !important;
 }
 html body:not(.dark) .topbar.home-topbar .home-only-settings-wrap #homeSettingsOnlyBtn.home-settings-only-btn:hover,
-html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn:hover {
+html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn:hover,html body:not(.dark) .topbar.home-topbar .home-only-settings-wrap #homeAdminDashboardBtn.home-settings-only-btn:hover,html body:not(.dark) #topbar.home-topbar #homeAdminDashboardBtn.home-settings-only-btn:hover {
   background: #F2ECDD !important;
   border-color: #D9CFB8 !important;
 }
@@ -21294,7 +21294,7 @@ html body.dark #topbar.topbar.topbar .actions .btn span:not(.quick-plus),
 html body.dark #topbar.topbar.topbar #quickAction span,
 html body.dark #topbar.topbar.topbar .documents-top-btn .quick-label,
 html body.dark #topbar.topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn span,
-html body.dark #topbar.topbar.topbar .mini-btn span {
+html body.dark #topbar.topbar.topbar .mini-btn span,html body.dark #topbar.topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn span {
   display: inline !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -22263,7 +22263,7 @@ html body.dark .topbar #quickAction .qa-icon-stack i.nav-icon-portal  { color: #
  * descendant `* { color: navy-black }` override. */
 html body:not(.dark) #topbar #homeSettingsOnlyBtn.home-settings-only-btn > i,
 html body:not(.dark) .topbar #homeSettingsOnlyBtn.home-settings-only-btn > i,
-html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn > i {
+html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn > i,html body:not(.dark) #topbar #homeAdminDashboardBtn.home-settings-only-btn > i,html body:not(.dark) .topbar #homeAdminDashboardBtn.home-settings-only-btn > i,html body:not(.dark) #topbar.home-topbar #homeAdminDashboardBtn.home-settings-only-btn > i {
   color: #475569 !important; /* slate-600 — neutral but visible */
 }
 
@@ -22870,7 +22870,7 @@ html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only
   html body.dark .topbar .home-only-settings-wrap #homeSettingsOnlyBtn.home-settings-only-btn span,
   html body.dark #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn span,
   html body.dark .topbar.home-topbar #quickAction.btn.btn-primary > .quick-label,
-  html body.dark #topbar.home-topbar #quickAction.btn.btn-primary > .quick-label {
+  html body.dark #topbar.home-topbar #quickAction.btn.btn-primary > .quick-label,html body:not(.dark) .topbar .home-only-settings-wrap #homeAdminDashboardBtn.home-settings-only-btn span,html body:not(.dark) #topbar .home-only-settings-wrap #homeAdminDashboardBtn.home-settings-only-btn span,html body:not(.dark) .topbar.home-topbar #homeAdminDashboardBtn.home-settings-only-btn span,html body:not(.dark) #topbar.home-topbar #homeAdminDashboardBtn.home-settings-only-btn span,html body.dark .topbar .home-only-settings-wrap #homeAdminDashboardBtn.home-settings-only-btn span,html body.dark #topbar.home-topbar #homeAdminDashboardBtn.home-settings-only-btn span {
     display: none !important;
   }
 
@@ -22883,7 +22883,7 @@ html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only
   html body .topbar #quickAction.btn.btn-primary,
   html body #topbar #quickAction.btn.btn-primary,
   html body .topbar.home-topbar #quickAction.btn.btn-primary,
-  html body #topbar.home-topbar #quickAction.btn.btn-primary {
+  html body #topbar.home-topbar #quickAction.btn.btn-primary,html body .topbar .home-only-settings-wrap #homeAdminDashboardBtn.home-settings-only-btn,html body #topbar.home-topbar #homeAdminDashboardBtn.home-settings-only-btn {
     min-width: 44px !important;
     width: 44px !important;
     max-width: 44px !important;
@@ -22908,7 +22908,7 @@ html body:not(.dark) #topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only
   html body .topbar #quickAction.btn.btn-primary .qa-icon-stack > .qa-base-icon,
   html body #topbar #quickAction.btn.btn-primary .qa-icon-stack > .qa-base-icon,
   html body .topbar.home-topbar #quickAction.btn.btn-primary .qa-icon-stack > .qa-base-icon,
-  html body #topbar.home-topbar #quickAction.btn.btn-primary .qa-icon-stack > .qa-base-icon {
+  html body #topbar.home-topbar #quickAction.btn.btn-primary .qa-icon-stack > .qa-base-icon,html body .topbar .home-only-settings-wrap #homeAdminDashboardBtn.home-settings-only-btn > i,html body #topbar.home-topbar #homeAdminDashboardBtn.home-settings-only-btn > i {
     margin: 0 !important;
     font-size: 18px !important;
     width: 22px !important;
@@ -23071,7 +23071,7 @@ body.dark .sidebar.sidebar.sidebar.sidebar .nav-btn i.nav-icon-portal  { color: 
   /* Settings gear (#homeSettingsOnlyBtn) — same square shape so
    * the two home-topbar buttons match each other visually. */
   html body #topbar.topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn,
-  html body.dark #topbar.topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn {
+  html body.dark #topbar.topbar.home-topbar #homeSettingsOnlyBtn.home-settings-only-btn,html body #topbar.topbar.home-topbar #homeAdminDashboardBtn.home-settings-only-btn,html body.dark #topbar.topbar.home-topbar #homeAdminDashboardBtn.home-settings-only-btn {
     width: 44px !important;
     min-width: 44px !important;
     max-width: 44px !important;
@@ -23581,7 +23581,7 @@ html body .finance-payment-delete-btn:hover {
  * at line ~21243. */
 @media (min-width: 1051px) {
   html body #topbar.topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn,
-  html body .topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn {
+  html body .topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn,html body #topbar.topbar.home-topbar .actions #homeAdminDashboardBtn.home-settings-only-btn,html body .topbar.home-topbar .actions #homeAdminDashboardBtn.home-settings-only-btn {
     padding: 11px 16px !important;
     font-size: 14px !important;
     font-weight: 780 !important;
@@ -23598,7 +23598,7 @@ html body .finance-payment-delete-btn:hover {
     justify-content: center !important;
   }
   html body #topbar.topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn i,
-  html body .topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn i {
+  html body .topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn i,html body #topbar.topbar.home-topbar .actions #homeAdminDashboardBtn.home-settings-only-btn i,html body .topbar.home-topbar .actions #homeAdminDashboardBtn.home-settings-only-btn i {
     font-size: 18px !important;
     width: 22px !important;
     height: 22px !important;
@@ -23608,7 +23608,7 @@ html body .finance-payment-delete-btn:hover {
     margin: 0 !important;
   }
   html body #topbar.topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn span,
-  html body .topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn span {
+  html body .topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn span,html body #topbar.topbar.home-topbar .actions #homeAdminDashboardBtn.home-settings-only-btn span,html body .topbar.home-topbar .actions #homeAdminDashboardBtn.home-settings-only-btn span {
     display: inline !important;
     font-size: 14px !important;
     font-weight: 780 !important;
@@ -32164,7 +32164,7 @@ body.dark .sidebar.sidebar.sidebar .side-nav .nav-btn:hover {
   html body .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn > span,
   html body .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn.mini-btn span,
   html body .topbar.topbar.home-topbar #homeSettingsOnlyBtn span,
-  html body .topbar.topbar.home-topbar #homeSettingsOnlyBtn > span {
+  html body .topbar.topbar.home-topbar #homeSettingsOnlyBtn > span,html body .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn span,html body .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn > span,html body .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn.mini-btn span,html body .topbar.topbar.home-topbar #homeAdminDashboardBtn span,html body .topbar.topbar.home-topbar #homeAdminDashboardBtn > span {
     display: none !important;
     visibility: hidden !important;
     width: 0 !important;
@@ -32182,7 +32182,7 @@ body.dark .sidebar.sidebar.sidebar .side-nav .nav-btn:hover {
   html body .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn > i,
   html body .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn i.fa-gear,
   html body .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn .fa-gear,
-  html body .topbar.topbar.home-topbar #homeSettingsOnlyBtn i {
+  html body .topbar.topbar.home-topbar #homeSettingsOnlyBtn i,html body .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn i,html body .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn > i,html body .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn i.fa-gear,html body .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn .fa-gear,html body .topbar.topbar.home-topbar #homeAdminDashboardBtn i {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -32203,6 +32203,12 @@ body.dark .sidebar.sidebar.sidebar .side-nav .nav-btn:hover {
   html body .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn i.fa-gear::before,
   html body .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn .fa-gear::before {
     content: "\f013" !important;
+    font-family: "Font Awesome 6 Free" !important;
+    font-weight: 900 !important;
+  }
+  html body .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn i.fa-gear::before,
+  html body .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn .fa-gear::before {
+    content: "\f505" !important;
     font-family: "Font Awesome 6 Free" !important;
     font-weight: 900 !important;
   }
@@ -32271,7 +32277,7 @@ body.dark .sidebar.sidebar.sidebar .side-nav .nav-btn:hover {
 @media (max-width: 1050px) {
   /* SETTINGS BUTTON — dark surface, light icon */
   html body.dark .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn,
-  html body.dark .topbar.topbar.home-topbar #homeSettingsOnlyBtn {
+  html body.dark .topbar.topbar.home-topbar #homeSettingsOnlyBtn,html body.dark .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn,html body.dark .topbar.topbar.home-topbar #homeAdminDashboardBtn {
     background: #1E293B !important;
     background-color: #1E293B !important;
     background-image: none !important;
@@ -32280,14 +32286,14 @@ body.dark .sidebar.sidebar.sidebar .side-nav .nav-btn:hover {
     color: #F8FAFC !important;
   }
   html body.dark .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn:hover,
-  html body.dark .topbar.topbar.home-topbar #homeSettingsOnlyBtn:hover {
+  html body.dark .topbar.topbar.home-topbar #homeSettingsOnlyBtn:hover,html body.dark .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn:hover,html body.dark .topbar.topbar.home-topbar #homeAdminDashboardBtn:hover {
     background: #334155 !important;
     border-color: #60A5FA !important;
   }
   /* Gear icon → bright light slate */
   html body.dark .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn i,
   html body.dark .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn i.fa-gear,
-  html body.dark .topbar.topbar.home-topbar #homeSettingsOnlyBtn i {
+  html body.dark .topbar.topbar.home-topbar #homeSettingsOnlyBtn i,html body.dark .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn i,html body.dark .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn i.fa-gear,html body.dark .topbar.topbar.home-topbar #homeAdminDashboardBtn i {
     color: #F8FAFC !important;
     -webkit-text-fill-color: #F8FAFC !important;
   }
@@ -32334,7 +32340,7 @@ body.dark .sidebar.sidebar.sidebar .side-nav .nav-btn:hover {
  * ================================================================ */
 @media (max-width: 1050px) {
   /* Hide text labels — keep icons */
-  html body #homeSettingsOnlyBtn > span {
+  html body #homeSettingsOnlyBtn > span,html body #homeAdminDashboardBtn > span {
     display: none !important;
   }
   html body #quickAction .quick-label {
@@ -32343,7 +32349,7 @@ body.dark .sidebar.sidebar.sidebar .side-nav .nav-btn:hover {
 
   /* SETTINGS BUTTON — dark slate rounded square (within @media) */
   html body #homeSettingsOnlyBtn,
-  body.dark #homeSettingsOnlyBtn {
+  body.dark #homeSettingsOnlyBtn,html body #homeAdminDashboardBtn,body.dark #homeAdminDashboardBtn {
     background: #1E293B !important;
     background-color: #1E293B !important;
     border: 1px solid #475569 !important;
@@ -32363,7 +32369,7 @@ body.dark .sidebar.sidebar.sidebar .side-nav .nav-btn:hover {
   }
   /* Hide inner <i> + <span> (cause they may be invisible / broken) */
   html body #homeSettingsOnlyBtn > i,
-  html body #homeSettingsOnlyBtn > span {
+  html body #homeSettingsOnlyBtn > span,html body #homeAdminDashboardBtn > i,html body #homeAdminDashboardBtn > span {
     display: none !important;
   }
   /* Gear icon via SVG background — ALWAYS bright (white) since the
@@ -32371,6 +32377,14 @@ body.dark .sidebar.sidebar.sidebar .side-nav .nav-btn:hover {
   html body #homeSettingsOnlyBtn,
   body.dark #homeSettingsOnlyBtn {
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23F8FAFC'><path d='M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z'/></svg>") !important;
+    background-repeat: no-repeat !important;
+    background-position: center center !important;
+    background-size: 22px 22px !important;
+    background-color: #1E293B !important;
+  }
+  html body #homeAdminDashboardBtn,
+  body.dark #homeAdminDashboardBtn {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23F8FAFC'><path d='M256 24 L456 96 V232 C456 368 368 456 256 488 C144 456 56 368 56 232 V96 Z'/></svg>") !important;
     background-repeat: no-repeat !important;
     background-position: center center !important;
     background-size: 22px 22px !important;
@@ -32471,10 +32485,42 @@ html body.dark #homeSettingsOnlyBtn {
   position: relative !important;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
 }
+html body #homeAdminDashboardBtn.home-settings-only-btn.mini-btn,
+html body #homeAdminDashboardBtn.home-settings-only-btn,
+html body.dark #homeAdminDashboardBtn.home-settings-only-btn.mini-btn,
+html body.dark #homeAdminDashboardBtn.home-settings-only-btn,
+html body #homeAdminDashboardBtn,
+html body.dark #homeAdminDashboardBtn {
+  background: #1E293B !important;
+  background-color: #1E293B !important;
+  /* SVG gear fill = BLACK (#23000000 URL-encoded) per user request —
+   * was previously sky-cyan #38BDF8 but kept reappearing in mobile
+   * dark mode despite override blocks at the file's tail. Editing
+   * the source rule directly guarantees it wins regardless of cascade
+   * order or dynamic rerenders. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23000000'><path d='M256 24 L456 96 V232 C456 368 368 456 256 488 C144 456 56 368 56 232 V96 Z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-size: 22px 22px !important;
+  border: 1px solid #475569 !important;
+  color: #F8FAFC !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  border-radius: 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  position: relative !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+}
 html body #homeSettingsOnlyBtn > i,
 html body #homeSettingsOnlyBtn > span,
 html body.dark #homeSettingsOnlyBtn > i,
-html body.dark #homeSettingsOnlyBtn > span {
+html body.dark #homeSettingsOnlyBtn > span,html body #homeAdminDashboardBtn > i,html body #homeAdminDashboardBtn > span,html body.dark #homeAdminDashboardBtn > i,html body.dark #homeAdminDashboardBtn > span {
   display: none !important;
 }
 
@@ -32567,6 +32613,18 @@ html body #quickAction .quick-label {
     background: #1E293B !important;
     background-color: #1E293B !important;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23000000'><path d='M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z'/></svg>") !important;
+    background-repeat: no-repeat !important;
+    background-position: center center !important;
+    background-size: 22px 22px !important;
+  }
+  body.dark #homeAdminDashboardBtn,
+  html body.dark #homeAdminDashboardBtn,
+  html body.dark.dark #homeAdminDashboardBtn,
+  html body.dark.dark #homeAdminDashboardBtn.home-settings-only-btn,
+  html body.dark.dark #homeAdminDashboardBtn.home-settings-only-btn.mini-btn {
+    background: #1E293B !important;
+    background-color: #1E293B !important;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23000000'><path d='M256 24 L456 96 V232 C456 368 368 456 256 488 C144 456 56 368 56 232 V96 Z'/></svg>") !important;
     background-repeat: no-repeat !important;
     background-position: center center !important;
     background-size: 22px 22px !important;
@@ -36246,7 +36304,7 @@ html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-mobile-
   html body #topbar.topbar.topbar .actions > #quickAction,
   html body #topbar.topbar.topbar .actions > #quickAction.btn,
   html body #topbar.topbar.topbar .actions > #quickAction.btn.btn-primary,
-  html body #topbar.topbar.topbar .actions > button {
+  html body #topbar.topbar.topbar .actions > button,html body #topbar.topbar.topbar .actions #homeAdminDashboardBtn,html body #topbar.topbar.topbar .actions #homeAdminDashboardBtn.home-settings-only-btn {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -36353,7 +36411,7 @@ html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.case-detail-mobile-
   html body #topbar.topbar.topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn,
   html body #topbar.topbar.topbar .actions .home-only-settings-wrap > #homeSettingsOnlyBtn,
   html body.dark #topbar.topbar.topbar .actions #homeSettingsOnlyBtn,
-  html body.dark #topbar.topbar.topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn {
+  html body.dark #topbar.topbar.topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn,html body #topbar.topbar.topbar .actions #homeAdminDashboardBtn,html body #topbar.topbar.topbar .actions #homeAdminDashboardBtn.home-settings-only-btn,html body #topbar.topbar.topbar .actions .home-only-settings-wrap > #homeAdminDashboardBtn,html body.dark #topbar.topbar.topbar .actions #homeAdminDashboardBtn,html body.dark #topbar.topbar.topbar .actions #homeAdminDashboardBtn.home-settings-only-btn {
     background-image: none !important;
   }
 }
@@ -36476,6 +36534,18 @@ html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .modal-box.settings
     background-position: center center !important;
     background-size: 22px 22px !important;
   }
+  html.html body.dark #homeAdminDashboardBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn,
+  html.html body.dark.dark #homeAdminDashboardBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn,
+  html.html body.dark.dark.dark #homeAdminDashboardBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn,
+  html.html body.dark #homeAdminDashboardBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.mini-btn,
+  html.html body.dark.dark #homeAdminDashboardBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.mini-btn {
+    background: #1E293B !important;
+    background-color: #1E293B !important;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23000000'><path d='M256 24 L456 96 V232 C456 368 368 456 256 488 C144 456 56 368 56 232 V96 Z'/></svg>") !important;
+    background-repeat: no-repeat !important;
+    background-position: center center !important;
+    background-size: 22px 22px !important;
+  }
 
   /* New Event button — GREEN calendar via SVG background-image
    * ONLY on home topbar (#topbar.home-topbar). Other tabs' quick-
@@ -36594,7 +36664,7 @@ html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .modal-box.settings
   body.dark #topbar.home-topbar #quickAction,
   html body.dark #homeSettingsOnlyBtn,
   html body.dark .topbar.home-topbar #quickAction,
-  html body.dark #topbar.home-topbar #quickAction {
+  html body.dark #topbar.home-topbar #quickAction,body.dark #homeAdminDashboardBtn,html body.dark #homeAdminDashboardBtn {
     position: relative !important;
   }
 
@@ -36603,7 +36673,7 @@ html body.dark .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls .modal-box.settings
   body.dark #homeSettingsOnlyBtn > i,
   body.dark #homeSettingsOnlyBtn > span,
   html body.dark #homeSettingsOnlyBtn > i,
-  html body.dark #homeSettingsOnlyBtn > span {
+  html body.dark #homeSettingsOnlyBtn > span,body.dark #homeAdminDashboardBtn > i,body.dark #homeAdminDashboardBtn > span,html body.dark #homeAdminDashboardBtn > i,html body.dark #homeAdminDashboardBtn > span {
     display: none !important;
     visibility: hidden !important;
   }
@@ -41250,12 +41320,12 @@ html body.professional.dark.dark.dark
   .global-search-panel.global-search-panel.global-search-panel.global-search-panel
   #globalSearchInput::placeholder{color: #aeb6c2 !important}
 html body.professional.dark .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn,
-  html body.professional.dark .topbar.topbar.home-topbar #homeSettingsOnlyBtn{background: #143a63 !important;background-color: #143a63 !important;color: #c0c0c0 !important}
+  html body.professional.dark .topbar.topbar.home-topbar #homeSettingsOnlyBtn,html body.professional.dark .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn,html body.professional.dark .topbar.topbar.home-topbar #homeAdminDashboardBtn{background: #143a63 !important;background-color: #143a63 !important;color: #c0c0c0 !important}
 html body.professional.dark .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn:hover,
-  html body.professional.dark .topbar.topbar.home-topbar #homeSettingsOnlyBtn:hover{background: #1b4576 !important}
+  html body.professional.dark .topbar.topbar.home-topbar #homeSettingsOnlyBtn:hover,html body.professional.dark .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn:hover,html body.professional.dark .topbar.topbar.home-topbar #homeAdminDashboardBtn:hover{background: #1b4576 !important}
 html body.professional.dark .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn i,
   html body.professional.dark .topbar.topbar #homeSettingsOnlyBtn.home-settings-only-btn i.fa-gear,
-  html body.professional.dark .topbar.topbar.home-topbar #homeSettingsOnlyBtn i{color: #c0c0c0 !important}
+  html body.professional.dark .topbar.topbar.home-topbar #homeSettingsOnlyBtn i,html body.professional.dark .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn i,html body.professional.dark .topbar.topbar #homeAdminDashboardBtn.home-settings-only-btn i.fa-gear,html body.professional.dark .topbar.topbar.home-topbar #homeAdminDashboardBtn i{color: #c0c0c0 !important}
 html body.professional.dark .topbar.topbar .actions #quickAction,
   html body.professional.dark .topbar.topbar.home-topbar .actions #quickAction{background: #15315e !important;background-color: #15315e !important;color: #c0c0c0 !important}
 html body.professional.dark .topbar.topbar .actions #quickAction .qa-icon-stack i,
@@ -41263,9 +41333,9 @@ html body.professional.dark .topbar.topbar .actions #quickAction .qa-icon-stack 
   html body.professional.dark .topbar.topbar .actions #quickAction .qa-icon-stack i.fas{color: #c0c0c0 !important}
 html body.professional.dark .topbar.topbar .actions #quickAction .qa-plus-badge{color: #c0c0c0 !important}
 html body #homeSettingsOnlyBtn,
-  body.professional.dark #homeSettingsOnlyBtn{background: #143a63 !important;background-color: #143a63 !important;color: #c0c0c0 !important}
+  body.professional.dark #homeSettingsOnlyBtn,html body #homeAdminDashboardBtn,body.professional.dark #homeAdminDashboardBtn{background: #143a63 !important;background-color: #143a63 !important;color: #c0c0c0 !important}
 html body #homeSettingsOnlyBtn,
-  body.professional.dark #homeSettingsOnlyBtn{background-color: #143a63 !important}
+  body.professional.dark #homeSettingsOnlyBtn,html body #homeAdminDashboardBtn,body.professional.dark #homeAdminDashboardBtn{background-color: #143a63 !important}
 html body #quickAction,
   body.professional.dark #quickAction{background: #143a63 !important;background-color: #143a63 !important;color: #c0c0c0 !important}
 html body #homeSettingsOnlyBtn.home-settings-only-btn.mini-btn,
@@ -41273,7 +41343,7 @@ html body #homeSettingsOnlyBtn.home-settings-only-btn,
 html body.professional.dark #homeSettingsOnlyBtn.home-settings-only-btn.mini-btn,
 html body.professional.dark #homeSettingsOnlyBtn.home-settings-only-btn,
 html body #homeSettingsOnlyBtn,
-html body.professional.dark #homeSettingsOnlyBtn{background: #143a63 !important;background-color: #143a63 !important;color: #c0c0c0 !important}
+html body.professional.dark #homeSettingsOnlyBtn,html body #homeAdminDashboardBtn.home-settings-only-btn.mini-btn,html body #homeAdminDashboardBtn.home-settings-only-btn,html body.professional.dark #homeAdminDashboardBtn.home-settings-only-btn.mini-btn,html body.professional.dark #homeAdminDashboardBtn.home-settings-only-btn,html body #homeAdminDashboardBtn,html body.professional.dark #homeAdminDashboardBtn{background: #143a63 !important;background-color: #143a63 !important;color: #c0c0c0 !important}
 html body #quickAction.btn.btn-primary,
 html body #quickAction.btn-primary,
 html body #quickAction,
@@ -41283,7 +41353,7 @@ body.professional.dark #homeSettingsOnlyBtn,
   html body.professional.dark #homeSettingsOnlyBtn,
   html body.professional.dark.dark #homeSettingsOnlyBtn,
   html body.professional.dark.dark #homeSettingsOnlyBtn.home-settings-only-btn,
-  html body.professional.dark.dark #homeSettingsOnlyBtn.home-settings-only-btn.mini-btn{background: #143a63 !important;background-color: #143a63 !important}
+  html body.professional.dark.dark #homeSettingsOnlyBtn.home-settings-only-btn.mini-btn,body.professional.dark #homeAdminDashboardBtn,html body.professional.dark #homeAdminDashboardBtn,html body.professional.dark.dark #homeAdminDashboardBtn,html body.professional.dark.dark #homeAdminDashboardBtn.home-settings-only-btn,html body.professional.dark.dark #homeAdminDashboardBtn.home-settings-only-btn.mini-btn{background: #143a63 !important;background-color: #143a63 !important}
 body.professional.dark .topbar.home-topbar #quickAction,
   body.professional.dark #topbar.home-topbar #quickAction,
   html body.professional.dark .topbar.home-topbar #quickAction,
@@ -41760,7 +41830,7 @@ html.html body.professional.dark #homeSettingsOnlyBtn.home-settings-only-btn.hom
   html.html body.professional.dark.dark #homeSettingsOnlyBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn,
   html.html body.professional.dark.dark.dark #homeSettingsOnlyBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn,
   html.html body.professional.dark #homeSettingsOnlyBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.mini-btn,
-  html.html body.professional.dark.dark #homeSettingsOnlyBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.mini-btn{background: #143a63 !important;background-color: #143a63 !important}
+  html.html body.professional.dark.dark #homeSettingsOnlyBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.mini-btn,html.html body.professional.dark #homeAdminDashboardBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn,html.html body.professional.dark.dark #homeAdminDashboardBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn,html.html body.professional.dark.dark.dark #homeAdminDashboardBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn,html.html body.professional.dark #homeAdminDashboardBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.mini-btn,html.html body.professional.dark.dark #homeAdminDashboardBtn.home-settings-only-btn.home-settings-only-btn.home-settings-only-btn.mini-btn{background: #143a63 !important;background-color: #143a63 !important}
 html.html body.professional.dark .topbar.home-topbar #quickAction.btn.btn-primary.btn-primary.btn-primary,
   html.html body.professional.dark.dark .topbar.home-topbar #quickAction.btn.btn-primary.btn-primary.btn-primary,
   html.html body.professional.dark #topbar.home-topbar #quickAction#quickAction,
@@ -42005,5 +42075,30 @@ html body #caseTimelineList.timeline-edit-mode.timeline-edit-mode.timeline-edit-
  * paddings); the repeated class outranks every selector in this file. */
 html body .modal-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box{padding-left:1cm !important;padding-right:1cm !important;box-sizing:border-box !important}
 
-/* Admin-dashboard button beside Settings (system owner only). */
-.home-only-settings-wrap .admin-dashboard-btn{margin-inline-start:8px !important}
+
+/* Home top bar (desktop): Settings, the admin dashboard button and the quick
+ * action ("אירוע חדש") share one width, so the row reads as a symmetric set.
+ * min-width (not width) so it outranks the fixed widths set elsewhere without
+ * clipping a longer label. Mobile keeps its equal 44px icon squares. */
+@media (min-width: 1051px) {
+  /* The wrap was a fixed 9rem — room for Settings alone, so a second button
+   * (or the wider shared width below) spilled onto the next one. Size it to
+   * its buttons instead, with an even gap between them. */
+  html body #topbar.topbar.topbar.home-topbar .actions .home-only-settings-wrap.home-only-settings-wrap {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    gap: 10px !important;
+  }
+  html body #topbar.topbar.home-topbar .actions #homeSettingsOnlyBtn.home-settings-only-btn.home-settings-only-btn,
+  html body #topbar.topbar.home-topbar .actions #homeAdminDashboardBtn.home-settings-only-btn.home-settings-only-btn,
+  html body #topbar.topbar.home-topbar .actions #quickAction.btn.btn.btn-primary {
+    min-width: 172px !important;
+    justify-content: center !important;
+  }
+}
+/* Same even gap between the Settings and admin buttons on narrow screens. */
+html body #topbar.topbar .actions .home-only-settings-wrap.home-only-settings-wrap {
+  gap: 10px !important;
+}

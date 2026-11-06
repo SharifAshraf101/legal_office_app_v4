@@ -27,6 +27,7 @@ import {
   isoPlusDays,
   nextPeriodEnd,
   operatorBilling,
+  STANDARD_MONTHLY_PRICE,
   TRIAL_DAYS,
   type TenantBillingRow,
 } from './billing';
@@ -177,6 +178,8 @@ export default {
           trialDays?: number;
           cancel?: boolean;
           reactivate?: boolean;
+          /** Switch access on by hand, without a payment (true) or end that (false). */
+          manual?: boolean;
         };
         const tenantId = String(body.tenantId || '');
         if (!tenantId) return json({ error: 'tenantId required' }, request, env, 400);
@@ -254,8 +257,12 @@ export default {
               ? office.paid_until
               : nowIso;
           periodEnd = nextPeriodEnd(office.paid_until, months);
+          // Default: the office's monthly price (699 ₪ unless set otherwise)
+          // times the months paid — 12 months is the annual price.
           const amount = Math.round(
-            Number(body.amount ?? office.price_amount ?? 0) || 0,
+            Number(
+              body.amount ?? (Number(office.price_amount) || STANDARD_MONTHLY_PRICE) * months,
+            ) || 0,
           );
           stmts.push(
             env.CONTROL_DB.prepare(
@@ -274,15 +281,34 @@ export default {
               nowIso,
             ),
             env.CONTROL_DB.prepare(
-              `UPDATE tenant SET billing_status = 'active', paid_until = ?2
+              `UPDATE tenant SET billing_status = 'active', paid_until = ?2, plan = ?3
                 WHERE id = ?1`,
-            ).bind(tenantId, periodEnd),
+            ).bind(tenantId, periodEnd, months >= 12 ? 'annual' : 'monthly'),
           );
         }
 
         // 4. Cancel / reactivate. Cancelling does NOT delete or suspend — the
-        //    office drops to read-only and keeps every file it owns.
-        if (body.cancel) {
+        //    office drops to read-only and keeps every file it owns. With manual
+        //    activation these are the three modes of the admin console; any
+        //    one can follow any other.
+        if (body.manual === true) {
+          stmts.push(
+            env.CONTROL_DB.prepare(
+              `UPDATE tenant SET billing_status = 'manual' WHERE id = ?1`,
+            ).bind(tenantId),
+          );
+        } else if (body.manual === false) {
+          // Back to whatever the dates say: paid time left -> active, else the
+          // trial track (which reads as expired when its date has passed).
+          stmts.push(
+            env.CONTROL_DB.prepare(
+              `UPDATE tenant
+                  SET billing_status = CASE WHEN paid_until IS NOT NULL THEN 'active'
+                                            ELSE 'trialing' END
+                WHERE id = ?1`,
+            ).bind(tenantId),
+          );
+        } else if (body.cancel) {
           stmts.push(
             env.CONTROL_DB.prepare(
               `UPDATE tenant SET billing_status = 'canceled' WHERE id = ?1`,
@@ -406,6 +432,41 @@ export default {
         }
         await env.CONTROL_DB.batch(stmts);
         return json({ ok: true, tenantId, rejected: true }, request, env);
+      }
+      // Reset a forgotten password. The stored password is a one-way hash, so the
+      // old one can never be shown; instead a random temporary password is set
+      // for the office's owner account and returned ONCE, for the operator to
+      // hand over. Only its hash is stored, and it is never logged.
+      if (method === 'POST' && path === '/api/admin/reset-password') {
+        const body = (await request.json().catch(() => ({}))) as { tenantId?: string };
+        const tenantId = String(body.tenantId || '');
+        if (!tenantId) return json({ error: 'tenantId required' }, request, env, 400);
+        const owner = await env.CONTROL_DB.prepare(
+          `SELECT u.id AS id, u.email AS email FROM membership m JOIN user u ON u.id = m.user_id
+            WHERE m.tenant_id = ?1 ORDER BY m.created_at ASC LIMIT 1`,
+        )
+          .bind(tenantId)
+          .first<{ id: string; email: string }>();
+        if (!owner) return json({ error: 'office has no user' }, request, env, 404);
+        // 12 characters from an alphabet without look-alikes (0/O, 1/l/I), easy
+        // to read out over the phone.
+        const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+        const bytes = crypto.getRandomValues(new Uint8Array(12));
+        const password = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+        const authCtx = await createAuth(env).$context;
+        const hash = await authCtx.password.hash(password);
+        const accounts = await authCtx.internalAdapter.findAccounts(owner.id);
+        if (accounts.some((a) => a.providerId === 'credential')) {
+          await authCtx.internalAdapter.updatePassword(owner.id, hash);
+        } else {
+          await authCtx.internalAdapter.createAccount({
+            userId: owner.id,
+            providerId: 'credential',
+            accountId: owner.id,
+            password: hash,
+          });
+        }
+        return json({ ok: true, tenantId, email: owner.email, password }, request, env);
       }
       if (method === 'POST' && path === '/api/admin/deactivate') {
         const body = (await request.json().catch(() => ({}))) as { tenantId?: string };

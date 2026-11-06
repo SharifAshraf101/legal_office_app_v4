@@ -11,6 +11,8 @@ import { betterAuth } from 'better-auth';
 import { bearer } from 'better-auth/plugins';
 import { getMigrations } from 'better-auth/db/migration';
 import type { Env } from './db';
+import { STANDARD_MONTHLY_PRICE, TRIAL_DAYS, isoPlusDays } from './billing';
+import { provisionOfficeDb } from './provision';
 
 /** Build a Better Auth instance bound to THIS request's control-plane DB. */
 export function createAuth(env: Env) {
@@ -73,6 +75,24 @@ export function createAuth(env: Env) {
                  VALUES (?1, ?2, ?3, 'owner', ?4)`,
               ).bind(membershipId, u.id, tenantId, now),
             ]);
+            // Instant access: give the new office its own database and start
+            // the trial now, instead of waiting for the operator's approval.
+            // If provisioning fails the office stays 'pending' and the
+            // operator can still approve it by hand from the admin console.
+            try {
+              const dataDbId = await provisionOfficeDb(env, officeName);
+              await env.CONTROL_DB.prepare(
+                `UPDATE tenant
+                    SET status = 'active', data_db_name = ?2, approved_at = ?3,
+                        billing_status = 'trialing', trial_ends_at = ?4,
+                        price_amount = ?5
+                  WHERE id = ?1`,
+              )
+                .bind(tenantId, dataDbId, now, isoPlusDays(TRIAL_DAYS), STANDARD_MONTHLY_PRICE)
+                .run();
+            } catch (e) {
+              console.warn('[signup] instant provisioning failed; office left pending', e);
+            }
           },
         },
       },

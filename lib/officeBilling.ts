@@ -18,11 +18,12 @@ export type BillingEffective =
   | 'active'
   | 'past_due'
   | 'expired'
-  | 'canceled';
+  | 'canceled'
+  | 'manual'; // switched on by the operator without payment — full access
 
 export interface OfficeBilling {
   plan: string;
-  status: 'trialing' | 'active' | 'canceled';
+  status: 'trialing' | 'active' | 'canceled' | 'manual';
   effective: BillingEffective;
   entitled_until: string | null;
   days_left: number | null;
