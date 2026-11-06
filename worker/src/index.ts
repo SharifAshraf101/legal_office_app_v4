@@ -45,6 +45,7 @@ import {
 } from './whatsapp';
 import { portalContext, portalLink, verifyPortalToken } from './portal';
 import { handleDocQueue, idsFromFileName, type DocJob, type PipelineCtx } from './docpipeline';
+import { relevantRulings } from './rulings';
 import {
   callAnthropicWithRetry,
   oversizedPdfBody,
@@ -1323,6 +1324,22 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
     .join('\n\n')
     .slice(0, DRAFT_NOTES_MAX_CHARS);
 
+  // "פסיקת בית הדין השרעי": the rulings that match this case's topics, for the
+  // draft's legal arguments (worker/src/rulings.ts).
+  const caseRow = caseSrc
+    ? await ctx.db
+        .prepare('SELECT title, title_ar, court, court_ar FROM cases WHERE user_id = ?1 AND upper(source_id) = upper(?2) LIMIT 1')
+        .bind(ctx.tenantId, caseSrc)
+        .first<{ title?: string; title_ar?: string; court?: string; court_ar?: string }>()
+        .catch(() => null)
+    : null;
+  const rulings = await relevantRulings(
+    env,
+    [caseRow?.title, caseRow?.title_ar, caseRow?.court, caseRow?.court_ar, fileName, notes.text, notesContext]
+      .map((x) => String(x || ''))
+      .join('\n'),
+  );
+
   const systemPrompt =
     'أنت محامٍ خبير في الأحوال الشخصية للمسلمين في إسرائيل، تترافع أمام المحاكم الشرعية ومحاكم شؤون العائلة. مهمتك: قراءة المستند المرفق بالكامل (وهو مستند وارد مثل قرار محكمة أو لائحة دعوى أو طلب من الطرف الآخر) وصياغة مسودة رد قانوني عليه. القالب الحاكم للصياغة والتنسيق وتفاصيل المحامي وبنية الفقرات المرقّمة هو الوثيقة المرجعية التالية، والتزم بها حرفياً كمرجع للأسلوب والشكل:\n\n<skill>\n' +
     skill +
@@ -1363,12 +1380,52 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
         notesContext +
         '\n</case_notes_app>\n'
       : '') +
+    (rulings.text
+      ? '\n\nمراجع من قرارات محكمة الاستئناف الشرعية العليا (פסיקת בית הדין השרעי) في المواضيع التي تخص هذا الملف. عند إعداد المسودة ابنِ الحجج القانونية عليها حيث تنطبق على المسألة المطروحة في المستند وعلى وقائع الملف: استشهد بالمبدأ وبرقم القرار كما ورد هنا حرفياً (مثل "القرار 244/2025")، ولا تنسب إلى قرار ما لم يرد فيه، ولا تذكر رقم قرار غير مذكور هنا. إذا لم ينطبق مرجع على المسألة فلا تستعمله:\n<sharia_rulings>\n' +
+        rulings.text +
+        '\n</sharia_rulings>'
+      : '') +
     '\n\nصُغ (عند الحاجة فقط) مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم، بلغة المستند نفسها. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "رمز لغة المستند مثل ar أو he أو en أو fr أو ru", "author_side": "ours or opposing or court", "signatory": "اسم الموقّع في نهاية المستند أو null", "is_court_decision": true or false, "contains_court_decision": true or false, "court_requires_response": true or false, "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بلغة المستند أو null", "draft": "نص المسودة الكامل بلغة المستند أو null"}. لا تكتب أي شيء خارج JSON.';
 
   const anthropicBody = {
     model: 'claude-sonnet-4-6',
-    max_tokens: 8000,
+    max_tokens: 12000,
     system: systemPrompt,
+    // Structured output: the reply is always valid JSON in this shape. A draft
+    // that quotes a ruling ("القرار 244/2025") or the document can't break the
+    // parse any more (it did, as an unescaped quote inside the JSON string).
+    // Empty string = "none" (the prompt's null).
+    output_config: {
+      format: {
+        type: 'json_schema',
+        schema: {
+          type: 'object',
+          properties: {
+            detected_language: { type: 'string' },
+            author_side: { type: 'string', enum: ['ours', 'opposing', 'court'] },
+            signatory: { type: 'string' },
+            is_court_decision: { type: 'boolean' },
+            contains_court_decision: { type: 'boolean' },
+            court_requires_response: { type: 'boolean' },
+            doc_type: { type: 'string' },
+            title: { type: 'string' },
+            draft: { type: 'string' },
+          },
+          required: [
+            'detected_language',
+            'author_side',
+            'signatory',
+            'is_court_decision',
+            'contains_court_decision',
+            'court_requires_response',
+            'doc_type',
+            'title',
+            'draft',
+          ],
+          additionalProperties: false,
+        },
+      },
+    },
     messages: [
       {
         role: 'user',
@@ -1467,6 +1524,11 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
   // and the he/ar fallback keep working. `draft_he`/`draft_ar` older keys are
   // still honored when a caller (e.g. the Make pipeline) sends them instead.
   const langCode = String(draft.detected_language ?? '').toLowerCase().trim();
+  // The schema has no null: an empty string (or the word "null") means none.
+  for (const k of ['signatory', 'title', 'draft']) {
+    const v = draft[k];
+    if (typeof v === 'string' && (!v.trim() || v.trim().toLowerCase() === 'null')) draft[k] = null;
+  }
   const draftNative =
     draft.draft ??
     (langCode.startsWith('he')
@@ -1538,6 +1600,7 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
       notes_scope: notes.scope,
       notes_count: notes.count,
       notes_sources: notes.sources,
+      rulings_topics: rulings.topics,
       persist_error: persistError || undefined,
     },
     request,
