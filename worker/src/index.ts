@@ -3189,7 +3189,13 @@ async function handleWhatsAppSummary(request: Request, env: Env, ctx: Ctx): Prom
                         AND w.timestamp > COALESCE(o.last_out, 0) THEN w.timestamp END) AS waiting_since
          FROM whatsapp_messages w
          LEFT JOIN (SELECT client_phone, MAX(timestamp) AS last_out
-                      FROM whatsapp_messages WHERE direction = 'outgoing'
+                      FROM whatsapp_messages
+                     WHERE direction = 'outgoing'
+                       -- the bot's automatic replies (portal invite, "number
+                       -- not recognised") are not an answer from the office
+                       AND COALESCE(message_text, '') NOT LIKE '%/portal?t=%'
+                       AND COALESCE(message_text, '') NOT LIKE '%/portal?phone=%'
+                       AND COALESCE(message_text, '') NOT LIKE '%אינו מזוהה כלקוח במערכת%'
                      GROUP BY client_phone) o ON o.client_phone = w.client_phone
          LEFT JOIN whatsapp_seen s ON s.client_phone = w.client_phone
         GROUP BY w.client_phone`,
