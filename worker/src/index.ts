@@ -45,7 +45,7 @@ import {
 } from './whatsapp';
 import { portalContext, portalLink, verifyPortalToken } from './portal';
 import { handleDocQueue, idsFromFileName, type DocJob, type PipelineCtx } from './docpipeline';
-import { relevantRulings } from './rulings';
+import { citedKnownDecisions, looksSharia, relevantRulings } from './rulings';
 import {
   callAnthropicWithRetry,
   oversizedPdfBody,
@@ -1333,12 +1333,14 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
         .first<{ title?: string; title_ar?: string; court?: string; court_ar?: string }>()
         .catch(() => null)
     : null;
-  const rulings = await relevantRulings(
-    env,
-    [caseRow?.title, caseRow?.title_ar, caseRow?.court, caseRow?.court_ar, fileName, notes.text, notesContext]
-      .map((x) => String(x || ''))
-      .join('\n'),
-  );
+  const caseText = [caseRow?.title, caseRow?.title_ar, caseRow?.court, caseRow?.court_ar, fileName, notes.text, notesContext]
+    .map((x) => String(x || ''))
+    .join('\n');
+  const shariaCase = looksSharia([caseRow?.court, caseRow?.court_ar, caseRow?.title, fileName].join(' '));
+  // Rulings are given whenever the case may be a Sharia one (by its court, or
+  // when the court is unknown); a draft for an Arabic Sharia document must
+  // cite them (enforced after the call below).
+  const rulings = await relevantRulings(env, caseText, shariaCase || !caseRow?.court);
 
   const systemPrompt =
     'أنت محامٍ خبير في الأحوال الشخصية للمسلمين في إسرائيل، تترافع أمام المحاكم الشرعية ومحاكم شؤون العائلة. مهمتك: قراءة المستند المرفق بالكامل (وهو مستند وارد مثل قرار محكمة أو لائحة دعوى أو طلب من الطرف الآخر) وصياغة مسودة رد قانوني عليه. القالب الحاكم للصياغة والتنسيق وتفاصيل المحامي وبنية الفقرات المرقّمة هو الوثيقة المرجعية التالية، والتزم بها حرفياً كمرجع للأسلوب والشكل:\n\n<skill>\n' +
@@ -1381,11 +1383,12 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
         '\n</case_notes_app>\n'
       : '') +
     (rulings.text
-      ? '\n\nمراجع من قرارات محكمة الاستئناف الشرعية العليا (פסיקת בית הדין השרעי) في المواضيع التي تخص هذا الملف. عند إعداد المسودة ابنِ الحجج القانونية عليها حيث تنطبق على المسألة المطروحة في المستند وعلى وقائع الملف: استشهد بالمبدأ وبرقم القرار كما ورد هنا حرفياً (مثل "القرار 244/2025")، ولا تنسب إلى قرار ما لم يرد فيه، ولا تذكر رقم قرار غير مذكور هنا. إذا لم ينطبق مرجع على المسألة فلا تستعمله:\n<sharia_rulings>\n' +
+      ? '\n\nمراجع من قرارات محكمة الاستئناف الشرعية العليا (פסיקת בית הדין השרעי) في المواضيع التي تخص هذا الملف. عند إعداد المسودة ابنِ الحجج القانونية عليها حيث تنطبق على المسألة المطروحة في المستند وعلى وقائع الملف.\n' +
+        'قاعدة إلزامية: إذا كان المستند مكتوباً بالعربية ومرتبطاً بالمحكمة الشرعية (مقدَّماً إليها أو صادراً عنها) ويحتاج مسودة، فيجب أن تتضمن المسودة استشهاداً بقرارين على الأقل من هذه المراجع، كل استشهاد في موضعه من الحجج: اذكر رقم القرار كما ورد هنا ("القرار 244/2025") والمبدأ الذي يقرره. انسب كل مبدأ فقط إلى رقم القرار الوارد بجانبه في الجملة أو البند نفسه من المرجع، لا إلى قرار آخر مذكور في الفقرة. لا تذكر رقم قرار غير وارد هنا، ولا تنسب إلى قرار ما لم يرد فيه. في غير ذلك استعمل المراجع حيث تنطبق فقط:\n<sharia_rulings>\n' +
         rulings.text +
         '\n</sharia_rulings>'
       : '') +
-    '\n\nصُغ (عند الحاجة فقط) مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم، بلغة المستند نفسها. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "رمز لغة المستند مثل ar أو he أو en أو fr أو ru", "author_side": "ours or opposing or court", "signatory": "اسم الموقّع في نهاية المستند أو null", "is_court_decision": true or false, "contains_court_decision": true or false, "court_requires_response": true or false, "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بلغة المستند أو null", "draft": "نص المسودة الكامل بلغة المستند أو null"}. لا تكتب أي شيء خارج JSON.';
+    '\n\nصُغ (عند الحاجة فقط) مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم، بلغة المستند نفسها. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "رمز لغة المستند مثل ar أو he أو en أو fr أو ru", "author_side": "ours or opposing or court", "signatory": "اسم الموقّع في نهاية المستند أو null", "is_court_decision": true or false, "contains_court_decision": true or false, "court_requires_response": true or false, "is_sharia_court": "true إذا كان المستند مرتبطاً بالمحكمة الشرعية (مقدَّماً إليها أو صادراً عنها)، وإلا false", "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بلغة المستند أو null", "draft": "نص المسودة الكامل بلغة المستند أو null"}. لا تكتب أي شيء خارج JSON.';
 
   const anthropicBody = {
     model: 'claude-sonnet-4-6',
@@ -1407,6 +1410,7 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
             is_court_decision: { type: 'boolean' },
             contains_court_decision: { type: 'boolean' },
             court_requires_response: { type: 'boolean' },
+            is_sharia_court: { type: 'boolean' },
             doc_type: { type: 'string' },
             title: { type: 'string' },
             draft: { type: 'string' },
@@ -1418,6 +1422,7 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
             'is_court_decision',
             'contains_court_decision',
             'court_requires_response',
+            'is_sharia_court',
             'doc_type',
             'title',
             'draft',
@@ -1497,6 +1502,48 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
       env,
       502,
     );
+  }
+
+  // Mandatory citations: a draft for an ARABIC document of the SHARIA court
+  // must cite the office's Sharia Court of Appeals rulings. If it cites none
+  // of the table's decisions, ask once more — the same conversation, with the
+  // first answer and an explicit correction — and keep the corrected draft.
+  let citationRetry = false;
+  {
+    const ar = String(draft.detected_language ?? '').toLowerCase().startsWith('ar');
+    const sharia = draft.is_sharia_court === true || shariaCase;
+    const text = typeof draft.draft === 'string' ? draft.draft : '';
+    if (rulings.text && ar && sharia && text.trim().length > 40 && citedKnownDecisions(text).length === 0) {
+      citationRetry = true;
+      const retryBody = {
+        ...anthropicBody,
+        messages: [
+          ...anthropicBody.messages,
+          { role: 'assistant', content: [{ type: 'text', text: cleaned }] },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text:
+                  'المسودة لا تتضمن أي استشهاد بقرارات محكمة الاستئناف الشرعية العليا الواردة في <sharia_rulings>، وهذا إلزامي لمستند عربي مرتبط بالمحكمة الشرعية. أعد الكائن نفسه كاملاً، مع المسودة كاملة، وأضف في مواضعها من الحجج استشهاداً بقرارين على الأقل من تلك المراجع: رقم القرار كما ورد ("القرار 244/2025") والمبدأ الوارد بجانبه في المرجع. لا تذكر رقم قرار غير وارد فيها، ولا تغيّر باقي الحقول.',
+              },
+            ],
+          },
+        ],
+      };
+      const again = await callAnthropicWithRetry(env.ANTHROPIC_API_KEY || '', JSON.stringify(retryBody));
+      if (again.response?.ok) {
+        const d2 = (await again.response.json()) as { content?: Array<{ type: string; text?: string }> };
+        const t2 = (d2.content || []).filter((b) => b.type === 'text').map((b) => b.text || '').join('').trim();
+        try {
+          const parsed = JSON.parse(t2) as Record<string, unknown>;
+          if (typeof parsed.draft === 'string' && citedKnownDecisions(parsed.draft).length > 0) draft = parsed;
+        } catch {
+          /* keep the first draft */
+        }
+      }
+    }
   }
 
   // Gate: see replyDraftNeeded. Authorship is decided by the SIGNATURE at the END
@@ -1601,6 +1648,10 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
       notes_count: notes.count,
       notes_sources: notes.sources,
       rulings_topics: rulings.topics,
+      // The table's decisions the stored draft cites, and whether the server
+      // had to ask again for them.
+      rulings_cited: citedKnownDecisions(String(draftText ?? '')),
+      citation_retry: citationRetry || undefined,
       persist_error: persistError || undefined,
     },
     request,

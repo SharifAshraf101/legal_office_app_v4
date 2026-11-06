@@ -62,9 +62,37 @@ export function topicsFor(text: string): string[] {
   return scores.slice(0, MAX_TOPICS).map(([k]) => k);
 }
 
-/** The ruling sections for this case's topics, as one text block ('' = none). */
-export async function relevantRulings(env: Env, caseText: string): Promise<{ text: string; topics: string[] }> {
-  const topics = topicsFor(caseText);
+/** Sharia-court markers in a case's court / title / notes. */
+export function looksSharia(text: string): boolean {
+  return /שרעי|שרעית|شرعي|الشرعية|المحكمة الشرعية|بيت الدين الشرعي/.test(String(text || ''));
+}
+
+/** Every decision number the table cites, normalised to "<number>/<year>" so
+ *  "320/2023" and "2023/320" are the same decision. */
+export function decisionKey(raw: string): string {
+  const [a, b] = raw.split('/');
+  return a.length === 4 && b.length < 4 ? `${Number(b)}/${a}` : `${Number(a)}/${b}`;
+}
+export const KNOWN_DECISIONS: Set<string> = new Set(
+  SHARIA_RULINGS.flatMap((r) => (r.rulings ? r.rulings.split(/,\s*/) : [])).map(decisionKey),
+);
+/** The table's decisions a text cites. */
+export function citedKnownDecisions(text: string): string[] {
+  const found = String(text || '').match(/\b\d{1,4}\/\d{4}\b|\b\d{4}\/\d{1,4}\b/g) || [];
+  return [...new Set(found.map(decisionKey).filter((k) => KNOWN_DECISIONS.has(k)))];
+}
+
+/** The ruling sections for this case's topics, as one text block ('' = none).
+ *  `sharia`: the case is before the Sharia court — rulings are then always
+ *  given (the draft must cite them), falling back to the procedural topics
+ *  (jurisdiction, service) when no subject topic matched. */
+export async function relevantRulings(
+  env: Env,
+  caseText: string,
+  sharia = false,
+): Promise<{ text: string; topics: string[] }> {
+  let topics = topicsFor(caseText);
+  if (!topics.length && sharia) topics = ['jurisdiction', 'service'];
   if (!topics.length) return { text: '', topics };
   try {
     await ensureRulings(env);

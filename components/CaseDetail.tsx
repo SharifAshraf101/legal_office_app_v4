@@ -3323,8 +3323,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                           )}
                         </div>
                         {(() => {
+                          // Same language as the decode box and the draft: a
+                          // case at a court that works in Arabic (Sharia /
+                          // Druze / Christian) shows the Arabic summary.
                           const sum =
-                            (lang === 'ar'
+                            (lang === 'ar' || forceArabicCourt
                               ? doc.summaryAr || doc.summaryHe
                               : doc.summaryHe || doc.summaryAr) || '';
                           return (
