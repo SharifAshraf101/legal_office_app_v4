@@ -42120,6 +42120,12 @@ html body #topbar.topbar .actions .home-only-settings-wrap.home-only-settings-wr
 .agenda-modal-list .agenda-day-header:first-child{margin-top:0;padding-top:4px}
 .agenda-modal-list .agenda-day-top{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.02em}
 .agenda-modal-list .agenda-day-date{font-size:20px;font-weight:900;line-height:1.25}
-.agenda-modal-list .agenda-modal-row.agenda-row-timed{grid-template-columns:64px 1fr}
-.agenda-modal-list .agenda-row-timed .agenda-modal-time{font-size:15px;font-weight:900;color:var(--text);direction:ltr;text-align:center}
-@media(max-width:620px){.agenda-modal-list .agenda-modal-row.agenda-row-timed{grid-template-columns:52px 1fr;gap:10px}.agenda-modal-list .agenda-day-date{font-size:18px}}
+/* Row: line 1 = the time + the item's title side by side; line 2 = the details
+ * (type, client, case, court) and the actions across the row's full width. */
+.agenda-modal-list .agenda-modal-row.agenda-row-timed{grid-template-columns:auto 1fr;column-gap:12px;row-gap:6px;align-items:center}
+.agenda-modal-list .agenda-row-timed > div:nth-child(2){display:contents}
+.agenda-modal-list .agenda-row-timed .agenda-modal-time{grid-column:1;grid-row:1;font-size:15px;font-weight:900;color:var(--text);direction:ltr;white-space:nowrap}
+.agenda-modal-list .agenda-row-timed .agenda-modal-title{grid-column:2;grid-row:1;min-width:0}
+.agenda-modal-list .agenda-row-timed .agenda-modal-meta,.agenda-modal-list .agenda-row-timed .agenda-row-actions{grid-column:1 / -1}
+.agenda-modal-list .agenda-row-timed .agenda-row-actions{margin-top:2px}
+@media(max-width:620px){.agenda-modal-list .agenda-modal-row.agenda-row-timed{grid-template-columns:auto 1fr;column-gap:10px}.agenda-modal-list .agenda-day-date{font-size:18px}}
