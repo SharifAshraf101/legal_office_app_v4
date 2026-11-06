@@ -42113,3 +42113,13 @@ html body #topbar.topbar .actions .home-only-settings-wrap.home-only-settings-wr
 .agenda-modal-row .agenda-row-edit:hover{background:#4338ca;color:#fff}
 .agenda-modal-row .agenda-row-delete{color:#b91c1c;border-color:#fecaca;background:#fff5f5}
 .agenda-modal-row .agenda-row-delete:hover{background:#b91c1c;color:#fff}
+
+/* Upcoming agenda grouped by day: a header (weekday + date) per day, then that
+ * day's rows with the time only — like a phone's calendar agenda. */
+.agenda-modal-list .agenda-day-header{padding:14px 4px 4px;border-bottom:1px solid var(--line);margin-top:4px}
+.agenda-modal-list .agenda-day-header:first-child{margin-top:0;padding-top:4px}
+.agenda-modal-list .agenda-day-top{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.02em}
+.agenda-modal-list .agenda-day-date{font-size:20px;font-weight:900;line-height:1.25}
+.agenda-modal-list .agenda-modal-row.agenda-row-timed{grid-template-columns:64px 1fr}
+.agenda-modal-list .agenda-row-timed .agenda-modal-time{font-size:15px;font-weight:900;color:var(--text);direction:ltr;text-align:center}
+@media(max-width:620px){.agenda-modal-list .agenda-modal-row.agenda-row-timed{grid-template-columns:52px 1fr;gap:10px}.agenda-modal-list .agenda-day-date{font-size:18px}}

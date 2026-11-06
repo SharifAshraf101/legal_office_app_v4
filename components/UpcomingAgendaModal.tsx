@@ -10,7 +10,8 @@ import {
   upcomingAgendaItems,
 } from '@/lib/calendar';
 import { caseName, clientName } from '@/lib/cases';
-import { formatDMYTime, localizedWeekday } from '@/lib/dates';
+import { calendarDateValue, localizedWeekday } from '@/lib/dates';
+import { Fragment } from 'react';
 import { rememberDismissedEventId } from '@/lib/dismissedEvents';
 import {
   completeTaskEverywhere,
@@ -106,6 +107,38 @@ export function UpcomingAgendaModal() {
     }
   };
 
+  // ---- Day grouping (a header per day, then that day's items by time) -------
+  const todayKey = calendarDateValue(new Date());
+  const tomorrowKey = calendarDateValue(new Date(Date.now() + 86400000));
+  const thisYear = todayKey.slice(0, 4);
+  /** Small line above the date: "היום, יום שישי" / "מחר, שבת" / "יום ראשון". */
+  const dayTopLine = (d: Date, key: string) => {
+    const weekday = localizedWeekday(d, calendarLocale(lang), 'long');
+    const rel =
+      key === todayKey
+        ? lang === 'ar' ? 'اليوم' : 'היום'
+        : key === tomorrowKey
+          ? lang === 'ar' ? 'غداً' : 'מחר'
+          : '';
+    return rel ? `${rel}, ${weekday}` : weekday;
+  };
+  /** The date itself, in the office's time zone: "8 בנובמבר" (+ year if not this year). */
+  const dayDateLine = (d: Date, key: string) =>
+    d.toLocaleDateString(calendarLocale(lang), {
+      day: 'numeric',
+      month: 'long',
+      ...(key.slice(0, 4) !== thisYear ? { year: 'numeric' } : {}),
+      timeZone: 'Asia/Jerusalem',
+    });
+  /** The row's time only — the date is in the day header. */
+  const timeOf = (d: Date) =>
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Jerusalem',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(d);
+
   const actionLabels =
     lang === 'ar'
       ? { done: 'تم التنفيذ', edit: 'تعديل', remove: 'حذف' }
@@ -183,10 +216,8 @@ export function UpcomingAgendaModal() {
               lang === 'ar'
                 ? entry.item.titleAr || entry.item.title
                 : entry.item.title || entry.item.titleAr;
-            const dateText =
-              localizedWeekday(entry.date, calendarLocale(lang), 'long') +
-              ', ' +
-              formatDMYTime(entry.date);
+            const dayKey = calendarDateValue(entry.date);
+            const newDay = i === 0 || calendarDateValue(items[i - 1].date) !== dayKey;
             const timeKey = agendaTimeKey(entry.date);
             const conflict = counts[timeKey] > 1;
             const sameClient = conflict && clientsAtTime[timeKey]?.size === 1;
@@ -208,15 +239,21 @@ export function UpcomingAgendaModal() {
                 ? `${taskDoLabel}: ${taskContent}`
                 : taskDoLabel;
             return (
+              <Fragment key={i}>
+              {newDay && (
+                <div className="agenda-day-header">
+                  <div className="agenda-day-top">{dayTopLine(entry.date, dayKey)}</div>
+                  <div className="agenda-day-date">{dayDateLine(entry.date, dayKey)}</div>
+                </div>
+              )}
               <div
-                key={i}
                 className={
-                  'agenda-modal-row' +
+                  'agenda-modal-row agenda-row-timed' +
                   (conflict ? ' conflict-blink' : '') +
                   (sameClient ? ' conflict-same-client' : '')
                 }
               >
-                <div className="agenda-modal-time">{dateText}</div>
+                <div className="agenda-modal-time">{timeOf(entry.date)}</div>
                 <div>
                   <div className="agenda-modal-title">
                     <span
@@ -278,6 +315,7 @@ export function UpcomingAgendaModal() {
                   )}
                 </div>
               </div>
+              </Fragment>
             );
           })
         )}
