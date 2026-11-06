@@ -55,6 +55,7 @@ import {
 import { caseName } from '@/lib/cases';
 import { formatDMY } from '@/lib/dates';
 import { officeAuthHeader } from '@/lib/officeToken';
+import { useIsOperatorOffice } from '@/hooks/useIsOperatorOffice';
 import {
   financeCaseBalance,
   financePaidItemsForCase,
@@ -807,6 +808,7 @@ function ChooserScreen({
   onPickBot: () => void;
   lang: 'he' | 'ar';
 }) {
+  const isOperator = useIsOperatorOffice();
   const T = {
     title: lang === 'ar' ? 'مركز التواصل' : 'מרכז תקשורת',
     subtitle:
@@ -860,6 +862,10 @@ function ChooserScreen({
             </div>
           </div>
         </button>
+        {/* The client bot answers from the OPERATOR's data and portal, so it is
+            offered to the operator only (an office that connected its own
+            WhatsApp gets the chat, not the bot, for now). */}
+        {isOperator && (
         <button
           type="button"
           onClick={onPickBot}
@@ -877,6 +883,7 @@ function ChooserScreen({
             </div>
           </div>
         </button>
+        )}
       </div>
     </div>
   );
@@ -1249,7 +1256,10 @@ function ClientChatScreen({
     try {
       // Same-origin proxy — the office token stays on the server (see
       // app/api/whatsapp/messages/[phone]). No token in the client portal.
-      const res = await fetch(`/api/whatsapp/messages/${pollPhone}`);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_WORKER_URL || ''}/api/whatsapp-messages/${pollPhone}`,
+        { headers: officeAuthHeader(), cache: 'no-store' },
+      );
       const data = await res.json();
 
       const msgs = (data.messages || []).map((m: any) => {
@@ -1265,11 +1275,15 @@ function ClientChatScreen({
         // Bytes for a media attachment: an already-stored direct URL wins;
         // otherwise stream it through the same-origin WhatsApp media proxy,
         // which resolves the Meta media id server-side (browsers can't).
+        // A connected office's media come as signed Worker links; the
+        // operator's original setup still streams them through the app proxy.
         const mediaSrc: string | undefined = m.media_url
           ? m.media_url
-          : m.media_id
-            ? `/api/whatsapp/media/${m.media_id}`
-            : undefined;
+          : m.signed_media_url
+            ? m.signed_media_url
+            : m.media_id
+              ? `/api/whatsapp/media/${m.media_id}`
+              : undefined;
         const fileName = String(m.file_name || m.message_text || '').trim();
         const label = fileName.replace(/^📎\s*/, '');
         // For an image the stored text is a placeholder ("[תמונה]"); show a real

@@ -4,7 +4,9 @@ import { useSyncExternalStore } from 'react';
 import {
   OFFICE_ROLE_EVENT,
   isOperatorOffice,
+  isWhatsAppEnabled,
   OFFICE_IS_OPERATOR_KEY,
+  OFFICE_WA_ENABLED_KEY,
 } from '@/lib/officeToken';
 
 /**
@@ -21,7 +23,7 @@ import {
  */
 function subscribe(onChange: () => void): () => void {
   const onStorage = (e: StorageEvent) => {
-    if (!e.key || e.key === OFFICE_IS_OPERATOR_KEY) onChange();
+    if (!e.key || e.key === OFFICE_IS_OPERATOR_KEY || e.key === OFFICE_WA_ENABLED_KEY) onChange();
   };
   window.addEventListener(OFFICE_ROLE_EVENT, onChange);
   window.addEventListener('storage', onStorage);
@@ -29,6 +31,16 @@ function subscribe(onChange: () => void): () => void {
     window.removeEventListener(OFFICE_ROLE_EVENT, onChange);
     window.removeEventListener('storage', onStorage);
   };
+}
+
+/** True when the office may use WhatsApp: the operator, or an office that
+ *  connected its own number (Settings → WhatsApp). */
+export function useWhatsAppEnabled(): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => isOperatorOffice() || isWhatsAppEnabled(),
+    () => false,
+  );
 }
 
 export function useIsOperatorOffice(): boolean {

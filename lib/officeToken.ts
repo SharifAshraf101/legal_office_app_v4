@@ -86,6 +86,37 @@ export function isOperatorOffice(): boolean {
   }
 }
 
+// --- WhatsApp-enabled flag ------------------------------------------------
+// True for the operator (original setup) and for any office that connected its
+// own WhatsApp number (`office.whatsapp_enabled` on GET /api/load). Shows the
+// communication tab. Display only — the Worker serves each office its own data.
+export const OFFICE_WA_ENABLED_KEY = 'office_whatsapp_enabled';
+
+export function setWhatsAppEnabled(enabled: boolean): void {
+  if (typeof window === 'undefined') return;
+  const next = enabled ? '1' : '0';
+  try {
+    if (window.localStorage.getItem(OFFICE_WA_ENABLED_KEY) === next) return;
+    window.localStorage.setItem(OFFICE_WA_ENABLED_KEY, next);
+  } catch {
+    /* ignore */
+  }
+  try {
+    window.dispatchEvent(new Event(OFFICE_ROLE_EVENT));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isWhatsAppEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(OFFICE_WA_ENABLED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 // --- Admin-dashboard flag -------------------------------------------------
 // True only when the signed-in account is the system owner's own login (the
 // Worker decides: `office.is_admin` on GET /api/load). Shows the dashboard

@@ -33,6 +33,17 @@ import {
 } from './billing';
 import { AR_GLOSSARY } from './arabicGlossary';
 import {
+  configForTenant,
+  deleteConfig,
+  publicConfig,
+  saveConfig,
+  sendFromOffice,
+  serveMedia,
+  signedMediaUrl,
+  webhookReceive,
+  webhookVerify,
+} from './whatsapp';
+import {
   callAnthropicWithRetry,
   oversizedPdfBody,
   oversizedPdfField,
@@ -82,7 +93,7 @@ async function adminOk(request: Request, env: Env): Promise<boolean> {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, execCtx?: ExecutionContext): Promise<Response> {
     try {
     const url = new URL(request.url);
     const path = url.pathname;
@@ -91,6 +102,21 @@ export default {
     if (method === 'OPTIONS') return preflight(request, env);
 
     // ----- public endpoints (no bearer token) -----
+    // ----- per-office WhatsApp: public by necessity (Meta and <img>/<audio>
+    //       can't send our bearer). The webhook checks Meta's signature with the
+    //       receiving office's app secret; media URLs are HMAC-signed + expiring.
+    if (path === '/api/whatsapp-webhook') {
+      if (method === 'GET') return webhookVerify(env, url);
+      if (method === 'POST') {
+        return webhookReceive(env, request, (p) => {
+          if (execCtx) execCtx.waitUntil(p);
+        });
+      }
+    }
+    if (method === 'GET' && path.startsWith('/api/whatsapp-media/')) {
+      return serveMedia(env, url);
+    }
+
     if (path === '/api/health') {
       return json({ ok: true }, request, env);
     }
@@ -575,6 +601,40 @@ export default {
 if (method === 'POST' && path === '/api/whatsapp-messages') {
     return handleSaveWhatsAppMessage(request, env, ctx);
   }
+  // The office's own WhatsApp connection (settings screen) and sending from it.
+  if (path === '/api/whatsapp-config') {
+    const webhookUrl = url.origin + '/api/whatsapp-webhook';
+    if (method === 'GET') return json(await publicConfig(env, ctx.tenantId, webhookUrl), request, env);
+    if (method === 'DELETE') {
+      await deleteConfig(env, ctx.tenantId);
+      return json({ ok: true }, request, env);
+    }
+    if (method === 'POST') {
+      const b = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+      const res = await saveConfig(env, ctx.tenantId, {
+        phone_number_id: String(b.phone_number_id || ''),
+        access_token: String(b.access_token || ''),
+        app_secret: String(b.app_secret || ''),
+      });
+      if (!res.ok) return json({ error: res.error }, request, env, 400);
+      return json({ ...(await publicConfig(env, ctx.tenantId, webhookUrl)), ...res }, request, env);
+    }
+  }
+  if (method === 'POST' && path === '/api/whatsapp-send') {
+    const cfg = await configForTenant(env, ctx.tenantId);
+    if (!cfg) {
+      // The operator office still sends with its original credentials (Vercel).
+      if (ctx.tenantId === env.USER_ID) return json({ legacy: true }, request, env, 409);
+      return json({ error: 'WhatsApp is not connected for this office' }, request, env, 403);
+    }
+    const b = (await request.json().catch(() => ({}))) as {
+      to?: string;
+      message?: string;
+      document?: { url?: string; name?: string };
+    };
+    const out = await sendFromOffice(env, ctx.db, cfg, { to: String(b.to || ''), message: b.message, document: b.document });
+    return json(out.body, request, env, out.status);
+  }
   if (method === 'POST' && path === '/api/whatsapp-transcribe') {
     return handleWhatsAppTranscribe(request, env, ctx);
   }
@@ -651,6 +711,9 @@ async function handleLoad(request: Request, env: Env, ctx: Ctx): Promise<Respons
     // Shows the admin-dashboard button. Only the operator's own login can be an
     // admin, so other offices never pay for the check. /api/admin/* re-checks.
     is_admin: isOperator && ctx.mode === 'tenant' ? await adminSessionOk(request, env) : false,
+    // WhatsApp features: the operator (original setup) or any office that
+    // connected its own number. Others don't see WhatsApp at all.
+    whatsapp_enabled: isOperator || !!(await configForTenant(env, ctx.tenantId)),
     tenant_id: ctx.tenantId,
     // Subscription standing, so the app can warn during the trial / grace
     // window and switch to read-only once entitlement runs out (Phase 4).
@@ -2958,6 +3021,16 @@ async function handleGetWhatsAppMessages(request: Request, env: Env, ctx: Ctx): 
   const phone = url.pathname.split('/').pop() ?? '';
   const rs = await ctx.db.prepare(
     'SELECT * FROM whatsapp_messages WHERE client_phone = ?1 ORDER BY timestamp ASC'
-  ).bind(phone).all();
-  return json({ messages: rs.results ?? [] }, request, env);
+  ).bind(phone).all<Record<string, unknown>>();
+  const messages = rs.results ?? [];
+  // An office connected here gets signed links for its media (its token lives
+  // in the Worker); the operator's legacy media keep using the app's proxy.
+  if (await configForTenant(env, ctx.tenantId)) {
+    for (const m of messages) {
+      if (m.media_id && !m.media_url) {
+        m.signed_media_url = await signedMediaUrl(env, url.origin, ctx.tenantId, String(m.media_id));
+      }
+    }
+  }
+  return json({ messages }, request, env);
 }

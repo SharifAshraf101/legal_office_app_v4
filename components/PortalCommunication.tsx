@@ -5,6 +5,7 @@ import { useAppState } from '@/hooks/useAppState';
 import { useT } from '@/hooks/useT';
 import { caseName } from '@/lib/cases';
 import { normalizePhoneForLinks } from '@/lib/clients';
+import { officeAuthHeader } from '@/lib/officeToken';
 import { portalDefaultMessage, portalLabel } from '@/lib/portal';
 import { PortalBot } from './PortalBot';
 
@@ -38,7 +39,9 @@ export function PortalCommunication() {
       const normalized = normalizePhoneForLinks(phone);
       const res = await fetch('/api/whatsapp/send/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // The send route is authenticated — it carries the office's Meta
+        // credentials, so it must know which logged-in office is asking.
+        headers: { 'Content-Type': 'application/json', ...officeAuthHeader() },
         body: JSON.stringify({ to: normalized, message }),
       });
       const data = await res.json();

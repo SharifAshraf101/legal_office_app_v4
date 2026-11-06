@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppState } from '@/hooks/useAppState';
-import { useIsOperatorOffice } from '@/hooks/useIsOperatorOffice';
+import { useWhatsAppEnabled } from '@/hooks/useIsOperatorOffice';
 import { useT } from '@/hooks/useT';
 
 /**
@@ -66,8 +66,9 @@ export function NavButtons({ mobile = false }: { mobile?: boolean } = {}) {
   const { state, dispatch } = useAppState();
   const { t, lang } = useT();
   // The portal runs on the operator's WhatsApp number — hidden for tenants.
-  const isOperator = useIsOperatorOffice();
-  const tabs = isOperator ? ORDER : ORDER.filter((id) => id !== 'portal');
+  // The communication tab needs WhatsApp: the operator, or a connected office.
+  const waEnabled = useWhatsAppEnabled();
+  const tabs = waEnabled ? ORDER : ORDER.filter((id) => id !== 'portal');
   void mobile; // mobile vs desktop styling is fully handled by CSS now
 
   return (

@@ -28,3 +28,42 @@ export function forwardAuth(req: Request): string | null {
   if (!raw.toLowerCase().startsWith('bearer ')) return null;
   return raw.slice(7).trim() ? raw : null;
 }
+
+/** The bare bearer credential (no "Bearer " prefix), or '' when absent. */
+export function bearerToken(req: Request): string {
+  const raw = (req.headers.get('authorization') || '').trim();
+  if (!raw.toLowerCase().startsWith('bearer ')) return '';
+  return raw.slice(7).trim();
+}
+
+/** Length-safe constant-time string compare (both empty => false). */
+export function secretEquals(a: string, b: string): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/**
+ * Ask the Worker whether this `Authorization` header belongs to a real, active
+ * office session. The Worker is the only authority on that, so we probe it with
+ * the cheapest authenticated endpoint there is: `/api/case-notes` filtered by a
+ * case id that cannot exist, which returns `{notes:[]}` for a valid session and
+ * 401 for anything else. Nothing about the office's data is read or written.
+ *
+ * Returns false (deny) when the Worker URL isn't configured or is unreachable —
+ * an endpoint that spends the office's WhatsApp quota must fail closed.
+ */
+export async function isValidOfficeSession(authHeader: string): Promise<boolean> {
+  const base = workerBase();
+  if (!base || !authHeader) return false;
+  try {
+    const res = await fetch(
+      `${base}/api/case-notes?caseId=${encodeURIComponent('__auth_probe__')}`,
+      { headers: { Authorization: authHeader }, cache: 'no-store' },
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

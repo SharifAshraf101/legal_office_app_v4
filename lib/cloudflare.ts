@@ -14,7 +14,7 @@ import {
 import { firstNonEmpty, isNonEmpty } from './utils';
 import { FILING_ROOT, filingFolderSegments, filingFileName } from './filing';
 import { loadDismissedEventIds } from './dismissedEvents';
-import { getOfficeToken, setAdminUser, setOperatorOffice } from './officeToken';
+import { getOfficeToken, setAdminUser, setOperatorOffice, setWhatsAppEnabled } from './officeToken';
 import {
   clearOfficeBilling,
   markBillingBlocked,
@@ -339,6 +339,7 @@ interface LoadResponse {
   office?: {
     is_operator?: boolean;
     is_admin?: boolean;
+    whatsapp_enabled?: boolean;
     tenant_id?: string;
     billing?: OfficeBilling;
   };
@@ -395,6 +396,7 @@ export async function legalOfficeLoadFromSupabaseV88(
       }
       setOperatorOffice(!!data.office.is_operator);
       setAdminUser(!!data.office.is_admin);
+      setWhatsAppEnabled(!!data.office.whatsapp_enabled || !!data.office.is_operator);
       // Subscription standing, for the trial watermark. Cache only — the Worker
       // enforces; this just explains.
       if (data.office.is_operator || !data.office.billing) {

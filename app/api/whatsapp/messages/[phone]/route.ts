@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidOfficeSession } from '@/lib/serverAuth';
 
 export const runtime = 'nodejs';
 
-// Server-side proxy for the client portal's WhatsApp message poll.
-//
-// The portal (/portal) runs in a CLIENT's browser with no office session, so
-// rather than shipping the office token to the browser (where anyone could read
-// it from the bundle), the portal calls this same-origin route and the token
-// stays on the server. This is what lets us keep NO app-token in the client
-// bundle at all.
+// Legacy proxy for the WhatsApp message poll. The chat now reads straight from
+// the Worker with the office's own session (so each office sees only its own
+// conversations); this route stays for older clients but answers ONLY a
+// logged-in office — it used to return any phone's whole conversation to
+// anyone who knew the number.
 
 const WORKER_URL =
   process.env.NEXT_PUBLIC_WORKER_URL ||
@@ -16,9 +15,12 @@ const WORKER_URL =
 const APP_TOKEN = process.env.APP_TOKEN || process.env.NEXT_PUBLIC_APP_TOKEN || '';
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ phone: string }> },
 ) {
+  if (!(await isValidOfficeSession(req.headers.get('authorization') || ''))) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
   const { phone } = await params;
   const clean = String(phone || '').replace(/\D/g, '');
   if (!clean) return NextResponse.json({ messages: [] });

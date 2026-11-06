@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppState } from '@/hooks/useAppState';
-import { useIsOperatorOffice } from '@/hooks/useIsOperatorOffice';
+import { useWhatsAppEnabled } from '@/hooks/useIsOperatorOffice';
 import { useT } from '@/hooks/useT';
 import { useModalStack } from '@/hooks/useModalStack';
 import { getTimeGreeting } from '@/lib/greeting';
@@ -50,8 +50,8 @@ export function HomeDashboard() {
   const { state, dispatch } = useAppState();
   const { t, lang } = useT();
   const modalStack = useModalStack();
-  const isOperator = useIsOperatorOffice();
-  const cards = isOperator ? HOME_CARDS : TENANT_HOME_CARDS;
+  const waEnabled = useWhatsAppEnabled();
+  const cards = waEnabled ? HOME_CARDS : TENANT_HOME_CARDS;
 
   const brandName = state.officeName || t('firmName');
   const greetingText = getTimeGreeting(lang, brandName);

@@ -21,6 +21,8 @@ import { isFileSystemAccessAvailable } from '@/lib/dropbox';
 import { getDeviceRole, setDeviceRole, type DeviceRole } from '@/lib/device';
 import { availableFontsForLang } from '@/lib/translations';
 import { DropboxConnectModal } from './DropboxConnectModal';
+import { WhatsAppConnectModal } from './WhatsAppConnectModal';
+import { useIsOperatorOffice } from '@/hooks/useIsOperatorOffice';
 import { Modal } from './Modal';
 import type { FontSize, Lang, Theme } from '@/types';
 
@@ -39,6 +41,7 @@ export function SettingsDrawer() {
   const { state, dispatch, loadBackup } = useAppState();
   const { t, settingsText, lang } = useT();
   const modalStack = useModalStack();
+  const isOperatorOffice = useIsOperatorOffice();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const close = () => modalStack.close(modalStack.topId() ?? 0);
@@ -275,6 +278,28 @@ export function SettingsDrawer() {
           ))}
         </div>
       </Section>
+
+      {/* WhatsApp — each office connects its OWN number. The operator keeps
+          its original setup (Vercel credentials), so it isn't offered here. */}
+      {!isOperatorOffice && (
+        <Section title="WhatsApp" icon="fa-comments" pillClass="lang">
+          <div className="settings-actions">
+            <button
+              type="button"
+              className="mini-btn"
+              onClick={() => modalStack.open(<WhatsAppConnectModal />)}
+            >
+              {settingsText('חיבור מספר WhatsApp של המשרד', 'ربط رقم WhatsApp الخاص بالمكتب')}
+            </button>
+          </div>
+          <div className="settings-save-hint">
+            {settingsText(
+              'הודעות הלקוחות יגיעו למסך התקשורת, תוכל לענות מתוך המערכת, והודעות קוליות יתומללו לטקסט.',
+              'تصل رسائل الموكلين إلى شاشة التواصل، وتردّ من داخل النظام، وتُفرَّغ الرسائل الصوتية إلى نص.',
+            )}
+          </div>
+        </Section>
+      )}
 
       {/* Theme */}
       <Section title={t('theme')} icon="fa-sun" pillClass="theme">

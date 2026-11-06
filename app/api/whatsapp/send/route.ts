@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { dropboxRawUrl } from '@/lib/dropbox';
+import { bearerToken, isValidOfficeSession, secretEquals } from '@/lib/serverAuth';
 import {
   botInviteMessage,
   clientNameForPhone,
@@ -11,6 +12,37 @@ import {
 
 const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'https://legal-office-api-v4.sharifashraf.workers.dev';
 const APP_TOKEN = process.env.APP_TOKEN || process.env.NEXT_PUBLIC_APP_TOKEN || '';
+
+/**
+ * Who may send a WhatsApp message through this route.
+ *
+ * This route holds the office's Meta credentials, so an unauthenticated caller
+ * could previously send arbitrary messages from the business number — and, via
+ * `document.url`, make Meta fetch any URL it named. Two callers are legitimate:
+ *
+ *   • the office UI in a logged-in browser — presents its Better Auth session
+ *     token, which only the Worker can validate (one cheap probe per send);
+ *   • this server calling itself (the webhook's bot-invite / unknown-sender
+ *     replies, and the invite follow-up below) — presents APP_TOKEN, which is
+ *     server-side only and never reaches a browser.
+ *
+ * Anything else is rejected before a single Meta call is made.
+ */
+async function authorizeSend(
+  req: NextRequest,
+): Promise<{ ok: true; internal: boolean } | { ok: false }> {
+  const token = bearerToken(req);
+  if (!token) return { ok: false };
+  // Server-to-server self-call. Constant-time compare so the token can't be
+  // recovered a byte at a time from response timing.
+  if (APP_TOKEN && secretEquals(token, APP_TOKEN)) {
+    return { ok: true, internal: true };
+  }
+  if (await isValidOfficeSession(`Bearer ${token}`)) {
+    return { ok: true, internal: false };
+  }
+  return { ok: false };
+}
 
 async function resolveDocumentUrl(document?: { name?: string; url?: string; relativePath?: string }) {
   if (!document) return undefined;
@@ -79,7 +111,11 @@ async function maybeSendBotInvite(selfBase: string, to: string): Promise<void> {
     const message = botInviteMessage(name, resolvePortalBase(), to);
     await fetch(`${selfBase}/api/whatsapp/send`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        // Server-to-server: APP_TOKEN never leaves the server (see authorizeSend).
+        Authorization: `Bearer ${APP_TOKEN}`,
+      },
       // autoInvite:false stops the invite itself from triggering another invite.
       body: JSON.stringify({ to, message, autoInvite: false }),
     });
@@ -89,6 +125,13 @@ async function maybeSendBotInvite(selfBase: string, to: string): Promise<void> {
 }
 
 export async function POST(req: NextRequest) {
+  // Authorize FIRST — before parsing the body, resolving any document link, or
+  // touching Meta. An anonymous request must cost nothing and send nothing.
+  const auth = await authorizeSend(req);
+  if (!auth.ok) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
   let body: {
     to?: string;
     message?: string;
@@ -106,6 +149,40 @@ export async function POST(req: NextRequest) {
 
   if (!to) {
     return NextResponse.json({ error: 'Missing recipient phone number' }, { status: 400 });
+  }
+
+  // A logged-in office sends from ITS OWN connected number, through the Worker
+  // (which holds each office's credentials and logs into the office's own DB).
+  // Only the operator — not yet connected there — answers 409 `legacy` and
+  // falls through to the original Vercel-configured number below.
+  if (!auth.internal) {
+    let docUrl: string | undefined;
+    try {
+      docUrl = await resolveDocumentUrl(document);
+    } catch {
+      docUrl = undefined;
+    }
+    try {
+      const wres = await fetch(`${WORKER_URL}/api/whatsapp-send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: req.headers.get('authorization') || '',
+        },
+        body: JSON.stringify({
+          to,
+          message,
+          document: document ? { name: document.name, url: docUrl || document.url } : undefined,
+        }),
+      });
+      const wdata = (await wres.json().catch(() => ({}))) as { legacy?: boolean };
+      if (!(wres.status === 409 && wdata.legacy)) {
+        return NextResponse.json(wdata, { status: wres.status });
+      }
+    } catch (error) {
+      console.error('[WhatsApp send] worker send failed', error);
+      return NextResponse.json({ error: 'Failed to reach the WhatsApp service' }, { status: 502 });
+    }
   }
 
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;

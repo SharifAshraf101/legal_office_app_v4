@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppState } from '@/hooks/useAppState';
-import { useIsOperatorOffice } from '@/hooks/useIsOperatorOffice';
+import { useWhatsAppEnabled } from '@/hooks/useIsOperatorOffice';
 import { HomeDashboard } from './HomeDashboard';
 import { ClientsScreen } from './ClientsScreen';
 import { CasesScreen } from './CasesScreen';
@@ -33,13 +33,13 @@ import { GlobalSearchScreen } from './GlobalSearchScreen';
  */
 export function ScreenRouter() {
   const { state } = useAppState();
-  const isOperator = useIsOperatorOffice();
+  const waEnabled = useWhatsAppEnabled();
 
-  // The portal sends from the OPERATOR's WhatsApp number and reads the
-  // operator's conversations, so a tenant office must not reach it — not via
-  // the nav (already hidden) and not via a stale `currentTab` restored from a
-  // previous session. Fall back home.
-  if (state.currentTab === 'portal' && !isOperator) {
+  // The portal needs WhatsApp: the operator's original number, or an office
+  // that connected its own (each office then reads and sends only its own).
+  // Without it the tab is hidden — and a stale `currentTab` restored from a
+  // previous session falls back home.
+  if (state.currentTab === 'portal' && !waEnabled) {
     return <HomeDashboard />;
   }
 
