@@ -3167,19 +3167,31 @@ async function handleWhatsAppTranscribe(
 // GET /api/whatsapp-summary — one row per phone for the WhatsApp hub list:
 // the last message time, and how many incoming messages arrived after the
 // office's last reply ("unanswered"), so clients still waiting come first.
+// When the office last opened each client's chat screen (the latest message
+// timestamp it had then) — incoming messages up to it count as read.
+const WA_SEEN_DDL =
+  'CREATE TABLE IF NOT EXISTS whatsapp_seen (client_phone TEXT PRIMARY KEY, seen_ts INTEGER NOT NULL)';
+
 async function handleWhatsAppSummary(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   try {
+    await ctx.db.prepare(WA_SEEN_DDL).run();
+    // `unseen`: incoming messages after both the office's last reply AND the
+    // last time the chat was opened — the home card's bell counts these.
     const rs = await ctx.db.prepare(
       `SELECT w.client_phone AS phone,
               MAX(w.timestamp) AS last_ts,
               SUM(CASE WHEN w.direction = 'incoming'
                         AND w.timestamp > COALESCE(o.last_out, 0) THEN 1 ELSE 0 END) AS unanswered,
+              SUM(CASE WHEN w.direction = 'incoming'
+                        AND w.timestamp > COALESCE(o.last_out, 0)
+                        AND w.timestamp > COALESCE(s.seen_ts, 0) THEN 1 ELSE 0 END) AS unseen,
               MAX(CASE WHEN w.direction = 'incoming'
                         AND w.timestamp > COALESCE(o.last_out, 0) THEN w.timestamp END) AS waiting_since
          FROM whatsapp_messages w
          LEFT JOIN (SELECT client_phone, MAX(timestamp) AS last_out
                       FROM whatsapp_messages WHERE direction = 'outgoing'
                      GROUP BY client_phone) o ON o.client_phone = w.client_phone
+         LEFT JOIN whatsapp_seen s ON s.client_phone = w.client_phone
         GROUP BY w.client_phone`,
     ).all();
     return json({ phones: rs.results ?? [] }, request, env);
@@ -3196,6 +3208,24 @@ async function handleGetWhatsAppMessages(request: Request, env: Env, ctx: Ctx): 
     'SELECT * FROM whatsapp_messages WHERE client_phone = ?1 ORDER BY timestamp ASC'
   ).bind(phone).all<Record<string, unknown>>();
   const messages = rs.results ?? [];
+  // `?seen=1` — the chat screen is open on this client: everything up to the
+  // newest stored message is now read. (The webhook / send routes read this
+  // endpoint too, without the flag, so they never mark anything.)
+  if (url.searchParams.get('seen') === '1' && messages.length) {
+    try {
+      await ctx.db.prepare(WA_SEEN_DDL).run();
+      await ctx.db
+        .prepare(
+          `INSERT INTO whatsapp_seen (client_phone, seen_ts)
+             SELECT ?1, MAX(timestamp) FROM whatsapp_messages WHERE client_phone = ?1
+           ON CONFLICT(client_phone) DO UPDATE SET seen_ts = MAX(seen_ts, excluded.seen_ts)`,
+        )
+        .bind(phone)
+        .run();
+    } catch {
+      /* read marker only — never fail the chat */
+    }
+  }
   // An office connected here gets signed links for its media (its token lives
   // in the Worker); the operator's legacy media keep using the app's proxy.
   if (await configForTenant(env, ctx.tenantId)) {

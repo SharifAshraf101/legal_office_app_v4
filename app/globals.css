@@ -42164,3 +42164,11 @@ body.dark .client-context-menu .ccm-item:hover{background:#1f2937}
 .client-context-menu .ccm-value em{font-style:normal;color:var(--muted,#64748b);font-weight:600}
 .client-context-menu .ccm-draft{font-weight:500;color:var(--text,#0f172a);white-space:pre-line}
 body.dark .client-context-menu .ccm-draft{color:#dbe4f0}
+
+/* Home "שער תקשורת עם לקוחות" card — small bell + count of WhatsApp messages
+ * not yet answered or opened, at the end of the title. */
+.home-card h2 .home-wa-bell{display:inline-flex;align-items:center;gap:3px;margin-inline-start:6px;vertical-align:middle;padding:1px 6px 1px 5px;border-radius:999px;background:#ef4444;color:#fff;font-size:.55em;line-height:1.5;font-weight:800;letter-spacing:0;white-space:nowrap;box-shadow:0 2px 6px rgba(239,68,68,.35)}
+.home-card h2 .home-wa-bell i{font-size:.9em;animation:homeWaBell 2.4s ease-in-out infinite;transform-origin:50% 0}
+.home-card h2 .home-wa-bell b{font-weight:800}
+@keyframes homeWaBell{0%,80%,100%{transform:rotate(0)}84%{transform:rotate(14deg)}88%{transform:rotate(-12deg)}92%{transform:rotate(8deg)}96%{transform:rotate(-4deg)}}
+@media (prefers-reduced-motion:reduce){.home-card h2 .home-wa-bell i{animation:none}}

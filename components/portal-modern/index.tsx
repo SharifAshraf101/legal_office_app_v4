@@ -1275,7 +1275,7 @@ function ClientChatScreen({
       // Same-origin proxy — the office token stays on the server (see
       // app/api/whatsapp/messages/[phone]). No token in the client portal.
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_WORKER_URL || ''}/api/whatsapp-messages/${pollPhone}`,
+        `${process.env.NEXT_PUBLIC_WORKER_URL || ''}/api/whatsapp-messages/${pollPhone}?seen=1`,
         { headers: officeAuthHeader(), cache: 'no-store' },
       );
       const data = await res.json();

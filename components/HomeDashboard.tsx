@@ -1,10 +1,12 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useWhatsAppEnabled } from '@/hooks/useIsOperatorOffice';
 import { useT } from '@/hooks/useT';
 import { useModalStack } from '@/hooks/useModalStack';
 import { getTimeGreeting } from '@/lib/greeting';
+import { officeAuthHeader } from '@/lib/officeToken';
 import { UpcomingAgendaModal } from './UpcomingAgendaModal';
 
 /**
@@ -46,12 +48,44 @@ function tasksLabel(lang: 'he' | 'ar'): string {
   return lang === 'ar' ? 'مهام' : 'משימות';
 }
 
+/** Incoming WhatsApp messages the office neither answered nor opened (the
+ *  chat screen marks a client's messages read). Polled while home is shown. */
+function useUnseenWhatsApp(enabled: boolean): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch((process.env.NEXT_PUBLIC_WORKER_URL || '') + '/api/whatsapp-summary', {
+          headers: officeAuthHeader(),
+          cache: 'no-store',
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { phones?: Array<{ unseen?: number | null }> };
+        const n = (data.phones || []).reduce((sum, r) => sum + (Number(r.unseen) || 0), 0);
+        if (alive) setCount(n);
+      } catch {
+        /* keep the last count */
+      }
+    };
+    void load();
+    const id = window.setInterval(load, 20000);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [enabled]);
+  return enabled ? count : 0;
+}
+
 export function HomeDashboard() {
   const { state, dispatch } = useAppState();
   const { t, lang } = useT();
   const modalStack = useModalStack();
   const waEnabled = useWhatsAppEnabled();
   const cards = waEnabled ? HOME_CARDS : TENANT_HOME_CARDS;
+  const unseenWa = useUnseenWhatsApp(waEnabled);
 
   const brandName = state.officeName || t('firmName');
   const greetingText = getTimeGreeting(lang, brandName);
@@ -95,7 +129,22 @@ export function HomeDashboard() {
               <div className="card-icon">
                 <i className={'fas ' + card.icon} />
               </div>
-              <h2>{title}</h2>
+              <h2>
+                {title}
+                {card.id === 'portal' && unseenWa > 0 && (
+                  <span
+                    className="home-wa-bell"
+                    aria-label={
+                      lang === 'ar'
+                        ? `${unseenWa} رسائل لم يُرد عليها`
+                        : `${unseenWa} הודעות שטרם נענו`
+                    }
+                  >
+                    <i className="fas fa-bell" />
+                    <b>{unseenWa}</b>
+                  </span>
+                )}
+              </h2>
             </button>
           );
         })}
