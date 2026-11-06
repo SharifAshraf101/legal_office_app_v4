@@ -1,6 +1,7 @@
 'use client';
 
 import { useAppState } from '@/hooks/useAppState';
+import { useBackHandler } from '@/hooks/useBackHandler';
 import { useWhatsAppEnabled } from '@/hooks/useIsOperatorOffice';
 import { HomeDashboard } from './HomeDashboard';
 import { ClientsScreen } from './ClientsScreen';
@@ -32,7 +33,9 @@ import { GlobalSearchScreen } from './GlobalSearchScreen';
  * the rest of the screens land in subsequent sub-stages.
  */
 export function ScreenRouter() {
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
+  // The phone's BACK on a main screen does what its back button does: Home.
+  useBackHandler(state.currentTab !== 'home', () => dispatch({ type: 'SET_TAB', tab: 'home' }));
   const waEnabled = useWhatsAppEnabled();
 
   // The portal needs WhatsApp: the operator's original number, or an office

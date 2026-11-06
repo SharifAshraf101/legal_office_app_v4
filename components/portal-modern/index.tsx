@@ -57,6 +57,7 @@ import { formatDMY } from '@/lib/dates';
 import { officeAuthHeader } from '@/lib/officeToken';
 import { getPortalOffice, getPortalToken } from '@/lib/cloudflare';
 import { useWhatsAppEnabled } from '@/hooks/useIsOperatorOffice';
+import { useBackHandler } from '@/hooks/useBackHandler';
 import {
   financeCaseBalance,
   financePaidItemsForCase,
@@ -398,6 +399,23 @@ function PortalShell({
     document.body.classList.toggle('portal-bot-chat-open', active);
     return () => document.body.classList.remove('portal-bot-chat-open');
   }, [screen]);
+
+  // The phone's BACK inside the communication screen = each step's own back
+  // button (hub → chooser, chat → hub, bot → where it was opened from, the
+  // bot search → chooser). Not in a client's deep-link session: there BACK
+  // simply leaves, rather than logging the client out.
+  const backTarget: Screen | null = deepLink
+    ? null
+    : screen === 'hub' || screen === 'lawyer-search'
+      ? 'chooser'
+      : screen === 'chat'
+        ? 'hub'
+        : screen === 'bot'
+          ? botReturnScreen
+          : null;
+  useBackHandler(backTarget !== null, () => {
+    if (backTarget) setScreen(backTarget);
+  });
 
   const openChat = (client: ClientRow, caseId?: string) => {
     // If a specific case chip was clicked, surface that case's number/title

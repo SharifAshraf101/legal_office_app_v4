@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
+import { useBackHandler } from '@/hooks/useBackHandler';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { caseName, clientName } from '@/lib/cases';
 import {
@@ -99,6 +100,8 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
   };
 
   const close = () => modalStack.close(modalStack.topId() ?? 0);
+  // The phone's BACK button closes this window, like its own X.
+  useBackHandler(true, close);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();

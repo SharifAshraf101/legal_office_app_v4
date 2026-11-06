@@ -2,6 +2,7 @@
 
 import { useCallback, type MouseEvent, type ReactNode } from 'react';
 import { useT } from '@/hooks/useT';
+import { useBackHandler } from '@/hooks/useBackHandler';
 
 /**
  * Modal primitive. Recreates the markup of the source's `modal(html)`
@@ -43,6 +44,8 @@ export function Modal({
   hideBackBtn = false,
 }: ModalProps) {
   const { lang } = useT();
+  // The phone's BACK button closes this modal, like the app's own back.
+  useBackHandler(true, onClose);
   const closeLabel = lang === 'ar' ? 'إغلاق' : 'סגור';
   const backLabel = lang === 'ar' ? 'رجوع' : 'חזרה';
 
