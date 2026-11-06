@@ -42,11 +42,42 @@ import {
 // Overridable per-request via the `lawyer_name` body field.
 const DEFAULT_LAWYER_NAME = 'أشرف شريف / אשרף שריף / Ashraf Sharif';
 
-/** Gate for /api/admin/* — a separate operator token, NOT the app token. */
-function adminOk(request: Request, env: Env): boolean {
+/** The operator's own login, allowed into the admin console without the token. */
+const DEFAULT_ADMIN_EMAILS = 'sharifashraf@gmail.com';
+
+/**
+ * True when the request carries the operator's own signed-in session: the
+ * account's email is an admin email AND that account is a member of the
+ * operator office (tenant #1 = env.USER_ID). The email alone is not enough —
+ * sign-up doesn't verify email ownership — while membership of tenant #1 can
+ * only be granted from the control DB, never by signing up.
+ */
+async function adminSessionOk(request: Request, env: Env): Promise<boolean> {
+  const session = await createAuth(env)
+    .api.getSession({ headers: request.headers })
+    .catch(() => null);
+  const userId = session?.user?.id;
+  const email = String(session?.user?.email || '').trim().toLowerCase();
+  const admins = String(env.ADMIN_EMAILS || DEFAULT_ADMIN_EMAILS)
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (!userId || !email || !admins.includes(email)) return false;
+  const row = await env.CONTROL_DB.prepare(
+    'SELECT 1 AS ok FROM membership WHERE user_id = ?1 AND tenant_id = ?2 LIMIT 1',
+  )
+    .bind(userId, env.USER_ID)
+    .first<{ ok: number }>();
+  return !!row;
+}
+
+/** Gate for /api/admin/* — the separate operator token (NOT the app token), or
+ *  the operator's own signed-in session (see adminSessionOk). */
+async function adminOk(request: Request, env: Env): Promise<boolean> {
   const hdr = request.headers.get('Authorization') || '';
   const token = hdr.startsWith('Bearer ') ? hdr.slice(7).trim() : '';
-  return !!env.ADMIN_TOKEN && token === env.ADMIN_TOKEN;
+  if (env.ADMIN_TOKEN && token === env.ADMIN_TOKEN) return true;
+  return adminSessionOk(request, env);
 }
 
 export default {
@@ -83,7 +114,7 @@ export default {
       });
     }
     if (path.startsWith('/api/admin/')) {
-      if (!adminOk(request, env)) {
+      if (!(await adminOk(request, env))) {
         return json({ error: 'unauthorized' }, request, env, 401);
       }
       if (method === 'POST' && path === '/api/admin/migrate') {
@@ -94,7 +125,16 @@ export default {
         const rs = await env.CONTROL_DB.prepare(
           `SELECT t.*,
                   (SELECT u.email FROM membership m JOIN user u ON u.id = m.user_id
-                    WHERE m.tenant_id = t.id ORDER BY m.created_at ASC LIMIT 1) AS owner_email
+                    WHERE m.tenant_id = t.id ORDER BY m.created_at ASC LIMIT 1) AS owner_email,
+                  (SELECT u.name FROM membership m JOIN user u ON u.id = m.user_id
+                    WHERE m.tenant_id = t.id ORDER BY m.created_at ASC LIMIT 1) AS owner_name,
+                  -- The latest payment = the subscription period paid for now.
+                  (SELECT p.period_start FROM payment p WHERE p.tenant_id = t.id
+                    ORDER BY p.created_at DESC LIMIT 1) AS last_period_start,
+                  (SELECT p.period_end FROM payment p WHERE p.tenant_id = t.id
+                    ORDER BY p.created_at DESC LIMIT 1) AS last_period_end,
+                  (SELECT p.created_at FROM payment p WHERE p.tenant_id = t.id
+                    ORDER BY p.created_at DESC LIMIT 1) AS last_paid_at
              FROM tenant t
             ORDER BY t.created_at DESC`,
         ).all<TenantBillingRow & { id: string }>();
@@ -538,8 +578,12 @@ async function handleLoad(request: Request, env: Env, ctx: Ctx): Promise<Respons
   // The client hides those features unless is_operator — otherwise a tenant's
   // messages would go out from the operator's number and be stored against the
   // operator's data. See usesDropbox(), which draws the same line for storage.
+  const isOperator = ctx.tenantId === env.USER_ID;
   out.office = {
-    is_operator: ctx.tenantId === env.USER_ID,
+    is_operator: isOperator,
+    // Shows the admin-dashboard button. Only the operator's own login can be an
+    // admin, so other offices never pay for the check. /api/admin/* re-checks.
+    is_admin: isOperator && ctx.mode === 'tenant' ? await adminSessionOk(request, env) : false,
     tenant_id: ctx.tenantId,
     // Subscription standing, so the app can warn during the trial / grace
     // window and switch to read-only once entitlement runs out (Phase 4).

@@ -37,6 +37,7 @@ export interface Env {
   BETTER_AUTH_SECRET: string; // session-signing secret (set via wrangler secret)
   AUTH_BASE_URL?: string;     // the Worker's public URL (auth links/cookies)
   ADMIN_TOKEN?: string;       // gates /api/admin/* (migrate, list, approve)
+  ADMIN_EMAILS?: string;      // comma list; that login (in tenant #1) also opens /api/admin/*
 
   // Cloudflare REST creds so the Worker can reach each office's OWN D1 by id
   // (Phase 2 · D1-over-HTTP) and, later, provision new office databases. The

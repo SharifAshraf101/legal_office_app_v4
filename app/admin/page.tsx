@@ -1,13 +1,15 @@
 'use client';
 
 // Standalone office-admin console (operator-only). Deliberately NOT part of the
-// office app: it lives at /admin, authenticates with the ADMIN_TOKEN (typed once
-// and kept in this browser's localStorage — never shipped in the bundle), and
-// talks straight to the Worker's /api/admin/* endpoints. Regular offices never
-// come here and can't do anything here without the token.
+// office app: it lives at /admin and talks straight to the Worker's /api/admin/*
+// endpoints. Two ways in: the system owner's own signed-in session (the
+// dashboard button next to Settings — the Worker accepts that login only), or
+// the ADMIN_TOKEN typed once and kept in this browser's localStorage (never
+// shipped in the bundle). Any other signed-in office gets "no access".
 
 import { useCallback, useEffect, useState } from 'react';
-import { OFFICE_ADMIN_TOKEN_KEY } from '@/lib/officeToken';
+import { useRouter } from 'next/navigation';
+import { OFFICE_ADMIN_TOKEN_KEY, getOfficeToken } from '@/lib/officeToken';
 
 const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || '';
 const ADMIN_TOKEN_KEY = OFFICE_ADMIN_TOKEN_KEY;
@@ -34,6 +36,11 @@ interface Office {
   created_at: string;
   approved_at: string | null;
   owner_email: string | null;
+  owner_name: string | null;
+  /** Latest payment — the period currently paid for (null = never paid). */
+  last_period_start: string | null;
+  last_period_end: string | null;
+  last_paid_at: string | null;
   billing_note: string | null;
   billing: Billing;
 }
@@ -93,8 +100,28 @@ const gold = '#c8a24a';
 const fmt = (iso: string | null) =>
   iso ? `${iso.slice(0, 10)} ${iso.slice(11, 16)}` : '—';
 
+/** Start of the subscription period now running: the latest paid period, or
+ *  the trial (which starts on approval). */
+const periodStart = (o: Office) =>
+  o.billing.status === 'trialing' ? o.approved_at : o.last_period_start || o.approved_at;
+
+/** "Paid for the month in use?" — the question the operator chases. */
+const paidThisMonth = (o: Office): { text: string; fg: string; bg: string } => {
+  const b = o.billing;
+  if (b.plan === 'operator') return { text: 'משרד המערכת — ללא חיוב', fg: '#4b5563', bg: '#e5e7eb' };
+  if (b.effective === 'trialing') return { text: 'תקופת ניסיון — טרם חויב', fg: '#b45309', bg: '#fef3c7' };
+  if (b.effective === 'active') return { text: 'שולם', fg: '#15803d', bg: '#dcfce7' };
+  if (b.effective === 'canceled') return { text: 'המנוי עצור', fg: '#4b5563', bg: '#e5e7eb' };
+  return { text: 'לא שולם', fg: '#b91c1c', bg: '#fee2e2' };
+};
+
 export default function AdminPage() {
+  const router = useRouter();
   const [token, setToken] = useState('');
+  // true = signed in through the app (the owner's own session), not the token.
+  const [viaSession, setViaSession] = useState(false);
+  // A signed-in account that is NOT the system owner: no prompt, no data.
+  const [denied, setDenied] = useState(false);
   const [tokenInput, setTokenInput] = useState('');
   const [offices, setOffices] = useState<Office[]>([]);
   const [loading, setLoading] = useState(false);
@@ -109,7 +136,12 @@ export default function AdminPage() {
   useEffect(() => {
     try {
       const t = localStorage.getItem(ADMIN_TOKEN_KEY) || '';
-      if (t) setToken(t);
+      if (t) {
+        setToken(t);
+      } else if (getOfficeToken()) {
+        setViaSession(true);
+        setToken(getOfficeToken());
+      }
     } catch {
       /* ignore */
     }
@@ -135,6 +167,11 @@ export default function AdminPage() {
           headers: { Authorization: `Bearer ${tk}` },
         });
         if (res.status === 401) {
+          if (viaSession) {
+            setDenied(true);
+            setOffices([]);
+            return;
+          }
           forget();
           setAuthError('טוקן ניהול שגוי. נסה שוב.');
           return;
@@ -151,7 +188,7 @@ export default function AdminPage() {
         setLoading(false);
       }
     },
-    [forget],
+    [forget, viaSession],
   );
 
   useEffect(() => {
@@ -299,6 +336,34 @@ export default function AdminPage() {
   };
   const wrap: React.CSSProperties = { maxWidth: 780, margin: '0 auto' };
 
+  // ---- No access (signed in, but not the system owner) --------------------
+  if (denied) {
+    return (
+      <div style={shell}>
+        <div style={{ ...wrap, maxWidth: 440, marginTop: '8vh', textAlign: 'center' }}>
+          <div
+            style={{
+              background: surface,
+              border: `1px solid ${line}`,
+              borderRadius: 22,
+              padding: 30,
+              boxShadow: '0 20px 50px rgba(15,23,42,.08)',
+            }}
+          >
+            <i className="fas fa-lock" style={{ fontSize: 30, color: muted }} />
+            <h1 style={{ margin: '14px 0 6px', fontSize: 20 }}>אין גישה</h1>
+            <p style={{ margin: '0 0 18px', color: muted, fontSize: 13.5 }}>
+              הדאשבורד זמין רק למנהל המערכת.
+            </p>
+            <button type="button" onClick={() => router.push('/')} style={ghostBtn}>
+              חזרה לאפליקציה
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ---- Token gate ---------------------------------------------------------
   if (!token) {
     return (
@@ -425,10 +490,21 @@ export default function AdminPage() {
             <i className="fas fa-rotate" style={{ marginInlineEnd: 6 }} />
             רענון
           </button>
-          <button type="button" onClick={forget} style={ghostBtn}>
-            <i className="fas fa-right-from-bracket" style={{ marginInlineEnd: 6 }} />
-            התנתקות
+          <button type="button" onClick={() => router.push('/')} style={ghostBtn}>
+            <i className="fas fa-arrow-right" style={{ marginInlineEnd: 6 }} />
+            חזרה לאפליקציה
           </button>
+          {!viaSession && (
+            <button type="button" onClick={forget} style={ghostBtn}>
+              <i className="fas fa-right-from-bracket" style={{ marginInlineEnd: 6 }} />
+              התנתקות
+            </button>
+          )}
+        </div>
+        <div style={{ color: muted, fontSize: 12.5, margin: '-6px 0 16px' }}>
+          <i className="fas fa-key" style={{ marginInlineEnd: 6 }} />
+          שם המשתמש הוא כתובת הדוא״ל. הסיסמאות שמורות מוצפנות (גיבוב חד-כיווני), ולכן
+          אי אפשר להציג אותן — גם לא למנהל המערכת.
         </div>
 
         {offices.length > 0 && (
@@ -572,6 +648,35 @@ export default function AdminPage() {
                             <span dir="ltr">{o.owner_email || '—'}</span>
                           </div>
                           <div style={metaLine}>
+                            <i className="fas fa-calendar-check" style={metaIcon} />
+                            תחילת המינוי: {fmt(periodStart(o))}
+                            <span style={{ marginInlineStart: 10 }}>
+                              סיום: {o.billing.entitled_until ? fmt(o.billing.entitled_until) : '—'}
+                            </span>
+                          </div>
+                          <div style={metaLine}>
+                            <i className="fas fa-receipt" style={metaIcon} />
+                            תשלום לחודש הנוכחי:
+                            <span
+                              style={{
+                                marginInlineStart: 6,
+                                fontSize: 12,
+                                fontWeight: 800,
+                                color: paidThisMonth(o).fg,
+                                background: paidThisMonth(o).bg,
+                                borderRadius: 999,
+                                padding: '2px 10px',
+                              }}
+                            >
+                              {paidThisMonth(o).text}
+                            </span>
+                            {o.last_paid_at && (
+                              <span style={{ marginInlineStart: 8 }}>
+                                תשלום אחרון: {fmt(o.last_paid_at)}
+                              </span>
+                            )}
+                          </div>
+                          <div style={metaLine}>
                             <i className="fas fa-database" style={metaIcon} />
                             <span dir="ltr">{(o.data_db_name || '—').slice(0, 8)}…</span>
                             <span style={{ marginInlineStart: 10 }}>
@@ -631,7 +736,38 @@ export default function AdminPage() {
                               {suspended ? 'מושבת' : 'פעיל'}
                             </span>
                           </div>
-                          <div style={{ display: 'flex', gap: 8 }}>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                            {b.plan !== 'operator' && (
+                              <button
+                                type="button"
+                                disabled={busyId === o.id}
+                                onClick={() => {
+                                  if (b.status === 'canceled') {
+                                    void billingAction(o, { reactivate: true }, `המנוי של "${o.name}" הופעל.`);
+                                    return;
+                                  }
+                                  if (
+                                    !window.confirm(
+                                      `לעצור את המנוי של "${o.name}"? המשרד יעבור למצב קריאה בלבד — הנתונים והקבצים שלו נשמרים במלואם.`,
+                                    )
+                                  ) {
+                                    return;
+                                  }
+                                  void billingAction(o, { cancel: true }, `המנוי של "${o.name}" נעצר — המשרד במצב קריאה בלבד.`);
+                                }}
+                                style={{
+                                  ...solidBtn,
+                                  padding: '7px 15px',
+                                  fontSize: 13,
+                                  minWidth: 0,
+                                  background: b.status === 'canceled' ? '#059669' : '#fff',
+                                  color: b.status === 'canceled' ? '#fff' : '#b91c1c',
+                                  border: b.status === 'canceled' ? 0 : '1px solid #fecaca',
+                                }}
+                              >
+                                {busyId === o.id ? '…' : b.status === 'canceled' ? 'הפעלת מינוי' : 'עצירת מינוי'}
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => void openBilling(o)}

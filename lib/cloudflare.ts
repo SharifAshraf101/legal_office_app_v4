@@ -14,7 +14,7 @@ import {
 import { firstNonEmpty, isNonEmpty } from './utils';
 import { FILING_ROOT, filingFolderSegments, filingFileName } from './filing';
 import { loadDismissedEventIds } from './dismissedEvents';
-import { getOfficeToken, setOperatorOffice } from './officeToken';
+import { getOfficeToken, setAdminUser, setOperatorOffice } from './officeToken';
 import {
   clearOfficeBilling,
   markBillingBlocked,
@@ -338,6 +338,7 @@ interface LoadResponse {
   /** Who this office is — drives the operator-only feature gate + billing UI. */
   office?: {
     is_operator?: boolean;
+    is_admin?: boolean;
     tenant_id?: string;
     billing?: OfficeBilling;
   };
@@ -393,6 +394,7 @@ export async function legalOfficeLoadFromSupabaseV88(
         }
       }
       setOperatorOffice(!!data.office.is_operator);
+      setAdminUser(!!data.office.is_admin);
       // Subscription standing, for the trial watermark. Cache only — the Worker
       // enforces; this just explains.
       if (data.office.is_operator || !data.office.billing) {

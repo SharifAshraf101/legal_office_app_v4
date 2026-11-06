@@ -1,6 +1,8 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useAppState } from '@/hooks/useAppState';
+import { useIsAdminUser } from '@/hooks/useIsAdminUser';
 import { useT } from '@/hooks/useT';
 import { useModalStack } from '@/hooks/useModalStack';
 import { NewClientModal } from './NewClientModal';
@@ -84,6 +86,10 @@ export function Topbar() {
   const modalStack = useModalStack();
 
   const isHome = state.currentTab === 'home';
+  // The system owner's own login only (decided by the Worker on load). The
+  // dashboard it opens re-checks on the server, so this only hides the button.
+  const isAdmin = useIsAdminUser();
+  const router = useRouter();
   const qa = quickActionForTab(state.currentTab);
   // On home we don't show a page-title subtitle — the greeting moves to
   // the HomeDashboard so it can sit centered between the top two cards.
@@ -219,6 +225,16 @@ export function Topbar() {
               </svg>
               <span> {t('settings')}</span>
             </button>
+            {isAdmin && (
+              <button
+                type="button"
+                className="mini-btn home-settings-only-btn admin-dashboard-btn"
+                onClick={() => router.push('/admin')}
+              >
+                <i className="fas fa-user-shield" />
+                <span> {settingsText('ניהול משתמשים', 'إدارة المستخدمين')}</span>
+              </button>
+            )}
           </div>
         )}
 

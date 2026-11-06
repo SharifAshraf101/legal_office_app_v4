@@ -30,6 +30,9 @@ export function clearOfficeToken(): void {
   } catch {
     /* ignore */
   }
+  // The admin-dashboard button belongs to the session being signed out — the
+  // next account to sign in on this browser must not inherit it.
+  setAdminUser(false);
 }
 
 export function hasOfficeToken(): boolean {
@@ -78,6 +81,38 @@ export function isOperatorOffice(): boolean {
   if (typeof window === 'undefined') return false;
   try {
     return window.localStorage.getItem(OFFICE_IS_OPERATOR_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+// --- Admin-dashboard flag -------------------------------------------------
+// True only when the signed-in account is the system owner's own login (the
+// Worker decides: `office.is_admin` on GET /api/load). Shows the dashboard
+// button in the top bar. Display only — /api/admin/* checks the session itself,
+// so flipping this in devtools opens nothing. Unknown defaults to FALSE.
+export const OFFICE_IS_ADMIN_KEY = 'office_is_admin';
+
+export function setAdminUser(isAdmin: boolean): void {
+  if (typeof window === 'undefined') return;
+  const next = isAdmin ? '1' : '0';
+  try {
+    if (window.localStorage.getItem(OFFICE_IS_ADMIN_KEY) === next) return;
+    window.localStorage.setItem(OFFICE_IS_ADMIN_KEY, next);
+  } catch {
+    /* ignore */
+  }
+  try {
+    window.dispatchEvent(new Event(OFFICE_ROLE_EVENT));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isAdminUser(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(OFFICE_IS_ADMIN_KEY) === '1';
   } catch {
     return false;
   }

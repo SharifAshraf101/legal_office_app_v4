@@ -42004,3 +42004,6 @@ html body #caseTimelineList.timeline-edit-mode.timeline-edit-mode.timeline-edit-
  * zero or shrink the side padding (the case modal's mobile layout, inline
  * paddings); the repeated class outranks every selector in this file. */
 html body .modal-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box.edit-screen-box{padding-left:1cm !important;padding-right:1cm !important;box-sizing:border-box !important}
+
+/* Admin-dashboard button beside Settings (system owner only). */
+.home-only-settings-wrap .admin-dashboard-btn{margin-inline-start:8px !important}
