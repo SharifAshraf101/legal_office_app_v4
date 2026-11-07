@@ -233,6 +233,9 @@ function Columns({
   const groupW = Math.min(slot * 0.72, series.length * 22);
   const barW = Math.max(2, (groupW - gap * (series.length - 1)) / series.length);
   const y = (v: number) => padT + plotH - (top ? (v / top) * plotH : 0);
+  // Month names that don't fit their column (Arabic names are whole words)
+  // show every other month — the newest and the selected one always show.
+  const labelEvery = slot < (lang === 'ar' ? 58 : 34) ? 2 : 1;
 
   return (
     <div ref={ref} className="an-plot" onMouseLeave={() => onTip(null)}>
@@ -267,9 +270,11 @@ function Columns({
                     />
                   ) : null;
                 })}
-                <text x={x0 + slot / 2} y={h - 6} textAnchor="middle" className={'an-axis' + (isSel ? ' an-axis-sel' : '')}>
-                  {monthLabel(m.month, lang)}
-                </text>
+                {(isSel || (n - 1 - i) % labelEvery === 0) && (
+                  <text x={x0 + slot / 2} y={h - 6} textAnchor="middle" className={'an-axis' + (isSel ? ' an-axis-sel' : '')}>
+                    {monthLabel(m.month, lang)}
+                  </text>
+                )}
                 {/* hit target: the whole month column */}
                 <rect
                   x={x0}

@@ -42267,3 +42267,36 @@ html body .content .an-root.an-root.an-root h2.an-heading,
 html body .content .an-root.an-root.an-root .anbox-top h3{color:var(--an-ink)!important;-webkit-text-fill-color:var(--an-ink)!important;opacity:1!important}
 .content.content.content.content.content.analytics-content{padding:14px 22px 14px!important}
 @media (max-width:899px){.content.content.content.content.content.analytics-content{padding:12px 12px 90px!important}}
+
+/* Analytics in Arabic: the app-wide `html[lang="ar"] .content span/li/p/
+ * button… { font-size: 1.5em }` compounds on nested elements (a name in a
+ * <span> inside an <li> came out ×2.25 and was cut off). Inside this screen
+ * every text element takes its container's size, and the sizes set by this
+ * screen are pinned back. */
+html[lang="ar"] .content .an-root :is(p, label, span, button, td, th, li, a, strong, small, b, i) {
+  font-size: inherit;
+}
+html[lang="ar"] .content .an-root .an-hbars { font-size: 12.5px; }
+html[lang="ar"] .content .an-root .an-hbars li { font-size: inherit; }
+html[lang="ar"] .content .an-root .an-donut-legend i { font-size: 11px; }
+html[lang="ar"] .content .an-root .an-foot { font-size: 11px; }
+html[lang="ar"] .content .an-root .annone { font-size: 13px; }
+html[lang="ar"] .content .an-root .an-back,
+html[lang="ar"] .content .an-root .an-month { font-size: 14px; }
+html[lang="ar"] .content .an-root .an-month span { font-size: 15px; }
+html[lang="ar"] .content .an-root h2.an-heading { font-size: 22px !important; line-height: 1.3 !important; }
+html[lang="ar"] .content .an-root .anbox-top h3 { font-size: 14px !important; line-height: 1.35 !important; }
+html[lang="ar"] .content .an-root i[class*="fa-"] { font-size: 1em; }
+/* Hebrew's line-height is tighter; the Arabic font needs a little more. */
+html[lang="ar"] .content .an-root .an-tilevalue { line-height: 1.25; }
+
+/* A .an-hbars rule (no element) so Hebrew keeps the same size source. */
+.an-hbars { font-size: 12.5px; }
+
+/* Narrow screens: labels wrap to two lines instead of being cut off — the
+ * Arabic wording is longer. */
+@media (max-width: 1100px) {
+  .an-tilelabel, .an-tilesub { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.35; }
+  .an-hbar-name { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }
+  .an-hbars li { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; }
+}
