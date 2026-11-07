@@ -307,7 +307,7 @@ export async function POST(req: Request) {
 
   const ask = (msgs: Anthropic.Messages.MessageParam[]) =>
     client.messages.create({
-      model: 'claude-haiku-4-5',
+      model: 'claude-sonnet-5-5',
       max_tokens: 700,
       system: systemBlocks,
       messages: msgs,
