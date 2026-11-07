@@ -1021,8 +1021,20 @@ export interface PortalBotHistoryItem {
   time: string;
 }
 
+// One-time wipe of every client↔bot conversation, on every device (the
+// history lives only in each browser). Bump the id to wipe again.
+const BOT_HISTORY_RESET_ID = '2026-11-07';
+const BOT_HISTORY_RESET_KEY = 'law_portal_bot_history_reset';
+/** Sample bot Q+A for an empty history — off: only real conversations. */
+const SEED_BOT_DEMO = false as boolean;
+
 export function loadPortalBotHistory(): PortalBotHistoryItem[] {
   try {
+    if (lsGet(BOT_HISTORY_RESET_KEY) !== BOT_HISTORY_RESET_ID) {
+      lsSet(LS.PORTAL_BOT_HISTORY, '[]');
+      lsSet(BOT_HISTORY_RESET_KEY, BOT_HISTORY_RESET_ID);
+      return [];
+    }
     return JSON.parse(lsGet(LS.PORTAL_BOT_HISTORY) || '[]') || [];
   } catch {
     return [];
@@ -1144,6 +1156,9 @@ export function seedPortalBotHistoryDemo(ctx: {
   tasks: Task[];
   t: (k: string) => string;
 }): number {
+  // Disabled: the bot history holds only real conversations (no sample
+  // Q+A is planted into an empty history any more).
+  if (!SEED_BOT_DEMO) return 0;
   if (loadPortalBotHistory().length > 0) return 0;
   const { lang, clients, cases } = ctx;
   const candidates = clients
