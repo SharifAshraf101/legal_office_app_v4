@@ -414,7 +414,8 @@ export async function legalOfficeLoadFromSupabaseV88(
       // owner changes, BEFORE any of it can be shown or saved up as this
       // office's data.
       const tenantId = String(data.office.tenant_id || '');
-      if (tenantId) {
+      // The portal never touches the office cache (it doesn't use it).
+      if (tenantId && !portalToken) {
         let cachedOwner = '';
         try {
           cachedOwner = window.localStorage.getItem(OFFICE_DATA_OWNER_KEY) || '';
@@ -430,20 +431,25 @@ export async function legalOfficeLoadFromSupabaseV88(
           }
         }
       }
-      setOperatorOffice(!!data.office.is_operator);
-      setAdminUser(!!data.office.is_admin);
-      setWhatsAppEnabled(!!data.office.whatsapp_enabled || !!data.office.is_operator);
-      // Subscription standing, for the trial watermark. Cache only — the Worker
-      // enforces; this just explains.
-      if (data.office.is_operator || !data.office.billing) {
-        // The operator is never billed, so it must never hold a billing state
-        // at all — and a response that carries no billing must CLEAR what is
-        // cached rather than leave it. Otherwise a value picked up once (from
-        // an older deploy, or from a different office signed in on this same
-        // browser) would outlive its truth and mark the app forever.
-        clearOfficeBilling();
-      } else {
-        setOfficeBilling(data.office.billing);
+      // The office's own flags (operator, admin, WhatsApp, billing) are not the
+      // portal's to set — opening a client link on an office device must not
+      // overwrite them.
+      if (!portalToken) {
+        setOperatorOffice(!!data.office.is_operator);
+        setAdminUser(!!data.office.is_admin);
+        setWhatsAppEnabled(!!data.office.whatsapp_enabled || !!data.office.is_operator);
+        // Subscription standing, for the trial watermark. Cache only — the Worker
+        // enforces; this just explains.
+        if (data.office.is_operator || !data.office.billing) {
+          // The operator is never billed, so it must never hold a billing state
+          // at all — and a response that carries no billing must CLEAR what is
+          // cached rather than leave it. Otherwise a value picked up once (from
+          // an older deploy, or from a different office signed in on this same
+          // browser) would outlive its truth and mark the app forever.
+          clearOfficeBilling();
+        } else {
+          setOfficeBilling(data.office.billing);
+        }
       }
     }
 

@@ -23,6 +23,7 @@ import {
   persistCurrentDataToLocalStorage,
 } from '@/lib/storage';
 import {
+  isPortalMode,
   legalOfficeLoadFromSupabaseV88,
   legalOfficeSaveToSupabase,
 } from '@/lib/cloudflare';
@@ -363,7 +364,22 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // -----------------------------------------------------------------------
   useEffect(() => {
     const settings = loadUserSettings();
-    const data = loadData();
+    // A client's portal (signed link) shows ONLY the records the Worker returns
+    // for that link — never this browser's cached office data. On an office
+    // device the cache holds every client, and matching the link's phone
+    // against it picked another client whose (stale) number was the same.
+    const portal = isPortalMode();
+    const data = portal
+      ? {
+          clients: [],
+          casesArr: [],
+          eventsList: [],
+          finances: [],
+          timelineItems: [],
+          documentsArr: [],
+          tasksArr: [],
+        }
+      : loadData();
 
     // Restore any un-synced deletions from a previous session so the boot flush
     // (and later saves) still remove those rows from the backend.
@@ -418,8 +434,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       // Multi-tenant: only sync with the Worker once an office is logged in.
       // Before login the app shows the login screen; syncing here would fall
       // back to the legacy app-token and pull the wrong office's data.
-      if (hasOfficeToken()) {
-        if (lsGet(LS.PENDING_SYNC) === '1') {
+      // The portal loads with its signed link — no office login needed (a
+      // client's own phone has none).
+      if (portal || hasOfficeToken()) {
+        if (!portal && lsGet(LS.PENDING_SYNC) === '1') {
           const dels = snapshotDeletions();
           const ok = await legalOfficeSaveToSupabase({
             clients: data.clients,
@@ -485,7 +503,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
     const refresh = async () => {
       if (document.hidden) return;
-      if (!hasOfficeToken()) return; // no office logged in -> nothing to sync
+      if (!isPortalMode() && !hasOfficeToken()) return; // no office logged in -> nothing to sync
       const now = Date.now();
       if (now - lastRefreshAt.current < COOLDOWN_MS) return;
       lastRefreshAt.current = now;
@@ -561,6 +579,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const lastPersist = useRef(0);
   useEffect(() => {
     if (!state.hydrated) return;
+    // The portal's records are never cached on the device (and must not
+    // overwrite an office device's own cache).
+    if (isPortalMode()) return;
     // Debounce to avoid hammering localStorage during rapid updates.
     const id = window.setTimeout(() => {
       persistCurrentDataToLocalStorage({
