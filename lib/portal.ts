@@ -22,6 +22,7 @@ import {
 import { money } from './cases';
 import { normalizePhoneForLinks, phonesMatch } from './clients';
 import { LS, lsGet, lsSet } from './storage';
+import { clearBotHistoryOnServer, pushBotTurn } from './botHistorySync';
 
 /** Source line 3825. */
 export function portalLabel(lang: Lang): string {
@@ -1055,7 +1056,7 @@ export function addPortalBotHistory(
   const client = clients.find((x) => String(x.id) === String(clientId));
   const items = loadPortalBotHistory();
   items.unshift({
-    id: 'BH-' + Date.now(),
+    id: 'BH-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
     clientId: String(clientId || ''),
     clientName: client
       ? lang === 'ar'
@@ -1067,6 +1068,22 @@ export function addPortalBotHistory(
     time: new Date().toISOString(),
   });
   savePortalBotHistory(items.slice(0, 300));
+  // …and to the office's database, so the office sees it from any device.
+  pushBotTurn(items[0]);
+}
+
+/** Merge turns pulled from the server into the local copy (by id, newest
+ *  first). True when something was added. */
+export function mergePortalBotHistory(turns: PortalBotHistoryItem[]): boolean {
+  const items = loadPortalBotHistory();
+  const have = new Set(items.map((x) => String(x.id)));
+  const add = (Array.isArray(turns) ? turns : []).filter((x) => x && x.id && !have.has(String(x.id)));
+  if (!add.length) return false;
+  const all = [...items, ...add].sort(
+    (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime(),
+  );
+  savePortalBotHistory(all.slice(0, 500));
+  return true;
 }
 
 export function portalHistoryForClient(clientId: string): PortalBotHistoryItem[] {
@@ -1076,6 +1093,7 @@ export function portalHistoryForClient(clientId: string): PortalBotHistoryItem[]
 }
 
 export function clearPortalBotHistory(clientId: string): void {
+  clearBotHistoryOnServer(clientId);
   const rest = loadPortalBotHistory().filter(
     (x) => String(x.clientId) !== String(clientId),
   );

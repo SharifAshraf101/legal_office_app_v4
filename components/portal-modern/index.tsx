@@ -52,6 +52,7 @@ import {
   seedPortalBotHistoryDemo,
   type PortalBotHistoryItem,
 } from '@/lib/portal';
+import { useBotHistoryPull, useBotHistoryVersion } from '@/lib/botHistorySync';
 import { caseName } from '@/lib/cases';
 import { formatDMY } from '@/lib/dates';
 import { officeAuthHeader } from '@/lib/officeToken';
@@ -2014,6 +2015,9 @@ function LawyerSearchScreen({
   onBack: () => void;
   lang: 'he' | 'ar';
 }) {
+  // Every client's bot conversations, from the office's database.
+  const botHistoryVersion = useBotHistoryVersion();
+  useBotHistoryPull(true);
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
   const matches = useMemo(() => {
@@ -2049,7 +2053,8 @@ function LawyerSearchScreen({
     }
     rows.sort((a, b) => b.lastTime - a.lastTime);
     return rows;
-  }, [clients]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clients, botHistoryVersion]);
 
   const T = {
     title:
@@ -2325,6 +2330,10 @@ function BotChatScreen({
   const { t } = useT();
   const modalStack = useModalStack();
   const goToTab = (tab: string) => dispatch({ type: 'SET_TAB', tab });
+  // Conversations held on other devices (the client's phone) come from the
+  // office's database.
+  const botHistoryVersion = useBotHistoryVersion();
+  useBotHistoryPull(!!client);
 
   // Defense in depth: if we somehow reached the bot screen in client
   // mode without a verified client identity (e.g. a future code path
@@ -2352,7 +2361,7 @@ function BotChatScreen({
     setDownloadedDocIds(
       client ? downloadedDocIdsForClient(client.id) : new Set(),
     );
-  }, [client?.id]);
+  }, [client?.id, botHistoryVersion]);
 
   // Welcome splash: show the greeting card for 5s after the client lands on
   // the screen, then hide it so the questions/answers area fills its place.

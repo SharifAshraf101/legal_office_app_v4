@@ -44,6 +44,7 @@ import {
   webhookVerify,
 } from './whatsapp';
 import { portalContext, portalLink, verifyPortalToken } from './portal';
+import { officeClearTurns, officeListTurns, officeSaveTurn, portalListTurns, portalSaveTurn } from './botHistory';
 import { handleDocQueue, idsFromFileName, type DocJob, type PipelineCtx } from './docpipeline';
 import { citedKnownDecisions, looksSharia, relevantRulings } from './rulings';
 import {
@@ -139,6 +140,19 @@ export default {
     if (method === 'GET' && path === '/api/portal-context') {
       const r = await portalContext(env, url.searchParams.get('t') || '');
       return json(r.body, request, env, r.status);
+    }
+    // A client's bot conversation (signed link in `t`). Without `t` these fall
+    // through to the office (session) routes below.
+    if (path === '/api/bot-history' && method === 'GET' && url.searchParams.get('t')) {
+      const r = await portalListTurns(env, url.searchParams.get('t') || '');
+      return json(r.body, request, env, r.status);
+    }
+    if (path === '/api/bot-history' && method === 'POST') {
+      const b = (await request.clone().json().catch(() => ({}))) as { t?: string };
+      if (b.t) {
+        const r = await portalSaveTurn(env, b as Parameters<typeof portalSaveTurn>[1]);
+        return json(r.body, request, env, r.status);
+      }
     }
     if (method === 'GET' && path === '/api/portal-verify') {
       const who = await verifyPortalToken(env, url.searchParams.get('t') || '');
@@ -649,6 +663,20 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
     }
   }
   // A signed bot link for one of THIS office's clients (the webhook's invite).
+  if (path === '/api/bot-history' && method === 'GET') {
+    const r = await officeListTurns(ctx.db);
+    return json(r.body, request, env, r.status);
+  }
+  if (path === '/api/bot-history' && method === 'POST') {
+    const b = (await request.json().catch(() => ({}))) as { turn?: Record<string, string> };
+    const r = await officeSaveTurn(ctx.db, b.turn || {});
+    return json(r.body, request, env, r.status);
+  }
+  if (path === '/api/bot-history-clear' && method === 'POST') {
+    const b = (await request.json().catch(() => ({}))) as { clientId?: string };
+    const r = await officeClearTurns(ctx.db, String(b.clientId || ''));
+    return json(r.body, request, env, r.status);
+  }
   if (method === 'POST' && path === '/api/portal-link') {
     const b = (await request.json().catch(() => ({}))) as { phone?: string };
     if (!String(b.phone || '').replace(/\D/g, '')) {
