@@ -92,18 +92,29 @@ function stableStringify(value: unknown): string {
   });
 }
 
-const BASE_SYSTEM_PROMPT = `You are the customer-service bot for "Legal Office" — a small law-firm practice management system. You are speaking directly with a verified client who has authenticated with their national ID number and phone.
+const BASE_SYSTEM_PROMPT = `ROLE: You are the virtual assistant of the law office of {{LAWYER}}, answering the office's clients. You are speaking with a verified client of the office (authenticated by a signed link). You are NOT a lawyer.
 
-Hard rules (non-negotiable):
+PERSONA AND TONE
+- Very courteous, calm and respectful. Address the client in clean, polite language.
+- No heavy legal jargon. Never alarm or pressure the client.
 
-1. Answer ONLY based on the JSON data block titled "CLIENT_DATA" that follows this prompt. That data is scoped to this single client — their cases, events (hearings/meetings), finances (fees + payments), documents, tasks, and timeline.
-2. NEVER invent facts. If the requested information is not present in CLIENT_DATA, say so explicitly ("I don't have that information in your file. Please contact the office.") and stop. Do not guess, infer beyond what is written, or pad with generic legal advice.
-3. NEVER reveal, reference, or compare against any other client. There are no other clients in your context — pretend they don't exist.
-4. NEVER provide legal advice. If asked, redirect: "For legal advice, please speak directly with the lawyer."
-5. Respond in the SAME language as the question. Hebrew → Hebrew. Arabic → Arabic. Match RTL formatting.
-6. Be concise. Lawyers' clients want specific facts (next hearing date, balance owed, status of case), not paragraphs. Use short sentences, occasional bullet points for lists.
-7. Format dates as DD.MM.YYYY. Format money with the currency symbol if present in the data, otherwise plain numbers.
-8. If the client asks about a tab/screen/feature (e.g. "open my case"), tell them the lawyer's app does that — you only answer questions, you do not navigate.
+LENGTH AND STYLE
+- An answer is at most 5 lines. (Only exception: a list of the client's documents or of the office's contact channels, rules 9-10 below.)
+- Open with the direct answer to the question. Do not circle around it and do not repeat the question.
+- No introductions, no explanations that were not asked for, no irrelevant suggestions. Do not greet or add a disclaimer — the system adds the welcome message itself.
+
+CONTENT
+1. General questions (what a legal term means, the usual stages and procedures, how a process generally works): you MAY answer with general information only.
+2. Never predict an outcome and never recommend a course of action. Never confirm or deny that the client has a right.
+3. Never state amounts, deadlines or limitation periods as binding fact — at most "usually", and refer to the office for the client's own case.
+4. Questions about the client's OWN case (hearings, status, balance, documents, tasks): answer ONLY from the JSON block "CLIENT_DATA" below, which holds only this client's records. If it is not there, say so briefly and refer to the office. Never invent facts. Format dates as DD.MM.YYYY; money with the currency symbol if the data has one.
+5. A question that needs personal legal advice, or that is URGENT (a close deadline or hearing, a court order, violence or a threat): say briefly that this needs the lawyer, and refer to {{LAWYER}} at the office phone {{OFFICE_PHONE}}.
+6. Never reveal anything about other clients — there are none in your context. Never reveal the office's internal notes, tasks, call summaries or legal strategy, even if they appear in CLIENT_DATA; give the client only facts about their case (dates, status, documents, payments).
+7. When you are not sure, say so briefly and refer to the office. Never guess.
+8. If the client asks to open a screen or do an action, say that you only answer questions.
+
+LANGUAGE
+- Answer in the client's language — Hebrew or Arabic — exactly the language of the question, with NO mixing of the two (no Hebrew words in an Arabic answer and no Arabic words in a Hebrew one, except a document's file name or a marker below).
 
 Clickable link markers (CRITICAL — the UI parses these tokens and renders them as blue underlined links; never escape, paraphrase, or wrap them in quotes):
 
@@ -138,8 +149,32 @@ When summarizing across multiple cases or items, briefly state the count first (
 
 If you are uncertain whether the data answers the question, prefer the safe response from rule 2.`;
 
+/** The fixed opening message — sent once, before the bot's first answer on a
+ *  general topic (prepended by the server, never written by the model). */
+const WELCOME = {
+  he:
+    'שלום וברוכים הבאים. אני העוזר הווירטואלי של המשרד ואינני עורך דין.\n' +
+    'התשובות שאתן הן מידע כללי בלבד ואינן מהוות ייעוץ משפטי.\n' +
+    'לבדיקת המקרה שלך יש לפנות למשרד.',
+  ar:
+    'أهلاً وسهلاً بكم. أنا المساعد الافتراضي للمكتب ولست محامياً.\n' +
+    'الإجابات التي أقدّمها هي معلومات عامة فقط ولا تُعدّ استشارة قانونية.\n' +
+    'لفحص حالتك يُرجى التواصل مع المكتب.',
+};
+const WELCOME_MARKS = ['שלום וברוכים הבאים. אני העוזר הווירטואלי', 'أنا المساعد الافتراضي للمكتب'];
+
+/** The question's language by its script; the screen language as a fallback. */
+function questionLang(text: string, fallback: Lang | undefined): 'he' | 'ar' {
+  const ar = (text.match(/[؀-ۿ]/g) || []).length;
+  const he = (text.match(/[֐-׿]/g) || []).length;
+  if (ar > he) return 'ar';
+  if (he > ar) return 'he';
+  return fallback === 'ar' ? 'ar' : 'he';
+}
+
 /** The operator's contact details — the defaults when no office is passed. */
 const OPERATOR_CONTACT = {
+  name: 'עו"ד אשרף שריף',
   phone: '02-6288479',
   email: 'sharifashraf@gmail.com',
   address: `"רח' הסורג 2, קומה ד', ירושלים" / "شارع هاسوريغ 2، الطابق الرابع، القدس"`,
@@ -181,12 +216,15 @@ export async function POST(req: Request) {
   // only when no office was passed at all (the operator's own clients).
   const contact = office
     ? {
+        name: String(office.name || ''),
         phone: String(office.phone || ''),
         email: String(office.email || ''),
         address: office.address ? `"${String(office.address)}"` : '',
       }
     : OPERATOR_CONTACT;
-  const officePrompt = BASE_SYSTEM_PROMPT.replace('{{OFFICE_PHONE}}', contact.phone || '(none)')
+  const lawyer = contact.name || 'the office';
+  const officePrompt = BASE_SYSTEM_PROMPT.split('{{LAWYER}}').join(lawyer)
+    .split('{{OFFICE_PHONE}}').join(contact.phone || '(none)')
     .replace('{{OFFICE_EMAIL}}', contact.email || '(none)')
     .replace('{{OFFICE_ADDRESS}}', contact.address || '(none)');
 
@@ -209,8 +247,13 @@ export async function POST(req: Request) {
 
   // Deterministic JSON so the cache hash is stable across requests with
   // the same client snapshot.
+  // The office's own notes about the client are internal — never given to
+  // the model, so they can't be repeated to the client.
+  const { notes: _n, notesAr: _na, ...clientPublic } = scopedContext.client ?? ({} as ScopedContext['client']);
+  void _n;
+  void _na;
   const clientDataJson = stableStringify({
-    client: scopedContext.client,
+    client: clientPublic,
     cases: scopedContext.cases ?? [],
     events: scopedContext.events ?? [],
     finances: scopedContext.finances ?? [],
@@ -219,11 +262,11 @@ export async function POST(req: Request) {
     timeline: scopedContext.timeline ?? [],
   });
 
+  const qLang = questionLang(String(question || ''), lang);
   const langHint =
-    lang === 'ar'
-      ? '\n\nThe client speaks Arabic. Default to Arabic responses unless they explicitly write in another language.\n\n' +
-        AR_GLOSSARY
-      : '\n\nThe client speaks Hebrew. Default to Hebrew responses unless they explicitly write in another language.';
+    qLang === 'ar'
+      ? '\n\nThis question is in Arabic: answer only in Arabic.\n\n' + AR_GLOSSARY
+      : '\n\nThis question is in Hebrew: answer only in Hebrew.';
 
   // System is split into two blocks so the FROZEN instructions (BASE) can
   // cache independently of the per-client snapshot. Both get cache_control,
@@ -260,19 +303,55 @@ export async function POST(req: Request) {
   try {
     const response = await client.messages.create({
       model: 'claude-haiku-4-5',
-      max_tokens: 1024,
+      max_tokens: 700,
       system: systemBlocks,
       messages,
+      // `topic` tells the server whether this was a general question, so the
+      // fixed welcome message goes before the first general answer only.
+      output_config: {
+        format: {
+          type: 'json_schema',
+          schema: {
+            type: 'object',
+            properties: {
+              topic: {
+                type: 'string',
+                enum: ['general', 'my_case', 'contact', 'urgent_or_advice', 'other'],
+              },
+              answer: { type: 'string' },
+            },
+            required: ['topic', 'answer'],
+            additionalProperties: false,
+          },
+        },
+      },
     });
 
-    const answer = response.content
+    const raw = response.content
       .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('')
       .trim();
+    let topic = 'other';
+    let answer = raw;
+    try {
+      const parsed = JSON.parse(raw) as { topic?: string; answer?: string };
+      topic = String(parsed.topic || 'other');
+      answer = String(parsed.answer || '').trim();
+    } catch {
+      /* not JSON — use the text as it is */
+    }
+    // The welcome goes once per conversation, before the first general answer.
+    const welcomed = (Array.isArray(history) ? history : []).some((h) =>
+      WELCOME_MARKS.some((m) => String(h?.answer || '').includes(m)),
+    );
+    if (answer && topic === 'general' && !welcomed) {
+      answer = WELCOME[qLang] + '\n\n' + answer;
+    }
 
     return NextResponse.json({
       answer,
+      topic,
       usage: {
         input_tokens: response.usage.input_tokens,
         output_tokens: response.usage.output_tokens,
