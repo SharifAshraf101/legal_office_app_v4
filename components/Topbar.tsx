@@ -77,6 +77,7 @@ function pageTitle(tab: string, t: (k: string) => string, lang: 'he' | 'ar'): st
   if (tab === 'portal') return lang === 'ar' ? 'بوابة تواصل الموكلون' : 'שער תקשורת עם לקוחות';
   if (tab === 'documents') return lang === 'ar' ? 'المستندات' : 'מסמכים';
   if (tab === 'tasks') return lang === 'ar' ? 'مهام' : 'משימות';
+  if (tab === 'analytics') return lang === 'ar' ? 'التحليلات' : 'אנליטיקה';
   return t(tab);
 }
 

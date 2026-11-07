@@ -13,6 +13,7 @@ import { FinanceDetail } from './FinanceDetail';
 import { DocumentsScreen } from './DocumentsScreen';
 import { PortalScreen } from './PortalScreen';
 import { GlobalSearchScreen } from './GlobalSearchScreen';
+import { AnalyticsScreen } from './AnalyticsScreen';
 
 /**
  * Switches on `currentTab` to render the active screen. Port of
@@ -70,6 +71,8 @@ export function ScreenRouter() {
       return <PortalScreen key={state.portalNavNonce} />;
     case 'search':
       return <GlobalSearchScreen />;
+    case 'analytics':
+      return <AnalyticsScreen />;
     default:
       return <HomeDashboard />;
   }

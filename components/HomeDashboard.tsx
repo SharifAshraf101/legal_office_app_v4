@@ -104,6 +104,16 @@ export function HomeDashboard() {
       data-home-style={state.homeStyle}
     >
       <div className="home-greeting">{greetingText}</div>
+      {/* Analytics — a round button in the free space beside the cards. */}
+      <button
+        type="button"
+        className="home-analytics-btn"
+        onClick={() => dispatch({ type: 'SET_TAB', tab: 'analytics' })}
+        aria-label={lang === 'ar' ? 'التحليلات' : 'אנליטיקה'}
+        title={lang === 'ar' ? 'التحليلات' : 'אנליטיקה'}
+      >
+        <img src="/analytics-icon.jpg" alt="" />
+      </button>
       {/* The 4 cards + the floating badge are ALL direct children
        *  of `.home-grid` — a single CSS Grid with explicit
        *  template-areas. The badge spans the entire 4-card

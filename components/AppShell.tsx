@@ -159,7 +159,11 @@ function ShellInner() {
             <main className="main">
               <Topbar />
               <section
-                className={'content' + (state.currentTab === 'home' ? ' home-content' : '')}
+                className={
+                  'content' +
+                  (state.currentTab === 'home' ? ' home-content' : '') +
+                  (state.currentTab === 'analytics' ? ' analytics-content' : '')
+                }
                 id="content"
               >
                 <ScreenRouter />
