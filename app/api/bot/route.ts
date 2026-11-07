@@ -108,7 +108,7 @@ CONTENT
 2. Never predict an outcome and never recommend a course of action. Never confirm or deny that the client has a right.
 3. Never state amounts, deadlines or limitation periods as binding fact — at most "usually", and refer to the office for the client's own case.
 4. Questions about the client's OWN case (hearings, status, balance, documents, tasks): answer ONLY from the JSON block "CLIENT_DATA" below, which holds only this client's records. If it is not there, say so briefly and refer to the office. Never invent facts. Format dates as DD.MM.YYYY; money with the currency symbol if the data has one.
-5. A question that needs personal legal advice, or that is URGENT (a close deadline or hearing, a court order, violence or a threat): say briefly that this needs the lawyer, and refer to {{LAWYER}} at the office phone {{OFFICE_PHONE}}.
+5. A question that needs personal legal advice, or that is URGENT (a close deadline or hearing, a court order, violence or a threat): say briefly that this needs the lawyer, and refer to {{LAWYER}} at the office phone {{OFFICE_PHONE}}. Refer ONLY to the office — never tell the client to contact the police or any other body or service.
 6. Never reveal anything about other clients — there are none in your context. Never reveal the office's internal notes, tasks, call summaries or legal strategy, even if they appear in CLIENT_DATA; give the client only facts about their case (dates, status, documents, payments).
 7. When you are not sure, say so briefly and refer to the office. Never guess.
 8. If the client asks to open a screen or do an action, say that you only answer questions.
@@ -173,8 +173,11 @@ function questionLang(text: string, fallback: Lang | undefined): 'he' | 'ar' {
 }
 
 /** The operator's contact details — the defaults when no office is passed. */
+/** The operator's lawyer, by answer language (never transliterated). */
+const OPERATOR_LAWYER = { he: 'עו"ד אשרף שריף', ar: 'المحامي أشرف شريف' };
+
 const OPERATOR_CONTACT = {
-  name: 'עו"ד אשרף שריף',
+  name: '',
   phone: '02-6288479',
   email: 'sharifashraf@gmail.com',
   address: `"רח' הסורג 2, קומה ד', ירושלים" / "شارع هاسوريغ 2، الطابق الرابع، القدس"`,
@@ -222,7 +225,10 @@ export async function POST(req: Request) {
         address: office.address ? `"${String(office.address)}"` : '',
       }
     : OPERATOR_CONTACT;
-  const lawyer = contact.name || 'the office';
+  const qLang = questionLang(String(question || ''), lang);
+  const lawyer = office
+    ? contact.name || (qLang === 'ar' ? 'المكتب' : 'המשרד')
+    : OPERATOR_LAWYER[qLang];
   const officePrompt = BASE_SYSTEM_PROMPT.split('{{LAWYER}}').join(lawyer)
     .split('{{OFFICE_PHONE}}').join(contact.phone || '(none)')
     .replace('{{OFFICE_EMAIL}}', contact.email || '(none)')
@@ -262,7 +268,6 @@ export async function POST(req: Request) {
     timeline: scopedContext.timeline ?? [],
   });
 
-  const qLang = questionLang(String(question || ''), lang);
   const langHint =
     qLang === 'ar'
       ? '\n\nThis question is in Arabic: answer only in Arabic.\n\n' + AR_GLOSSARY
@@ -300,12 +305,12 @@ export async function POST(req: Request) {
   }
   messages.push({ role: 'user', content: question });
 
-  try {
-    const response = await client.messages.create({
+  const ask = (msgs: Anthropic.Messages.MessageParam[]) =>
+    client.messages.create({
       model: 'claude-haiku-4-5',
       max_tokens: 700,
       system: systemBlocks,
-      messages,
+      messages: msgs,
       // `topic` tells the server whether this was a general question, so the
       // fixed welcome message goes before the first general answer only.
       output_config: {
@@ -326,21 +331,47 @@ export async function POST(req: Request) {
         },
       },
     });
-
+  const read = (response: Anthropic.Messages.Message) => {
     const raw = response.content
       .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('')
       .trim();
-    let topic = 'other';
-    let answer = raw;
     try {
       const parsed = JSON.parse(raw) as { topic?: string; answer?: string };
-      topic = String(parsed.topic || 'other');
-      answer = String(parsed.answer || '').trim();
+      return { raw, topic: String(parsed.topic || 'other'), answer: String(parsed.answer || '').trim() };
     } catch {
-      /* not JSON — use the text as it is */
+      return { raw, topic: 'other', answer: raw }; // not JSON — the text as it is
     }
+  };
+
+  try {
+    let response = await ask(messages);
+    let { raw, topic, answer } = read(response);
+    // No mixing: letters of the other language outside the link markers
+    // (a document's file name sits inside one) → ask once more.
+    const foreign = (text: string) =>
+      (text.replace(/\[\[[^\]]*\]\]/g, '').match(qLang === 'ar' ? /[֐-׿]/g : /[؀-ۿ]/g) || [])
+        .length;
+    if (answer && foreign(answer) > 0) {
+      const again = await ask([
+        ...messages,
+        { role: 'assistant', content: raw },
+        {
+          role: 'user',
+          content:
+            qLang === 'ar'
+              ? 'أعد كتابة الجواب نفسه بالعربية فقط، دون أي كلمة بالعبرية.'
+              : 'כתוב שוב את אותה תשובה בעברית בלבד, בלי אף מילה בערבית.',
+        },
+      ]);
+      const r2 = read(again);
+      if (r2.answer && foreign(r2.answer) < foreign(answer)) {
+        response = again;
+        ({ raw, topic, answer } = r2);
+      }
+    }
+    void raw;
     // The welcome goes once per conversation, before the first general answer.
     const welcomed = (Array.isArray(history) ? history : []).some((h) =>
       WELCOME_MARKS.some((m) => String(h?.answer || '').includes(m)),
