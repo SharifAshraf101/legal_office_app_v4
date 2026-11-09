@@ -45,6 +45,7 @@ import {
 } from './whatsapp';
 import { portalContext, portalLink, verifyPortalToken } from './portal';
 import { handleAnalytics } from './analytics';
+import { handleBriefing, handleBriefingArgument } from './briefing';
 import { officeClearTurns, officeListTurns, officeSaveTurn, portalListTurns, portalSaveTurn } from './botHistory';
 import { handleDocQueue, idsFromFileName, type DocJob, type PipelineCtx } from './docpipeline';
 import { citedKnownDecisions, looksSharia, relevantRulings } from './rulings';
@@ -664,6 +665,14 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
     }
   }
   // A signed bot link for one of THIS office's clients (the webhook's invite).
+  if (path === '/api/briefing' && method === 'GET') {
+    return json(await handleBriefing(ctx, new URL(request.url)), request, env);
+  }
+  if (path === '/api/briefing-argument' && method === 'POST') {
+    const b = (await request.json().catch(() => ({}))) as Parameters<typeof handleBriefingArgument>[2];
+    const r = await handleBriefingArgument(env, ctx, b);
+    return json(r.body, request, env, r.status);
+  }
   if (path === '/api/analytics' && method === 'GET') {
     return json(await handleAnalytics(ctx), request, env);
   }

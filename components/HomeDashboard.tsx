@@ -114,6 +114,16 @@ export function HomeDashboard() {
       >
         <img src="/analytics-icon.jpg" alt="" />
       </button>
+      {/* Daily briefing — the mirror of the analytics button, on the other side. */}
+      <button
+        type="button"
+        className="home-briefing-btn"
+        onClick={() => dispatch({ type: 'SET_TAB', tab: 'briefing' })}
+        aria-label={lang === 'ar' ? 'الإحاطة اليومية' : 'תדריך יומי'}
+        title={lang === 'ar' ? 'الإحاطة اليومية' : 'תדריך יומי'}
+      >
+        <img src="/briefing-icon.png" alt="" />
+      </button>
       {/* The 4 cards + the floating badge are ALL direct children
        *  of `.home-grid` — a single CSS Grid with explicit
        *  template-areas. The badge spans the entire 4-card

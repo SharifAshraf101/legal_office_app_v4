@@ -42300,3 +42300,142 @@ html[lang="ar"] .content .an-root .an-tilevalue { line-height: 1.25; }
   .an-hbar-name { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }
   .an-hbars li { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; }
 }
+
+/* ===================================================================
+ * Home — daily briefing button (mirror of the analytics button)
+ * =================================================================== */
+.home-briefing-btn{position:fixed;top:165px;right:225px;width:112px;height:112px;padding:0;border-radius:50%;border:2px solid #bfdbfe;background:#ffffff;overflow:hidden;cursor:pointer;z-index:6;box-shadow:0 12px 28px rgba(15,23,42,.10);transition:transform .18s ease,box-shadow .18s ease;display:grid;place-items:center}
+.home-briefing-btn img{display:block;width:72%;height:72%;object-fit:contain}
+.home-briefing-btn:hover{transform:translateY(-3px);box-shadow:0 18px 36px rgba(15,23,42,.16)}
+.home-briefing-btn:focus-visible{outline:3px solid #2563eb;outline-offset:3px}
+body.dark .home-briefing-btn{border-color:#475569;background:#ffffff}
+@media (max-width:1100px){.home-briefing-btn{top:104px;right:18px;width:72px;height:72px}}
+@media (max-width:620px){.home-briefing-btn{top:auto;bottom:96px;right:14px;width:54px;height:54px}}
+
+/* ===================================================================
+ * Daily briefing screen — one page, no scroll on desktop.
+ * Reuses .analytics-content for the content area (flex column, no
+ * page scroll). Class names avoid the app-wide attribute selectors.
+ * =================================================================== */
+.bf-root{--bf-card:#ffffff;--bf-line:#e6ebf2;--bf-ink:#152033;--bf-ink-2:#52606f;--bf-muted:#7b8794;--bf-soft:#f4f7fb;
+  --bf-a:#2a78d6;--bf-a-soft:#e8f1fc;--bf-b:#6250d6;--bf-b-soft:#efedfc;--bf-c:#1baf7a;--bf-c-soft:#e6f7f0;--bf-d:#d9480f;--bf-d-soft:#fdeee6;
+  flex:1 1 auto;min-height:0;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:12px;color:var(--bf-ink)}
+body.dark .bf-root{--bf-card:#1E293B;--bf-line:#334155;--bf-ink:#F8FAFC;--bf-ink-2:#CBD5E1;--bf-muted:#94a3b8;--bf-soft:#162133;
+  --bf-a:#3987e5;--bf-a-soft:rgba(57,135,229,.16);--bf-b:#9085e9;--bf-b-soft:rgba(144,133,233,.16);--bf-c:#199e70;--bf-c-soft:rgba(25,158,112,.16);--bf-d:#f08c4a;--bf-d-soft:rgba(240,140,74,.16)}
+.bftop{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;min-width:0}
+html body .content .bf-root.bf-root h2.bf-h2{display:flex;align-items:center;gap:10px;margin:0;font-size:22px;font-weight:900;letter-spacing:-.02em;color:var(--bf-ink)!important;-webkit-text-fill-color:var(--bf-ink)!important}
+.bf-logo{width:38px;height:38px;border-radius:50%;object-fit:contain;background:#ffffff;border:1px solid #bfdbfe;padding:4px}
+.bf-back{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--bf-line);background:var(--bf-card);color:var(--bf-ink);border-radius:12px;padding:8px 14px;font-weight:700;cursor:pointer}
+.bf-daynav{margin-inline-start:auto;display:flex;align-items:center;gap:6px;background:var(--bf-card);border:1px solid var(--bf-line);border-radius:12px;padding:4px}
+.bf-daynav>button{width:34px;height:34px;border:0;border-radius:9px;background:transparent;color:var(--bf-ink);cursor:pointer}
+.bf-daynav>button:hover{background:var(--bf-a-soft)}
+.bf-daynav .bf-todaygo{width:auto;padding:0 12px;font-weight:800;color:var(--bf-a);background:var(--bf-a-soft)}
+.bf-dayname{display:flex;flex-direction:column;align-items:center;min-width:150px;line-height:1.2}
+.bf-dayname b{font-size:15px;font-weight:900}
+.bf-dayname span{font-size:12px;color:var(--bf-muted)}
+.bf-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.bf-tile{display:flex;align-items:center;gap:12px;background:var(--bf-card);border:1px solid var(--bf-line);border-radius:16px;padding:12px 14px;min-width:0}
+.bf-tfa{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:18px}
+.bf-tone-a .bf-tfa{background:var(--bf-a-soft);color:var(--bf-a)}
+.bf-tone-b .bf-tfa{background:var(--bf-b-soft);color:var(--bf-b)}
+.bf-tone-c .bf-tfa{background:var(--bf-c-soft);color:var(--bf-c)}
+.bf-tone-d .bf-tfa{background:var(--bf-d-soft);color:var(--bf-d)}
+.bf-tn{font-size:26px;font-weight:900;line-height:1.1;font-variant-numeric:tabular-nums}
+.bf-tl{font-size:12.5px;font-weight:700;color:var(--bf-ink-2)}
+.bf-grid{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(0,1fr);gap:12px;min-height:0}
+.bf-side{display:grid;grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:12px;min-height:0}
+.bfbox{background:var(--bf-card);border:1px solid var(--bf-line);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;min-height:0;min-width:0}
+.bfbox-top{display:flex;align-items:center;margin-bottom:8px}
+html body .content .bf-root.bf-root .bfbox-top h3{margin:0;font-size:14px;font-weight:800;color:var(--bf-ink)!important;-webkit-text-fill-color:var(--bf-ink)!important;display:flex;align-items:center;gap:7px}
+.bfbox-top h3 i{color:var(--bf-muted)}
+.bfbox-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.bf-none{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--bf-muted);font-weight:700}
+.bf-none i{font-size:34px;opacity:.55}
+.bf-muted{margin:0;color:var(--bf-muted);font-size:13px}
+.bf-hcards{display:grid;gap:12px;height:100%;min-height:0}
+.bf-hcards.bf-n1{grid-template-columns:1fr}
+.bf-hcards.bf-n2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.bf-hcards.bf-n3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.bf-hc{display:flex;flex-direction:column;gap:8px;min-height:0;min-width:0;border:1px solid var(--bf-line);border-radius:14px;padding:12px;background:var(--bf-soft)}
+.bf-hctop{display:flex;align-items:flex-start;gap:10px}
+.bf-time{flex:none;background:var(--bf-a);color:#fff;font-weight:900;font-size:14px;border-radius:10px;padding:6px 10px;font-variant-numeric:tabular-nums}
+.bf-time-sm{font-size:12px;padding:4px 8px;border-radius:8px}
+.bf-hcname{min-width:0;display:flex;flex-direction:column;gap:2px}
+.bf-hcname b{font-size:15px;font-weight:900;line-height:1.3}
+.bf-hcname span{font-size:12px;color:var(--bf-ink-2)}
+.bf-sub{font-size:11.5px;font-weight:800;color:var(--bf-muted);text-transform:none;letter-spacing:.02em}
+.bf-acts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.bf-acts li{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:start;font-size:12.5px}
+.bf-actdate{font-size:11px;color:var(--bf-muted);font-variant-numeric:tabular-nums;padding-top:2px;white-space:nowrap}
+.bf-acts b{font-weight:800;display:block}
+.bf-acts p{margin:2px 0 0;color:var(--bf-ink-2);font-size:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bf-arg{margin-top:auto;border-radius:12px;border:1px solid var(--bf-a);background:var(--bf-a-soft);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.bf-argtop{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:900;color:var(--bf-a)}
+.bf-regen{border:0;background:transparent;color:var(--bf-a);cursor:pointer;width:26px;height:26px;border-radius:8px}
+.bf-regen:hover{background:rgba(42,120,214,.12)}
+.bf-argtext p{margin:0 0 3px;font-size:13px;line-height:1.5;color:var(--bf-ink)}
+.bf-argfoot{font-size:10.5px;color:var(--bf-muted)}
+.bf-pulse{animation:bfPulse 1.4s ease-in-out infinite}
+@keyframes bfPulse{0%,100%{opacity:.45}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.bf-pulse{animation:none}}
+.bf-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.bf-list li{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding-bottom:8px;border-bottom:1px dashed var(--bf-line)}
+.bf-list li:last-child{border-bottom:0;padding-bottom:0}
+.bf-list li>div{min-width:0;display:flex;flex-direction:column;gap:2px}
+.bf-list b{font-size:13px;font-weight:800;line-height:1.35}
+.bf-list li>div>span{font-size:11.5px;color:var(--bf-ink-2)}
+.bf-chip{font-style:normal;font-size:10.5px;font-weight:800;border-radius:999px;padding:1px 7px;margin-inline-start:6px;vertical-align:middle}
+.bf-chip:empty{display:none}
+.bf-chip-a{background:var(--bf-a-soft);color:var(--bf-a)}
+.bf-chip-b{background:var(--bf-b-soft);color:var(--bf-b)}
+.bf-prio{font-size:10.5px;font-weight:900;border-radius:8px;padding:3px 8px;white-space:nowrap}
+.bf-prio-h{background:var(--bf-d-soft);color:var(--bf-d)}
+.bf-prio-m{background:var(--bf-a-soft);color:var(--bf-a)}
+.bf-prio-l{background:var(--bf-soft);color:var(--bf-muted)}
+.bf-lag{margin-top:10px;border-radius:10px;background:var(--bf-d-soft);color:var(--bf-d);padding:8px 10px;font-size:12px;font-weight:800}
+.bf-lag ul{list-style:none;margin:6px 0 0;padding:0;font-weight:600;color:var(--bf-ink-2);display:flex;flex-direction:column;gap:3px}
+.bf-lag ul span{color:var(--bf-d);font-variant-numeric:tabular-nums;margin-inline-end:4px}
+.bf-state{display:grid;place-items:center;color:var(--bf-ink-2);grid-row:2 / -1;text-align:center}
+.bf-foot{margin:0;font-size:11px;color:var(--bf-muted)}
+@media (max-height:760px) and (min-width:900px){.bf-root{gap:9px}.bf-tile{padding:8px 12px}.bf-tn{font-size:21px}.bfbox{padding:9px 12px}}
+@media (max-width:1100px){.bf-hcards.bf-n3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:899px){
+  .bf-root{flex:none;grid-template-rows:none}
+  .bf-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bf-grid,.bf-side{grid-template-columns:1fr;grid-template-rows:none}
+  .bf-hcards.bf-n2,.bf-hcards.bf-n3{grid-template-columns:1fr}
+  .bfbox-body{overflow:visible}
+  .bf-dayname{min-width:120px}
+}
+
+/* Arabic: the app-wide `.content span/li/p… { font-size:1.5em }` compounds
+ * on nested elements — inside the briefing every text element takes its
+ * container's size; this screen's own sizes are pinned back. */
+html[lang="ar"] .content .bf-root :is(p, label, span, button, td, th, li, a, strong, small, b, i, em) { font-size: inherit; }
+html[lang="ar"] .content .bf-root .bf-back,
+html[lang="ar"] .content .bf-root .bf-daynav { font-size: 14px; }
+html[lang="ar"] .content .bf-root .bf-dayname b { font-size: 15px; }
+html[lang="ar"] .content .bf-root .bf-dayname span,
+html[lang="ar"] .content .bf-root .bf-hcname span { font-size: 12px; }
+html[lang="ar"] .content .bf-root .bf-hcname b { font-size: 15px; }
+html[lang="ar"] .content .bf-root .bf-time { font-size: 14px; }
+html[lang="ar"] .content .bf-root .bf-time-sm { font-size: 12px; }
+html[lang="ar"] .content .bf-root .bf-acts li { font-size: 12.5px; }
+html[lang="ar"] .content .bf-root .bf-acts p { font-size: 12px; }
+html[lang="ar"] .content .bf-root .bf-actdate,
+html[lang="ar"] .content .bf-root .bf-chip,
+html[lang="ar"] .content .bf-root .bf-prio { font-size: 11px; }
+html[lang="ar"] .content .bf-root .bf-argtop { font-size: 12.5px; }
+html[lang="ar"] .content .bf-root .bf-argtext p { font-size: 13px; }
+html[lang="ar"] .content .bf-root .bf-list b { font-size: 13px; }
+html[lang="ar"] .content .bf-root .bf-list li > div > span { font-size: 11.5px; }
+html[lang="ar"] .content .bf-root .bf-muted { font-size: 13px; }
+html[lang="ar"] .content .bf-root .bf-lag { font-size: 12px; }
+html[lang="ar"] .content .bf-root .bf-foot { font-size: 11px; }
+html[lang="ar"] .content .bf-root .bf-tfa i { font-size: 18px; }
+html[lang="ar"] .content .bf-root.bf-root h2.bf-h2 { font-size: 22px !important; line-height: 1.3 !important; }
+html[lang="ar"] .content .bf-root.bf-root .bfbox-top h3 { font-size: 14px !important; line-height: 1.35 !important; }
+/* Briefing: paragraph colors against the app-wide dark-mode text overrides. */
+html body .content .bf-root.bf-root .bf-argtext p{color:var(--bf-ink)!important;-webkit-text-fill-color:var(--bf-ink)!important}
+html body .content .bf-root.bf-root .bf-acts p{color:var(--bf-ink-2)!important;-webkit-text-fill-color:var(--bf-ink-2)!important}
+html body .content .bf-root.bf-root .bf-acts b,html body .content .bf-root.bf-root .bf-list b,html body .content .bf-root.bf-root .bf-hcname b{color:var(--bf-ink)!important}

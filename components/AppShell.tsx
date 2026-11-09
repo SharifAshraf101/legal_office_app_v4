@@ -162,7 +162,8 @@ function ShellInner() {
                 className={
                   'content' +
                   (state.currentTab === 'home' ? ' home-content' : '') +
-                  (state.currentTab === 'analytics' ? ' analytics-content' : '')
+                  (state.currentTab === 'analytics' ? ' analytics-content' : '') +
+                  (state.currentTab === 'briefing' ? ' analytics-content briefing-content' : '')
                 }
                 id="content"
               >

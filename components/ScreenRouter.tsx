@@ -14,6 +14,7 @@ import { DocumentsScreen } from './DocumentsScreen';
 import { PortalScreen } from './PortalScreen';
 import { GlobalSearchScreen } from './GlobalSearchScreen';
 import { AnalyticsScreen } from './AnalyticsScreen';
+import { BriefingScreen } from './BriefingScreen';
 
 /**
  * Switches on `currentTab` to render the active screen. Port of
@@ -73,6 +74,8 @@ export function ScreenRouter() {
       return <GlobalSearchScreen />;
     case 'analytics':
       return <AnalyticsScreen />;
+    case 'briefing':
+      return <BriefingScreen />;
     default:
       return <HomeDashboard />;
   }
