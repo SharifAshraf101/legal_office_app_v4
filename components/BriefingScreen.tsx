@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
+import { useModalStack } from '@/hooks/useModalStack';
+import { DocumentPreviewModal } from './DocumentPreviewModal';
 import { useT } from '@/hooks/useT';
 import { officeAuthHeader } from '@/lib/officeToken';
 
@@ -18,7 +20,7 @@ import { officeAuthHeader } from '@/lib/officeToken';
 
 type CaseRef = { caseId: string; caseNumber: string; caseTitle: string; court: string; clientName: string };
 type Ev = CaseRef & { id: string; time: string; type: string; hearing: boolean; title: string; description: string };
-type Act = { kind: string; date: string; title: string; summary: string };
+type Act = { kind: string; docId?: string; date: string; title: string; summary: string };
 /** `lang`: the case's language (its court documents) — the card is written in it. */
 type Hr = CaseRef & { eventId: string; time: string; title: string; actions: Act[]; drafts: number; lang?: 'he' | 'ar' };
 type Tk = CaseRef & { id: string; title: string; dueDate: string; priority: string };
@@ -63,6 +65,7 @@ const L = {
     prio: { high: 'דחוף', urgent: 'דחוף', medium: 'רגיל', normal: 'רגיל', low: 'נמוך' } as Record<string, string>,
     allDay: 'כל היום',
     disclaimer: 'ההצעה נכתבה אוטומטית מתוך חומרי התיק — יש לבדוק לפני הדיון',
+    openDoc: 'לחיצה כפולה לפתיחת המסמך',
   },
   ar: {
     title: 'الإحاطة اليومية',
@@ -99,6 +102,7 @@ const L = {
     prio: { high: 'عاجل', urgent: 'عاجل', medium: 'عادي', normal: 'عادي', low: 'منخفض' } as Record<string, string>,
     allDay: 'طوال اليوم',
     disclaimer: 'الاقتراح مُعدّ آلياً من مواد الملف — يجب مراجعته قبل الجلسة',
+    openDoc: 'انقر مرتين لفتح المستند',
   },
 };
 
@@ -130,7 +134,8 @@ const shortDate = (iso: string, lang: 'he' | 'ar') =>
     : '';
 
 export function BriefingScreen() {
-  const { dispatch } = useAppState();
+  const { state, dispatch } = useAppState();
+  const modalStack = useModalStack();
   const { lang: rawLang } = useT();
   const lang: 'he' | 'ar' = rawLang === 'ar' ? 'ar' : 'he';
   const T = L[lang];
@@ -139,6 +144,17 @@ export function BriefingScreen() {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState(false);
   const [args, setArgs] = useState<Record<string, Arg>>({});
+
+  // Double-click a document's name: the same as in the case card — the
+  // in-app preview of its file (or a note that no file was saved).
+  const openDoc = (docId: string) => {
+    const doc = state.documentsArr.find((d) => String(d.id).toUpperCase() === String(docId).toUpperCase());
+    if (!doc?.relativePath) {
+      window.alert(lang === 'ar' ? 'لم يتم حفظ ملف لهذا المستند.' : 'לא נשמר קובץ עבור מסמך זה.');
+      return;
+    }
+    modalStack.open(<DocumentPreviewModal doc={doc} />);
+  };
 
   const loadArgument = async (caseId: string, d: string, refresh = false) => {
     setArgs((a) => ({ ...a, [caseId]: { state: 'loading' } }));
@@ -298,7 +314,17 @@ export function BriefingScreen() {
                             <li key={i}>
                               <span className="bf-actdate">{shortDate(x.date, cl)}</span>
                               <div>
-                                <b>{x.title}</b>
+                                {x.kind === 'document' && x.docId ? (
+                                  <b
+                                    className="bf-doclink"
+                                    onDoubleClick={() => openDoc(x.docId as string)}
+                                    title={C.openDoc}
+                                  >
+                                    {x.title}
+                                  </b>
+                                ) : (
+                                  <b>{x.title}</b>
+                                )}
                                 {x.summary && <p>{x.summary}</p>}
                               </div>
                             </li>

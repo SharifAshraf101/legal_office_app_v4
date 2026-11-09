@@ -42441,3 +42441,6 @@ html body .content .bf-root.bf-root .bf-acts p{color:var(--bf-ink-2)!important;-
 html body .content .bf-root.bf-root .bf-acts b,html body .content .bf-root.bf-root .bf-list b,html body .content .bf-root.bf-root .bf-hcname b{color:var(--bf-ink)!important}
 /* Briefing: an Arabic case's card in a Hebrew app uses the Arabic font. */
 .bf-hc.bf-in-ar{font-family:var(--font-family-ar, 'Cairo', 'Noto Sans Arabic', sans-serif)}
+/* Briefing: a document's name opens it on double-click (as in the case card). */
+html body .content .bf-root.bf-root .bf-acts b.bf-doclink{color:var(--bf-a)!important;-webkit-text-fill-color:var(--bf-a)!important;cursor:pointer;text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--bf-a) 40%,transparent);text-underline-offset:3px;user-select:none}
+html body .content .bf-root.bf-root .bf-acts b.bf-doclink:hover{text-decoration-color:var(--bf-a)}

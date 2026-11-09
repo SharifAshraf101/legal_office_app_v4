@@ -136,8 +136,9 @@ export async function handleBriefing(env: Env, ctx: Ctx, url: URL): Promise<unkn
       'SELECT source_id, title, title_ar, file_name, date, summary_he, summary_ar FROM documents WHERE user_id = ?1 AND upper(case_source_id) = upper(?2) ORDER BY date DESC, updated_at DESC LIMIT 3',
       caseId,
     );
-    let actions = docs.map((d) => ({
+    let actions: Array<{ kind: string; docId?: string; date: string; title: string; summary: string }> = docs.map((d) => ({
       kind: 'document',
+      docId: str(d.source_id),
       date: str(d.date).slice(0, 10),
       title: pick(d, 'title', 'title_ar') || str(d.file_name),
       summary: pick(d, 'summary_he', 'summary_ar').slice(0, 260),
