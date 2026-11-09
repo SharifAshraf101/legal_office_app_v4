@@ -207,6 +207,15 @@ export async function handleBriefingArgument(
     caseId,
   );
   if (!c) return { status: 404, body: { error: 'case_not_found' } };
+  // Whom the office represents — the suggestion argues for this client only
+  // (without it the model sided with whichever party a draft quoted most).
+  const client = await one(
+    'SELECT full_name, full_name_ar FROM clients WHERE user_id = ?1 AND upper(source_id) = upper(?2)',
+    str(c.client_source_id),
+  );
+  // Both spellings from the client card, so the name is found in a Hebrew or
+  // an Arabic document alike.
+  const clientName = [...new Set([str(client?.full_name), str(client?.full_name_ar)].filter(Boolean))].join(' / ');
   const [docs, drafts] = await Promise.all([
     many(
       'SELECT title, title_ar, file_name, date, summary_he, summary_ar FROM documents WHERE user_id = ?1 AND upper(case_source_id) = upper(?2) ORDER BY date DESC, updated_at DESC LIMIT 5',
@@ -223,7 +232,8 @@ export async function handleBriefingArgument(
   }
 
   const material = [
-    `CASE: ${str(c.case_number)} — ${str(c.title) || str(c.title_ar)} — court: ${str(c.court) || str(c.court_ar)}`,
+    `OUR CLIENT (the office represents ONLY this party): ${clientName || 'unknown'}`,
+    `CASE:${str(c.case_number)} — ${str(c.title) || str(c.title_ar)} — court: ${str(c.court) || str(c.court_ar)}`,
     str(c.description) || str(c.description_ar) ? `CASE NOTES: ${(str(c.description) || str(c.description_ar)).slice(0, 800)}` : '',
     'RECENT DOCUMENTS (newest first):',
     ...docs.map(
@@ -243,6 +253,7 @@ export async function handleBriefingArgument(
     (lang === 'ar'
       ? 'أنت مساعد لمحامٍ يستعد لجلسة في المحكمة. اعتماداً فقط على المواد أدناه (آخر الإجراءات في الملف ومسودات الردود)، اكتب ما يجدر بالمحامي أن يطرحه أمام المحكمة في الجلسة. اكتب بالعربية فقط.'
       : 'אתה עוזר לעורך דין שמתכונן לדיון בבית המשפט. על סמך החומרים שלהלן בלבד (הפעולות האחרונות בתיק וטיוטות התשובה), כתוב מה ראוי שעורך הדין יטען בפני בית המשפט בדיון. כתוב בעברית בלבד.') +
+    "\n\nWhich side the office is on: OUR CLIENT is the person registered on the client card linked to this case (name below). Find that name among the parties in the documents — that party is our client, and every other party named there (e.g. the spouse) is the opposing side. From that, decide whether our client is the plaintiff or the defendant. You argue ONLY for our client, never for the other party: write every line from our client's side; a claim of the other side is something to rebut, never to adopt." +
     '\n\nRules: at most 5 short lines, one argument per line, each starting with "• ". The strongest point first. Only what the materials support — no invented facts, dates, amounts or rulings. No introduction and no closing.\n\n' +
     material;
 
