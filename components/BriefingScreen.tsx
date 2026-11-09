@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
@@ -34,6 +34,7 @@ const L = {
     title: 'תדריך יומי',
     back: 'חזרה',
     today: 'היום',
+    pickDate: 'בחירת תאריך',
     prev: 'היום הקודם',
     next: 'היום הבא',
     loading: 'מכין את התדריך…',
@@ -71,6 +72,7 @@ const L = {
     title: 'الإحاطة اليومية',
     back: 'رجوع',
     today: 'اليوم',
+    pickDate: 'اختيار تاريخ',
     prev: 'اليوم السابق',
     next: 'اليوم التالي',
     loading: 'جارٍ إعداد الإحاطة…',
@@ -141,6 +143,7 @@ export function BriefingScreen() {
   const T = L[lang];
   const today = useMemo(() => israelToday(), []);
   const [day, setDay] = useState(today);
+  const dateRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState(false);
   const [args, setArgs] = useState<Record<string, Arg>>({});
@@ -213,18 +216,51 @@ export function BriefingScreen() {
         <button type="button" aria-label={T.prev} onClick={() => setDay(shiftDay(day, -1))}>
           <i className="fas fa-chevron-right" aria-hidden />
         </button>
-        <div className="bf-dayname">
-          <b>{label.weekday}</b>
+        {/* Click the day to pick any date from a calendar. */}
+        <button
+          type="button"
+          className="bf-dayname"
+          title={T.pickDate}
+          aria-label={T.pickDate}
+          onClick={() => {
+            const el = dateRef.current;
+            if (!el) return;
+            try {
+              el.showPicker();
+            } catch {
+              el.focus();
+              el.click();
+            }
+          }}
+        >
+          <b>
+            <i className="far fa-calendar" aria-hidden /> {label.weekday}
+          </b>
           <span>{label.date}</span>
-        </div>
+          <input
+            ref={dateRef}
+            type="date"
+            className="bf-datepick"
+            value={day}
+            tabIndex={-1}
+            aria-hidden
+            onChange={(e) => {
+              if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) setDay(e.target.value);
+            }}
+          />
+        </button>
         <button type="button" aria-label={T.next} onClick={() => setDay(shiftDay(day, 1))}>
           <i className="fas fa-chevron-left" aria-hidden />
         </button>
-        {day !== today && (
-          <button type="button" className="bf-todaygo" onClick={() => setDay(today)}>
-            {T.today}
-          </button>
-        )}
+        {/* Always there; marked when the briefing already shows today. */}
+        <button
+          type="button"
+          className={'bf-todaygo' + (day === today ? ' bf-is-now' : '')}
+          aria-pressed={day === today}
+          onClick={() => setDay(today)}
+        >
+          {T.today}
+        </button>
       </div>
     </div>
   );
