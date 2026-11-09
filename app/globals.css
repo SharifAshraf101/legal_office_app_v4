@@ -42439,3 +42439,5 @@ html[lang="ar"] .content .bf-root.bf-root .bfbox-top h3 { font-size: 14px !impor
 html body .content .bf-root.bf-root .bf-argtext p{color:var(--bf-ink)!important;-webkit-text-fill-color:var(--bf-ink)!important}
 html body .content .bf-root.bf-root .bf-acts p{color:var(--bf-ink-2)!important;-webkit-text-fill-color:var(--bf-ink-2)!important}
 html body .content .bf-root.bf-root .bf-acts b,html body .content .bf-root.bf-root .bf-list b,html body .content .bf-root.bf-root .bf-hcname b{color:var(--bf-ink)!important}
+/* Briefing: an Arabic case's card in a Hebrew app uses the Arabic font. */
+.bf-hc.bf-in-ar{font-family:var(--font-family-ar, 'Cairo', 'Noto Sans Arabic', sans-serif)}

@@ -19,7 +19,8 @@ import { officeAuthHeader } from '@/lib/officeToken';
 type CaseRef = { caseId: string; caseNumber: string; caseTitle: string; court: string; clientName: string };
 type Ev = CaseRef & { id: string; time: string; type: string; hearing: boolean; title: string; description: string };
 type Act = { kind: string; date: string; title: string; summary: string };
-type Hr = CaseRef & { eventId: string; time: string; title: string; actions: Act[]; drafts: number };
+/** `lang`: the case's language (its court documents) — the card is written in it. */
+type Hr = CaseRef & { eventId: string; time: string; title: string; actions: Act[]; drafts: number; lang?: 'he' | 'ar' };
 type Tk = CaseRef & { id: string; title: string; dueDate: string; priority: string };
 type Data = { day: string; events: Ev[]; hearings: Hr[]; tasksToday: Tk[]; overdue: { count: number; items: Tk[] } };
 type Arg = { state: 'loading' | 'ok' | 'error'; text?: string };
@@ -238,8 +239,8 @@ export function BriefingScreen() {
     { k: 't', label: T.tasks, n: data.tasksToday.length, fa: 'fa-list-check', tone: 'c' },
     { k: 'o', label: T.overdue, n: data.overdue.count, fa: 'fa-hourglass-end', tone: data.overdue.count ? 'd' : 'c' },
   ];
-  const caseLine = (c: CaseRef) =>
-    [c.clientName, c.caseNumber && `${T.caseNo} ${c.caseNumber}`, c.court].filter(Boolean).join(' · ');
+  const caseLine = (c: CaseRef, t: typeof T = T) =>
+    [c.clientName, c.caseNumber && `${t.caseNo} ${c.caseNumber}`, c.court].filter(Boolean).join(' · ');
 
   return (
     <div className="bf-root">
@@ -277,22 +278,25 @@ export function BriefingScreen() {
               <div className={'bf-hcards bf-n' + Math.min(data.hearings.length, 3)}>
                 {data.hearings.map((h) => {
                   const a = args[h.caseId];
+                  // The card speaks the case's language, whatever the app's.
+                  const cl: 'he' | 'ar' = h.lang === 'ar' ? 'ar' : h.lang === 'he' ? 'he' : lang;
+                  const C = L[cl];
                   return (
-                    <article key={h.eventId} className="bf-hc">
+                    <article key={h.eventId} className={'bf-hc' + (cl === 'ar' ? ' bf-in-ar' : '')} lang={cl} dir="rtl">
                       <header className="bf-hctop">
-                        <span className="bf-time">{h.time || T.allDay}</span>
+                        <span className="bf-time">{h.time || C.allDay}</span>
                         <div className="bf-hcname">
                           <b>{h.caseTitle || h.title}</b>
-                          <span>{caseLine(h)}</span>
+                          <span>{caseLine(h, C)}</span>
                         </div>
                       </header>
 
-                      <div className="bf-sub">{T.lastActs}</div>
+                      <div className="bf-sub">{C.lastActs}</div>
                       {h.actions.length ? (
                         <ol className="bf-acts">
                           {h.actions.map((x, i) => (
                             <li key={i}>
-                              <span className="bf-actdate">{shortDate(x.date, lang)}</span>
+                              <span className="bf-actdate">{shortDate(x.date, cl)}</span>
                               <div>
                                 <b>{x.title}</b>
                                 {x.summary && <p>{x.summary}</p>}
@@ -301,20 +305,20 @@ export function BriefingScreen() {
                           ))}
                         </ol>
                       ) : (
-                        <p className="bf-muted">{T.noActs}</p>
+                        <p className="bf-muted">{C.noActs}</p>
                       )}
 
                       <div className="bf-arg">
                         <div className="bf-argtop">
                           <span>
-                            <i className="fas fa-scale-balanced" aria-hidden /> {T.argue}
+                            <i className="fas fa-scale-balanced" aria-hidden /> {C.argue}
                           </span>
                           {a?.state !== 'loading' && (
                             <button
                               type="button"
                               className="bf-regen"
-                              title={T.regenerate}
-                              aria-label={T.regenerate}
+                              title={C.regenerate}
+                              aria-label={C.regenerate}
                               onClick={() => void loadArgument(h.caseId, day, true)}
                             >
                               <i className="fas fa-rotate-right" aria-hidden />
@@ -322,9 +326,9 @@ export function BriefingScreen() {
                           )}
                         </div>
                         {!a || a.state === 'loading' ? (
-                          <p className="bf-muted bf-pulse">{T.reading}</p>
+                          <p className="bf-muted bf-pulse">{C.reading}</p>
                         ) : a.state === 'error' ? (
-                          <p className="bf-muted">{T.argError}</p>
+                          <p className="bf-muted">{C.argError}</p>
                         ) : (
                           <div className="bf-argtext">
                             {(a.text || '').split('\n').map((l, i) => (
@@ -332,7 +336,7 @@ export function BriefingScreen() {
                             ))}
                           </div>
                         )}
-                        <div className="bf-argfoot">{T.fromDrafts(h.drafts)}</div>
+                        <div className="bf-argfoot">{C.fromDrafts(h.drafts)}</div>
                       </div>
                     </article>
                   );

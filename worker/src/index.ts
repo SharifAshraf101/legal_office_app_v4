@@ -666,7 +666,7 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
   }
   // A signed bot link for one of THIS office's clients (the webhook's invite).
   if (path === '/api/briefing' && method === 'GET') {
-    return json(await handleBriefing(ctx, new URL(request.url)), request, env);
+    return json(await handleBriefing(env, ctx, new URL(request.url)), request, env);
   }
   if (path === '/api/briefing-argument' && method === 'POST') {
     const b = (await request.json().catch(() => ({}))) as Parameters<typeof handleBriefingArgument>[2];
