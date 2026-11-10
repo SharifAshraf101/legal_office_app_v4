@@ -42451,3 +42451,427 @@ html body .content .bf-root.bf-root .bf-acts b.bf-doclink:hover{text-decoration-
 .bf-datepick{position:absolute;inset:auto 0 0 0;width:100%;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
 .bf-daynav .bf-todaygo.bf-is-now{background:var(--bf-a);color:#fff}
 html[lang="ar"] .content .bf-root .bf-daynav .bf-todaygo{font-size:14px}
+
+/* ===================================================================
+ * Home — "Classic Design" (Settings → home style = classic).
+ * Dark navy + gold; glowing glass cards; the office's design artwork at
+ * the sides (public/classic, cut from the office's own mock-up).
+ * Only the look: every control keeps its handler (components/ClassicHome).
+ * =================================================================== */
+.content.content.home-content.home-classic{display:block!important;align-items:stretch!important;justify-content:flex-start!important;padding:0!important;overflow:hidden!important}
+html body .content.content.home-content.home-classic > .ch-root.ch-root{background:
+  radial-gradient(60% 50% at 50% 30%,rgba(40,74,130,.55) 0,rgba(40,74,130,0) 70%),
+  radial-gradient(40% 40% at 85% 85%,rgba(201,162,74,.12) 0,rgba(201,162,74,0) 70%),
+  linear-gradient(180deg,#0b1a33 0%,#0d2141 55%,#0a1830 100%)!important}
+.ch-root{--ch-gold:#e0a84a;--ch-gold-2:#f6d28a;
+  position:relative;height:100%;min-height:0;overflow:hidden;color:#fff;
+  padding:12px 18px 16px;padding-inline-end:clamp(180px,16vw,300px);
+  display:grid;grid-template-rows:auto minmax(170px,1.6fr) auto minmax(150px,1fr);gap:14px}
+
+/* Artwork */
+.ch-art-side{position:absolute;top:0;bottom:0;inset-inline-end:0;z-index:0;pointer-events:none;width:clamp(200px,17vw,320px)}
+.ch-art-side img{width:100%;height:100%;object-fit:cover;object-position:right center;display:block;
+  -webkit-mask-image:linear-gradient(to left,transparent 0%,#000 26%,#000 100%);mask-image:linear-gradient(to left,transparent 0%,#000 26%,#000 100%)}
+.ch-art-lib{position:absolute;top:0;inset-inline-start:0;height:62%;z-index:0;pointer-events:none;width:clamp(110px,9vw,170px)}
+.ch-art-lib img{width:100%;height:100%;object-fit:cover;object-position:left top;display:block;opacity:.9;
+  -webkit-mask-image:linear-gradient(to right,transparent 0%,#000 40%),linear-gradient(to bottom,#000 70%,transparent 100%);-webkit-mask-composite:source-in;
+  mask-image:linear-gradient(to right,transparent 0%,#000 40%),linear-gradient(to bottom,#000 70%,transparent 100%);mask-composite:intersect}
+
+/* Greeting */
+.ch-hero{position:relative;z-index:1;text-align:center;display:flex;flex-direction:column;align-items:center}
+html body .content .ch-root.ch-root .ch-hero h1{margin:0;font-size:clamp(24px,2.5vw,38px);font-weight:900;color:#fff!important;-webkit-text-fill-color:#fff!important;line-height:1.25;text-shadow:0 2px 16px rgba(0,0,0,.45)}
+.ch-rule{display:block;width:min(440px,60%);height:2px;margin:8px 0 6px;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.85),rgba(255,255,255,0))}
+html body .content .ch-root.ch-root .ch-hero p{margin:0;font-size:clamp(13px,1.15vw,17px);color:#e3eaf5!important;-webkit-text-fill-color:#e3eaf5!important}
+
+/* Feature cards — tilted glass with a gold glow */
+.ch-features{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) clamp(190px,15vw,260px) minmax(0,1fr);align-items:center;gap:clamp(18px,2.4vw,40px);perspective:1200px;min-height:0;padding:4px 10px}
+.ch-feature{position:relative;height:100%;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;cursor:pointer;border-radius:30px;padding:16px 26px 54px;
+  border:2px solid var(--ch-gold);color:#fff;transition:transform .25s ease,box-shadow .25s ease;transform-style:preserve-3d}
+.ch-feature-b{background:linear-gradient(150deg,#3a1677 0%,#6d28d9 55%,#a855f7 100%);transform:rotateY(-14deg);
+  box-shadow:0 0 0 1px rgba(246,210,138,.35),0 0 34px 6px rgba(224,168,74,.45),inset 0 0 40px rgba(255,255,255,.08),0 24px 46px rgba(0,0,0,.45)}
+.ch-feature-a{background:linear-gradient(210deg,#073f3e 0%,#0f766e 55%,#22c3a6 100%);transform:rotateY(14deg);
+  box-shadow:0 0 0 1px rgba(246,210,138,.35),0 0 34px 6px rgba(224,168,74,.45),inset 0 0 40px rgba(255,255,255,.08),0 24px 46px rgba(0,0,0,.45)}
+.ch-feature-b:hover{transform:rotateY(-8deg) translateY(-3px)}
+.ch-feature-a:hover{transform:rotateY(8deg) translateY(-3px)}
+.ch-feature:focus-visible{outline:3px solid var(--ch-gold-2);outline-offset:4px}
+.ch-feature-img{flex:none;width:clamp(54px,4.6vw,74px);height:clamp(54px,4.6vw,74px);border-radius:18px;background:#fff;display:grid;place-items:center;overflow:hidden;box-shadow:0 0 0 2px rgba(246,210,138,.7),0 6px 16px rgba(0,0,0,.3);margin-bottom:4px}
+.ch-feature-img img{width:84%;height:84%;object-fit:contain}
+.ch-feature-img-round{border-radius:50%;background:#e9dcfb}
+.ch-feature-img-round img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+html body .content .ch-root.ch-root .ch-feature b{font-size:clamp(18px,1.75vw,28px);font-weight:900;color:var(--ch-gold-2)!important;-webkit-text-fill-color:var(--ch-gold-2)!important;line-height:1.2;text-shadow:0 2px 10px rgba(0,0,0,.35)}
+html body .content .ch-root.ch-root .ch-feature em{font-style:normal;font-size:clamp(16px,1.5vw,24px);font-weight:900;color:var(--ch-gold-2)!important;-webkit-text-fill-color:var(--ch-gold-2)!important;line-height:1.1}
+html body .content .ch-root.ch-root .ch-feature small{font-size:clamp(12px,1vw,15px);color:#f1f5fb!important;-webkit-text-fill-color:#f1f5fb!important;line-height:1.55;max-width:34ch}
+.ch-go{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);width:58px;height:34px;border-radius:999px;display:grid;place-items:center;border:2px solid var(--ch-gold);background:rgba(0,0,0,.18);font-size:15px}
+html body .content .ch-root.ch-root .ch-go i{color:#f6d28a!important}
+
+/* Today — opens the upcoming-events list (the same modal as before) */
+.ch-today{position:relative;align-self:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;border-radius:24px;padding:18px 14px;min-height:150px;
+  background:linear-gradient(160deg,rgba(18,36,66,.95),rgba(10,24,46,.95));border:2px solid var(--ch-gold);
+  box-shadow:0 0 0 1px rgba(246,210,138,.3),0 0 26px 3px rgba(224,168,74,.38),0 18px 36px rgba(0,0,0,.45);transition:transform .2s ease}
+.ch-today:hover{transform:translateY(-3px)}
+.ch-today:focus-visible{outline:3px solid var(--ch-gold-2);outline-offset:4px}
+html body .content .ch-root.ch-root .ch-today>i{font-size:clamp(28px,2.4vw,38px);color:#fff!important;margin-bottom:4px}
+html body .content .ch-root.ch-root .ch-today b{font-size:clamp(18px,1.6vw,25px);font-weight:900;color:#fff!important;-webkit-text-fill-color:#fff!important}
+html body .content .ch-root.ch-root .ch-today-date{font-size:clamp(15px,1.35vw,21px);font-weight:900;color:#fff!important;-webkit-text-fill-color:#fff!important}
+html body .content .ch-root.ch-root .ch-today small{margin-top:6px;font-size:12px;font-weight:800;color:#f6d28a!important;-webkit-text-fill-color:#f6d28a!important}
+html body .content .ch-root.ch-root .ch-today small i{color:#f6d28a!important}
+
+/* Six figures — bright pastel tiles */
+.ch-stats{position:relative;z-index:1;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;padding:10px;border-radius:22px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
+.ch-stat{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:start;cursor:pointer;border-radius:16px;padding:12px 14px;border:1px solid rgba(255,255,255,.7);box-shadow:0 0 14px rgba(224,168,74,.25),0 10px 22px rgba(0,0,0,.3);transition:transform .18s ease;min-width:0}
+.ch-stat:hover{transform:translateY(-2px)}
+.ch-tone-red{background:linear-gradient(150deg,#fff6ef,#fde3d4)}
+.ch-tone-green{background:linear-gradient(150deg,#f1fbf5,#d3f1df)}
+.ch-tone-blue{background:linear-gradient(150deg,#f1f7fe,#d6e8fb)}
+.ch-tone-violet{background:linear-gradient(150deg,#f7f3ff,#e4d9fb)}
+.ch-tone-mint{background:linear-gradient(150deg,#effbf6,#cdeee0)}
+.ch-tone-peach{background:linear-gradient(150deg,#fff8f1,#fde4cf)}
+.ch-stat-text{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1;align-items:center;text-align:center}
+html body .content .ch-root.ch-root .ch-stat-label{font-size:13.5px;font-weight:900;color:#1b2433!important;-webkit-text-fill-color:#1b2433!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.ch-stat-text b{font-size:clamp(19px,1.8vw,28px);font-weight:900;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap;direction:ltr}
+.ch-stat-fa{flex:none;display:grid;place-items:center;width:clamp(36px,3vw,48px)}
+.ch-stat-fa i{font-size:clamp(22px,2vw,32px)}
+html body .content .ch-root.ch-root .ch-tone-red .ch-stat-fa i,html body .content .ch-root.ch-root .ch-tone-red .ch-stat-text b{color:#b3261e!important;-webkit-text-fill-color:#b3261e!important}
+html body .content .ch-root.ch-root .ch-tone-green .ch-stat-fa i{color:#16a34a!important}
+html body .content .ch-root.ch-root .ch-tone-green .ch-stat-text b{color:#152033!important;-webkit-text-fill-color:#152033!important}
+html body .content .ch-root.ch-root .ch-tone-blue .ch-stat-fa i{color:#1d6fd1!important}
+html body .content .ch-root.ch-root .ch-tone-blue .ch-stat-text b{color:#152033!important;-webkit-text-fill-color:#152033!important}
+html body .content .ch-root.ch-root .ch-tone-violet .ch-stat-fa i{color:#7c3aed!important}
+html body .content .ch-root.ch-root .ch-tone-violet .ch-stat-text b{color:#152033!important;-webkit-text-fill-color:#152033!important}
+html body .content .ch-root.ch-root .ch-tone-mint .ch-stat-fa i,html body .content .ch-root.ch-root .ch-tone-mint .ch-stat-text b{color:#0f7a55!important;-webkit-text-fill-color:#0f7a55!important}
+html body .content .ch-root.ch-root .ch-tone-peach .ch-stat-fa i,html body .content .ch-root.ch-root .ch-tone-peach .ch-stat-text b{color:#c0262d!important;-webkit-text-fill-color:#c0262d!important}
+
+/* Four main cards — saturated glass with a gold glow */
+.ch-tiles{position:relative;z-index:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;min-height:0;padding-inline:clamp(0px,3vw,60px)}
+.ch-tile{position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;cursor:pointer;border-radius:22px;padding:14px 16px;min-height:0;
+  border:2px solid rgba(224,168,74,.85);box-shadow:0 0 22px rgba(224,168,74,.35),inset 0 1px 0 rgba(255,255,255,.18),0 16px 32px rgba(0,0,0,.4);transition:transform .18s ease,box-shadow .18s ease}
+.ch-tile::before{content:"";position:absolute;inset:0 0 55% 0;background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,0));pointer-events:none}
+.ch-tile:hover{transform:translateY(-4px);box-shadow:0 0 30px rgba(224,168,74,.5),0 20px 40px rgba(0,0,0,.45)}
+.ch-tile:focus-visible{outline:3px solid var(--ch-gold-2);outline-offset:3px}
+.ch-tile-portal,.ch-tile-tasks{background:linear-gradient(160deg,#0b3f3d 0%,#0f6b64 60%,#14897d 100%);--ch-acc:#2dd4bf}
+.ch-tile-cases{background:linear-gradient(160deg,#2d1064 0%,#5b21b6 60%,#7c3aed 100%);--ch-acc:#c4b5fd}
+.ch-tile-contacts{background:linear-gradient(160deg,#0a2a52 0%,#14478a 60%,#1d63b8 100%);--ch-acc:#93c5fd}
+.ch-tile-calendar{background:linear-gradient(160deg,#3a220c 0%,#6b4316 60%,#8f5d1e 100%);--ch-acc:#fcd34d}
+.ch-tile-fa{position:relative;z-index:1;width:clamp(50px,4.2vw,68px);height:clamp(50px,4.2vw,68px);border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.28),rgba(255,255,255,.06));border:2px solid rgba(255,255,255,.45);box-shadow:0 0 16px rgba(255,255,255,.18)}
+html body .content .ch-root.ch-root .ch-tile-fa i{font-size:clamp(22px,2vw,32px);color:#fff!important}
+html body .content .ch-root.ch-root .ch-tile-name{position:relative;z-index:1;font-size:clamp(18px,1.7vw,26px);font-weight:900;color:#fff!important;-webkit-text-fill-color:#fff!important;line-height:1.2;display:inline-flex;align-items:center;gap:6px}
+html body .content .ch-root.ch-root .ch-tile-desc{position:relative;z-index:1;font-size:clamp(12px,1vw,15px);font-weight:700;color:#e6edf7!important;-webkit-text-fill-color:#e6edf7!important}
+.ch-bell{display:inline-flex;align-items:center;gap:3px;padding:1px 7px 1px 6px;border-radius:999px;background:#ef4444;font-size:12px;line-height:1.6;font-weight:800}
+html body .content .ch-root.ch-root .ch-bell,html body .content .ch-root.ch-root .ch-bell b,html body .content .ch-root.ch-root .ch-bell i{color:#fff!important;-webkit-text-fill-color:#fff!important;font-size:12px}
+
+/* Short desktop windows: tighten instead of scrolling. */
+@media (max-height:800px) and (min-width:900px){.ch-root{gap:10px;padding-top:8px}.ch-feature{padding-top:10px;padding-bottom:48px}.ch-stat{padding:9px 12px}.ch-today{min-height:130px}}
+@media (max-width:1250px){.ch-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.ch-root{grid-template-rows:auto minmax(170px,1.4fr) auto minmax(140px,1fr)}}
+/* Phone: one page no longer fits — stack and scroll; no side artwork. */
+@media (max-width:899px){
+  .content.content.content.content.content.home-content.home-classic{overflow-y:auto!important;padding-bottom:96px!important}
+  .ch-root{height:auto;grid-template-rows:none;padding:14px 12px}
+  .ch-art-side,.ch-art-lib{display:none}
+  .ch-features{grid-template-columns:1fr;perspective:none}
+  .ch-feature-a,.ch-feature-b,.ch-feature-a:hover,.ch-feature-b:hover{transform:none}
+  .ch-feature{min-height:190px}
+  .ch-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ch-tiles{grid-template-columns:repeat(2,minmax(0,1fr));padding:0}
+  .ch-tile{min-height:150px}
+}
+
+/* Arabic: undo the app-wide compounding 1.5em on nested text. */
+html[lang="ar"] .content .ch-root :is(p, label, span, button, li, a, strong, small, b, i, em) { font-size: inherit; }
+html[lang="ar"] .content .ch-root.ch-root .ch-hero h1 { font-size: clamp(24px, 2.5vw, 38px) !important; }
+html[lang="ar"] .content .ch-root.ch-root .ch-hero p { font-size: clamp(13px, 1.15vw, 17px) !important; }
+html[lang="ar"] .content .ch-root.ch-root .ch-feature b { font-size: clamp(18px, 1.75vw, 28px); }
+html[lang="ar"] .content .ch-root.ch-root .ch-feature em { font-size: clamp(16px, 1.5vw, 24px); }
+html[lang="ar"] .content .ch-root.ch-root .ch-feature small { font-size: clamp(12px, 1vw, 15px); }
+html[lang="ar"] .content .ch-root .ch-go { font-size: 15px; }
+html[lang="ar"] .content .ch-root.ch-root .ch-today > i { font-size: clamp(28px, 2.4vw, 38px); }
+html[lang="ar"] .content .ch-root.ch-root .ch-today b { font-size: clamp(18px, 1.6vw, 25px); }
+html[lang="ar"] .content .ch-root.ch-root .ch-today-date { font-size: clamp(15px, 1.35vw, 21px); }
+html[lang="ar"] .content .ch-root.ch-root .ch-today small { font-size: 12px; }
+html[lang="ar"] .content .ch-root.ch-root .ch-stat-label { font-size: 13.5px; }
+html[lang="ar"] .content .ch-root .ch-stat-text b { font-size: clamp(19px, 1.8vw, 28px); }
+html[lang="ar"] .content .ch-root .ch-stat-fa i { font-size: clamp(22px, 2vw, 32px); }
+html[lang="ar"] .content .ch-root.ch-root .ch-tile-fa i { font-size: clamp(22px, 2vw, 32px); }
+html[lang="ar"] .content .ch-root.ch-root .ch-tile-name { font-size: clamp(18px, 1.7vw, 26px); }
+html[lang="ar"] .content .ch-root.ch-root .ch-tile-desc { font-size: clamp(12px, 1vw, 15px); }
+/* The feature row leaves the library (right) and the scales (left) visible. */
+.ch-features{padding-inline-start:clamp(60px,8.5vw,170px);padding-inline-end:clamp(30px,5vw,110px)}
+@media (max-width:899px){.ch-features{padding-inline:0}}
+/* Centre column: today's date above the upcoming-appointments card. */
+.ch-mid{align-self:stretch;display:flex;flex-direction:column;gap:12px;min-height:0;justify-content:center}
+.ch-mid .ch-today{min-height:0;flex:1 1 0;padding:12px 12px}
+.ch-mid .ch-today:not(.ch-upnext){flex:0.85 1 0}
+.ch-upnext{background:linear-gradient(160deg,rgba(40,26,8,.92),rgba(18,20,30,.95))!important;
+  box-shadow:0 0 0 1px rgba(246,210,138,.45),0 0 30px 6px rgba(224,168,74,.5),inset 0 0 24px rgba(224,168,74,.12),0 18px 36px rgba(0,0,0,.45)!important}
+html body .content .ch-root.ch-root .ch-upnext>i{color:#f6d28a!important}
+html body .content .ch-root.ch-root .ch-upnext b{font-size:clamp(16px,1.45vw,22px)}
+html body .content .ch-root.ch-root .ch-upnext small{margin-top:2px;font-size:clamp(11.5px,.95vw,14px);font-weight:700;color:#f1f5fb!important;-webkit-text-fill-color:#f1f5fb!important}
+html body .content .ch-root.ch-root .ch-today:not(.ch-upnext)>i{font-size:clamp(22px,1.9vw,30px)}
+/* The rule under the greeting is gold. */
+.ch-rule{background:linear-gradient(90deg,rgba(224,168,74,0),#e0a84a 20%,#f6d28a 50%,#e0a84a 80%,rgba(224,168,74,0))}
+html[lang="ar"] .content .ch-root.ch-root .ch-upnext b{font-size:clamp(16px,1.45vw,22px)}
+html[lang="ar"] .content .ch-root.ch-root .ch-upnext small{font-size:clamp(11.5px,.95vw,14px)}
+html[lang="ar"] .content .ch-root.ch-root .ch-today:not(.ch-upnext)>i{font-size:clamp(22px,1.9vw,30px)}
+@media (max-width:899px){.ch-mid{flex-direction:row}.ch-mid .ch-today{min-height:120px}}
+.ch-mid .ch-today{align-self:stretch;width:100%}
+.ch-features{grid-template-columns:minmax(0,1fr) clamp(220px,17vw,300px) minmax(0,1fr)}
+.ch-rule{height:3px}
+@media (max-width:899px){.ch-features{grid-template-columns:1fr}}
+
+/* ===================================================================
+ * Classic home — PHONE layout (≤899px), per the office's mobile design:
+ * greeting · today (wide) · briefing | analytics · upcoming (wide) ·
+ * 4 small figures + 2 wide money figures · the 4 main cards in one row.
+ * Same buttons, same handlers — only order and shape change.
+ * =================================================================== */
+@media (max-width:899px){
+  html body .content.content.content.content.content.home-content.home-classic{overflow-y:auto!important;padding:0 0 96px!important}
+  html body .content .ch-root.ch-root{height:auto;display:flex;flex-direction:column;gap:14px;padding:14px 12px 18px!important;padding-inline-end:12px!important;overflow:visible}
+
+  /* Artwork: the scales at the top corner, behind the greeting */
+  html body .content .ch-root.ch-root .ch-art-side{display:block;top:0;bottom:auto;height:min(78vw,430px);width:46%;opacity:.85}
+  html body .content .ch-root.ch-root .ch-art-side img{object-position:right top;
+    -webkit-mask-image:linear-gradient(to left,transparent 0%,#000 30%),linear-gradient(to bottom,#000 55%,transparent 100%);-webkit-mask-composite:source-in;
+    mask-image:linear-gradient(to left,transparent 0%,#000 30%),linear-gradient(to bottom,#000 55%,transparent 100%);mask-composite:intersect}
+  html body .content .ch-root.ch-root .ch-art-lib{display:block;height:46vw;max-height:260px;width:22%;opacity:.55}
+
+  /* Greeting */
+  html body .content .ch-root.ch-root .ch-hero{padding-inline-start:0;padding-top:4px}
+  html body .content .ch-root.ch-root .ch-hero h1{font-size:clamp(22px,6.4vw,30px)!important}
+  html body .content .ch-root.ch-root .ch-hero p{font-size:clamp(13px,3.6vw,16px)!important}
+  .ch-rule{width:min(320px,70%)}
+
+  /* Today · two feature cards · upcoming — one grid */
+  html body .content .ch-root.ch-root .ch-features{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"date date" "brief anal" "up up";gap:14px;padding:0!important;perspective:900px}
+  .ch-mid{display:contents}
+  html body .content .ch-root.ch-root .ch-mid .ch-today:not(.ch-upnext){grid-area:date;flex-direction:row-reverse;justify-content:center;gap:14px;min-height:0;padding:12px 18px;border-radius:999px;margin-inline:8%}
+  html body .content .ch-root.ch-root .ch-mid .ch-today:not(.ch-upnext)>i{font-size:30px;margin:0;padding-inline-end:14px;border-inline-end:1px solid rgba(246,210,138,.45)}
+  html body .content .ch-root.ch-root .ch-mid .ch-today:not(.ch-upnext) b{font-size:clamp(17px,4.8vw,22px)}
+  html body .content .ch-root.ch-root .ch-mid .ch-today:not(.ch-upnext) .ch-today-date{font-size:clamp(16px,4.4vw,21px)}
+  .ch-mid .ch-today:not(.ch-upnext){display:grid!important;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:14px;align-items:center;justify-items:center}
+  .ch-mid .ch-today:not(.ch-upnext)>i{grid-row:1 / span 2;grid-column:1}
+  .ch-mid .ch-today:not(.ch-upnext) b{grid-column:2;grid-row:1}
+  .ch-mid .ch-today:not(.ch-upnext) .ch-today-date{grid-column:2;grid-row:2}
+
+  html body .content .ch-root.ch-root .ch-feature-b{grid-area:brief;transform:rotateY(-7deg)}
+  html body .content .ch-root.ch-root .ch-feature-a{grid-area:anal;transform:rotateY(7deg)}
+  html body .content .ch-root.ch-root .ch-feature{min-height:0;height:auto;padding:16px 12px 58px;border-radius:26px;gap:5px}
+  html body .content .ch-root.ch-root .ch-feature-img{width:56px;height:56px}
+  html body .content .ch-root.ch-root .ch-feature b{font-size:clamp(16px,4.6vw,21px)}
+  html body .content .ch-root.ch-root .ch-feature em{font-size:clamp(15px,4.2vw,20px)}
+  html body .content .ch-root.ch-root .ch-feature small{font-size:clamp(11.5px,3.3vw,14px);line-height:1.5}
+  html body .content .ch-root.ch-root .ch-go{bottom:14px;width:52px;height:32px}
+
+  html body .content .ch-root.ch-root .ch-mid .ch-upnext{grid-area:up;display:grid!important;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;min-height:0;padding:12px 18px;border-radius:999px;text-align:center}
+  html body .content .ch-root.ch-root .ch-mid .ch-upnext>i{grid-column:1;grid-row:1 / span 2;font-size:34px;margin:0}
+  html body .content .ch-root.ch-root .ch-mid .ch-upnext b{grid-column:2;grid-row:1;font-size:clamp(17px,4.8vw,22px)}
+  html body .content .ch-root.ch-root .ch-mid .ch-upnext small{grid-column:2;grid-row:2;margin:0;font-size:clamp(12px,3.4vw,15px)}
+  .ch-upnext::after{content:"\00bb";grid-column:3;grid-row:1 / span 2;width:46px;height:46px;border-radius:50%;border:2px solid #e0a84a;color:#f6d28a;display:grid;place-items:center;font-size:26px;line-height:1;transform:scaleX(-1)}
+
+  /* Figures: four small tiles, then the two money tiles wide */
+  html body .content .ch-root.ch-root .ch-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:0;background:transparent;border:0}
+  .ch-stat[class*="ch-tone"]{order:0}
+  .ch-stats .ch-stat:nth-child(4){order:1}
+  .ch-stats .ch-stat:nth-child(3){order:2}
+  .ch-stats .ch-stat:nth-child(2){order:3}
+  .ch-stats .ch-stat:nth-child(1){order:4}
+  .ch-stats .ch-stat:nth-child(6){order:5;grid-column:span 2}
+  .ch-stats .ch-stat:nth-child(5){order:6;grid-column:span 2}
+  html body .content .ch-root.ch-root .ch-stats .ch-stat:nth-child(-n+4){flex-direction:column-reverse;justify-content:center;gap:4px;padding:12px 6px;text-align:center}
+  html body .content .ch-root.ch-root .ch-stats .ch-stat:nth-child(n+5){flex-direction:row-reverse;justify-content:center;gap:16px;padding:16px 14px}
+  html body .content .ch-root.ch-root .ch-stat-label{font-size:clamp(11px,3.1vw,14px)!important;white-space:normal;line-height:1.25}
+  html body .content .ch-root.ch-root .ch-stat-text b{font-size:clamp(19px,5.6vw,26px)!important}
+  html body .content .ch-root.ch-root .ch-stats .ch-stat:nth-child(n+5) .ch-stat-text b{font-size:clamp(22px,6.6vw,32px)!important}
+  html body .content .ch-root.ch-root .ch-stat-fa{width:auto}
+  html body .content .ch-root.ch-root .ch-stat-fa i{font-size:clamp(22px,6vw,30px)!important}
+  html body .content .ch-root.ch-root .ch-stats .ch-stat:nth-child(n+5) .ch-stat-fa i{font-size:clamp(34px,10vw,48px)!important}
+
+  /* The four main cards in one row: portal · cases · clients · calendar */
+  html body .content .ch-root.ch-root .ch-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:0}
+  .ch-tile-portal,.ch-tile-tasks{order:1}.ch-tile-cases{order:2}.ch-tile-contacts{order:3}.ch-tile-calendar{order:4}
+  html body .content .ch-root.ch-root .ch-tile{min-height:0;padding:14px 6px 16px;border-radius:20px;gap:6px;justify-content:flex-start}
+  html body .content .ch-root.ch-root .ch-tile-fa{width:48px;height:48px;border:0;background:transparent;box-shadow:none}
+  html body .content .ch-root.ch-root .ch-tile-fa i{font-size:clamp(24px,7vw,34px)!important}
+  html body .content .ch-root.ch-root .ch-tile-name{font-size:clamp(14px,4.2vw,20px)!important;flex-wrap:wrap;justify-content:center}
+  html body .content .ch-root.ch-root .ch-tile-desc{font-size:clamp(11px,3.2vw,14px)!important;line-height:1.45}
+}
+/* Very narrow phones: the figures in two columns, the cards two by two. */
+@media (max-width:380px){
+  html body .content .ch-root.ch-root .ch-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ch-stats .ch-stat:nth-child(6),.ch-stats .ch-stat:nth-child(5){grid-column:span 2}
+  html body .content .ch-root.ch-root .ch-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:899px){
+  html body .content .ch-root.ch-root .ch-mid .ch-today{width:auto}
+  html body .content .ch-root.ch-root .ch-features{align-items:stretch}
+  html body .content .ch-root.ch-root .ch-feature{align-self:stretch;justify-content:flex-start}
+}
+
+/* ===================================================================
+ * Home — "Modern Design" (Settings → home style = modern).
+ * The Classic page (components/ClassicHome, variant="modern"), light:
+ * cream and white, soft pastel cards, gold accents, no tilt.
+ * `.ch-modern` adds one class to every Classic selector so it wins.
+ * =================================================================== */
+html body .content.content.home-content.home-classic > .ch-root.ch-root.ch-modern{background:
+  radial-gradient(70% 55% at 50% 0%,#ffffff 0,rgba(255,255,255,0) 70%),
+  linear-gradient(180deg,#fbf8f2 0%,#f6f2ea 100%)!important}
+.ch-root.ch-modern{color:#16223b;--ch-gold:#d4a24c;--ch-gold-2:#c8932f}
+.ch-root.ch-modern::before{content:"";position:absolute;inset-inline-end:-12%;top:-30%;width:44%;height:140%;border-radius:50%;border:3px solid rgba(212,162,76,.55);border-inline-start-color:transparent;border-bottom-color:transparent;transform:rotate(18deg);pointer-events:none;z-index:0}
+
+/* Artwork: the gold scales on the side, fading into the page */
+html body .content .ch-root.ch-root.ch-modern .ch-art-side{width:clamp(200px,19vw,340px);bottom:auto;height:min(78%,560px)}
+html body .content .ch-root.ch-root.ch-modern .ch-art-side img{object-position:right top;
+  -webkit-mask-image:linear-gradient(to left,transparent 0%,#000 30%),linear-gradient(to bottom,#000 70%,transparent 100%);-webkit-mask-composite:source-in;
+  mask-image:linear-gradient(to left,transparent 0%,#000 30%),linear-gradient(to bottom,#000 70%,transparent 100%);mask-composite:intersect}
+
+/* Greeting */
+html body .content .ch-root.ch-root.ch-modern .ch-hero h1{color:#16223b!important;-webkit-text-fill-color:#16223b!important;text-shadow:none}
+html body .content .ch-root.ch-root.ch-modern .ch-hero p{color:#3f4a5e!important;-webkit-text-fill-color:#3f4a5e!important}
+
+/* Feature cards — flat, light, no tilt */
+html body .content .ch-root.ch-root.ch-modern .ch-features{perspective:none}
+html body .content .ch-root.ch-root.ch-modern .ch-feature,html body .content .ch-root.ch-root.ch-modern .ch-feature:hover{transform:none}
+html body .content .ch-root.ch-root.ch-modern .ch-feature{border-radius:26px;border:1px solid #ece3d3;box-shadow:0 14px 34px rgba(22,34,59,.08)}
+html body .content .ch-root.ch-root.ch-modern .ch-feature:hover{box-shadow:0 18px 40px rgba(22,34,59,.13);translate:0 -3px}
+html body .content .ch-root.ch-root.ch-modern .ch-feature-a{background:linear-gradient(160deg,#ffffff 0%,#fff6ea 60%,#fbe6cc 100%)}
+html body .content .ch-root.ch-root.ch-modern .ch-feature-b{background:linear-gradient(200deg,#ffffff 0%,#f1f6fe 60%,#d9e6fa 100%);border-color:#dbe5f3}
+html body .content .ch-root.ch-root.ch-modern .ch-feature b,html body .content .ch-root.ch-root.ch-modern .ch-feature em{color:#16223b!important;-webkit-text-fill-color:#16223b!important;text-shadow:none}
+html body .content .ch-root.ch-root.ch-modern .ch-feature small{color:#3f4a5e!important;-webkit-text-fill-color:#3f4a5e!important}
+html body .content .ch-root.ch-root.ch-modern .ch-feature-img{box-shadow:0 0 0 2px rgba(212,162,76,.45),0 6px 14px rgba(22,34,59,.1)}
+html body .content .ch-root.ch-root.ch-modern .ch-go{background:#fff;border-color:#d4a24c}
+html body .content .ch-root.ch-root.ch-modern .ch-go i{color:#c8932f!important}
+
+/* Today · upcoming */
+html body .content .ch-root.ch-root.ch-modern .ch-today{background:linear-gradient(180deg,#ffffff,#f3f4f7)!important;border:1px solid #e3e6ec;box-shadow:0 12px 28px rgba(22,34,59,.08)!important}
+html body .content .ch-root.ch-root.ch-modern .ch-upnext{background:linear-gradient(170deg,#fffaf2 0%,#fbe7c6 100%)!important;border-color:#f0dcb5}
+html body .content .ch-root.ch-root.ch-modern .ch-today>i{color:#16223b!important}
+html body .content .ch-root.ch-root.ch-modern .ch-upnext>i{color:#c8932f!important}
+html body .content .ch-root.ch-root.ch-modern .ch-today b,html body .content .ch-root.ch-root.ch-modern .ch-today-date{color:#16223b!important;-webkit-text-fill-color:#16223b!important}
+html body .content .ch-root.ch-root.ch-modern .ch-upnext small{color:#3f4a5e!important;-webkit-text-fill-color:#3f4a5e!important}
+
+/* Six figures — one white strip with dividers */
+html body .content .ch-root.ch-root.ch-modern .ch-stats{background:#fff;border:1px solid #ebe6dc;border-radius:22px;padding:8px 10px;gap:0;box-shadow:0 12px 30px rgba(22,34,59,.07)}
+html body .content .ch-root.ch-root.ch-modern .ch-stat{background:transparent;border:0;border-radius:0;box-shadow:none;padding:12px 18px}
+html body .content .ch-root.ch-root.ch-modern .ch-stat+.ch-stat{border-inline-start:1px solid #ece8df}
+html body .content .ch-root.ch-root.ch-modern .ch-stat:hover{transform:none;background:#faf7f1}
+html body .content .ch-root.ch-root.ch-modern .ch-tone-green .ch-stat-text b,html body .content .ch-root.ch-root.ch-modern .ch-tone-blue .ch-stat-text b,html body .content .ch-root.ch-root.ch-modern .ch-tone-violet .ch-stat-text b{color:#16223b!important;-webkit-text-fill-color:#16223b!important}
+html body .content .ch-root.ch-root.ch-modern .ch-tone-violet .ch-stat-text b{color:#2a2177!important;-webkit-text-fill-color:#2a2177!important}
+
+/* Four main cards — pastel, outline-style icons */
+html body .content .ch-root.ch-root.ch-modern .ch-tile{border:1px solid #e4e8ef;box-shadow:0 12px 28px rgba(22,34,59,.07)}
+html body .content .ch-root.ch-root.ch-modern .ch-tile::before{display:none}
+html body .content .ch-root.ch-root.ch-modern .ch-tile:hover{box-shadow:0 16px 34px rgba(22,34,59,.12)}
+html body .content .ch-root.ch-root.ch-modern .ch-tile-portal,html body .content .ch-root.ch-root.ch-modern .ch-tile-tasks{background:linear-gradient(170deg,#f6f9fe,#e6eefa);--ch-acc:#1f3b6e}
+html body .content .ch-root.ch-root.ch-modern .ch-tile-cases{background:linear-gradient(170deg,#f8f5fe,#ebe4fa);--ch-acc:#4c2ca8;border-color:#e3dbf6}
+html body .content .ch-root.ch-root.ch-modern .ch-tile-contacts{background:linear-gradient(170deg,#f5f9fe,#e3edfb);--ch-acc:#1d4f9c}
+html body .content .ch-root.ch-root.ch-modern .ch-tile-calendar{background:linear-gradient(170deg,#fffaf3,#fbeedb);--ch-acc:#1f3b6e;border-color:#f3e4c9}
+html body .content .ch-root.ch-root.ch-modern .ch-tile-fa{background:transparent;border:0;box-shadow:none}
+html body .content .ch-root.ch-root.ch-modern .ch-tile-fa i{color:var(--ch-acc)!important}
+html body .content .ch-root.ch-root.ch-modern .ch-tile-name{color:#16223b!important;-webkit-text-fill-color:#16223b!important}
+html body .content .ch-root.ch-root.ch-modern .ch-tile-desc{color:#3f4a5e!important;-webkit-text-fill-color:#3f4a5e!important}
+
+/* Modern in dark mode: the same light structure on slate surfaces. */
+html body.dark .content.content.home-content.home-classic > .ch-root.ch-root.ch-modern{background:linear-gradient(180deg,#0f172a 0%,#111c33 100%)!important}
+html body.dark .content .ch-root.ch-root.ch-modern .ch-feature,html body.dark .content .ch-root.ch-root.ch-modern .ch-today,html body.dark .content .ch-root.ch-root.ch-modern .ch-stats,html body.dark .content .ch-root.ch-root.ch-modern .ch-tile{background:#1e293b!important;border-color:#334155}
+html body.dark .content .ch-root.ch-root.ch-modern .ch-upnext{background:linear-gradient(170deg,#2a2416,#3a2d12)!important;border-color:#5a4520}
+html body.dark .content .ch-root.ch-root.ch-modern :is(.ch-hero h1,.ch-feature b,.ch-feature em,.ch-today b,.ch-today-date,.ch-tile-name,.ch-tone-green .ch-stat-text b,.ch-tone-blue .ch-stat-text b,.ch-tone-violet .ch-stat-text b,.ch-stat-label){color:#f8fafc!important;-webkit-text-fill-color:#f8fafc!important}
+html body.dark .content .ch-root.ch-root.ch-modern :is(.ch-hero p,.ch-feature small,.ch-upnext small,.ch-tile-desc){color:#cbd5e1!important;-webkit-text-fill-color:#cbd5e1!important}
+html body.dark .content .ch-root.ch-root.ch-modern .ch-today>i{color:#f8fafc!important}
+html body.dark .content .ch-root.ch-root.ch-modern .ch-tile-fa i{color:#93c5fd!important}
+html body.dark .content .ch-root.ch-root.ch-modern .ch-stat+.ch-stat{border-color:#334155}
+html body.dark .content .ch-root.ch-root.ch-modern .ch-stat:hover{background:#243247}
+html body.dark .content .ch-root.ch-root.ch-modern .ch-go{background:transparent}
+
+/* Phone: the shared phone layout; figures become separate white tiles. */
+@media (max-width:899px){
+  html body .content .ch-root.ch-root.ch-modern .ch-stats{background:transparent;border:0;box-shadow:none;padding:0;gap:10px}
+  html body .content .ch-root.ch-root.ch-modern .ch-stat{background:#fff;border:1px solid #ebe6dc;border-radius:16px;box-shadow:0 8px 20px rgba(22,34,59,.07)}
+  html body .content .ch-root.ch-root.ch-modern .ch-stat+.ch-stat{border-inline-start:1px solid #ebe6dc}
+  html body.dark .content .ch-root.ch-root.ch-modern .ch-stat{background:#1e293b;border-color:#334155}
+  html body .content .ch-root.ch-root.ch-modern .ch-upnext::after{border-color:#d4a24c;color:#c8932f;background:#fff}
+  html body .content .ch-root.ch-root.ch-modern::before{display:none}
+}
+/* Modern: figure labels wrap rather than cut off; dark-mode figure colors. */
+html body .content .ch-root.ch-root.ch-modern .ch-stat-label{white-space:normal;line-height:1.25;overflow:visible;text-overflow:clip}
+html body .content .ch-root.ch-root.ch-modern .ch-stat{padding:10px 12px}
+html body.dark .content .ch-root.ch-root.ch-modern :is(.ch-tone-mint .ch-stat-fa i,.ch-tone-mint .ch-stat-text b){color:#4ade80!important;-webkit-text-fill-color:#4ade80!important}
+html body.dark .content .ch-root.ch-root.ch-modern :is(.ch-tone-peach .ch-stat-fa i,.ch-tone-peach .ch-stat-text b,.ch-tone-red .ch-stat-fa i,.ch-tone-red .ch-stat-text b){color:#f87171!important;-webkit-text-fill-color:#f87171!important}
+
+/* ===================================================================
+ * Modern home — PHONE layout (≤899px), per the office's mobile design:
+ * greeting · analytics | today + upcoming | briefing (three columns) ·
+ * six figures in one strip · the four main cards in one row.
+ * Overrides the shared Classic phone layout for `.ch-modern` only.
+ * =================================================================== */
+@media (max-width:899px){
+  html body .content.content.home-content.home-classic > .ch-root.ch-root.ch-modern{background:#ffffff!important}
+  html body.dark .content.content.home-content.home-classic > .ch-root.ch-root.ch-modern{background:#0f172a!important}
+  html body .content .ch-root.ch-root.ch-modern{gap:14px;padding:16px 10px 18px!important}
+  html body .content .ch-root.ch-root.ch-modern .ch-art-side{display:none}
+
+  /* Greeting */
+  html body .content .ch-root.ch-root.ch-modern .ch-hero h1{font-size:clamp(22px,6.6vw,32px)!important}
+  html body .content .ch-root.ch-root.ch-modern .ch-hero p{font-size:clamp(13px,3.8vw,17px)!important}
+
+  /* Three columns: briefing (right) · today + upcoming · analytics (left) */
+  html body .content .ch-root.ch-root.ch-modern .ch-features{grid-template-columns:minmax(0,1.08fr) minmax(0,.95fr) minmax(0,1.08fr);grid-template-areas:"brief mid anal";gap:8px;align-items:stretch}
+  html body .content .ch-root.ch-root.ch-modern .ch-mid{display:flex;flex-direction:column;gap:8px;grid-area:mid}
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-today,
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-today:not(.ch-upnext),
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-upnext{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:3px;margin:0;padding:10px 6px;border-radius:18px;min-height:0;text-align:center}
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-today:not(.ch-upnext){flex:0.8 1 0}
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-upnext{flex:1 1 0;border:1.5px solid #e9bf6a}
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-upnext::after{display:none}
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-today>i{font-size:clamp(22px,6.6vw,30px);margin:0 0 2px;padding:0;border:0}
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-today b{font-size:clamp(12.5px,3.7vw,16px)}
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-today-date{font-size:clamp(12px,3.5vw,15px)}
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-upnext small{font-size:clamp(10px,2.9vw,12.5px)}
+  html body .content .ch-root.ch-root.ch-modern .ch-feature{padding:12px 8px 50px;border-radius:20px;gap:4px;justify-content:flex-start;background:linear-gradient(180deg,#f7f8fa,#eef0f4)!important;border:1px solid #e6e9ee}
+  html body.dark .content .ch-root.ch-root.ch-modern .ch-feature{background:#1e293b!important;border-color:#334155}
+  html body .content .ch-root.ch-root.ch-modern .ch-feature-img{width:clamp(42px,12vw,56px);height:clamp(42px,12vw,56px)}
+  html body .content .ch-root.ch-root.ch-modern .ch-feature b{font-size:clamp(13px,3.9vw,17px)}
+  html body .content .ch-root.ch-root.ch-modern .ch-feature em{font-size:clamp(12.5px,3.7vw,16px)}
+  html body .content .ch-root.ch-root.ch-modern .ch-feature small{font-size:clamp(10.5px,3.1vw,13px);line-height:1.5}
+  html body .content .ch-root.ch-root.ch-modern .ch-go{width:36px;height:36px;border-radius:50%;bottom:10px;border-width:1.5px;border-color:#c9ced8}
+  html body .content .ch-root.ch-root.ch-modern .ch-go i{color:#16223b!important}
+
+  /* Six figures in one white strip: label · icon · number */
+  html body .content .ch-root.ch-root.ch-modern .ch-stats{grid-template-columns:repeat(6,minmax(0,1fr));gap:0;padding:12px 4px;background:#fff;border:1px solid #e9ecf1;border-radius:20px;box-shadow:0 10px 24px rgba(22,34,59,.07)}
+  html body.dark .content .ch-root.ch-root.ch-modern .ch-stats{background:#1e293b;border-color:#334155}
+  html body .content .ch-root.ch-root.ch-modern .ch-stats .ch-stat{order:0!important;grid-column:auto!important;display:grid!important;grid-template-areas:"label" "fa" "num";justify-items:center;align-content:start;gap:6px;padding:2px 4px!important;background:transparent!important;border:0!important;border-radius:0;box-shadow:none!important}
+  html body .content .ch-root.ch-root.ch-modern .ch-stats .ch-stat+.ch-stat{border-inline-start:1px solid #eceff3!important}
+  html body.dark .content .ch-root.ch-root.ch-modern .ch-stats .ch-stat+.ch-stat{border-color:#334155!important}
+  html body .content .ch-root.ch-root.ch-modern .ch-stat-text{display:contents}
+  html body .content .ch-root.ch-root.ch-modern .ch-stat-label{grid-area:label;font-size:clamp(10px,2.9vw,12.5px)!important;line-height:1.25;text-align:center;min-height:2.5em;display:flex;align-items:flex-end}
+  html body .content .ch-root.ch-root.ch-modern .ch-stat-fa{grid-area:fa;width:auto}
+  html body .content .ch-root.ch-root.ch-modern .ch-stat-fa i,
+  html body .content .ch-root.ch-root.ch-modern .ch-stats .ch-stat:nth-child(n+5) .ch-stat-fa i{font-size:clamp(18px,5.4vw,24px)!important}
+  html body .content .ch-root.ch-root.ch-modern .ch-stat-text b,
+  html body .content .ch-root.ch-root.ch-modern .ch-stats .ch-stat:nth-child(n+5) .ch-stat-text b{grid-area:num;font-size:clamp(12px,3.9vw,18px)!important;letter-spacing:-.02em}
+  html body .content .ch-root.ch-root.ch-modern .ch-stats .ch-stat:nth-child(-n+4) .ch-stat-text b{font-size:clamp(16px,5vw,22px)!important}
+
+  /* The four main cards in one row, in the desktop order */
+  html body .content .ch-root.ch-root.ch-modern .ch-tiles{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  html body .content .ch-root.ch-root.ch-modern .ch-tile{order:0!important;padding:14px 4px 14px;border-radius:20px;background:linear-gradient(180deg,#f7f8fa,#eef0f4)!important;border:1px solid #e6e9ee;gap:6px}
+  html body.dark .content .ch-root.ch-root.ch-modern .ch-tile{background:#1e293b!important;border-color:#334155}
+  html body .content .ch-root.ch-root.ch-modern .ch-tile-fa{width:auto;height:auto}
+  html body .content .ch-root.ch-root.ch-modern .ch-tile-fa i{font-size:clamp(24px,7.4vw,34px)!important;color:#16223b!important}
+  html body.dark .content .ch-root.ch-root.ch-modern .ch-tile-fa i{color:#e2e8f0!important}
+  html body .content .ch-root.ch-root.ch-modern .ch-tile-name{font-size:clamp(14px,4.3vw,20px)!important}
+  html body .content .ch-root.ch-root.ch-modern .ch-tile-desc{font-size:clamp(10.5px,3.1vw,13.5px)!important;line-height:1.45}
+}
+/* Very narrow phones: figures three by two, cards two by two. */
+@media (max-width:380px){
+  html body .content .ch-root.ch-root.ch-modern .ch-stats{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:12px}
+  html body .content .ch-root.ch-root.ch-modern .ch-stats .ch-stat:nth-child(4){border-inline-start:0!important}
+  html body .content .ch-root.ch-root.ch-modern .ch-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:899px){
+  /* Modern phone — the date card's sizes beat the Classic phone rules. */
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-today:not(.ch-upnext)>i{font-size:clamp(20px,6vw,28px)!important;margin:0 0 2px!important;padding:0!important;border:0!important}
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-today:not(.ch-upnext) b{font-size:clamp(12.5px,3.7vw,16px)!important}
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-today:not(.ch-upnext) .ch-today-date{font-size:clamp(11.5px,3.4vw,15px)!important;line-height:1.3}
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-upnext>i{font-size:clamp(20px,6vw,28px)!important}
+  html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-upnext b{font-size:clamp(12.5px,3.7vw,16px)!important}
+}
