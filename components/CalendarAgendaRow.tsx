@@ -55,6 +55,84 @@ export function CalendarAgendaRow({ entry }: { entry: CalendarItem }) {
   const secondary =
     calendarSecondaryLine(item, lang) || eventTypeLabel(type, lang, t);
 
+  const open = () =>
+    modalStack.open(<CalendarEventDetail source={entry.source} id={String(item.id || '')} />);
+
+  // "Modern Design": date over time · mark · case line over the event's note.
+  if (state.homeStyle === 'modern') {
+    const main = [parts.client, parts.caseType, parts.court, parts.caseNumber].filter((p) => p && p !== '-').join(' - ');
+    return (
+      <div
+        className="mx-item"
+        role="button"
+        tabIndex={0}
+        data-calendar-item-id={item.id || ''}
+        data-calendar-source={entry.source}
+        onClick={open}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            open();
+          }
+        }}
+      >
+        <span className="mx-item-fa" aria-hidden>
+          <i className="far fa-calendar" />
+        </span>
+        <span className="mx-when">
+          <b>{fullDate}</b>
+          <em>{timeStr}</em>
+        </span>
+        <span className="mx-mark" aria-hidden>
+          <i className={'fas ' + (isTask ? 'fa-list-check' : 'fa-briefcase')} />
+        </span>
+        <span className="mx-line">
+          <b>{main || caseLine}</b>
+          <small>{secondary}</small>
+        </span>
+      </div>
+    );
+  }
+
+  // "Classic Design": one line — date · time · mark · client - type - court · number.
+  // The event's second line stays available as the row's tooltip.
+  if (state.homeStyle === 'classic') {
+    const main = [parts.client, parts.caseType, parts.court].filter((p) => p && p !== '-').join(' - ');
+    const num = parts.caseNumber && parts.caseNumber !== '-' ? parts.caseNumber : '';
+    return (
+      <div
+        className="cx-item"
+        role="button"
+        tabIndex={0}
+        title={secondary}
+        data-calendar-item-id={item.id || ''}
+        data-calendar-source={entry.source}
+        onClick={open}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            open();
+          }
+        }}
+      >
+        <span className="cx-when">{fullDate}</span>
+        <span className="cx-time">{timeStr}</span>
+        <span className="cx-mark" aria-hidden>
+          <i className={'fas ' + (isTask ? 'fa-list-check' : 'fa-calendar-check')} />
+        </span>
+        <span className="cx-line">
+          <b>{main || caseLine}</b>
+          {num && (
+            <>
+              <span className="cx-dot" aria-hidden>·</span>
+              <bdi className="cx-num">{num}</bdi>
+            </>
+          )}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div
       className="calendar-agenda-row"

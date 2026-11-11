@@ -67,6 +67,152 @@ export function ClientsScreen() {
   // Right-click on a client (desktop mouse): edit details, balance, open cases.
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
 
+  // Office-wide figures for the Classic header — the same counting rule as
+  // each row's counts (clientCaseCounts: 'active' vs 'inactive'/'closed').
+  const totals = useMemo(() => {
+    let open = 0;
+    let closed = 0;
+    for (const c of state.casesArr) {
+      if (c.status === 'active') open++;
+      else if (c.status === 'inactive' || c.status === 'closed') closed++;
+    }
+    const activeIds = new Set(state.casesArr.filter((c) => c.status === 'active').map((c) => c.clientId));
+    const activeClients = state.clients.filter((c) => activeIds.has(c.id)).length;
+    return { total: state.clients.length, open, closed, activeClients, inactiveClients: state.clients.length - activeClients };
+  }, [state.casesArr, state.clients]);
+
+  const onRowMenu = (e: React.MouseEvent, id: string) => {
+    // A phone's long-press keeps its usual behaviour.
+    if (!hasFineMouse()) return;
+    e.preventDefault();
+    setMenu({ id, x: e.clientX, y: e.clientY });
+  };
+
+  // "Classic Design" (Settings → home style = classic): the same search, rows,
+  // click and right-click handlers, laid out in the dark navy + gold look.
+  // "Modern Design" reuses this layout in a light shell (.kx-modern), without the figure tiles.
+  if (state.homeStyle === 'classic' || state.homeStyle === 'modern') {
+    const modern = state.homeStyle === 'modern';
+    const ar = lang === 'ar';
+    const L = {
+      h: modern ? (ar ? 'الموكلون' : 'לקוחות') : ar ? 'البحث في الموكلين' : 'חיפוש בלקוחות',
+      sub: modern
+        ? ar
+          ? 'عرض وإدارة بيانات الموكلين وعلاقتهم بالملفات والقضايا'
+          : 'הצגה וניהול של פרטי הלקוחות והקשר שלהם לתיקים'
+        : ar
+          ? 'إدارة بيانات الموكلين ومتابعة حالة التعاون'
+          : 'ניהול פרטי הלקוחות ומעקב אחר מצב ההתקשרות',
+      ph: ar
+        ? 'البحث حسب اسم الموكل، رقم الهوية، رقم الهاتف أو أي معلومة...'
+        : 'חיפוש לפי שם לקוח, תעודת זהות, מספר טלפון או כל פרט אחר...',
+      id: ar ? 'ت. هوية' : 'ת.ז.',
+      empty: ar ? 'لا يوجد موكلون مطابقون للبحث' : 'אין לקוחות התואמים לחיפוש',
+    };
+    const stats = [
+      { k: 'total', fa: 'fa-users', label: ar ? 'إجمالي الموكلين' : 'סה"כ לקוחות', v: totals.total },
+      { k: 'closed', fa: 'fa-folder-open', label: ar ? 'ملفات مغلقة' : 'תיקים סגורים', v: totals.closed },
+      { k: 'open', fa: 'fa-phone', label: ar ? 'ملفات مفتوحة' : 'תיקים פתוחים', v: totals.open },
+      { k: 'on', fa: 'fa-users', label: ar ? 'موكلون نشطون' : 'לקוחות פעילים', v: totals.activeClients },
+      { k: 'off', fa: 'fa-user-xmark', label: ar ? 'موكلون غير نشطين' : 'לקוחות לא פעילים', v: totals.inactiveClients },
+    ];
+    return (
+      <section className={modern ? 'kx-root kx-modern' : 'kx-root'}>
+        <MainScreenBackButton />
+        <div className="kx-art" aria-hidden>
+          <img src={modern ? '/classic/modern-clients-art.png' : '/classic/clients-art.png'} alt="" />
+        </div>
+        <header className="kx-hero">
+          <span className="kx-hero-fa" aria-hidden>
+            <i className="fas fa-users" />
+          </span>
+          <div className="kx-hero-text">
+            <h2 className="kx-h">{L.h}</h2>
+            {!modern && <span className="kx-rule" aria-hidden />}
+            <p className="kx-sub">{L.sub}</p>
+          </div>
+        </header>
+        <label className="kx-search">
+          <i className="fas fa-magnifying-glass" aria-hidden />
+          <input
+            id="clientsSearchInput"
+            type="search"
+            autoComplete="off"
+            aria-label={searchLabel}
+            placeholder={L.ph}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        {!modern && <div className="kx-stats">
+          {stats.map((s) => (
+            <div key={s.k} className={'kx-stat kx-t-' + s.k}>
+              <i className={'fas ' + s.fa} aria-hidden />
+              <span className="kx-stat-text">
+                <span className="kx-stat-lbl">{s.label}</span>
+                <b>{s.v}</b>
+              </span>
+            </div>
+          ))}
+        </div>}
+        <div className="kx-frame">
+          <div className="kx-cols" aria-hidden>
+            <span>{numberHead}</span>
+            <span>{clientHead}</span>
+            <span>{phoneHead}</span>
+            <span>{activeHead}</span>
+            <span>{closedHead}</span>
+          </div>
+          <div className="kx-list" id="clientsListWrap">
+            {filtered.length === 0 && <div className="kx-none">{L.empty}</div>}
+            {filtered.map((c) => {
+              const displayName = ar ? c.nameAr || c.name : c.name;
+              const counts = clientCaseCounts(c.id, state.casesArr);
+              return (
+                <div
+                  key={c.id}
+                  className="kx-line"
+                  role="button"
+                  tabIndex={0}
+                  data-id={c.id}
+                  onClick={() => openClient(c.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      openClient(c.id);
+                    }
+                  }}
+                  onContextMenu={(e) => onRowMenu(e, c.id)}
+                >
+                  <span className="kx-c kx-c-num" dir="ltr">{c.id}</span>
+                  <span className="kx-c kx-c-name">
+                    <b>{displayName}</b>
+                    <small>
+                      {L.id}: <bdi>{c.idNumber || '-'}</bdi>
+                    </small>
+                  </span>
+                  <span className="kx-c kx-c-tel">
+                    <i className="fas fa-phone" aria-hidden />
+                    <bdi dir="ltr">{c.phone || '-'}</bdi>
+                  </span>
+                  <span className="kx-c kx-c-n" data-label={activeHead}>
+                    <span className="kx-n kx-n-on">{counts.active}</span>
+                  </span>
+                  <span className="kx-c kx-c-n" data-label={closedHead}>
+                    <span className="kx-n kx-n-off">{counts.closed}</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {menu && (
+          <ClientContextMenu clientId={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />
+        )}
+      </section>
+    );
+  }
+
   return (
     <section className="panel clients-screen-panel clients-v2-fluid">
       <MainScreenBackButton />

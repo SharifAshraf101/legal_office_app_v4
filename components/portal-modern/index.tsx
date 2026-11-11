@@ -850,6 +850,87 @@ function ChooserScreen({
   lang: 'he' | 'ar';
 }) {
   const waEnabled = useWhatsAppEnabled();
+  const { state: appState } = useAppState();
+
+  // "Classic Design" (Settings → home style = classic): the same two choices
+  // with the same handlers, as two glowing glass cards on the office's
+  // artwork (public/classic/portal-*.jpg, cut from the office's mock-up).
+  // "Modern Design": the same two choices in a light shell (.cp-modern).
+  if (appState.homeStyle === 'classic' || appState.homeStyle === 'modern') {
+    const modern = appState.homeStyle === 'modern';
+    const ar = lang === 'ar';
+    const C = {
+      title: ar ? 'بوابة التواصل مع الموكلين' : 'שער התקשורת עם הלקוחות',
+      sub: modern
+        ? ar
+          ? 'مركز التواصل الرقمي بين المكتب والموكلين'
+          : 'מרכז התקשורת הדיגיטלי בין המשרד ללקוחות'
+        : ar
+          ? 'قنوات تواصل مباشرة وفعالة مع موكليك لتعزيز الخدمة ومتابعة القضايا'
+          : 'ערוצי תקשורת ישירים ויעילים עם הלקוחות לשיפור השירות ומעקב אחר התיקים',
+      waSub: modern
+        ? ar
+          ? 'التواصل المباشر مع الموكلين عبر تطبيق واتساب'
+          : 'תקשורת ישירה עם הלקוחות באפליקציית וואטסאפ'
+        : ar
+          ? 'إدارة وإرسال الرسائل والتحديثات للموكلين عبر واتساب'
+          : 'ניהול ושליחת הודעות ועדכונים ללקוחות בוואטסאפ',
+      bot: modern ? (ar ? 'بوت الموكلين' : 'בוט הלקוחות') : ar ? 'بوابة الموكلين' : 'שער הלקוחות',
+      botSub: modern
+        ? ar
+          ? 'دردشة ذكية لخدمة الموكلين والإجابة على استفساراتهم'
+          : 'צ׳אט חכם לשירות הלקוחות ולמענה על שאלותיהם'
+        : ar
+          ? 'منصة مخصصة للموكلين لمتابعة قضاياهم وطلباتهم'
+          : 'פלטפורמה ייעודית ללקוחות למעקב אחר התיקים והבקשות שלהם',
+    };
+    return (
+      <div className={'cp-root' + (modern ? ' cp-modern' : '')}>
+        <MainScreenBackButton />
+        <div className="cp-art-l" aria-hidden>
+          <img src={modern ? '/classic/modern-portal-left.jpg' : '/classic/portal-left.jpg'} alt="" />
+        </div>
+        {modern ? (
+          <div className="cp-mark" aria-hidden>
+            <i className="fas fa-building-columns" />
+            <i className="fas fa-scale-balanced" />
+            <i className="fas fa-gavel" />
+          </div>
+        ) : (
+          <div className="cp-art-r" aria-hidden>
+            <img src="/classic/portal-right.jpg" alt="" />
+          </div>
+        )}
+        <header className="cp-hero">
+          <i className={'fas cp-hero-fa ' + (modern ? 'fa-users' : 'fa-link')} aria-hidden />
+          <h1 className="cp-h">{C.title}</h1>
+          <span className="cp-rule" aria-hidden />
+          <p className="cp-sub">{C.sub}</p>
+        </header>
+        <div className="cp-cards">
+          {waEnabled && (
+            <button type="button" className="cp-choice cp-bot" onClick={onPickBot}>
+              <i className="fas fa-briefcase cp-choice-fa" aria-hidden />
+              <b>{C.bot}</b>
+              <span className="cp-choice-text">{C.botSub}</span>
+              <span className="cp-go" aria-hidden>
+                <i className="fas fa-angles-left" />
+              </span>
+            </button>
+          )}
+          <button type="button" className="cp-choice cp-wa" onClick={onPickWhatsApp}>
+            <i className="fab fa-whatsapp cp-choice-fa" aria-hidden />
+            <b>WhatsApp</b>
+            <span className="cp-choice-text">{C.waSub}</span>
+            <span className="cp-go" aria-hidden>
+              <i className="fas fa-angles-left" />
+            </span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const T = {
     title: lang === 'ar' ? 'مركز التواصل' : 'מרכז תקשורת',
     subtitle:

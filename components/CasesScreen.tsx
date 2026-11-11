@@ -64,6 +64,121 @@ export function CasesScreen() {
   // Right-click on a case (desktop mouse): edit, entries, details, latest items.
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
 
+  // "Classic Design" (Settings → home style = classic): the same search, sort,
+  // rows, click and right-click handlers, in the dark navy + gold look (the
+  // clients screen's "kx-" styles, with six columns).
+  // "Modern Design" reuses this layout in a light shell (.kx-modern): five
+  // columns, the court case number under the title.
+  if (state.homeStyle === 'classic' || state.homeStyle === 'modern') {
+    const modern = state.homeStyle === 'modern';
+    const ar = lang === 'ar';
+    const L = {
+      h: modern ? (ar ? 'الملفات' : 'תיקים') : ar ? 'البحث في الملفات' : 'חיפוש בתיקים',
+      sub: modern
+        ? ar
+          ? 'عرض وإدارة ملفات القضايا ومتابعة حالتها وتفاصيلها'
+          : 'הצגה וניהול של תיקי הלקוחות ומעקב אחר מצבם ופרטיהם'
+        : ar
+          ? 'إدارة ومتابعة ملفات القضايا والدعاوى'
+          : 'ניהול ומעקב אחר תיקי הלקוחות וההליכים',
+      ph: ar
+        ? 'البحث حسب رقم الملف، اسم الموكل، نوع القضية، المحكمة أو أي معلومة...'
+        : 'חיפוש לפי מספר תיק, שם לקוח, סוג תביעה, בית משפט או כל פרט אחר...',
+      num: ar ? 'رقم الملف' : 'מספר תיק',
+      subject: ar ? 'موضوع الملف / القضية' : 'נושא התיק / התביעה',
+      courtNo: ar ? 'رقم الملف في المحكمة' : 'מספר תיק בבית המשפט',
+      body: ar ? 'الجهة' : 'ערכאה',
+      empty: ar ? 'لا توجد ملفات مطابقة للبحث' : 'אין תיקים התואמים לחיפוש',
+    };
+    return (
+      <section className={'kx-root kx-cases' + (modern ? ' kx-modern' : '')}>
+        <MainScreenBackButton />
+        <div className="kx-art" aria-hidden>
+          <img src={modern ? '/classic/modern-cases-art.png' : '/classic/cases-art.png'} alt="" />
+        </div>
+        <header className="kx-hero">
+          <span className="kx-hero-fa" aria-hidden>
+            <i className="far fa-folder-open" />
+          </span>
+          <div className="kx-hero-text">
+            <h2 className="kx-h">{L.h}</h2>
+            {!modern && <span className="kx-rule" aria-hidden />}
+            <p className="kx-sub">{L.sub}</p>
+          </div>
+        </header>
+        <label className="kx-search">
+          <i className="fas fa-magnifying-glass" aria-hidden />
+          <input
+            id="casesSearchInput"
+            type="search"
+            autoComplete="off"
+            aria-label={searchLabel}
+            placeholder={L.ph}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <div className="kx-frame">
+          <div className="kx-cols" aria-hidden>
+            <span>{L.num}</span>
+            <span>{L.subject}</span>
+            <span>{t('clientName')}</span>
+            {!modern && <span>{L.courtNo}</span>}
+            <span>{L.body}</span>
+            <span>{t('status')}</span>
+          </div>
+          <div className="kx-list" id="casesTableWrap">
+            {filtered.length === 0 && <div className="kx-none">{L.empty}</div>}
+            {filtered.map((c) => {
+              const court = ar ? c.courtAr || c.court : c.court;
+              const statusKey = c.status === 'active' ? 'active' : c.status === 'pending' ? 'pending' : 'inactive';
+              return (
+                <div
+                  key={c.id}
+                  className="kx-line"
+                  role="button"
+                  tabIndex={0}
+                  data-id={c.id}
+                  onClick={() => openCase(c.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      openCase(c.id);
+                    }
+                  }}
+                  onContextMenu={(e) => {
+                    if (!hasFineMouse()) return;
+                    e.preventDefault();
+                    setMenu({ id: c.id, x: e.clientX, y: e.clientY });
+                  }}
+                >
+                  <span className="kx-c kx-c-num" dir="ltr">{c.id}</span>
+                  <span className="kx-c kx-c-name">
+                    <b>{caseName(c, lang) || '—'}</b>
+                    {modern && <small><bdi>{c.caseNumber || '—'}</bdi></small>}
+                  </span>
+                  <span className="kx-c kx-c-who">{clientName(c.clientId, state.clients, lang) || '—'}</span>
+                  {!modern && (
+                    <span className="kx-c kx-c-court-no">
+                      <bdi>{c.caseNumber || '—'}</bdi>
+                    </span>
+                  )}
+                  <span className="kx-c kx-c-body">{court || '—'}</span>
+                  <span className="kx-c kx-c-n">
+                    <span className={'kx-n ' + (statusKey === 'active' ? 'kx-n-on' : statusKey === 'pending' ? 'kx-n-wait' : 'kx-n-off')}>{t(statusKey)}</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {menu && (
+          <CaseContextMenu caseId={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />
+        )}
+      </section>
+    );
+  }
+
   return (
     <section className="panel cases-screen-panel cases-v2-fluid">
       <MainScreenBackButton />

@@ -93,6 +93,187 @@ export function FinanceScreen() {
       </div>
     );
 
+  // "Classic Design" (Settings → home style = classic): the same search and
+  // the same row → fee-detail screen, in the dark navy + gold look (the
+  // clients screen's "kx-" shell), with office-wide totals on top.
+  // "Modern Design" reuses this layout in a light shell (.kx-modern): a
+  // case-count tile, and five columns (case · agreed · paid · last payment ·
+  // remaining); the row itself opens the fee detail, as before.
+  if (state.homeStyle === 'classic' || state.homeStyle === 'modern') {
+    const modern = state.homeStyle === 'modern';
+    const ar = lang === 'ar';
+    const paidOf = (caseId: string) =>
+      financePaidItemsForCase(caseId, state.finances).reduce((s, f) => s + Number(f.amount || 0), 0);
+    let totalFee = 0;
+    let totalPaid = 0;
+    let totalRest = 0;
+    for (const c of state.casesArr) {
+      totalFee += Number(c.agreedFee || 0);
+      totalPaid += paidOf(c.id);
+      totalRest += financeCaseBalance(c, state.finances);
+    }
+    const H = {
+      h: modern ? (ar ? 'الأتعاب والمدفوعات' : 'שכר טרחה ותשלומים') : ar ? 'الأتعاب' : 'שכר טרחה',
+      sub: modern
+        ? ar
+          ? 'إدارة أتعاب القضايا والمدفوعات المستحقة والمسددة'
+          : 'ניהול שכר הטרחה של התיקים והתשלומים שהתקבלו'
+        : ar
+          ? 'إدارة أتعاب الملفات والموكلين'
+          : 'ניהול שכר הטרחה של התיקים והלקוחות',
+      count: ar ? 'عدد الملفات' : 'מספר תיקים',
+      restCol: ar ? 'المتبقي' : 'יתרה',
+      ph: ar
+        ? 'بحث في الأتعاب (اسم الموكل، رقم الهوية أو الهاتف)...'
+        : 'חיפוש בשכר טרחה (שם לקוח, תעודת זהות או טלפון)...',
+      fee: ar ? 'إجمالي الأتعاب' : 'סה"כ שכר טרחה',
+      paid: ar ? 'إجمالي المدفوع' : 'סה"כ שולם',
+      rest: ar ? 'إجمالي المتبقي' : 'סה"כ יתרה',
+      service: modern ? (ar ? 'القضية' : 'תיק') : ar ? 'البيان / الخدمة' : 'תיק / שירות',
+      due: modern ? (ar ? 'أتعاب متفق عليها' : 'שכר טרחה מוסכם') : ar ? 'المبلغ المستحق' : 'סכום מוסכם',
+      paidCol: modern ? (ar ? 'المدفوع حتى الآن' : 'שולם עד כה') : ar ? 'المبلغ المدفوع' : 'סכום ששולם',
+      date: modern ? (ar ? 'تاريخ آخر دفعة' : 'תאריך תשלום אחרון') : ar ? 'تاريخ السداد' : 'תאריך תשלום',
+      num: ar ? 'رقم الملف' : 'מספר תיק',
+      ops: ar ? 'الإجراءات' : 'פעולות',
+      open: ar ? 'تعديل' : 'עריכה',
+      sPaid: ar ? 'مدفوع' : 'שולם',
+      sPart: ar ? 'جزئي' : 'חלקי',
+      sNone: ar ? 'غير مدفوع' : 'לא שולם',
+      empty: ar ? 'لا توجد ملفات مطابقة للبحث' : 'אין תיקים התואמים לחיפוש',
+    };
+    return (
+      <section className={'kx-root kx-fees' + (modern ? ' kx-modern' : '')}>
+        <MainScreenBackButton />
+        <div className="kx-art" aria-hidden>
+          <img src={modern ? '/classic/modern-fees-art.png' : '/classic/fees-art.png'} alt="" />
+        </div>
+        <header className="kx-hero">
+          <span className="kx-hero-fa" aria-hidden>
+            <i className="fas fa-coins" />
+          </span>
+          <div className="kx-hero-text">
+            <h2 className="kx-h">{H.h}</h2>
+            {!modern && <span className="kx-rule" aria-hidden />}
+            <p className="kx-sub">{H.sub}</p>
+          </div>
+        </header>
+        <label className="kx-search">
+          <i className="fas fa-magnifying-glass" aria-hidden />
+          <input
+            id="financeSearchInput"
+            type="search"
+            autoComplete="off"
+            aria-label={searchLabel}
+            placeholder={H.ph}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <div className="fx-tiles">
+          {modern && (
+            <div className="fx-tile fx-t0">
+              <i className="far fa-folder" aria-hidden />
+              <span className="fx-tile-text">
+                <span className="fx-tile-lbl">{H.count}</span>
+                <b><bdi>{filtered.length}</bdi></b>
+              </span>
+            </div>
+          )}
+          <div className="fx-tile fx-t1">
+            <i className="fas fa-scale-balanced" aria-hidden />
+            <span className="fx-tile-text">
+              <span className="fx-tile-lbl">{H.fee}</span>
+              <b><bdi>{money(totalFee)}</bdi></b>
+            </span>
+          </div>
+          <div className="fx-tile fx-t2">
+            <i className="fas fa-coins" aria-hidden />
+            <span className="fx-tile-text">
+              <span className="fx-tile-lbl">{H.paid}</span>
+              <b><bdi>{money(totalPaid)}</bdi></b>
+            </span>
+          </div>
+          <div className="fx-tile fx-t3">
+            <i className="fas fa-database" aria-hidden />
+            <span className="fx-tile-text">
+              <span className="fx-tile-lbl">{H.rest}</span>
+              <b><bdi>{money(totalRest)}</bdi></b>
+            </span>
+          </div>
+        </div>
+        <div className="kx-frame">
+          <div className="kx-cols" aria-hidden>
+            <span><i className="fas fa-briefcase" /> {H.service}</span>
+            <span><i className="fas fa-coins" /> {H.due}</span>
+            <span><i className="fas fa-coins" /> {H.paidCol}</span>
+            <span><i className="far fa-calendar" /> {H.date}</span>
+            {modern ? (
+              <span><i className="fas fa-scale-balanced" /> {H.restCol}</span>
+            ) : (
+              <>
+                <span><i className="fas fa-folder-open" /> {H.num}</span>
+                <span><i className="fas fa-layer-group" /> {t('status')}</span>
+                <span><i className="fas fa-gear" /> {H.ops}</span>
+              </>
+            )}
+          </div>
+          <div className="kx-list" id="financeTableWrap">
+            {filtered.length === 0 && <div className="kx-none">{H.empty}</div>}
+            {filtered.map((c) => {
+              const items = financePaidItemsForCase(c.id, state.finances);
+              const last = items[0];
+              const paid = items.reduce((s, f) => s + Number(f.amount || 0), 0);
+              const balance = financeCaseBalance(c, state.finances);
+              const st = money(balance) === zeroBalanceText ? 1 : paid > 0 ? 2 : 3;
+              return (
+                <div
+                  key={c.id}
+                  className="kx-line"
+                  role="button"
+                  tabIndex={0}
+                  data-finance-case-id={c.id}
+                  onClick={() => onOpen(c.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onOpen(c.id);
+                    }
+                  }}
+                >
+                  <span className="kx-c fx-c-svc">
+                    <b>{caseName(c, lang) || '—'}</b>
+                    <small>{clientName(c.clientId, state.clients, lang)}</small>
+                  </span>
+                  <span className="kx-c fx-c-mid fx-c-amt" data-label={H.due}><bdi>{money(c.agreedFee || 0)}</bdi></span>
+                  <span className="kx-c fx-c-mid fx-c-amt" data-label={H.paidCol}><bdi>{money(paid)}</bdi></span>
+                  <span className="kx-c fx-c-mid" data-label={H.date}>{last?.date || '—'}</span>
+                  {modern ? (
+                    <span className={'kx-c fx-c-mid fx-c-amt fx-c-rest' + (st === 1 ? ' fx-zero' : '')} data-label={H.restCol}>
+                      <bdi>{money(balance)}</bdi>
+                    </span>
+                  ) : (
+                  <>
+                  <span className="kx-c fx-c-mid"><bdi>{c.caseNumber || '—'}</bdi></span>
+                  <span className="kx-c kx-c-n">
+                    <span className={'fx-st fx-s' + st}>{st === 1 ? H.sPaid : st === 2 ? H.sPart : H.sNone}</span>
+                  </span>
+                  <span className="kx-c fx-c-ops">
+                    <button type="button" className="fx-act" onClick={(e) => { e.stopPropagation(); onOpen(c.id); }}>
+                      <i className="fas fa-pen" aria-hidden />
+                      {H.open}
+                    </button>
+                  </span>
+                  </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="panel finance-screen-panel">
       <MainScreenBackButton />

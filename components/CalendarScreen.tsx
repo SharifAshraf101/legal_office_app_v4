@@ -73,6 +73,195 @@ export function CalendarScreen() {
       ? 'مواعيد، جلسات، اجتماعات، تذكيرات ومهام'
       : 'מועדים דיונים, פגישות, תזכורת ומשימות';
 
+  // "Modern Design" (Settings → home style = modern): the same controls,
+  // handlers and data in the light cream + gold look, with a "today" card.
+  if (state.homeStyle === 'modern') {
+    const ar = lang === 'ar';
+    const now = new Date();
+    const todayCount = items.filter((x) => sameCalendarDay(x.date, now)).length;
+    const M = {
+      h: ar ? 'التقويم والمواعيد' : 'יומן ומועדים',
+      sub: ar
+        ? 'مواعيد الجلسات، المهام، التذكيرات والالتزامات القانونية'
+        : 'מועדי דיונים, משימות, תזכורות והתחייבויות משפטיות',
+      today: ar ? 'أحداث اليوم' : 'אירועי היום',
+      scheduled: ar ? (todayCount === 1 ? 'موعد مجدول' : 'مواعيد مجدولة') : todayCount === 1 ? 'מועד מתוכנן' : 'מועדים מתוכננים',
+    };
+    const loc = ar ? 'ar-u-nu-latn' : 'he-IL';
+    const wd = new Intl.DateTimeFormat(loc, { weekday: 'long', timeZone: 'Asia/Jerusalem' }).format(now);
+    const dl = new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jerusalem' }).format(now);
+    return (
+      <section className="mx-root" data-view={view}>
+        <MainScreenBackButton />
+        <div className="mx-art" aria-hidden>
+          <img src="/classic/modern-cal-art.png" alt="" />
+        </div>
+        <header className="mx-hero">
+          <span className="mx-hero-fa" aria-hidden>
+            <i className="fas fa-calendar-days" />
+          </span>
+          <div className="mx-hero-text">
+            <h2 className="mx-h">{M.h}</h2>
+            <p className="mx-sub">{M.sub}</p>
+          </div>
+        </header>
+        {view === 'list' && (
+          <label className="mx-search">
+            <i className="fas fa-magnifying-glass" aria-hidden />
+            <input
+              type="search"
+              autoComplete="off"
+              placeholder={listSearchPlaceholder}
+              value={listQuery}
+              onChange={(e) => setListQuery(e.target.value)}
+            />
+          </label>
+        )}
+        <div className="mx-bar">
+          <div className="mx-views">
+            {(['day', 'week', 'month', 'list'] as CalendarView[]).map((v) => (
+              <button
+                key={v}
+                type="button"
+                className={'mx-view' + (view === v ? ' mx-on' : '')}
+                data-calendar-view={v}
+                onClick={() => setView(v)}
+              >
+                {calendarText(v, lang)}
+              </button>
+            ))}
+          </div>
+          {view !== 'list' && (
+            <div className="mx-nav">
+              <button type="button" className="mx-step" data-calendar-prev aria-label={prevLabel} onClick={() => shift(-1)}>
+                <i className="fas fa-chevron-right" />
+              </button>
+              <input
+                type="date"
+                lang="en-IL"
+                className="mx-date"
+                value={calendarDateValue(focus)}
+                onChange={(e) => setDateStr(e.target.value)}
+              />
+              <button type="button" className="mx-step" data-calendar-next aria-label={nextLabel} onClick={() => shift(1)}>
+                <i className="fas fa-chevron-left" />
+              </button>
+              <button type="button" className="mx-view mx-now" data-calendar-today onClick={goToday}>
+                {todayLabel}
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="mx-body">
+          <div className="mx-box">
+            {view !== 'month' && <h3 className="mx-range">{calendarRangeTitle(focus, view, lang)}</h3>}
+            <div className="mx-scroll">
+              {view === 'day' && <DayView focus={focus} items={items} />}
+              {view === 'week' && <WeekView focus={focus} items={items} />}
+              {view === 'month' && <MonthView focus={focus} items={items} />}
+              {view === 'list' && <ListView items={items} query={listQuery} />}
+            </div>
+          </div>
+          <aside className="mx-side">
+            <h3 className="mx-side-h">
+              <i className="far fa-calendar-days" aria-hidden /> {M.today}
+            </h3>
+            <div className="mx-today">
+              <i className="far fa-clock mx-today-fa" aria-hidden />
+              <b className="mx-today-wd">{wd}</b>
+              <span className="mx-today-date">{dl}</span>
+              <span className="mx-today-n">{todayCount}</span>
+              <span className="mx-today-lbl">{M.scheduled}</span>
+            </div>
+          </aside>
+        </div>
+      </section>
+    );
+  }
+
+  // "Classic Design" (Settings → home style = classic): the same controls,
+  // handlers and data, laid out in the dark navy + gold look.
+  if (state.homeStyle === 'classic') {
+    const VIEW_FA: Record<CalendarView, string> = {
+      day: 'far fa-calendar-check',
+      week: 'far fa-calendar-days',
+      month: 'far fa-calendar',
+      list: 'fas fa-list-ul',
+    };
+    return (
+      <section className="cx-root" data-view={view}>
+        <MainScreenBackButton />
+        <div className="cx-art" aria-hidden>
+          <img src="/classic/cal-art.png" alt="" />
+        </div>
+        <header className="cx-hero">
+          <span className="cx-hero-fa" aria-hidden>
+            <i className="far fa-calendar-check" />
+          </span>
+          <div className="cx-hero-text">
+            <h2 className="cx-h">{listTitle}</h2>
+            <span className="cx-rule" aria-hidden />
+          </div>
+        </header>
+        {view === 'list' && (
+          <label className="cx-search">
+            <i className="fas fa-magnifying-glass" aria-hidden />
+            <input
+              type="search"
+              autoComplete="off"
+              placeholder={listSearchPlaceholder}
+              value={listQuery}
+              onChange={(e) => setListQuery(e.target.value)}
+            />
+          </label>
+        )}
+        <div className="cx-bar">
+          <div className="cx-views">
+            {(['day', 'week', 'month', 'list'] as CalendarView[]).map((v) => (
+              <button
+                key={v}
+                type="button"
+                className={'cx-view' + (view === v ? ' cx-on' : '')}
+                data-calendar-view={v}
+                onClick={() => setView(v)}
+              >
+                <i className={VIEW_FA[v]} aria-hidden />
+                {calendarText(v, lang)}
+              </button>
+            ))}
+          </div>
+          {view !== 'list' && (
+            <div className="cx-nav">
+              <button type="button" className="cx-step" data-calendar-prev aria-label={prevLabel} onClick={() => shift(-1)}>
+                <i className="fas fa-chevron-right" />
+              </button>
+              <input
+                type="date"
+                lang="en-IL"
+                className="cx-date"
+                value={calendarDateValue(focus)}
+                onChange={(e) => setDateStr(e.target.value)}
+              />
+              <button type="button" className="cx-step" data-calendar-next aria-label={nextLabel} onClick={() => shift(1)}>
+                <i className="fas fa-chevron-left" />
+              </button>
+              <button type="button" className="cx-view cx-now" data-calendar-today onClick={goToday}>
+                {todayLabel}
+              </button>
+            </div>
+          )}
+          {view !== 'month' && <span className="cx-range">{calendarRangeTitle(focus, view, lang)}</span>}
+        </div>
+        <div className="cx-scroll">
+          {view === 'day' && <DayView focus={focus} items={items} />}
+          {view === 'week' && <WeekView focus={focus} items={items} />}
+          {view === 'month' && <MonthView focus={focus} items={items} />}
+          {view === 'list' && <ListView items={items} query={listQuery} />}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="panel">
       <MainScreenBackButton />

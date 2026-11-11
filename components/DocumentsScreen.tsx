@@ -14,6 +14,7 @@ import {
   formatDocumentSize,
 } from '@/lib/documents';
 import { downloadDropboxFileBlob } from '@/lib/dropbox';
+import { formatDMY, OFFICE_TZ } from '@/lib/dates';
 import { useDeleteConfirm } from '@/hooks/useDeleteConfirm';
 import { CaseDetail } from './CaseDetail';
 import { MainScreenBackButton } from './MainScreenBackButton';
@@ -164,6 +165,68 @@ export function DocumentsScreen() {
     );
   };
 
+  // "Classic Design" (Settings → home style = classic): the same search,
+  // drag-and-drop, double-tap preview and row actions, in the dark navy +
+  // gold look (the clients screen's "kx-" shell).
+  // "Modern Design" reuses this layout in a light shell (.kx-modern).
+  if (state.homeStyle === 'classic' || state.homeStyle === 'modern') {
+    const modern = state.homeStyle === 'modern';
+    const ar = lang === 'ar';
+    const L = {
+      h: ar ? 'المستندات' : 'מסמכים',
+      sub: ar ? 'إدارة ومتابعة جميع مستندات المكتب' : 'ניהול ומעקב אחר כל מסמכי המשרד',
+      ph: ar
+        ? 'بحث في المستندات... (اسم المستند، الملف، الموكل، أو أي عبارة)'
+        : 'חיפוש במסמכים... (שם המסמך, התיק, הלקוח או כל ביטוי)',
+    };
+    return (
+      <section className={'kx-root kx-docs' + (modern ? ' kx-modern' : '')}>
+        <MainScreenBackButton />
+        <div className="kx-art" aria-hidden>
+          <img src={modern ? '/classic/modern-cases-art.png' : '/classic/docs-art.png'} alt="" />
+        </div>
+        <header className="kx-hero">
+          <span className="kx-hero-fa" aria-hidden>
+            <i className="far fa-file-lines" />
+          </span>
+          <div className="kx-hero-text">
+            <h2 className="kx-h">{L.h}</h2>
+            {!modern && <span className="kx-rule" aria-hidden />}
+            <p className="kx-sub">{L.sub}</p>
+          </div>
+        </header>
+        <label className="kx-search">
+          <i className="fas fa-magnifying-glass" aria-hidden />
+          <input
+            id="documentsSearchInput"
+            type="search"
+            autoComplete="off"
+            aria-label={documentsTitle}
+            placeholder={L.ph}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <div
+          id="documentsTableWrap"
+          className={'kx-frame' + (isDragging ? ' kx-drop' : '')}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+        >
+          <ClassicDocuments
+            docs={filtered}
+            emptyText={emptyText}
+            onOpen={openDoc}
+            onOpenCase={openDocCase}
+            onDelete={deleteDoc}
+            downloadingDocId={downloadingDocId}
+          />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="panel documents-screen-panel">
       <MainScreenBackButton />
@@ -206,6 +269,134 @@ export function DocumentsScreen() {
         </div>
       </div>
     </section>
+  );
+}
+
+/** Classic Design list: same data, same handlers as DocumentsTable. */
+function ClassicDocuments({
+  docs,
+  emptyText,
+  onOpen,
+  onOpenCase,
+  onDelete,
+  downloadingDocId,
+}: {
+  docs: DocumentRecord[];
+  emptyText: string;
+  onOpen: (doc: DocumentRecord) => void;
+  onOpenCase: (caseId: string) => void;
+  onDelete: (id: string) => void;
+  downloadingDocId: string | null;
+}) {
+  const { state } = useAppState();
+  const { t, lang } = useT();
+  const ar = lang === 'ar';
+  // Two quick clicks/taps on a line open the preview (as in DocumentsTable).
+  const lastTapRef = useRef<{ id: string; time: number }>({ id: '', time: 0 });
+  const activate = (doc: DocumentRecord, target: EventTarget | null) => {
+    if (target instanceof HTMLElement && target.closest('button')) return;
+    const now = Date.now();
+    const last = lastTapRef.current;
+    if (last.id === doc.id && now - last.time < 450) {
+      lastTapRef.current = { id: '', time: 0 };
+      onOpen(doc);
+    } else {
+      lastTapRef.current = { id: doc.id, time: now };
+    }
+  };
+  const H = {
+    doc: ar ? 'المستند' : 'מסמך',
+    file: ar ? 'الملف/القضية' : 'תיק/תביעה',
+    date: ar ? 'تاريخ' : 'תאריך',
+    time: ar ? 'وقت' : 'שעה',
+    ops: ar ? 'العمليات' : 'פעולות',
+    view: ar ? 'عرض' : 'הצג',
+    caseBtn: ar ? 'القضية' : 'תיק',
+    del: ar ? 'حذف' : 'מחק',
+    loading: ar ? 'جاري التحميل...' : 'מורידה...',
+  };
+  return (
+    <>
+      <div className="kx-cols" aria-hidden>
+        <span><i className="fas fa-file-lines" /> {H.doc}</span>
+        <span><i className="fas fa-folder-open" /> {H.file}</span>
+        <span><i className="fas fa-users" /> {t('clientName')}</span>
+        <span><i className="far fa-calendar" /> {H.date}</span>
+        <span><i className="fas fa-clock" /> {H.time}</span>
+        <span><i className="fas fa-layer-group" /> {H.ops}</span>
+      </div>
+      <div className="kx-list">
+        {docs.length === 0 && <div className="kx-none">{emptyText}</div>}
+        {docs.map((doc) => {
+          const c = state.casesArr.find((x) => String(x.id) === String(doc.caseId || ''));
+          const client = state.clients.find(
+            (x) => String(x.id) === String(doc.clientId || c?.clientId || ''),
+          );
+          const fileName =
+            doc.fileName || (doc as { storedFileName?: string }).storedFileName || doc.title || '';
+          const title = doc.title || doc.fileName || '';
+          const raw = (doc as { uploadedAt?: string }).uploadedAt;
+          const d = raw ? new Date(raw) : null;
+          const ok = d && !isNaN(d.getTime());
+          const meta = [fileName, documentTypeLabel(doc, lang), formatDocumentSize((doc as { size?: number }).size, lang)]
+            .filter(Boolean)
+            .join(' • ');
+          return (
+            <div
+              key={doc.id}
+              className="kx-line"
+              data-doc-id={doc.id}
+              title={(ar ? 'انقر مرتين للمعاينة' : 'לחיצה כפולה לתצוגה מקדימה') + (doc.relativePath ? '\n' + doc.relativePath : '')}
+              onClick={(e) => activate(doc, e.target)}
+            >
+              <span className="kx-c kx-c-doc">
+                <i className="far fa-file-lines" aria-hidden />
+                <span className="kx-c-doc-text">
+                  <b>
+                    {title}
+                    {downloadingDocId === doc.id && <em className="kx-wait"> ⏳ {H.loading}</em>}
+                  </b>
+                  <small>{meta}</small>
+                </span>
+              </span>
+              <span className="kx-c kx-c-file">{(c && caseName(c, lang)) || '—'}</span>
+              <span className="kx-c kx-c-who">{(client && clientDisplayName(client, lang)) || '—'}</span>
+              <span className="kx-c kx-c-date">{ok ? formatDMY(d!) : formatDocumentDate(raw, lang)}</span>
+              <span className="kx-c kx-c-time">
+                {ok ? d!.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', timeZone: OFFICE_TZ }) : '—'}
+              </span>
+              <span className="kx-c kx-c-ops">
+                <button
+                  type="button"
+                  className="dx-act dx-view"
+                  data-open-doc={doc.id}
+                  disabled={downloadingDocId === doc.id}
+                  onClick={() => onOpen(doc)}
+                >
+                  <i className="fas fa-folder-open" aria-hidden />
+                  {H.view}
+                </button>
+                {doc.caseId && (
+                  <button
+                    type="button"
+                    className="dx-act dx-case"
+                    data-open-doc-case={doc.caseId}
+                    onClick={() => onOpenCase(doc.caseId!)}
+                  >
+                    <i className="fas fa-folder" aria-hidden />
+                    {H.caseBtn}
+                  </button>
+                )}
+                <button type="button" className="dx-act dx-del" data-delete-doc={doc.id} onClick={() => onDelete(doc.id)}>
+                  <i className="fas fa-trash" aria-hidden />
+                  {H.del}
+                </button>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
