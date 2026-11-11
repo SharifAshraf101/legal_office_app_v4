@@ -43918,3 +43918,11 @@ body.dark #content.content .cp-root.cp-modern .cp-mark i{color:#1e293b!important
   html body #content.content .cp-root.cp-modern .cp-choice{min-height:0}
   html body #content.content .cp-root.cp-modern .cp-go{width:44px;height:44px}
 }
+
+/* Home (Classic/Modern) on a phone: never scroll. The app-wide
+ * `#content.content{overflow-y:auto!important}` (an ID rule) out-ranks the
+ * class-only rule above, so repeat it with the ID. ClassicHome scales the
+ * page to the space above the bottom navigation. */
+@media (max-width:899px){
+  html body #content.content.home-content.home-classic{overflow:hidden!important;overscroll-behavior:none}
+}

@@ -166,6 +166,7 @@ export function ClassicHome({
         root.style.transform = `scale(${s})`;
       }
       root.style.minHeight = `${Math.floor(avail / s)}px`;
+      host.scrollTop = 0;
     };
     let raf = 0;
     const schedule = () => {
@@ -177,6 +178,9 @@ export function ClassicHome({
     ro.observe(host);
     mq.addEventListener('change', schedule);
     window.addEventListener('resize', schedule);
+    // Phones: the address bar / keyboard change the visible height.
+    window.visualViewport?.addEventListener('resize', schedule);
+    host.scrollTop = 0;
     document.fonts?.ready.then(schedule).catch(() => {});
     root.querySelectorAll('img').forEach((img) => {
       if (!img.complete) img.addEventListener('load', schedule, { once: true });
@@ -186,6 +190,7 @@ export function ClassicHome({
       ro.disconnect();
       mq.removeEventListener('change', schedule);
       window.removeEventListener('resize', schedule);
+      window.visualViewport?.removeEventListener('resize', schedule);
       reset();
     };
   }, [fitKey]);
