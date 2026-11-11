@@ -43945,3 +43945,6 @@ body.dark #content.content .cp-root.cp-modern .cp-mark i{color:#1e293b!important
   html body #content.content .cp-root .cp-go{position:static!important;margin:.4vh auto 0;margin:.4svh auto 0;flex:none;width:clamp(34px,5.4vh,52px)!important;height:clamp(34px,5.4vh,52px)!important;width:clamp(34px,5.4svh,52px)!important;height:clamp(34px,5.4svh,52px)!important}
   html body #content.content .cp-root.cp-root:not(.cp-modern) .cp-go{width:clamp(48px,7vh,70px)!important;border-radius:999px}
 }
+/* Phone home: the content area itself never scrolls (Classic + Modern). */
+@media (max-width:899px){html body #content.content.home-content.home-classic{touch-action:none}html body #content.content.home-content.home-classic .ch-root{touch-action:manipulation}}
+@media (max-width:899px){html body #content.content.content.home-content.home-classic{padding-bottom:0!important}}

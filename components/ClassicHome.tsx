@@ -134,10 +134,15 @@ export function ClassicHome({
     const host = root?.parentElement;
     if (!root || !host) return;
     const mq = window.matchMedia('(max-width:899px)');
+    // CSS `zoom` shrinks the LAYOUT as well (a transform leaves the full
+    // unscaled height behind, which a phone could scroll into as empty space).
+    const canZoom = typeof CSS !== 'undefined' && CSS.supports?.('zoom', '0.5');
     const reset = () => {
+      root.style.removeProperty('zoom');
       root.style.transform = '';
       root.style.transformOrigin = '';
       root.style.width = '';
+      root.style.height = '';
       root.style.minHeight = '';
     };
     const fit = () => {
@@ -150,22 +155,36 @@ export function ClassicHome({
       // The bottom navigation floats over the page; above it is the space.
       const navRect = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect() : null;
       const bottom = navRect && navRect.height > 0 ? Math.min(navRect.top, hostRect.bottom) : hostRect.bottom - padBottom;
-      const avail = bottom - top;
+      const avail = Math.floor(bottom - top);
       if (avail <= 0) return;
-      const rtl = getComputedStyle(root).direction === 'rtl';
-      let s = 1;
-      for (let i = 0; i < 4; i++) {
-        const h = root.offsetHeight; // layout height at the current width
-        const next = Math.min(1, (s * avail) / (h * s));
-        if (Math.abs(next - s) < 0.004 && h * s <= avail) break;
-        s = next;
-        root.style.width = s < 1 ? `${100 / s}%` : '';
+      if (canZoom) {
+        let s = 1;
+        for (let i = 0; i < 5; i++) {
+          const h = root.getBoundingClientRect().height; // visual height
+          if (h <= avail + 0.5) break;
+          s = Math.max(0.3, s * (avail / h) * 0.995);
+          root.style.setProperty('zoom', String(s));
+        }
+        // Exactly the visible space: zoomed px × s = avail, nothing below.
+        root.style.height = `${avail / s}px`;
+        root.style.overflow = 'hidden';
+      } else {
+        const rtl = getComputedStyle(root).direction === 'rtl';
+        let s = 1;
+        for (let i = 0; i < 4; i++) {
+          const h = root.offsetHeight;
+          const next = Math.min(1, avail / h);
+          if (Math.abs(next - s) < 0.004 && h * s <= avail) break;
+          s = next;
+          root.style.width = s < 1 ? `${100 / s}%` : '';
+        }
+        if (s < 1) {
+          root.style.transformOrigin = rtl ? 'top right' : 'top left';
+          root.style.transform = `scale(${s})`;
+        }
+        root.style.height = `${Math.floor(avail / s)}px`;
+        root.style.overflow = 'hidden';
       }
-      if (s < 1) {
-        root.style.transformOrigin = rtl ? 'top right' : 'top left';
-        root.style.transform = `scale(${s})`;
-      }
-      root.style.minHeight = `${Math.floor(avail / s)}px`;
       host.scrollTop = 0;
     };
     let raf = 0;
