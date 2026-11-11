@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { financeCaseBalance } from '@/lib/finance';
@@ -125,8 +125,73 @@ export function ClassicHome({
 
   const ordered = [...cards].sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
 
+  // Phone: the whole page fits between the top bar and the bottom navigation,
+  // with no scrolling — scaled down as far as the screen needs.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const fitKey = `${lang}|${variant}|${unseenWa}|${cards.length}|${state.showUpcomingHome}|${greeting}`;
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const host = root?.parentElement;
+    if (!root || !host) return;
+    const mq = window.matchMedia('(max-width:899px)');
+    const reset = () => {
+      root.style.transform = '';
+      root.style.transformOrigin = '';
+      root.style.width = '';
+      root.style.minHeight = '';
+    };
+    const fit = () => {
+      reset();
+      if (!mq.matches) return;
+      const nav = document.getElementById('mobileNav');
+      const hostRect = host.getBoundingClientRect();
+      const padBottom = parseFloat(getComputedStyle(host).paddingBottom) || 0;
+      const top = root.getBoundingClientRect().top;
+      // The bottom navigation floats over the page; above it is the space.
+      const navRect = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect() : null;
+      const bottom = navRect && navRect.height > 0 ? Math.min(navRect.top, hostRect.bottom) : hostRect.bottom - padBottom;
+      const avail = bottom - top;
+      if (avail <= 0) return;
+      const rtl = getComputedStyle(root).direction === 'rtl';
+      let s = 1;
+      for (let i = 0; i < 4; i++) {
+        const h = root.offsetHeight; // layout height at the current width
+        const next = Math.min(1, (s * avail) / (h * s));
+        if (Math.abs(next - s) < 0.004 && h * s <= avail) break;
+        s = next;
+        root.style.width = s < 1 ? `${100 / s}%` : '';
+      }
+      if (s < 1) {
+        root.style.transformOrigin = rtl ? 'top right' : 'top left';
+        root.style.transform = `scale(${s})`;
+      }
+      root.style.minHeight = `${Math.floor(avail / s)}px`;
+    };
+    let raf = 0;
+    const schedule = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(fit);
+    };
+    fit();
+    const ro = new ResizeObserver(schedule);
+    ro.observe(host);
+    mq.addEventListener('change', schedule);
+    window.addEventListener('resize', schedule);
+    document.fonts?.ready.then(schedule).catch(() => {});
+    root.querySelectorAll('img').forEach((img) => {
+      if (!img.complete) img.addEventListener('load', schedule, { once: true });
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      mq.removeEventListener('change', schedule);
+      window.removeEventListener('resize', schedule);
+      reset();
+    };
+  }, [fitKey]);
+
   return (
-    <div className={'ch-root' + (variant === 'modern' ? ' ch-modern' : '')} data-home-design={variant}>
+    <div ref={rootRef} className={'ch-root' + (variant === 'modern' ? ' ch-modern' : '')} data-home-design={variant}>
       {/* The design's artwork at the sides */}
       <div className="ch-art-side" aria-hidden>
         <img src={variant === 'modern' ? '/classic/modern-scales.png' : '/classic/v3-left.png'} alt="" />

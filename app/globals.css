@@ -42565,7 +42565,7 @@ html body .content .ch-root.ch-root .ch-bell,html body .content .ch-root.ch-root
 @media (max-width:1250px){.ch-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.ch-root{grid-template-rows:auto minmax(170px,1.4fr) auto minmax(140px,1fr)}}
 /* Phone: one page no longer fits — stack and scroll; no side artwork. */
 @media (max-width:899px){
-  .content.content.content.content.content.home-content.home-classic{overflow-y:auto!important;padding-bottom:96px!important}
+  .content.content.content.content.content.home-content.home-classic{overflow:hidden!important;padding-bottom:96px!important}
   .ch-root{height:auto;grid-template-rows:none;padding:14px 12px}
   .ch-art-side,.ch-art-lib{display:none}
   .ch-features{grid-template-columns:1fr;perspective:none}
@@ -42625,7 +42625,7 @@ html[lang="ar"] .content .ch-root.ch-root .ch-today:not(.ch-upnext)>i{font-size:
  * Same buttons, same handlers — only order and shape change.
  * =================================================================== */
 @media (max-width:899px){
-  html body .content.content.content.content.content.home-content.home-classic{overflow-y:auto!important;padding:0 0 96px!important}
+  html body .content.content.content.content.content.home-content.home-classic{overflow:hidden!important;padding:0 0 96px!important}
   html body .content .ch-root.ch-root{height:auto;display:flex;flex-direction:column;gap:14px;padding:14px 12px 18px!important;padding-inline-end:12px!important;overflow:visible}
 
   /* Artwork: the scales at the top corner, behind the greeting */
@@ -42694,12 +42694,6 @@ html[lang="ar"] .content .ch-root.ch-root .ch-today:not(.ch-upnext)>i{font-size:
   html body .content .ch-root.ch-root .ch-tile-fa i{font-size:clamp(24px,7vw,34px)!important}
   html body .content .ch-root.ch-root .ch-tile-name{font-size:clamp(14px,4.2vw,20px)!important;flex-wrap:wrap;justify-content:center}
   html body .content .ch-root.ch-root .ch-tile-desc{font-size:clamp(11px,3.2vw,14px)!important;line-height:1.45}
-}
-/* Very narrow phones: the figures in two columns, the cards two by two. */
-@media (max-width:380px){
-  html body .content .ch-root.ch-root .ch-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .ch-stats .ch-stat:nth-child(6),.ch-stats .ch-stat:nth-child(5){grid-column:span 2}
-  html body .content .ch-root.ch-root .ch-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:899px){
   html body .content .ch-root.ch-root .ch-mid .ch-today{width:auto}
@@ -42861,12 +42855,6 @@ html body.dark .content .ch-root.ch-root.ch-modern :is(.ch-tone-peach .ch-stat-f
   html body .content .ch-root.ch-root.ch-modern .ch-tile-name{font-size:clamp(14px,4.3vw,20px)!important}
   html body .content .ch-root.ch-root.ch-modern .ch-tile-desc{font-size:clamp(10.5px,3.1vw,13.5px)!important;line-height:1.45}
 }
-/* Very narrow phones: figures three by two, cards two by two. */
-@media (max-width:380px){
-  html body .content .ch-root.ch-root.ch-modern .ch-stats{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:12px}
-  html body .content .ch-root.ch-root.ch-modern .ch-stats .ch-stat:nth-child(4){border-inline-start:0!important}
-  html body .content .ch-root.ch-root.ch-modern .ch-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
 @media (max-width:899px){
   /* Modern phone — the date card's sizes beat the Classic phone rules. */
   html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-today:not(.ch-upnext)>i{font-size:clamp(20px,6vw,28px)!important;margin:0 0 2px!important;padding:0!important;border:0!important}
@@ -42874,4 +42862,44 @@ html body.dark .content .ch-root.ch-root.ch-modern :is(.ch-tone-peach .ch-stat-f
   html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-today:not(.ch-upnext) .ch-today-date{font-size:clamp(11.5px,3.4vw,15px)!important;line-height:1.3}
   html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-upnext>i{font-size:clamp(20px,6vw,28px)!important}
   html body .content .ch-root.ch-root.ch-modern .ch-mid .ch-upnext b{font-size:clamp(12.5px,3.7vw,16px)!important}
+}
+
+/* ===================================================================
+ * Home (Classic + Modern) on a phone: ONE screen, no scrolling.
+ * ClassicHome scales the page down to the space between the top bar and
+ * the bottom navigation; the Classic phone layout is tightened here so
+ * that scaling stays small. Narrow phones keep the same rows (no 2×2).
+ * =================================================================== */
+@media (max-width:899px){
+  html body .content .ch-root.ch-root{gap:10px;padding:10px 10px 12px!important;padding-inline-end:10px!important}
+  html body .content .ch-root.ch-root .ch-hero{padding-top:0}
+  html body .content .ch-root.ch-root .ch-hero h1{font-size:clamp(20px,5.8vw,27px)!important;margin:0}
+  html body .content .ch-root.ch-root .ch-hero p{font-size:clamp(12px,3.3vw,15px)!important;margin:2px 0 0}
+  html body .content .ch-root.ch-root .ch-features{gap:10px}
+  html body .content .ch-root.ch-root .ch-mid .ch-today:not(.ch-upnext){padding:7px 16px}
+  html body .content .ch-root.ch-root .ch-mid .ch-today:not(.ch-upnext)>i{font-size:24px}
+  html body .content .ch-root.ch-root .ch-mid .ch-today:not(.ch-upnext) b{font-size:clamp(15px,4.2vw,19px)}
+  html body .content .ch-root.ch-root .ch-mid .ch-today:not(.ch-upnext) .ch-today-date{font-size:clamp(14px,3.9vw,18px)}
+  html body .content .ch-root.ch-root .ch-feature{padding:10px 10px 42px;border-radius:22px;gap:3px}
+  html body .content .ch-root.ch-root .ch-feature-img{width:44px;height:44px}
+  html body .content .ch-root.ch-root .ch-feature b{font-size:clamp(14.5px,4.1vw,19px)}
+  html body .content .ch-root.ch-root .ch-feature em{font-size:clamp(13px,3.7vw,17px)}
+  html body .content .ch-root.ch-root .ch-feature small{font-size:clamp(11px,3vw,13px);line-height:1.4}
+  html body .content .ch-root.ch-root .ch-go{bottom:9px;width:44px;height:26px}
+  html body .content .ch-root.ch-root .ch-mid .ch-upnext{padding:7px 16px}
+  html body .content .ch-root.ch-root .ch-mid .ch-upnext>i{font-size:26px}
+  html body .content .ch-root.ch-root .ch-mid .ch-upnext b{font-size:clamp(15px,4.2vw,19px)}
+  .ch-upnext::after{width:36px;height:36px;font-size:21px}
+  html body .content .ch-root.ch-root .ch-stats{gap:8px}
+  html body .content .ch-root.ch-root .ch-stats .ch-stat:nth-child(-n+4){padding:8px 4px}
+  html body .content .ch-root.ch-root .ch-stats .ch-stat:nth-child(n+5){padding:9px 12px}
+  html body .content .ch-root.ch-root .ch-stat-text b{font-size:clamp(17px,5vw,23px)!important}
+  html body .content .ch-root.ch-root .ch-stats .ch-stat:nth-child(n+5) .ch-stat-text b{font-size:clamp(19px,5.6vw,27px)!important}
+  html body .content .ch-root.ch-root .ch-stat-fa i{font-size:clamp(19px,5.2vw,26px)!important}
+  html body .content .ch-root.ch-root .ch-stats .ch-stat:nth-child(n+5) .ch-stat-fa i{font-size:clamp(26px,7.6vw,36px)!important}
+  html body .content .ch-root.ch-root .ch-tile{padding:10px 4px 11px;gap:4px}
+  html body .content .ch-root.ch-root .ch-tile-fa{width:36px;height:36px}
+  html body .content .ch-root.ch-root .ch-tile-fa i{font-size:clamp(21px,6vw,29px)!important}
+  html body .content .ch-root.ch-root .ch-tile-name{font-size:clamp(13px,3.8vw,18px)!important}
+  html body .content .ch-root.ch-root .ch-tile-desc{font-size:clamp(10.5px,2.9vw,13px)!important;line-height:1.35}
 }
