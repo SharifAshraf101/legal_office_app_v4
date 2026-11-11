@@ -43926,3 +43926,22 @@ body.dark #content.content .cp-root.cp-modern .cp-mark i{color:#1e293b!important
 @media (max-width:899px){
   html body #content.content.home-content.home-classic{overflow:hidden!important;overscroll-behavior:none}
 }
+
+/* Client communication gateway on a phone (Classic + Modern): ONE screen, no
+ * scrolling. The two cards share the height left under the heading; sizes
+ * follow the visible height (svh), the arrow sits in the flow. */
+@media (max-width:899px){
+  html body #content.content:has(.cp-root){overflow:hidden!important;overscroll-behavior:none;padding:0 0 86px!important}
+  html body #content.content .cp-root.cp-root{overflow:hidden;height:100%;min-height:0;justify-content:flex-start;gap:1.4vh;gap:1.4svh;padding:52px 12px 10px}
+  html body #content.content .cp-root .cp-hero{gap:.6vh;gap:.6svh;flex:none}
+  html body #content.content .cp-root .cp-hero-fa{font-size:4.6vh!important;font-size:4.6svh!important}
+  html body #content.content .cp-root.cp-root .cp-h{font-size:clamp(18px,3.1vh,26px)!important;font-size:clamp(18px,3.1svh,26px)!important}
+  html body #content.content .cp-root.cp-root .cp-sub{font-size:clamp(11.5px,1.8vh,15px)!important;font-size:clamp(11.5px,1.8svh,15px)!important;line-height:1.35}
+  .cp-root .cp-cards{flex:1 1 0;min-height:0;display:flex;flex-direction:column;gap:1.4vh;gap:1.4svh}
+  html body #content.content .cp-root .cp-choice{flex:1 1 0!important;min-height:0!important;max-height:none;overflow:hidden;justify-content:center;gap:.7vh;gap:.7svh;padding:1.2vh 14px!important;padding:1.2svh 14px!important;border-radius:24px}
+  html body #content.content .cp-root .cp-choice-fa{font-size:clamp(26px,4.6vh,46px)!important;font-size:clamp(26px,4.6svh,46px)!important}
+  html body #content.content .cp-root.cp-root .cp-choice b{font-size:clamp(18px,3.1vh,28px)!important;font-size:clamp(18px,3.1svh,28px)!important;line-height:1.15}
+  html body #content.content .cp-root.cp-root .cp-choice-text{font-size:clamp(12px,1.9vh,16px)!important;font-size:clamp(12px,1.9svh,16px)!important;line-height:1.4}
+  html body #content.content .cp-root .cp-go{position:static!important;margin:.4vh auto 0;margin:.4svh auto 0;flex:none;width:clamp(34px,5.4vh,52px)!important;height:clamp(34px,5.4vh,52px)!important;width:clamp(34px,5.4svh,52px)!important;height:clamp(34px,5.4svh,52px)!important}
+  html body #content.content .cp-root.cp-root:not(.cp-modern) .cp-go{width:clamp(48px,7vh,70px)!important;border-radius:999px}
+}
