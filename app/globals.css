@@ -43948,3 +43948,10 @@ body.dark #content.content .cp-root.cp-modern .cp-mark i{color:#1e293b!important
 /* Phone home: the content area itself never scrolls (Classic + Modern). */
 @media (max-width:899px){html body #content.content.home-content.home-classic{touch-action:none}html body #content.content.home-content.home-classic .ch-root{touch-action:manipulation}}
 @media (max-width:899px){html body #content.content.content.home-content.home-classic{padding-bottom:0!important}}
+/* Gateway on a phone: natural height; useFitToScreen sizes and shrinks it. */
+@media (max-width:899px){
+  html body #content.content:has(.cp-root){padding-bottom:0!important}
+  html body #content.content .cp-root.cp-root{height:auto;flex:none;justify-content:flex-start}
+  .cp-root .cp-cards{flex:none}
+  html body #content.content .cp-root .cp-choice{flex:none!important;padding:16px 14px!important}
+}

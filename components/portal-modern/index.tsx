@@ -21,6 +21,7 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/useAppState';
+import { useFitToScreen } from '@/hooks/useFitToScreen';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import {
@@ -851,6 +852,9 @@ function ChooserScreen({
 }) {
   const waEnabled = useWhatsAppEnabled();
   const { state: appState } = useAppState();
+  // Phones: the gateway fills exactly one screen (shrunk if needed), no scroll.
+  const cpRef = useRef<HTMLDivElement>(null);
+  useFitToScreen(cpRef, `${appState.homeStyle}|${lang}|${waEnabled}`);
 
   // "Classic Design" (Settings → home style = classic): the same two choices
   // with the same handlers, as two glowing glass cards on the office's
@@ -885,7 +889,7 @@ function ChooserScreen({
           : 'פלטפורמה ייעודית ללקוחות למעקב אחר התיקים והבקשות שלהם',
     };
     return (
-      <div className={'cp-root' + (modern ? ' cp-modern' : '')}>
+      <div ref={cpRef} className={'cp-root' + (modern ? ' cp-modern' : '')}>
         <MainScreenBackButton />
         <div className="cp-art-l" aria-hidden>
           <img src={modern ? '/classic/modern-portal-left.jpg' : '/classic/portal-left.jpg'} alt="" />
