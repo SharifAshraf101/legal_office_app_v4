@@ -18,6 +18,7 @@ import { NewEventModal } from './NewEventModal';
 import { CaseDocumentsModal } from './CaseDocumentsModal';
 import { CalendarEventDetail } from './CalendarEventDetail';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
+import { AdamPanel } from './AdamPanel';
 import {
   fetchDocumentSummaryBoth,
   pickNativeSummary,
@@ -3169,6 +3170,48 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         btn2Disabled={regenBusy}
                       />
                       )}
+                      {/* "טיוטת אדם" — the Adam bridge (lib/adam.ts): Adam, on
+                       *  the lawyer's computer, consults Yosef + Saeed with the
+                       *  identifying details removed and returns a merged draft. */}
+                      <AdamPanel
+                        className="sm:tw-col-span-2 lg:tw-order-5"
+                        caseId={caseId}
+                        documentId={primaryDoc.id}
+                        lang={(docLang || (forceArabicCourt ? 'ar' : lang)) === 'ar' ? 'ar' : 'he'}
+                        onOpenWord={(text) =>
+                          openDraftInWord(text, (primaryDoc.title || primaryDoc.fileName || 'draft') + ' - Adam')
+                        }
+                        buildPackage={(request) => {
+                          const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
+                          return {
+                            caseId,
+                            documentId: primaryDoc.id,
+                            docTitle: primaryDoc.title || primaryDoc.fileName || '',
+                            docFileName: primaryDoc.fileName || '',
+                            docLink: primaryDoc.relativePath || '',
+                            language: (docLang || (forceArabicCourt ? 'ar' : lang)) === 'ar' ? 'ar' : 'he',
+                            court: caseObj ? (forceArabicCourt ? caseObj.courtAr || caseObj.court : caseObj.court || caseObj.courtAr) || '' : '',
+                            caseTitle: caseObj ? caseName(caseObj, lang) : '',
+                            caseNumber: caseObj?.caseNumber || '',
+                            clientName: representedClientName || '',
+                            officeName: state.officeName || '',
+                            decode: decodeText || '',
+                            currentDraft: replyDraft || '',
+                            notes: caseNotesContext(
+                              aggregateCaseNotes({
+                                caseId,
+                                clients: state.clients,
+                                cases: state.casesArr,
+                                documents: state.documentsArr,
+                                timeline: state.timelineItems,
+                                lang,
+                              }),
+                            ),
+                            request,
+                            requestedAt: new Date().toISOString(),
+                          };
+                        }}
+                      />
                       {/* "משימה שנוצרה" — hidden on mobile, kept in the grid on
                        *  desktop (lg:contents lets the card be a direct grid
                        *  item). */}

@@ -46,6 +46,7 @@ import {
 import { portalContext, portalLink, verifyPortalToken } from './portal';
 import { handleAnalytics } from './analytics';
 import { handleBriefing, handleBriefingArgument } from './briefing';
+import { createAdamJob, getAdamJob, listAdamJobs, saveAdamResult, setAdamJobStatus } from './adam';
 import { officeClearTurns, officeListTurns, officeSaveTurn, portalListTurns, portalSaveTurn } from './botHistory';
 import { handleDocQueue, idsFromFileName, type DocJob, type PipelineCtx } from './docpipeline';
 import { citedKnownDecisions, looksSharia, relevantRulings } from './rulings';
@@ -672,6 +673,39 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
     const b = (await request.json().catch(() => ({}))) as Parameters<typeof handleBriefingArgument>[2];
     const r = await handleBriefingArgument(env, ctx, b);
     return json(r.body, request, env, r.status);
+  }
+  // The Adam bridge (worker/src/adam.ts): case-brain requests ↔ Adam on the
+  // lawyer's computer (scripts/adam-bridge.mjs).
+  if (path === '/api/adam/jobs') {
+    if (method === 'GET') {
+      const r = await listAdamJobs(ctx.db, url);
+      return json(r.body, request, env, r.status);
+    }
+    if (method === 'POST') {
+      const b = (await request.json().catch(() => ({}))) as Parameters<typeof createAdamJob>[1];
+      const r = await createAdamJob(ctx.db, b);
+      return json(r.body, request, env, r.status);
+    }
+  }
+  {
+    const m = path.match(/^\/api\/adam\/jobs\/([A-Za-z0-9-]+)(?:\/(status|result))?$/);
+    if (m) {
+      const id = m[1];
+      if (!m[2] && method === 'GET') {
+        const r = await getAdamJob(ctx.db, id);
+        return json(r.body, request, env, r.status);
+      }
+      if (m[2] === 'status' && method === 'POST') {
+        const b = (await request.json().catch(() => ({}))) as Parameters<typeof setAdamJobStatus>[2];
+        const r = await setAdamJobStatus(ctx.db, id, b);
+        return json(r.body, request, env, r.status);
+      }
+      if (m[2] === 'result' && method === 'POST') {
+        const b = (await request.json().catch(() => ({}))) as Parameters<typeof saveAdamResult>[2];
+        const r = await saveAdamResult(ctx.db, id, b);
+        return json(r.body, request, env, r.status);
+      }
+    }
   }
   if (path === '/api/analytics' && method === 'GET') {
     return json(await handleAnalytics(ctx), request, env);

@@ -44471,3 +44471,44 @@ html body #content .mn-root.mn-root :is(.mn-dd,.mn-num){font-family:Georgia,"Tim
   .mn-root .mn-grid{grid-auto-rows:minmax(150px,1fr)}
   html body #content .mn-root .mn-box{padding-top:46px!important}
 }
+
+/* ===================================================================
+ * Case brain — "טיוטת אדם" card (components/AdamPanel, the Adam bridge).
+ * =================================================================== */
+.adam-box{display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:16px;background:linear-gradient(180deg,#fffaf0,#fff);border:1px solid #f0dcae;box-shadow:0 6px 18px rgba(22,34,59,.06);min-width:0;color:#16223b}
+.adam-top{display:flex;align-items:center;gap:10px}
+.adam-mark{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:#16223b;color:#f6d28a;flex:none}
+.adam-mark i{font-size:15px}
+.adam-h{font-size:16px;font-weight:900}
+.adam-state{margin-inline-start:auto;font-size:12px;font-weight:800;padding:3px 10px;border-radius:999px;background:#eef2ff;color:#3730a3}
+.adam-s-pending{background:#fdf1d8;color:#9a5b00}
+.adam-s-working{background:#e0f2fe;color:#075985}
+.adam-s-done{background:#dcfce7;color:#15803d}
+.adam-s-error{background:#fde4e4;color:#b91c1c}
+.adam-sum{margin:0;font-size:13.5px;line-height:1.6;color:#3f4a5e}
+.adam-wait{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;color:#3f4a5e}
+.adam-wait i{color:#b98a3e}
+.adam-tabs{display:flex;flex-wrap:wrap;gap:6px}
+.adam-tab{padding:6px 12px;border-radius:999px;border:1px solid #e5e1d8;background:#fff;font-size:13px;font-weight:800;color:#16223b;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.adam-tab.adam-on{background:#16223b;border-color:#16223b;color:#fff}
+.adam-tab em{font-style:normal;background:#ef4444;color:#fff;border-radius:999px;padding:0 6px;font-size:11px}
+.adam-body{max-height:420px;overflow:auto;border:1px solid #eee7da;border-radius:12px;background:#fff;padding:12px}
+.adam-text{margin:0;white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;line-height:1.75}
+.adam-verify{margin-top:12px;padding:10px 12px;border-radius:10px;background:#fff8d6;border:1px solid #f3e08a;font-size:13px}
+.adam-verify ul{margin:6px 0 0;padding-inline-start:18px}
+.adam-verify p{margin:6px 0 0;white-space:pre-wrap}
+.adam-devil{background:#f1f5f9;border-color:#cbd5e1}
+.adam-scroll{overflow-x:auto}
+.adam-grid{width:100%;border-collapse:collapse;font-size:12.5px}
+.adam-grid th,.adam-grid td{border:1px solid #eee7da;padding:6px 8px;text-align:start;vertical-align:top}
+.adam-grid th{background:#faf7f1;font-weight:800}
+.adam-disputes{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:10px;font-size:13.5px}
+.adam-disputes li{display:flex;flex-direction:column;gap:3px}
+.adam-disputes i{font-style:normal;font-weight:800;color:#b07d2a}
+.adam-acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.adam-go{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 16px;border-radius:999px;border:0;background:#16223b;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer}
+.adam-go:disabled{opacity:.6;cursor:wait}
+.adam-go2{background:#fff;color:#16223b;border:1px solid #d6d0c4}
+.adam-link{background:none;border:0;color:#6b7280;font-weight:700;font-size:13px;cursor:pointer;text-decoration:underline}
+.adam-ask textarea{width:100%;box-sizing:border-box;border:1px solid #e5e1d8;border-radius:10px;padding:8px 10px;font:inherit;font-size:13.5px;resize:vertical;margin-bottom:8px}
+html[lang="ar"] .adam-box :is(p,span,button,li,b,i,em,small,pre,td,th,textarea){font-size:inherit}
