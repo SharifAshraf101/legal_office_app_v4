@@ -44323,3 +44323,10 @@ html body .cd-root .cd-cta{display:none}
   html body #content .cd-root.cd-modern .cd-tile:is([data-k="brief"],[data-k="anal"]) .cd-tile-sub{display:none}
 }
 @media (min-width:900px){.cd-root.cd-root.cd-modern .cd-fig-top{flex-direction:row;justify-content:flex-start;width:100%}}
+
+/* Home dashboard on a phone: the cards grow into whatever height is left,
+ * so the page always reaches the bottom navigation (Classic and Modern). */
+@media (max-width:899px){
+  html body #content .cd-root .cd-grid{flex:1 1 auto;min-height:0;grid-template-rows:none;grid-auto-rows:minmax(0,1fr)}
+  html body #content .cd-root .cd-tile{height:100%}
+}
