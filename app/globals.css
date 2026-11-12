@@ -44330,3 +44330,14 @@ html body .cd-root .cd-cta{display:none}
   html body #content .cd-root .cd-grid{flex:1 1 auto;min-height:0;grid-template-rows:none;grid-auto-rows:minmax(0,1fr)}
   html body #content .cd-root .cd-tile{height:100%}
 }
+
+/* Classic home on a phone — card order (office request): clients | cases ·
+ * calendar | client gateway (or tasks) · daily briefing | analytics. */
+@media (max-width:899px){
+  html body #content .cd-root .cd-tile[data-k="clients"]{order:1}
+  html body #content .cd-root .cd-tile[data-k="cases"]{order:2}
+  html body #content .cd-root .cd-tile[data-k="calendar"]{order:3}
+  html body #content .cd-root .cd-tile[data-k="portal"],html body #content .cd-root .cd-tile[data-k="tasks"]{order:4}
+  html body #content .cd-root .cd-tile[data-k="brief"]{order:5}
+  html body #content .cd-root .cd-tile[data-k="anal"]{order:6}
+}
