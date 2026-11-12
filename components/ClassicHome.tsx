@@ -131,6 +131,117 @@ export function ClassicHome({
   const rootRef = useRef<HTMLDivElement>(null);
   useFitToScreen(rootRef, `${lang}|${variant}|${unseenWa}|${cards.length}|${state.showUpcomingHome}|${greeting}`);
 
+  // Classic on a desktop (≥900px): the dashboard layout from the office's
+  // design — greeting · date + upcoming · six figures in one glass bar · six
+  // glowing cards (clients, cases, briefing / calendar, tasks, analytics).
+  // On a phone the same parts stack (CSS) and useFitToScreen keeps it to one
+  // screen. Same handlers throughout.
+  if (variant === 'classic') {
+    const ar = lang === 'ar';
+    const D = {
+      upcoming: ar ? 'المواعيد القريبة' : 'המועדים הקרובים',
+      portal: ar ? 'بوابة التواصل' : 'שער התקשורת',
+      clients: cards.find((c) => c.id === 'contacts')?.title || (ar ? 'الموكلون' : 'לקוחות'),
+      clientsSub: ar ? 'إدارة بيانات الموكلين والتواصل' : 'ניהול פרטי לקוחות ותקשורת',
+      cases: cards.find((c) => c.id === 'cases')?.title || (ar ? 'الملفات' : 'תיקים'),
+      casesSub: ar ? 'إدارة الملفات والجلسات والقرارات' : 'ניהול תיקים, דיונים והחלטות',
+      briefSub: ar ? 'الملفات والمهام والتنبيهات التي تتطلب اهتمامك اليوم' : 'תיקים, משימות והתרעות של היום שדורשים תשומת לב',
+      calendar: cards.find((c) => c.id === 'calendar')?.title || (ar ? 'التقويم' : 'יומן'),
+      calendarSub: ar ? 'المواعيد والجلسات والمهام' : 'מועדים, דיונים ומשימות',
+      tasks: ar ? 'المهام' : 'משימות',
+      tasksSub: ar ? 'المهام المفتوحة ومتابعة التنفيذ' : 'משימות פתוחות ומעקב ביצוע',
+      analSub: ar ? 'الأموال المقبوضة، الديون، التقارير ومؤشرات الأداء' : 'כספים שנגבו, חובות, דוחות ומדדי ביצוע',
+    };
+    const tiles = [
+      { k: 'clients', tone: 'cd-blue', fa: 'fas fa-users', name: D.clients, sub: D.clientsSub, go: () => go('contacts') },
+      { k: 'cases', tone: 'cd-violet', fa: 'fas fa-folder-open', name: D.cases, sub: D.casesSub, go: () => go('cases') },
+      { k: 'brief', tone: 'cd-gold', fa: 'fas fa-clipboard-list', name: T.briefing, en: 'Daily Briefing', sub: D.briefSub, go: () => go('briefing') },
+      { k: 'calendar', tone: 'cd-amber', fa: 'far fa-calendar-days', name: D.calendar, sub: D.calendarSub, go: () => go('calendar') },
+      { k: 'tasks', tone: 'cd-green', fa: 'far fa-circle-check', name: D.tasks, sub: D.tasksSub, go: () => go('tasks') },
+      { k: 'anal', tone: 'cd-teal', fa: 'fas fa-chart-column', name: T.analytics, sub: D.analSub, go: () => go('analytics') },
+    ];
+    const portalCard = cards.find((c) => c.id === 'portal');
+    // The portal card takes the tasks card's place (tasks stay in the
+    // sidebar / bottom navigation). Without WhatsApp there is no portal card,
+    // so tasks keep the place on the phone too.
+    if (portalCard) {
+      tiles.push({ k: 'portal', tone: 'cd-wa', fa: 'fas fa-comments', name: portalCard.title, sub: T.desc.portal, go: () => go('portal') });
+    }
+    return (
+      <div ref={rootRef} className="cd-root" data-home-design="classic">
+        <div className="cd-art" aria-hidden>
+          <img src="/classic/v4-left.jpg" alt="" />
+        </div>
+        <span className="cd-arc" aria-hidden />
+        <header className="cd-hero">
+          <h1>{greeting}</h1>
+          <span className="cd-rule" aria-hidden />
+          <p>{T.subtitle}</p>
+        </header>
+        <div className="cd-chips">
+          <button type="button" className="cd-chip" onClick={() => go('calendar')} aria-label={`${weekday} ${dateLine}`}>
+            <i className="far fa-calendar-check" aria-hidden />
+            <span>
+              {weekday} · {dateLine}
+            </span>
+          </button>
+          {state.showUpcomingHome && (
+            <button type="button" className="cd-chip cd-chip-gold" onClick={openUpcoming}>
+              <i className="far fa-clock" aria-hidden />
+              <span>{D.upcoming}</span>
+            </button>
+          )}
+          {portalCard && unseenWa > 0 && (
+            <button type="button" className="cd-chip cd-chip-wa" onClick={() => go('portal')}>
+              <i className="fas fa-bell" aria-hidden />
+              <span>
+                {D.portal} <b>{unseenWa}</b>
+              </span>
+            </button>
+          )}
+        </div>
+        <div className="cd-strip">
+          {stats.map((st) => (
+            <button key={st.k} type="button" className={'cd-fig cd-f-' + (st.k === 'active' ? 'act' : st.k)} onClick={st.act}>
+              <span className="cd-fig-top">
+                <span className="cd-fig-lbl">{st.label}</span>
+                <span className="cd-fig-sym">
+                  <i className={'fas ' + st.fa} aria-hidden />
+                </span>
+              </span>
+              <b>{st.v}</b>
+            </button>
+          ))}
+        </div>
+        <div className="cd-grid">
+          {tiles.map((t) => (
+            <button key={t.k} type="button" data-k={t.k} data-wa={portalCard ? '1' : '0'} className={'cd-tile ' + t.tone} onClick={t.go}>
+              <span className="cd-tile-text">
+                <b className="cd-tile-name">
+                  {t.name}
+                  {t.k === 'portal' && unseenWa > 0 && (
+                    <span className="ch-bell" aria-label={String(unseenWa)}>
+                      <i className="fas fa-bell" />
+                      <b>{unseenWa}</b>
+                    </span>
+                  )}
+                </b>
+                {t.en && <em className="cd-tile-en">{t.en}</em>}
+                <span className="cd-tile-sub">{t.sub}</span>
+                <span className="cd-go" aria-hidden>
+                  <i className="fas fa-arrow-right" />
+                </span>
+              </span>
+              <span className="cd-tile-sym" aria-hidden>
+                <i className={t.fa} />
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div ref={rootRef} className={'ch-root' + (variant === 'modern' ? ' ch-modern' : '')} data-home-design={variant}>
       {/* The design's artwork at the sides */}

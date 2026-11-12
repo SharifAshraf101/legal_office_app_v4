@@ -43955,3 +43955,210 @@ body.dark #content.content .cp-root.cp-modern .cp-mark i{color:#1e293b!important
   .cp-root .cp-cards{flex:none}
   html body #content.content .cp-root .cp-choice{flex:none!important;padding:16px 14px!important}
 }
+
+/* ===================================================================
+ * Home — "Classic Design" on a desktop (≥900px), office design v4.
+ * Greeting · date + upcoming chips · six figures in one glass bar · six
+ * glowing glass cards in two rows; artwork at the side (v4-left.jpg).
+ * Rendered by ClassicHome (variant classic, wide). "cd-" prefix.
+ * =================================================================== */
+html body #content.content.home-content.home-classic > .cd-root.cd-root{background:
+  radial-gradient(60% 55% at 55% 30%,rgba(38,70,128,.55) 0,rgba(38,70,128,0) 70%),
+  radial-gradient(35% 40% at 92% 8%,rgba(224,168,74,.12) 0,rgba(224,168,74,0) 70%),
+  linear-gradient(180deg,#0b1a33 0%,#0c1f3e 55%,#091629 100%)!important}
+.cd-root{--cd-gold:#e0a84a;--cd-gold-2:#f6d28a;position:relative;height:100%;min-height:0;overflow:hidden;color:#fff;
+  display:grid;grid-template-rows:auto auto auto minmax(0,1fr);gap:clamp(10px,1.8vh,20px);
+  padding:clamp(12px,2.2vh,26px) clamp(18px,2vw,40px) clamp(14px,2.4vh,28px);padding-inline-end:clamp(220px,18vw,330px)}
+.cd-root > *{position:relative;z-index:1}
+.cd-root > .cd-art{position:absolute;inset-block:0;inset-inline-end:0;z-index:0;width:clamp(200px,17vw,310px);pointer-events:none}
+.cd-art img{width:100%;height:100%;object-fit:cover;object-position:left center;display:block;
+  -webkit-mask-image:linear-gradient(to right,#000 72%,transparent 100%);mask-image:linear-gradient(to right,#000 72%,transparent 100%)}
+.cd-root > .cd-arc{position:absolute;z-index:0;top:-55%;inset-inline-start:8%;width:110%;height:120%;border-radius:50%;border-top:2px solid rgba(240,180,80,.55);pointer-events:none;filter:drop-shadow(0 0 6px rgba(246,190,90,.55))}
+
+/* Greeting */
+html body #content .cd-root .cd-hero{text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;margin:0}
+html body #content .cd-root.cd-root .cd-hero h1{margin:0;font-size:clamp(28px,2.7vw,46px)!important;font-weight:900;line-height:1.15;color:#fff!important;-webkit-text-fill-color:#fff!important;text-shadow:0 4px 18px rgba(0,0,0,.4);border:0;padding:0;background:none}
+.cd-rule{display:block;width:min(460px,60%);height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,var(--cd-gold) 20%,var(--cd-gold-2) 50%,var(--cd-gold) 80%,transparent);box-shadow:0 0 12px rgba(246,190,90,.6)}
+html body #content .cd-root.cd-root .cd-hero p{margin:0;font-size:clamp(14px,1.15vw,19px)!important;font-weight:600;color:#e7ecf5!important;-webkit-text-fill-color:#e7ecf5!important}
+
+/* Date · upcoming chips (start of the row = left in RTL? keep at the end side like the design) */
+.cd-chips{display:flex;gap:14px;justify-content:flex-end;margin-top:calc(-1 * clamp(34px,5vh,60px))}
+html body #content .cd-root .cd-chip{display:inline-flex;align-items:center;gap:10px;height:42px;padding:0 18px;border-radius:999px;cursor:pointer;
+  border:1.5px solid rgba(160,190,230,.55)!important;background:rgba(10,22,44,.72)!important;color:#fff!important;box-shadow:0 6px 16px rgba(0,0,0,.35);transition:transform .15s}
+html body #content .cd-root .cd-chip:hover{transform:translateY(-1px)}
+html body #content .cd-root.cd-root .cd-chip span,html body #content .cd-root.cd-root .cd-chip b{font-size:clamp(13px,.95vw,15.5px)!important;font-weight:800;color:#fff!important;-webkit-text-fill-color:#fff!important}
+html body #content .cd-root .cd-chip i{font-size:18px!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
+html body #content .cd-root .cd-chip-gold{border-color:var(--cd-gold)!important;box-shadow:0 0 14px rgba(246,190,90,.3),0 6px 16px rgba(0,0,0,.35)}
+html body #content .cd-root.cd-root .cd-chip-gold :is(span,i){color:var(--cd-gold-2)!important;-webkit-text-fill-color:var(--cd-gold-2)!important}
+html body #content .cd-root .cd-chip-wa{border-color:#ef4444!important}
+html body #content .cd-root.cd-root .cd-chip-wa b{display:inline-grid;place-items:center;min-width:22px;height:20px;padding:0 6px;margin-inline-start:4px;border-radius:999px;background:#ef4444}
+html body #content .cd-root.cd-root .cd-chip-wa i{color:#fca5a5!important;-webkit-text-fill-color:#fca5a5!important}
+
+/* Six figures in one glass bar */
+.cd-strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));padding:10px 6px;border-radius:22px;border:1.5px solid rgba(140,175,225,.45);
+  background:linear-gradient(180deg,rgba(26,44,78,.78),rgba(12,24,48,.82));box-shadow:0 14px 34px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.07)}
+html body #content .cd-root .cd-fig{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 10px;background:transparent!important;border:0!important;cursor:pointer;border-radius:14px;transition:background .15s}
+html body #content .cd-root .cd-fig:hover{background:rgba(255,255,255,.05)!important}
+html body #content .cd-root .cd-fig + .cd-fig{border-inline-start:1px solid rgba(255,255,255,.12)!important;border-radius:0}
+.cd-fig-top{display:flex;align-items:center;gap:10px}
+html body #content .cd-root.cd-root .cd-fig-lbl{font-size:clamp(13px,1vw,16.5px)!important;font-weight:800;color:#fff!important;-webkit-text-fill-color:#fff!important;white-space:nowrap}
+html body #content .cd-root .cd-fig-sym{width:clamp(34px,2.6vw,44px);height:clamp(34px,2.6vw,44px);border-radius:50%;display:grid;place-items:center;background:var(--cd-f-bg,#24406f)}
+html body #content .cd-root .cd-fig-sym i{font-size:clamp(15px,1.15vw,20px)!important;color:var(--cd-f,#fff)!important;-webkit-text-fill-color:var(--cd-f,#fff)!important}
+html body #content .cd-root.cd-root .cd-fig > b{font-size:clamp(22px,2vw,34px)!important;font-weight:900;line-height:1.1;color:var(--cd-n,#fff)!important;-webkit-text-fill-color:var(--cd-n,#fff)!important;white-space:nowrap}
+.cd-f-act{--cd-f-bg:#4a3a12;--cd-f:#f6c25a}
+.cd-f-clients{--cd-f-bg:#1e3f7a;--cd-f:#93c5fd}
+.cd-f-open{--cd-f-bg:#1d3a6e;--cd-f:#60a5fa}
+.cd-f-closed{--cd-f-bg:#3b2a6e;--cd-f:#c4b5fd}
+.cd-f-collected{--cd-f-bg:#11463a;--cd-f:#4ade80;--cd-n:#4ade80}
+.cd-f-debt{--cd-f-bg:#4a1d2a;--cd-f:#fb7185;--cd-n:#fb7185}
+
+/* Six glowing cards */
+.cd-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:clamp(14px,1.6vw,26px);min-height:0}
+html body #content .cd-root .cd-tile{--c1:#1e4f9c;--c2:#0d2a5c;--cg:#3b82f6;position:relative;display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:0;padding:clamp(12px,2vh,24px) clamp(16px,1.6vw,30px);
+  border-radius:24px;cursor:pointer;overflow:hidden;text-align:start;color:#fff;border:1.5px solid color-mix(in srgb,var(--cg) 70%,#fff 10%)!important;
+  background:radial-gradient(90% 70% at 85% 10%,color-mix(in srgb,var(--cg) 30%,transparent),transparent 70%),linear-gradient(160deg,var(--c1),var(--c2))!important;
+  box-shadow:0 0 22px color-mix(in srgb,var(--cg) 40%,transparent),0 14px 30px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.12);transition:transform .18s,box-shadow .18s}
+html body #content .cd-root .cd-tile::after{content:"";position:absolute;inset:auto -10% -30% -10%;height:55%;border-radius:50%;border-top:2px solid color-mix(in srgb,var(--cg) 55%,transparent);opacity:.7;pointer-events:none}
+html body #content .cd-root .cd-tile:hover{transform:translateY(-3px);box-shadow:0 0 30px color-mix(in srgb,var(--cg) 55%,transparent),0 18px 36px rgba(0,0,0,.5)}
+html body #content .cd-root .cd-tile:focus-visible{outline:3px solid var(--cd-gold-2);outline-offset:3px}
+.cd-blue{--c1:#173d7a!important;--c2:#0b2350!important;--cg:#3b82f6!important}
+.cd-violet{--c1:#4b2a92!important;--c2:#28195c!important;--cg:#a78bfa!important}
+.cd-gold{--c1:#4d3a17!important;--c2:#211b14!important;--cg:#e0a84a!important}
+.cd-amber{--c1:#5a4220!important;--c2:#2a2117!important;--cg:#f0b14e!important}
+.cd-green{--c1:#15563f!important;--c2:#0b2e26!important;--cg:#22c55e!important}
+.cd-teal{--c1:#0f5a5e!important;--c2:#0a2e36!important;--cg:#2dd4bf!important}
+.cd-tile-text{position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0}
+html body #content .cd-root.cd-root .cd-tile-name{font-size:clamp(20px,1.9vw,32px)!important;font-weight:900;line-height:1.15;color:#fff!important;-webkit-text-fill-color:#fff!important}
+html body #content .cd-root.cd-root .cd-gold .cd-tile-name,html body #content .cd-root.cd-root .cd-tile-en{color:var(--cd-gold-2)!important;-webkit-text-fill-color:var(--cd-gold-2)!important}
+html body #content .cd-root.cd-root .cd-tile-en{font-style:normal;font-size:clamp(15px,1.3vw,22px)!important;font-weight:800;margin-top:-4px}
+html body #content .cd-root.cd-root .cd-tile-sub{font-size:clamp(12.5px,1vw,16px)!important;font-weight:600;line-height:1.5;color:#e2e8f0!important;-webkit-text-fill-color:#e2e8f0!important}
+html body #content .cd-root .cd-go{margin-top:6px;width:48px;height:30px;border-radius:999px;display:grid;place-items:center;border:1.5px solid color-mix(in srgb,var(--cg) 75%,#fff 10%);background:rgba(0,0,0,.25)}
+html body #content .cd-root .cd-go i{font-size:14px!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
+html body #content .cd-root .cd-tile-sym{position:relative;z-index:1;flex:none;display:grid;place-items:center}
+html body #content .cd-root .cd-tile-sym i{font-size:clamp(46px,5.2vw,96px)!important;background:linear-gradient(160deg,#fff 0%,color-mix(in srgb,var(--cg) 80%,#fff) 45%,var(--cg) 100%);-webkit-background-clip:text;background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent!important;filter:drop-shadow(0 0 14px color-mix(in srgb,var(--cg) 60%,transparent))}
+
+/* Arabic: undo the app-wide compounding 1.5em on nested text. */
+html[lang="ar"] #content .cd-root :is(p,label,span,button,li,a,strong,small,b,i,em,h1,div){font-size:inherit}
+
+/* Short desktop windows: tighten. */
+@media (max-height:760px) and (min-width:900px){
+  .cd-root{gap:8px}
+  html body #content .cd-root .cd-tile-sub{display:none}
+  html body #content .cd-root .cd-fig{gap:3px}
+}
+@media (max-width:1200px) and (min-width:900px){
+  .cd-root{padding-inline-end:clamp(150px,14vw,220px)}
+  .cd-chips{margin-top:0;justify-content:center}
+  html body #content .cd-root.cd-root .cd-fig-lbl{white-space:normal;text-align:center}
+}
+
+/* ===================================================================
+ * Home — "Classic Design" on a phone (≤899px), office design v4-mobile:
+ * greeting beside the artwork · date | upcoming · figures 3×2 · six cards
+ * two by two (clients, cases / tasks, calendar / briefing, analytics).
+ * useFitToScreen (ClassicHome) keeps it to one screen.
+ * =================================================================== */
+@media (max-width:899px){
+  html body #content.content.home-content.home-classic > .cd-root.cd-root{height:auto;display:flex;flex-direction:column;gap:12px;padding:14px 12px 14px!important}
+  .cd-root > .cd-art{inset-block:0 auto;inset-inline-end:0;height:210px;width:40%}
+  .cd-art img{object-position:left top;-webkit-mask-image:linear-gradient(to right,#000 55%,transparent 100%),linear-gradient(to bottom,#000 60%,transparent 100%);-webkit-mask-composite:source-in;mask-image:linear-gradient(to right,#000 55%,transparent 100%),linear-gradient(to bottom,#000 60%,transparent 100%);mask-composite:intersect}
+  .cd-root > .cd-arc{top:-70%;inset-inline-start:30%;width:120%;height:100%}
+  html body #content .cd-root .cd-hero{align-items:flex-start;text-align:start;padding-inline-end:30%;gap:8px}
+  html body #content .cd-root.cd-root .cd-hero h1{font-size:clamp(24px,7vw,32px)!important}
+  .cd-rule{width:100%;background:linear-gradient(90deg,var(--cd-gold-2),var(--cd-gold) 60%,transparent)}
+  html body #content .cd-root.cd-root .cd-hero p{font-size:clamp(13px,3.7vw,16px)!important}
+  .cd-chips{margin-top:2px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  html body #content .cd-root .cd-chip{height:44px;padding:0 12px;justify-content:center;gap:8px}
+  html body #content .cd-root.cd-root .cd-chip span,html body #content .cd-root.cd-root .cd-chip b{font-size:clamp(12px,3.4vw,14.5px)!important;white-space:nowrap}
+  html body #content .cd-root .cd-chip-wa{grid-column:1 / -1}
+  .cd-strip{grid-template-columns:repeat(3,minmax(0,1fr));padding:0;border-radius:18px;overflow:hidden}
+  html body #content .cd-root .cd-fig{align-items:flex-start;gap:6px;padding:10px 10px 8px;border-radius:0}
+  html body #content .cd-root .cd-fig + .cd-fig{border-inline-start:0!important}
+  html body #content .cd-root .cd-fig:not(:nth-child(3n+1)){border-inline-start:1px solid rgba(255,255,255,.12)!important}
+  html body #content .cd-root .cd-fig:nth-child(n+4){border-top:1px solid rgba(255,255,255,.12)!important}
+  .cd-fig-top{flex-direction:row-reverse;justify-content:space-between;width:100%;gap:6px}
+  html body #content .cd-root.cd-root .cd-fig-lbl{font-size:clamp(11.5px,3.3vw,14px)!important;white-space:normal}
+  html body #content .cd-root .cd-fig-sym{width:30px;height:30px;border-radius:9px;flex:none}
+  html body #content .cd-root .cd-fig-sym i{font-size:14px!important}
+  html body #content .cd-root.cd-root .cd-fig > b{font-size:clamp(19px,5.6vw,26px)!important}
+  .cd-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:none;gap:12px}
+  html body #content .cd-root .cd-tile{flex-direction:column-reverse;justify-content:flex-start;align-items:center;text-align:center;gap:4px;padding:14px 12px 46px;border-radius:22px;min-height:150px}
+  .cd-tile-text{align-items:center;gap:4px}
+  html body #content .cd-root.cd-root .cd-tile-name{font-size:clamp(18px,5.4vw,24px)!important}
+  html body #content .cd-root.cd-root .cd-tile-en{font-size:clamp(14px,4vw,18px)!important;margin-top:0}
+  html body #content .cd-root.cd-root .cd-tile-sub{font-size:clamp(11.5px,3.3vw,14px)!important;line-height:1.4}
+  html body #content .cd-root .cd-tile-sym i{font-size:clamp(40px,12vw,56px)!important}
+  html body #content .cd-root .cd-go{position:absolute;bottom:10px;inset-inline-end:10px;margin:0;width:38px;height:38px;border-radius:50%;border-width:2px}
+  html body #content .cd-root .cd-tile:nth-child(1){order:1}
+  html body #content .cd-root .cd-tile:nth-child(2){order:2}
+  html body #content .cd-root .cd-tile:nth-child(5){order:3}
+  html body #content .cd-root .cd-tile:nth-child(4){order:4}
+  html body #content .cd-root .cd-tile:nth-child(3){order:5}
+  html body #content .cd-root .cd-tile:nth-child(6){order:6}
+}
+@media (max-width:899px){
+  html body #content .cd-root .cd-tile .cd-tile-text{position:static}
+  html body #content.content.home-content.home-classic > .cd-root.cd-root{gap:9px;padding:10px 10px 10px!important}
+  .cd-root > .cd-art{height:150px}
+  html body #content .cd-root .cd-hero{gap:5px}
+  html body #content .cd-root.cd-root .cd-hero h1{font-size:clamp(22px,6.4vw,28px)!important}
+  .cd-chips{gap:8px}
+  html body #content .cd-root .cd-chip{height:38px}
+  html body #content .cd-root .cd-fig{padding:7px 8px 6px;gap:3px}
+  html body #content .cd-root .cd-fig-sym{width:26px;height:26px}
+  html body #content .cd-root.cd-root .cd-fig > b{font-size:clamp(18px,5.2vw,24px)!important}
+  .cd-grid{gap:9px}
+  html body #content .cd-root .cd-tile{min-height:0;padding:9px 10px 40px;gap:2px;border-radius:20px}
+  html body #content .cd-root .cd-tile-sym i{font-size:clamp(32px,9vw,44px)!important}
+  html body #content .cd-root.cd-root .cd-tile-name{font-size:clamp(17px,5vw,22px)!important}
+  html body #content .cd-root.cd-root .cd-tile-sub{font-size:clamp(11px,3.1vw,13px)!important;line-height:1.35}
+  html body #content .cd-root .cd-go{bottom:7px;inset-inline-end:8px;width:32px;height:32px}
+  html body #content .cd-root .cd-go i{font-size:13px!important}
+}
+
+/* Classic home — phone, office design v4-mobile-2: horizontal cards (text ·
+ * icon, an arrow pill at the bottom), order cases | clients · portal |
+ * calendar · analytics | briefing; tasks stay in the bottom navigation. */
+html body #content .cd-root .cd-tile[data-k="portal"]{display:none}
+.cd-wa{--c1:#0f5a3e!important;--c2:#0a2e26!important;--cg:#22c55e!important}
+@media (max-width:899px){
+  html body #content .cd-root .cd-tile[data-k="portal"]{display:flex}
+  html body #content .cd-root .cd-tile[data-k="tasks"][data-wa="1"]{display:none}
+  html body #content .cd-root .cd-tile{flex-direction:row;align-items:center;justify-content:space-between;text-align:start;gap:6px;padding:12px 12px 48px;min-height:0}
+  html body #content .cd-root .cd-tile .cd-tile-text{align-items:flex-start;gap:3px;min-width:0}
+  html body #content .cd-root.cd-root .cd-tile-name{font-size:clamp(17px,5vw,22px)!important;line-height:1.15}
+  html body #content .cd-root .cd-tile-sym i{font-size:clamp(34px,10vw,50px)!important}
+  html body #content .cd-root .cd-go{bottom:10px;inset-inline-start:auto;inset-inline-end:auto;left:12px;width:58px;height:30px;border-radius:999px}
+  html[dir="ltr"] body #content .cd-root .cd-go{left:auto;right:12px}
+  html body #content .cd-root .cd-tile[data-k="cases"]{order:1}
+  html body #content .cd-root .cd-tile[data-k="clients"]{order:2}
+  html body #content .cd-root .cd-tile[data-k="portal"],html body #content .cd-root .cd-tile[data-k="tasks"]{order:3}
+  html body #content .cd-root .cd-tile[data-k="calendar"]{order:4}
+  html body #content .cd-root .cd-tile[data-k="anal"]{order:5}
+  html body #content .cd-root .cd-tile[data-k="brief"]{order:6}
+  html body #content .cd-root .cd-tile .ch-bell{margin-inline-start:6px;vertical-align:middle}
+  html body #content .cd-root.cd-root .cd-tile .ch-bell,html body #content .cd-root.cd-root .cd-tile .ch-bell b,html body #content .cd-root.cd-root .cd-tile .ch-bell i{font-size:11.5px!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
+  /* Figures: label + icon centred, number under them */
+  .cd-fig-top{flex-direction:row;justify-content:center;width:100%}
+  html body #content .cd-root .cd-fig{align-items:center}
+  html body #content .cd-root .cd-fig-sym{border-radius:50%}
+  /* The portal pill is redundant with the portal card on the phone. */
+  html body #content .cd-root .cd-chip-wa{display:none}
+}
+
+/* Classic home (desktop too, office design v4-b): the portal card takes the
+ * tasks card's place (bottom row, middle) when the office has WhatsApp; its
+ * bell replaces the separate portal pill. Tasks stay in the sidebar. */
+html body #content .cd-root .cd-tile[data-k="portal"]{display:flex}
+html body #content .cd-root .cd-tile[data-k="tasks"][data-wa="1"]{display:none}
+html body #content .cd-root .cd-chip-wa{display:none}
+@media (min-width:900px){
+  html body #content .cd-root .cd-tile[data-k="clients"]{order:1}
+  html body #content .cd-root .cd-tile[data-k="cases"]{order:2}
+  html body #content .cd-root .cd-tile[data-k="brief"]{order:3}
+  html body #content .cd-root .cd-tile[data-k="calendar"]{order:4}
+  html body #content .cd-root .cd-tile[data-k="portal"],html body #content .cd-root .cd-tile[data-k="tasks"]{order:5}
+  html body #content .cd-root .cd-tile[data-k="anal"]{order:6}
+  html body #content .cd-root .cd-tile .ch-bell{margin-inline-start:8px;vertical-align:middle}
+  html body #content .cd-root.cd-root .cd-tile .ch-bell,html body #content .cd-root.cd-root .cd-tile .ch-bell b,html body #content .cd-root.cd-root .cd-tile .ch-bell i{font-size:13px!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
+}
