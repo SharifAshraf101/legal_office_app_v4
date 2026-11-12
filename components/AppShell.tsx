@@ -162,7 +162,7 @@ function ShellInner() {
                 className={
                   'content' +
                   (state.currentTab === 'home' ? ' home-content' : '') +
-                  (state.currentTab === 'home' && (state.homeStyle === 'classic' || state.homeStyle === 'modern')
+                  (state.currentTab === 'home' && (state.homeStyle === 'classic' || state.homeStyle === 'modern' || state.homeStyle === 'minimalist')
                     ? ' home-classic'
                     : '') +
                   (state.currentTab === 'calendar' && state.homeStyle === 'classic' ? ' calendar-classic' : '') +

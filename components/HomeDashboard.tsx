@@ -9,6 +9,7 @@ import { getTimeGreeting } from '@/lib/greeting';
 import { officeAuthHeader } from '@/lib/officeToken';
 import { UpcomingAgendaModal } from './UpcomingAgendaModal';
 import { ClassicHome } from './ClassicHome';
+import { MinimalHome } from './MinimalHome';
 
 /**
  * Home dashboard. Port of renderHome() at source line 3897:
@@ -90,6 +91,22 @@ export function HomeDashboard() {
 
   const brandName = state.officeName || t('firmName');
   const greetingText = getTimeGreeting(lang, brandName);
+
+  // "Minimalist" (Settings): the editorial home from the office's design.
+  if (state.homeStyle === 'minimalist') {
+    return (
+      <MinimalHome
+        cards={cards.map((c) => ({
+          id: c.id,
+          icon: c.icon,
+          title: c.id === 'portal' ? portalLabel(lang) : c.id === 'tasks' ? tasksLabel(lang) : t(c.titleKey),
+        }))}
+        greeting={greetingText}
+        unseenWa={unseenWa}
+        lang={lang === 'ar' ? 'ar' : 'he'}
+      />
+    );
+  }
 
   // "Classic Design" / "Modern Design" (Settings): the same controls and
   // data, laid out anew — dark navy and gold, or the same page light.

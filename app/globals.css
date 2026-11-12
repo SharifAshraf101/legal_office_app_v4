@@ -44366,3 +44366,108 @@ html body .cd-root .cd-cta{display:none}
   html body #content .cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-go{border-color:#b98a3e;background:rgba(255,255,255,.6)}
   html body #content .cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-go i{color:#7a4f0f!important;-webkit-text-fill-color:#7a4f0f!important}
 }
+
+/* ===================================================================
+ * Home — "Minimalist Design" (components/MinimalHome): editorial page —
+ * kicker, large greeting, two figures, gold date numeral; three text links;
+ * the four main cards as a numbered 2×2 grid of hairline cells.
+ * =================================================================== */
+html body #content.content.home-content.home-classic > .mn-root.mn-root{background:#f7f3ec!important}
+html body.dark #content.content.home-content.home-classic > .mn-root.mn-root{background:#0f172a!important}
+.mn-root{--mn-ink:#16223b;--mn-mute:#6b6f78;--mn-gold:#b07d2a;--mn-line:#e4ddd0;position:relative;height:100%;min-height:0;overflow:hidden;
+  display:grid;grid-template-rows:auto auto minmax(0,1fr);width:min(1290px,100%);margin:0 auto;padding:clamp(18px,4vh,48px) clamp(18px,3vw,48px) clamp(14px,2.4vh,30px);color:var(--mn-ink)}
+body.dark .mn-root{--mn-ink:#f1f5f9;--mn-mute:#94a3b8;--mn-line:#334155}
+.mn-root button{font:inherit;background:none!important;border:0!important;box-shadow:none!important;padding:0;cursor:pointer;color:inherit}
+
+/* Top: greeting · date */
+.mn-top{display:flex;align-items:center;justify-content:space-between;gap:32px;padding-bottom:clamp(18px,3.5vh,32px);border-bottom:2px solid var(--mn-ink)}
+.mn-hi{display:flex;flex-direction:column;gap:clamp(6px,1.2vh,12px);min-width:0}
+html body #content .mn-root.mn-root .mn-kick{display:inline-flex;align-items:center;gap:12px;font-size:14px!important;font-weight:700;color:var(--mn-gold)!important;-webkit-text-fill-color:var(--mn-gold)!important}
+.mn-kick::before{content:"";display:inline-block;width:32px;height:1px;background:var(--mn-gold);order:2}
+html body #content .mn-root.mn-root .mn-hi h1{margin:0;font-size:clamp(34px,3.6vw,60px)!important;font-weight:900;line-height:1.1;letter-spacing:-.01em;color:var(--mn-ink)!important;-webkit-text-fill-color:var(--mn-ink)!important;background:none;border:0;padding:0}
+.mn-meta{margin:0;display:flex;align-items:center;gap:12px}
+html body #content .mn-root.mn-root .mn-meta button,html body #content .mn-root.mn-root .mn-meta button b{font-size:14px!important;color:var(--mn-mute)!important;-webkit-text-fill-color:var(--mn-mute)!important}
+html body #content .mn-root.mn-root .mn-meta button b{color:var(--mn-ink)!important;-webkit-text-fill-color:var(--mn-ink)!important;font-weight:900}
+html body #content .mn-root.mn-root .mn-meta button:hover{text-decoration:underline}
+html body #content .mn-root.mn-root .mn-dot{color:var(--mn-gold)!important;-webkit-text-fill-color:var(--mn-gold)!important;font-size:12px!important}
+html body #content .mn-root .mn-date{display:flex;align-items:center;gap:18px;flex:none;padding-inline-start:clamp(24px,3vw,40px)!important;border-inline-start:1px solid var(--mn-line)!important;align-self:stretch}
+html body #content .mn-root.mn-root .mn-dd{font-family:Georgia,"Times New Roman",serif;font-size:clamp(60px,5.6vw,96px)!important;font-weight:700;line-height:1;color:var(--mn-gold)!important;-webkit-text-fill-color:var(--mn-gold)!important}
+.mn-day{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+html body #content .mn-root.mn-root .mn-day b{font-size:clamp(17px,1.4vw,21px)!important;font-weight:800;color:var(--mn-ink)!important;-webkit-text-fill-color:var(--mn-ink)!important}
+html body #content .mn-root.mn-root .mn-day small{font-size:14px!important;color:var(--mn-mute)!important;-webkit-text-fill-color:var(--mn-mute)!important}
+
+/* Three text links */
+.mn-links{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border-bottom:1px solid var(--mn-line)}
+html body #content .mn-root .mn-link{display:flex;align-items:center;justify-content:center;gap:10px;padding:clamp(14px,2.4vh,22px) 10px!important}
+html body #content .mn-root .mn-link + .mn-link{border-inline-start:1px solid var(--mn-line)!important}
+html body #content .mn-root.mn-root .mn-link span{font-size:clamp(15px,1.15vw,18px)!important;font-weight:800;color:var(--mn-ink)!important;-webkit-text-fill-color:var(--mn-ink)!important}
+html body #content .mn-root .mn-link i{font-size:15px!important;color:var(--mn-ink)!important;-webkit-text-fill-color:var(--mn-ink)!important}
+html body #content .mn-root .mn-link > :is(i,span){position:relative}
+html body #content .mn-root .mn-link{position:relative}
+html body #content .mn-root .mn-link::after{content:"";position:absolute;bottom:clamp(8px,1.6vh,14px);left:50%;width:min(140px,60%);height:2px;background:var(--mn-gold);transform:translateX(-50%);transition:width .2s}
+html body #content .mn-root .mn-link:hover::after{width:min(190px,80%)}
+
+/* 2×2 numbered grid */
+.mn-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);min-height:0}
+html body #content .mn-root .mn-box{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;text-align:start;gap:8px;padding:clamp(20px,3.6vh,38px) clamp(20px,2.6vw,34px)!important;border-bottom:1px solid var(--mn-line)!important;transition:background .2s}
+html body #content .mn-root .mn-box:nth-child(odd){border-inline-end:1px solid var(--mn-line)!important}
+html body #content .mn-root .mn-box:hover{background:rgba(176,125,42,.06)!important}
+html body #content .mn-root .mn-box:focus-visible{outline:2px solid var(--mn-gold);outline-offset:-2px}
+html body #content .mn-root.mn-root .mn-num{font-family:Georgia,"Times New Roman",serif;font-size:17px!important;font-weight:700;color:var(--mn-gold)!important;-webkit-text-fill-color:var(--mn-gold)!important}
+html body #content .mn-root .mn-sym{position:absolute;top:clamp(20px,3.6vh,38px);left:clamp(20px,2.6vw,34px)}
+html[dir="ltr"] body #content .mn-root .mn-sym{left:auto;right:clamp(20px,2.6vw,34px)}
+html body #content .mn-root .mn-sym i{font-size:20px!important;color:#9aa0aa!important;-webkit-text-fill-color:#9aa0aa!important}
+html body #content .mn-root.mn-root .mn-name{margin-top:auto;font-size:clamp(26px,2.3vw,38px)!important;font-weight:900;line-height:1.15;color:var(--mn-ink)!important;-webkit-text-fill-color:var(--mn-ink)!important}
+html body #content .mn-root.mn-root .mn-sub{font-size:clamp(14px,1.1vw,17px)!important;color:var(--mn-mute)!important;-webkit-text-fill-color:var(--mn-mute)!important;margin-bottom:auto}
+html body #content .mn-root.mn-root .mn-name .ch-bell{margin-inline-start:10px;vertical-align:middle}
+html body #content .mn-root.mn-root .mn-name .ch-bell,html body #content .mn-root.mn-root .mn-name .ch-bell :is(b,i){font-size:13px!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
+
+/* Arabic: undo the app-wide compounding 1.5em on nested text. */
+html[lang="ar"] #content .mn-root :is(p,span,button,b,i,small,h1,div){font-size:inherit}
+
+/* Phone: same parts stacked; useFitToScreen keeps it to one screen. */
+@media (max-width:899px){
+  html body #content.content.home-content.home-classic > .mn-root.mn-root{height:auto;display:flex;flex-direction:column;padding:18px 16px 12px!important}
+  .mn-top{gap:14px;padding-bottom:16px}
+  html body #content .mn-root.mn-root .mn-hi h1{font-size:clamp(26px,7.4vw,36px)!important}
+  html body #content .mn-root.mn-root .mn-kick{font-size:12px!important}
+  html body #content .mn-root .mn-date{gap:8px;padding-inline-start:14px!important;flex-direction:column;align-items:center;justify-content:center}
+  html body #content .mn-root.mn-root .mn-dd{font-size:clamp(44px,13vw,60px)!important}
+  .mn-day{align-items:center}
+  html body #content .mn-root.mn-root .mn-day b{font-size:14px!important}
+  html body #content .mn-root.mn-root .mn-day small{font-size:12px!important}
+  html body #content .mn-root .mn-link{flex-direction:column;gap:4px;padding:12px 4px 18px!important}
+  html body #content .mn-root .mn-link .mn-arrow{display:none}
+  html body #content .mn-root.mn-root .mn-link span{font-size:13px!important}
+  html body #content .mn-root .mn-link::after{bottom:8px}
+  .mn-grid{flex:1 1 auto}
+  html body #content .mn-root .mn-box{padding:16px 14px!important;gap:4px}
+  html body #content .mn-root .mn-sym{top:16px;left:14px}
+  html body #content .mn-root.mn-root .mn-name{font-size:clamp(19px,5.6vw,26px)!important;margin-top:18px}
+  html body #content .mn-root.mn-root .mn-sub{font-size:12.5px!important}
+}
+html body #content.content.home-content.home-classic:has(> .mn-root){background:#f7f3ec!important}
+html body.dark #content.content.home-content.home-classic:has(> .mn-root){background:#0f172a!important}
+html body #content .mn-root.mn-root :is(.mn-dd,.mn-num){font-family:Georgia,"Times New Roman",serif!important}
+
+/* Minimalist home on a phone (office design): greeting full width, the date
+ * under it after a hairline, then the links, then the numbered grid with the
+ * names at the bottom of each cell. */
+@media (max-width:899px){
+  .mn-root .mn-top{flex-direction:column;align-items:stretch;gap:0;padding-bottom:14px}
+  .mn-root .mn-hi{padding-bottom:16px;border-bottom:1px solid var(--mn-line)}
+  html body #content .mn-root .mn-date{flex-direction:row;align-items:center;justify-content:flex-start;gap:18px;padding:14px 0 0!important;border-inline-start:0!important}
+  html body #content .mn-root.mn-root .mn-dd{font-size:clamp(46px,13vw,58px)!important}
+  .mn-root .mn-day{align-items:flex-start}
+  html body #content .mn-root.mn-root .mn-day b{font-size:16px!important}
+  html body #content .mn-root.mn-root .mn-day small{font-size:13px!important}
+  html body #content .mn-root.mn-root .mn-name{margin-top:auto}
+  html body #content .mn-root.mn-root .mn-sub{margin-bottom:0}
+  html body #content .mn-root .mn-box{justify-content:flex-end;min-height:0}
+  html body #content .mn-root .mn-num{position:absolute;top:16px;right:14px}
+  html[dir="ltr"] body #content .mn-root .mn-num{right:auto;left:14px}
+}
+@media (max-width:899px){
+  .mn-root .mn-grid{grid-auto-rows:minmax(150px,1fr)}
+  html body #content .mn-root .mn-box{padding-top:46px!important}
+}
