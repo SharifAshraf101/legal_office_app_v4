@@ -136,7 +136,9 @@ export function ClassicHome({
   // glowing cards (clients, cases, briefing / calendar, tasks, analytics).
   // On a phone the same parts stack (CSS) and useFitToScreen keeps it to one
   // screen. Same handlers throughout.
-  if (variant === 'classic') {
+  // Modern uses the same dashboard, light (office design).
+  if (variant === 'classic' || variant === 'modern') {
+    const modernDash = variant === 'modern';
     const ar = lang === 'ar';
     const D = {
       upcoming: ar ? 'المواعيد القريبة' : 'המועדים הקרובים',
@@ -155,10 +157,10 @@ export function ClassicHome({
     const tiles = [
       { k: 'clients', tone: 'cd-blue', fa: 'fas fa-users', name: D.clients, sub: D.clientsSub, go: () => go('contacts') },
       { k: 'cases', tone: 'cd-violet', fa: 'fas fa-folder-open', name: D.cases, sub: D.casesSub, go: () => go('cases') },
-      { k: 'brief', tone: 'cd-gold', fa: 'fas fa-clipboard-list', name: T.briefing, en: 'Daily Briefing', sub: D.briefSub, go: () => go('briefing') },
+      { k: 'brief', tone: 'cd-gold', fa: 'fas fa-clipboard-list', img: '/briefing-icon.png', cta: lang === 'ar' ? 'إلى تقرير اليوم' : 'לתדריך של היום', name: T.briefing, en: 'Daily Briefing', sub: D.briefSub, go: () => go('briefing') },
       { k: 'calendar', tone: 'cd-amber', fa: 'far fa-calendar-days', name: D.calendar, sub: D.calendarSub, go: () => go('calendar') },
       { k: 'tasks', tone: 'cd-green', fa: 'far fa-circle-check', name: D.tasks, sub: D.tasksSub, go: () => go('tasks') },
-      { k: 'anal', tone: 'cd-teal', fa: 'fas fa-chart-column', name: T.analytics, sub: D.analSub, go: () => go('analytics') },
+      { k: 'anal', tone: 'cd-teal', fa: 'fas fa-chart-column', img: '/analytics-icon.jpg', cta: lang === 'ar' ? 'إلى التحليل الكامل' : 'לניתוח המלא', name: T.analytics, sub: D.analSub, go: () => go('analytics') },
     ];
     const portalCard = cards.find((c) => c.id === 'portal');
     // The portal card takes the tasks card's place (tasks stay in the
@@ -168,7 +170,7 @@ export function ClassicHome({
       tiles.push({ k: 'portal', tone: 'cd-wa', fa: 'fas fa-comments', name: portalCard.title, sub: T.desc.portal, go: () => go('portal') });
     }
     return (
-      <div ref={rootRef} className="cd-root" data-home-design="classic">
+      <div ref={rootRef} className={'cd-root' + (modernDash ? ' cd-modern' : '')} data-home-design={variant}>
         <div className="cd-art" aria-hidden>
           <img src="/classic/v4-left.jpg" alt="" />
         </div>
@@ -228,12 +230,17 @@ export function ClassicHome({
                 </b>
                 {t.en && <em className="cd-tile-en">{t.en}</em>}
                 <span className="cd-tile-sub">{t.sub}</span>
+                {'cta' in t && t.cta && (
+                  <span className="cd-cta">
+                    {t.cta} <i className="fas fa-arrow-left" aria-hidden />
+                  </span>
+                )}
                 <span className="cd-go" aria-hidden>
                   <i className="fas fa-arrow-right" />
                 </span>
               </span>
               <span className="cd-tile-sym" aria-hidden>
-                <i className={t.fa} />
+                {modernDash && 'img' in t && t.img ? <img src={t.img} alt="" /> : <i className={t.fa} />}
               </span>
             </button>
           ))}
