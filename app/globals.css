@@ -44341,3 +44341,28 @@ html body .cd-root .cd-cta{display:none}
   html body #content .cd-root .cd-tile[data-k="brief"]{order:5}
   html body #content .cd-root .cd-tile[data-k="anal"]{order:6}
 }
+
+/* Classic home on a phone: the daily-briefing card light (cream + gold) so it
+ * is told apart from the calendar card at a glance. */
+@media (max-width:899px){
+  html body #content .cd-root:not(.cd-modern) .cd-tile[data-k="brief"]{background:radial-gradient(90% 70% at 85% 10%,rgba(255,255,255,.9),transparent 70%),linear-gradient(160deg,#fff6e0,#f3dca6)!important;border-color:#f6d28a!important;box-shadow:0 0 22px rgba(246,190,90,.45),0 14px 30px rgba(0,0,0,.45)}
+  html body #content .cd-root:not(.cd-modern) .cd-tile[data-k="brief"]::after{border-top-color:rgba(184,134,52,.45)}
+  html body #content .cd-root.cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-tile-name{color:#7a4f0f!important;-webkit-text-fill-color:#7a4f0f!important}
+  html body #content .cd-root.cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-tile-en{color:#a8701f!important;-webkit-text-fill-color:#a8701f!important}
+  html body #content .cd-root.cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-tile-sub{color:#3f3424!important;-webkit-text-fill-color:#3f3424!important}
+  html body #content .cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-tile-sym i{background:linear-gradient(160deg,#d99a2b,#9a6417);-webkit-background-clip:text;background-clip:text;filter:none}
+  html body #content .cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-go{border-color:#b98a3e;background:rgba(255,255,255,.6)}
+  html body #content .cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-go i{color:#7a4f0f!important;-webkit-text-fill-color:#7a4f0f!important}
+}
+
+/* Classic home on a desktop: the daily-briefing card light too (cream + gold). */
+@media (min-width:900px){
+  html body #content .cd-root:not(.cd-modern) .cd-tile[data-k="brief"]{background:radial-gradient(90% 70% at 85% 10%,rgba(255,255,255,.9),transparent 70%),linear-gradient(160deg,#fff6e0,#f3dca6)!important;border-color:#f6d28a!important;box-shadow:0 0 24px rgba(246,190,90,.45),0 14px 30px rgba(0,0,0,.45)}
+  html body #content .cd-root:not(.cd-modern) .cd-tile[data-k="brief"]::after{border-top-color:rgba(184,134,52,.45)}
+  html body #content .cd-root.cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-tile-name{color:#7a4f0f!important;-webkit-text-fill-color:#7a4f0f!important}
+  html body #content .cd-root.cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-tile-en{color:#a8701f!important;-webkit-text-fill-color:#a8701f!important}
+  html body #content .cd-root.cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-tile-sub{color:#3f3424!important;-webkit-text-fill-color:#3f3424!important}
+  html body #content .cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-tile-sym i{background:linear-gradient(160deg,#d99a2b,#9a6417);-webkit-background-clip:text;background-clip:text;filter:none}
+  html body #content .cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-go{border-color:#b98a3e;background:rgba(255,255,255,.6)}
+  html body #content .cd-root:not(.cd-modern) .cd-tile[data-k="brief"] .cd-go i{color:#7a4f0f!important;-webkit-text-fill-color:#7a4f0f!important}
+}
