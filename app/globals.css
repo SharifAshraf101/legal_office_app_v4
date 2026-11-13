@@ -45657,3 +45657,10 @@ html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.
   html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ug-classic:is(#ug-x,.ug-classic):is(#ug-y,.ug-classic) .ug-time bdi{font-size:17px!important}
   html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ug-classic:is(#ug-x,.ug-classic):is(#ug-y,.ug-classic) .ug-txt{flex-basis:100%}
 }
+
+/* Case EDIT window (CaseEdit): its four top actions (new event / case
+ * documents / new task / status) sit inside the 38px-high title bar, so they
+ * were clipped and covered by the edit toolbar below — unclickable. Let the
+ * title bar grow to fit them. */
+html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls:has(form.case-edit-form):is(#ce-x,.modal) .case-detail-title{height:auto!important;min-height:38px!important;flex-wrap:wrap!important;row-gap:10px!important;padding-bottom:8px!important;overflow:visible!important}
+html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls:has(form.case-edit-form):is(#ce-x,.modal) .case-detail-title-actions{position:relative!important;z-index:6!important;display:flex!important;flex-wrap:wrap!important;gap:8px!important;height:auto!important;transform:none!important}
