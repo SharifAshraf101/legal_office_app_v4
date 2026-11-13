@@ -1544,9 +1544,12 @@ function ClientChatScreen({
   // whatever phone the chat was opened with.
   const headerPhone = pollClient?.phone || (client as any).phone || '';
 
+  // "צפה בתיק" opens the case picked under "פעולות מהירות" (בחירת תיק);
+  // the client's first case only when none was picked.
   const openCase = () => {
-    if (firstCase) {
-      modalStack.open(<CaseDetail caseId={firstCase.id} />);
+    const target = selectedCase || firstCase;
+    if (target) {
+      modalStack.open(<CaseDetail caseId={target.id} />);
     } else {
       dispatch({ type: 'SET_TAB', tab: 'cases' });
     }
