@@ -216,15 +216,15 @@ export function NewCalendarAppointmentModal() {
       }}
     >
       <div
-        className="new-appointment-popup-box modal-box"
+        className={'new-appointment-popup-box modal-box' + (state.homeStyle === 'classic' ? ' ne-classic nc-classic na-classic' : '')}
         style={{
           position: 'relative',
-          width: 'min(520px, 92vw)',
+          width: state.homeStyle === 'classic' ? 'min(780px, 94vw)' : 'min(520px, 92vw)',
           maxHeight: 'min(88vh, 820px)',
           overflowY: 'auto',
-          background: '#FDFBF5',
+          background: state.homeStyle === 'classic' ? undefined : '#FDFBF5',
           borderRadius: 22,
-          padding: 22,
+          padding: state.homeStyle === 'classic' ? undefined : 22,
           boxShadow:
             '0 28px 70px rgba(15,23,42,.55), 0 0 0 1px rgba(15,23,42,.08)',
         }}
@@ -254,9 +254,21 @@ export function NewCalendarAppointmentModal() {
         >
           ×
         </button>
-        <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>
-          {formTitle}
-        </h2>
+        {state.homeStyle === 'classic' ? (
+          // "Classic Design": the office's banner (the new-event window's look).
+          <div className="ne-banner">
+            <img src="/classic/event-art.jpg" alt="" className="ne-banner-art" aria-hidden />
+            <i className="far fa-calendar-plus ne-banner-fa" aria-hidden />
+            <div className="ne-banner-text">
+              <h2 className="ne-h">{formTitle}</h2>
+              <span className="ne-sub">{lang === 'ar' ? 'إضافة موعد جديد إلى جدول المواعيد' : 'הוספת פגישה חדשה ליומן'}</span>
+            </div>
+          </div>
+        ) : (
+          <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>
+            {formTitle}
+          </h2>
+        )}
       <form id="newCalendarAppointmentForm" className="form-grid" onSubmit={onSubmit}>
         <div className="form-field">
           <label>{dateLabel}</label>

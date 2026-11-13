@@ -475,7 +475,7 @@ export function CaseDetail({ caseId, startTimelineEdit = false }: CaseDetailProp
   return (
     <Modal
       onClose={close}
-      className={modalClass}
+      className={modalClass + (state.homeStyle === 'classic' ? ' ck-classic' : '')}
       boxClassName={boxClass}
       hideBackBtn={true}
       hideCloseX={true}
@@ -532,9 +532,24 @@ export function CaseDetail({ caseId, startTimelineEdit = false }: CaseDetailProp
           ×
         </button>
         {/* Title h2 — visible on both viewports. */}
-        <div className="case-detail-title">
-          <h2>{t('caseDetails')}</h2>
-        </div>
+        {state.homeStyle === 'classic' ? (
+          // "Classic Design": the office design's heading + artwork.
+          <div className="case-detail-title ck-hero">
+            <img src="/classic/tasks-art-2.jpg" alt="" className="ck-art" aria-hidden />
+            <i className="far fa-folder-open ck-hero-fa" aria-hidden />
+            <div className="ck-hero-text">
+              <h2>{t('caseDetails')}</h2>
+              <span className="ck-rule" aria-hidden />
+              <p className="ck-sub">
+                {lang === 'ar' ? 'عرض وتحديث بيانات الملف وملفاته ومهامه المرتبطة' : 'צפייה ועדכון פרטי התיק, המסמכים והמשימות הקשורים אליו'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="case-detail-title">
+            <h2>{t('caseDetails')}</h2>
+          </div>
+        )}
 
         {/* DESKTOP-ONLY block (`display: none` on mobile via CSS).
          *  Original two-toolbar structure: title-actions (3 btns)

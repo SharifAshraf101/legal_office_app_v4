@@ -179,8 +179,9 @@ function ShellInner() {
                   (state.currentTab === 'documents' && state.homeStyle === 'classic' ? ' contacts-classic docs-classic' : '') +
                   (state.currentTab === 'tasks' && state.homeStyle === 'classic' ? ' contacts-classic tasks-classic' : '') +
                   (state.currentTab === 'finance' && state.homeStyle === 'classic' ? ' contacts-classic fees-classic' : '') +
-                  (state.currentTab === 'analytics' ? ' analytics-content' : '') +
-                  (state.currentTab === 'briefing' ? ' analytics-content briefing-content' : '')
+                  (state.currentTab === 'financeDetail' && state.homeStyle === 'classic' ? ' contacts-classic fd-classic' : '') +
+                  (state.currentTab === 'analytics' ? ' analytics-content' + (state.homeStyle === 'classic' ? ' analytics-classic' : '') : '') +
+                  (state.currentTab === 'briefing' ? ' analytics-content briefing-content' + (state.homeStyle === 'classic' ? ' briefing-classic' : '') : '')
                 }
                 id="content"
               >

@@ -311,7 +311,18 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
   };
 
   return (
-    <Modal onClose={close} className="case-docs-modal">
+    <Modal onClose={close} className={'case-docs-modal' + (state.homeStyle === 'classic' ? ' cdm-classic' : '')}>
+      {/* "Classic Design": the office's banner above the same contents. */}
+      {state.homeStyle === 'classic' && (
+        <div className="cdm-banner">
+          <img src="/classic/docs-art-2.jpg" alt="" className="cdm-banner-art" aria-hidden />
+          <i className="far fa-file-lines cdm-banner-fa" aria-hidden />
+          <div className="cdm-banner-text">
+            <b className="cdm-h">{lang === 'ar' ? 'مستندات الملف' : 'מסמכי התיק'}</b>
+            <span className="cdm-sub">{lang === 'ar' ? 'إدارة جميع مستندات وملفات الملف' : 'ניהול כל המסמכים והקבצים של התיק'}</span>
+          </div>
+        </div>
+      )}
       {/* Sticky header: back + X (rendered by Modal as absolute
        *  children of modal-box, both at top:14 with z-index 70 —
        *  they hover on top of this wrapper visually) plus the

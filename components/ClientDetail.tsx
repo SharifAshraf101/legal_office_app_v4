@@ -221,6 +221,125 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
     close();
   };
 
+  // "Classic Design" (Settings → home style = classic): the same details,
+  // links and buttons (back / ✕ / edit / delete / call / WhatsApp / case
+  // rows / avatar), in the dark navy + gold look of the office design.
+  if (state.homeStyle === 'classic') {
+    const ar = lang === 'ar';
+    const totalDebt = clientCases.reduce((sum, x) => sum + financeCaseBalance(x, state.finances), 0);
+    return (
+      <Modal
+        onClose={close}
+        className={modalClassName + ' kd-classic'}
+        boxClassName={boxClassName + ' kd-box'}
+        hideBackBtn={true}
+        hideCloseX={true}
+      >
+        <div className="kd-top">
+          <button type="button" className="kd-back" aria-label={ar ? 'رجوع' : 'חזרה'} title={ar ? 'رجوع' : 'חזרה'} onClick={close}>
+            <i className="fas fa-arrow-left" aria-hidden />
+            <span>{ar ? 'رجوع' : 'חזרה'}</span>
+          </button>
+          <h2 className="kd-title">{t('clientDetails')}</h2>
+          <button type="button" className="kd-x" aria-label={ar ? 'إغلاق' : 'סגור'} onClick={close}>
+            ×
+          </button>
+        </div>
+        <div className="kd-body">
+          <div className="kd-hero">
+            <img src="/classic/tasks-art-2.jpg" alt="" className="kd-art" aria-hidden />
+            <div className="kd-av">
+              <ClientAvatar client={c} editable />
+            </div>
+            <div className="kd-hero-text">
+              <h3 className="kd-h">{ar ? 'بيانات الموكل' : 'פרטי הלקוח'}</h3>
+              <span className="kd-rule" aria-hidden />
+              <p className="kd-sub">{ar ? 'عرض وتحديث تفاصيل الموكل وملفاته المرتبطة' : 'צפייה ועדכון פרטי הלקוח והתיקים הקשורים אליו'}</p>
+            </div>
+            <div className="kd-tools">
+              <button type="button" className="kd-edit" data-stable-client-edit-v229="1" onClick={openEdit}>
+                <i className="fas fa-pen" aria-hidden />
+                <span>{ar ? 'تعديل' : 'עריכה'}</span>
+              </button>
+              <button type="button" className="kd-del" data-delete-client-btn="1" onClick={onDeleteClient}>
+                <i className="fas fa-trash" aria-hidden />
+                <span>{ar ? 'حذف الموكل' : 'מחק לקוח'}</span>
+              </button>
+            </div>
+          </div>
+          <div className="kd-g3">
+            <div className="kd-f">
+              <i className="fas fa-user-group" aria-hidden />
+              <span className="kd-f-t"><small>{t('clientName')}</small><b>{name}</b></span>
+            </div>
+            <div className="kd-f">
+              <i className="fas fa-language" aria-hidden />
+              <span className="kd-f-t"><small>{ar ? 'الاسم بالعبرية' : 'שם בשפה שנייה'}</small><b>{otherNameDisplay || '-'}</b></span>
+            </div>
+            <div className="kd-f">
+              <i className="far fa-id-card" aria-hidden />
+              <span className="kd-f-t"><small>{t('idNumber')}</small><b><bdi>{c.idNumber || '-'}</bdi></b></span>
+            </div>
+          </div>
+          <div className="kd-g4">
+            <div className="kd-f">
+              <i className="fas fa-location-dot" aria-hidden />
+              <span className="kd-f-t"><small>{t('address')}</small><b>{address}</b></span>
+            </div>
+            <a className="kd-f kd-link" href={'tel:' + phoneLink}>
+              <i className="fas fa-phone kd-blue" aria-hidden />
+              <span className="kd-f-t"><small>{t('phone')}</small><b><bdi>{phone || '-'}</bdi></b></span>
+            </a>
+            <a className="kd-f kd-link kd-act" href={whatsappAppUrl(phone, '')} target="_self">
+              <i className="fas fa-phone kd-green" aria-hidden />
+              <span className="kd-f-t"><b>{voiceLabel}</b></span>
+            </a>
+            <a className="kd-f kd-link kd-act" href={whatsappAppUrl(phone, waText)} target="_self">
+              <i className="fab fa-whatsapp kd-green" aria-hidden />
+              <span className="kd-f-t"><b>{msgLabel}</b></span>
+            </a>
+          </div>
+          {totalDebt > 0 && (
+            <div className="kd-debt">
+              <i className="fas fa-coins" aria-hidden />
+              <span className="kd-debt-l">{ar ? 'إجمالي الدَّين في كل الملفات' : 'יתרת חוב בכל התיקים'}</span>
+              <b><bdi>{money(totalDebt)}</bdi></b>
+            </div>
+          )}
+          <h4 className="kd-sec">
+            <i className="fas fa-folder-open" aria-hidden />
+            {t('cases')}
+          </h4>
+          <div className="kd-cases">
+            {clientCases.length === 0 ? (
+              <div className="kd-none">{emptyCases}</div>
+            ) : (
+              clientCases.map((x) => {
+                const isActive = x.status === 'active';
+                return (
+                  <button key={x.id} type="button" className="kd-case" onClick={() => openCase(x.id)}>
+                    <i className="far fa-folder kd-case-fa" aria-hidden />
+                    <span className="kd-case-t">
+                      <b>{ar ? x.titleAr || x.title : x.title || x.titleAr}</b>
+                      <small>{t('caseNumber')}: <bdi>{x.caseNumber}</bdi></small>
+                    </span>
+                    <span className={'kd-st ' + (isActive ? 'kd-on' : 'kd-off')}>{isActive ? activeLabel : closedLabel}</span>
+                    <i className="fas fa-chevron-left kd-chev" aria-hidden />
+                  </button>
+                );
+              })
+            )}
+          </div>
+          <h4 className="kd-sec">
+            <i className="far fa-file-lines" aria-hidden />
+            {notesLabel}
+          </h4>
+          <div className="kd-notes">{notes || '—'}</div>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       onClose={close}

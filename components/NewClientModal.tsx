@@ -77,6 +77,9 @@ export function NewClientModal() {
   const notesLabel =
     lang === 'ar' ? 'ملاحظات مرتبطة بالموكل' : 'הערות קשורות ללקוח';
 
+  // "Classic Design": the same form in the navy + gold look — reuses the
+  // new-event window's classic styles (.ne-classic) plus .nc-classic rows.
+  const ncClassic = state.homeStyle === 'classic';
   return (
     <div
       className="new-client-popup-overlay"
@@ -95,15 +98,15 @@ export function NewClientModal() {
       }}
     >
       <div
-        className="new-client-popup-box modal-box"
+        className={'new-client-popup-box modal-box' + (ncClassic ? ' ne-classic nc-classic' : '')}
         style={{
           position: 'relative',
-          width: 'min(520px, 92vw)',
+          width: ncClassic ? 'min(780px, 94vw)' : 'min(520px, 92vw)',
           maxHeight: 'min(88vh, 820px)',
           overflowY: 'auto',
-          background: '#FDFBF5',
+          background: ncClassic ? undefined : '#FDFBF5',
           borderRadius: 22,
-          padding: '60px 22px 22px',
+          padding: ncClassic ? undefined : '60px 22px 22px',
           boxShadow:
             '0 28px 70px rgba(15,23,42,.55), 0 0 0 1px rgba(15,23,42,.08)',
         }}
@@ -133,7 +136,18 @@ export function NewClientModal() {
         >
           ×
         </button>
-        <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>{title}</h2>
+        {ncClassic ? (
+          <div className="ne-banner">
+            <img src="/classic/client-art.jpg" alt="" className="ne-banner-art" aria-hidden />
+            <i className="fas fa-user-plus ne-banner-fa" aria-hidden />
+            <div className="ne-banner-text">
+              <h2 className="ne-h">{title}</h2>
+              <span className="ne-sub">{lang === 'ar' ? 'إضافة موكل جديد إلى النظام' : 'הוספת לקוח חדש למערכת'}</span>
+            </div>
+          </div>
+        ) : (
+          <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>{title}</h2>
+        )}
       <form
         id="newClientForm"
         className="form-grid new-client-form"

@@ -183,7 +183,7 @@ export function DocumentsScreen() {
       <section className={'kx-root kx-docs' + (modern ? ' kx-modern' : '')}>
         <MainScreenBackButton />
         <div className="kx-art" aria-hidden>
-          <img src={modern ? '/classic/modern-cases-art.png' : '/classic/docs-art.png'} alt="" />
+          <img src={modern ? '/classic/modern-cases-art.png' : '/classic/clients-art-2.jpg'} alt="" />
         </div>
         <header className="kx-hero">
           <span className="kx-hero-fa" aria-hidden>
@@ -207,6 +207,37 @@ export function DocumentsScreen() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
+        {!modern && (() => {
+          // Office-wide document figures (Classic), from each document's upload time.
+          const now = new Date();
+          const day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+          const week0 = day0 - now.getDay() * 86400000;
+          const month0 = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+          const t = (d: DocumentRecord) => {
+            const v = new Date((d as { uploadedAt?: string }).uploadedAt || d.date || '').getTime();
+            return isNaN(v) ? -1 : v;
+          };
+          const figs = [
+            { k: 'total', fa: 'fa-layer-group', label: ar ? 'إجمالي المستندات' : 'סה"כ מסמכים', v: documents.length },
+            { k: 'closed', fa: 'fa-calendar-days', label: ar ? 'هذا الشهر' : 'החודש', v: documents.filter((d) => t(d) >= month0).length },
+            { k: 'open', fa: 'fa-calendar-week', label: ar ? 'هذا الأسبوع' : 'השבוע', v: documents.filter((d) => t(d) >= week0).length },
+            { k: 'on', fa: 'fa-calendar-day', label: ar ? 'اليوم' : 'היום', v: documents.filter((d) => t(d) >= day0).length },
+            { k: 'off', fa: 'fa-link-slash', label: ar ? 'بدون ملف' : 'ללא תיק', v: documents.filter((d) => !d.caseId).length },
+          ];
+          return (
+            <div className="kx-stats">
+              {figs.map((f) => (
+                <div key={f.k} className={'kx-stat kx-t-' + f.k}>
+                  <i className={'fas ' + f.fa} aria-hidden />
+                  <span className="kx-stat-text">
+                    <span className="kx-stat-lbl">{f.label}</span>
+                    <b>{f.v}</b>
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
         <div
           id="documentsTableWrap"
           className={'kx-frame' + (isDragging ? ' kx-drop' : '')}

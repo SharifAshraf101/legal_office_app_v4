@@ -740,6 +740,7 @@ function HubScreen({
   onBack: () => void;
   lang: 'he' | 'ar';
 }) {
+  const { state: appState } = useAppState();
   const T = {
     title:
       lang === 'ar' ? 'مركز التواصل مع الموكلين' : 'מרכז תקשורת עם לקוחות',
@@ -765,6 +766,87 @@ function HubScreen({
               cs.caseNumber.toLowerCase().includes(q) || cs.title.toLowerCase().includes(q),
           ),
       );
+
+  // "Classic Design" (Settings → home style = classic): the same search, the
+  // same client list and the same open-chat actions (row / case chip), in the
+  // dark navy + gold look of the office design.
+  if (appState.homeStyle === 'classic') {
+    const ar = lang === 'ar';
+    const unreadLabel = (n: number) =>
+      n <= 0
+        ? ar ? 'لا توجد رسائل جديدة' : 'אין הודעות חדשות'
+        : n === 1
+          ? ar ? 'رسالة جديدة واحدة' : 'הודעה חדשה אחת'
+          : ar ? `${n} رسائل جديدة` : `${n} הודעות חדשות`;
+    return (
+      <div className="wh-root">
+        <div className="wh-art" aria-hidden>
+          <img src="/classic/tasks-art-2.jpg" alt="" />
+        </div>
+        <button type="button" className="wh-back" onClick={onBack} aria-label={backLabel} title={backLabel}>
+          <i className="fas fa-arrow-left" aria-hidden />
+          <span>{backLabel}</span>
+        </button>
+        <header className="wh-hero">
+          <i className="fab fa-whatsapp wh-hero-fa" aria-hidden />
+          <div className="wh-hero-text">
+            <h2 className="wh-h">{ar ? 'مركز محادثات الواتساب مع الموكلين' : 'מרכז שיחות הוואטסאפ עם הלקוחות'}</h2>
+            <span className="wh-rule" aria-hidden />
+            <p className="wh-sub">
+              {ar ? 'البحث واستعراض جميع محادثات الموكلين مع المكتب عبر الواتساب' : 'חיפוש וצפייה בכל שיחות הלקוחות עם המשרד בוואטסאפ'}
+            </p>
+          </div>
+        </header>
+        <label className="wh-search">
+          <i className="fas fa-magnifying-glass" aria-hidden />
+          <input
+            type="search"
+            autoComplete="off"
+            placeholder={ar ? 'ابحث عن موكل، رقم هاتف أو رقم ملف...' : 'חיפוש לקוח, מספר טלפון או מספר תיק...'}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <h3 className="wh-title">{ar ? 'محادثات الموكلين' : 'שיחות הלקוחות'}</h3>
+        <div className="wh-list">
+          {clients.length === 0 && <div className="wh-none">{ar ? 'لا يوجد موكلون بعد' : 'אין לקוחות עדיין'}</div>}
+          {q && shown.length === 0 && <div className="wh-none">{ar ? 'لا توجد نتائج' : 'לא נמצאו תוצאות'}</div>}
+          {shown.map((client) => (
+            <div key={client.id} className={'wh-entry' + (client.unread > 0 ? ' wh-new' : '')}>
+              <div className="wh-box">
+                <button type="button" className="wh-main" onClick={() => onOpenChat(client, client.cases[0]?.id)} aria-label={client.name}>
+                  <span className="wh-av" aria-hidden>{client.avatar}</span>
+                  <span className="wh-txt">
+                    <b>
+                      {client.status === 'online' && <span className="wh-dot" aria-hidden />}
+                      {client.name}
+                    </b>
+                    <small>{unreadLabel(client.unread)}</small>
+                  </span>
+                  <i className="far fa-comment wh-go" aria-hidden />
+                </button>
+                <div className="wh-cases">
+                  {client.cases.length > 0 ? (
+                    client.cases.map((cs) => (
+                      <button key={cs.id} type="button" className="wh-cs" onClick={() => onOpenChat(client, cs.id)} title={cs.title}>
+                        <span className="wh-cs-dot" aria-hidden />
+                        <span className="wh-cs-name">{cs.title}</span>
+                        {cs.caseNumber && cs.caseNumber !== cs.title && <bdi className="wh-cs-no">#{cs.caseNumber}</bdi>}
+                      </button>
+                    ))
+                  ) : (
+                    <span className="wh-cs wh-cs-none">{ar ? 'بدون قضية' : 'ללא תיק'}</span>
+                  )}
+                </div>
+              </div>
+              <span className="wh-when">{client.time || ''}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="modern-portal-hub">
       {/* Back arrow — white pill (Global Search `.main-screen-back-btn`
@@ -870,23 +952,23 @@ function ChooserScreen({
           ? 'مركز التواصل الرقمي بين المكتب والموكلين'
           : 'מרכז התקשורת הדיגיטלי בין המשרד ללקוחות'
         : ar
-          ? 'قنوات تواصل مباشرة وفعالة مع موكليك لتعزيز الخدمة ومتابعة القضايا'
-          : 'ערוצי תקשורת ישירים ויעילים עם הלקוחות לשיפור השירות ומעקב אחר התיקים',
+          ? 'قنوات تواصل مباشرة وآمنة مع الموكلين لتقديم الخدمات ومتابعة ملفاتهم'
+          : 'ערוצי תקשורת ישירים ומאובטחים עם הלקוחות למתן שירות ומעקב אחר התיקים שלהם',
       waSub: modern
         ? ar
           ? 'التواصل المباشر مع الموكلين عبر تطبيق واتساب'
           : 'תקשורת ישירה עם הלקוחות באפליקציית וואטסאפ'
         : ar
-          ? 'إدارة وإرسال الرسائل والتحديثات للموكلين عبر واتساب'
-          : 'ניהול ושליחת הודעות ועדכונים ללקוחות בוואטסאפ',
+          ? 'إدارة وإرسال الرسائل والتحديثات للموكلين عبر تطبيق WhatsApp'
+          : 'ניהול ושליחת הודעות ועדכונים ללקוחות באפליקציית WhatsApp',
       bot: modern ? (ar ? 'بوت الموكلين' : 'בוט הלקוחות') : ar ? 'بوابة الموكلين' : 'שער הלקוחות',
       botSub: modern
         ? ar
           ? 'دردشة ذكية لخدمة الموكلين والإجابة على استفساراتهم'
           : 'צ׳אט חכם לשירות הלקוחות ולמענה על שאלותיהם'
         : ar
-          ? 'منصة مخصصة للموكلين لمتابعة قضاياهم وطلباتهم'
-          : 'פלטפורמה ייעודית ללקוחות למעקב אחר התיקים והבקשות שלהם',
+          ? 'منصة إلكترونية مخصصة للموكلين لمتابعة ملفاتهم وطلباتهم'
+          : 'פלטפורמה מקוונת ייעודית ללקוחות למעקב אחר התיקים והבקשות שלהם',
     };
     return (
       <div ref={cpRef} className={'cp-root' + (modern ? ' cp-modern' : '')}>
@@ -918,7 +1000,7 @@ function ChooserScreen({
               <b>{C.bot}</b>
               <span className="cp-choice-text">{C.botSub}</span>
               <span className="cp-go" aria-hidden>
-                <i className="fas fa-angles-left" />
+                <i className={'fas ' + (modern ? 'fa-angles-left' : 'fa-arrow-right')} />
               </span>
             </button>
           )}
@@ -927,7 +1009,7 @@ function ChooserScreen({
             <b>WhatsApp</b>
             <span className="cp-choice-text">{C.waSub}</span>
             <span className="cp-go" aria-hidden>
-              <i className="fas fa-angles-left" />
+              <i className={'fas ' + (modern ? 'fa-angles-left' : 'fa-arrow-right')} />
             </span>
           </button>
         </div>
@@ -1901,7 +1983,7 @@ function ClientChatScreen({
     today: lang === 'ar' ? 'اليوم' : 'היום',
   };
   return (
-    <div className="portal-wa-chat tw-flex tw-min-h-full tw-flex-col tw-bg-[#FDFBF5]">
+    <div className={'portal-wa-chat tw-flex tw-min-h-full tw-flex-col tw-bg-[#FDFBF5]' + (state.homeStyle === 'classic' ? ' wc-classic' : '')}>
       {/* Back arrow — visually identical to the Global Search
        *  `.main-screen-back-btn` (white pill, slate border, dark
        *  text + arrow, hover inverts). Positioned at 0.25cm from
@@ -1917,6 +1999,22 @@ function ClientChatScreen({
         <i className="fas fa-arrow-left" />
         <span>{lang === 'ar' ? 'رجوع' : 'חזרה'}</span>
       </button>
+      {state.homeStyle === 'classic' && (
+        // "Classic Design": the office design's heading + artwork.
+        <div className="wc-hero">
+          <div className="wc-art" aria-hidden>
+            <img src="/classic/tasks-art-2.jpg" alt="" />
+          </div>
+          <i className="fab fa-whatsapp wc-hero-fa" aria-hidden />
+          <div className="wc-hero-text">
+            <h2 className="wc-h">{lang === 'ar' ? 'محادثة الواتساب مع الموكل' : 'שיחת הוואטסאפ עם הלקוח'}</h2>
+            <span className="wc-rule" aria-hidden />
+            <p className="wc-sub">
+              {lang === 'ar' ? 'مراجعة مراسلات الواتساب بين المكتب والموكل' : 'צפייה בהתכתבות הוואטסאפ בין המשרד ללקוח'}
+            </p>
+          </div>
+        </div>
+      )}
       <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FDFBF5]/95 tw-px-4 tw-py-3 tw-backdrop-blur">
         {/* In RTL: first JSX child = visual RIGHT, last = visual LEFT.
          *  WhatsApp icon sits on the right (replaces the old arrow),
@@ -2103,6 +2201,7 @@ function LawyerSearchScreen({
   onBack: () => void;
   lang: 'he' | 'ar';
 }) {
+  const { state: appState } = useAppState();
   // Every client's bot conversations, from the office's database.
   const botHistoryVersion = useBotHistoryVersion();
   useBotHistoryPull(true);
@@ -2208,6 +2307,91 @@ function LawyerSearchScreen({
     const days = Math.floor(hours / 24);
     return lang === 'ar' ? `قبل ${days} يوم` : `לפני ${days} ימים`;
   };
+
+  // "Classic Design" (Settings → home style = classic): the same search,
+  // the same two lists and the same row → bot-conversation action, in the
+  // dark navy + gold look of the office design.
+  if (appState.homeStyle === 'classic') {
+    const row = (c: ClientRow, recent?: { lastTime: number; msgCount: number }) => (
+      <button key={c.id} type="button" className={'bs-item' + (recent ? ' bs-recent' : '')} onClick={() => onPick(c)}>
+        <span className="bs-item-av" aria-hidden>{c.avatar}</span>
+        <span className="bs-item-txt">
+          <b>
+            {c.name}
+            {c.status === 'online' && <span className="bs-dot" aria-hidden />}
+          </b>
+          <small>
+            {T.lastCaseLabel} {c.caseType} · <bdi>{c.caseNo}</bdi>
+          </small>
+          {recent && (
+            <em>
+              {formatRelative(recent.lastTime)} · {T.msgsLabel(recent.msgCount)}
+            </em>
+          )}
+        </span>
+        <i className="far fa-comment bs-item-fa" aria-hidden />
+      </button>
+    );
+    return (
+      <div className="bs-root">
+        <div className="bs-art" aria-hidden>
+          <img src="/classic/tasks-art-2.jpg" alt="" />
+        </div>
+        <button type="button" className="bs-back" onClick={onBack} aria-label={T.back} title={T.back}>
+          <i className="fas fa-arrow-left" aria-hidden />
+          <span>{T.back}</span>
+        </button>
+        <header className="bs-hero">
+          <i className="fas fa-robot bs-hero-fa" aria-hidden />
+          <div className="bs-hero-text">
+            <h2 className="bs-h">{T.title}</h2>
+            <span className="bs-rule" aria-hidden />
+            <p className="bs-sub">{T.subtitle}</p>
+          </div>
+        </header>
+        <div className="bs-info">
+          <i className="fas fa-circle-info" aria-hidden />
+          <span>{T.lawyerBanner}</span>
+        </div>
+        <label className="bs-search">
+          <i className="fas fa-magnifying-glass" aria-hidden />
+          <input
+            type="search"
+            autoComplete="off"
+            placeholder={T.placeholder}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <div className="bs-cols">
+          <section className="bs-panel bs-all">
+            <div className="bs-panel-head">
+              <i className="fas fa-layer-group" aria-hidden />
+              <h3>{T.allClientsTitle}</h3>
+              <span className="bs-count">{T.count}</span>
+            </div>
+            <div className="bs-list">
+              {matches.length === 0 ? <div className="bs-none">{T.empty}</div> : matches.map((c) => row(c))}
+            </div>
+          </section>
+          <section className="bs-panel bs-week">
+            <div className="bs-panel-head">
+              <i className="fas fa-clock-rotate-left" aria-hidden />
+              <h3>{T.recentTitle}</h3>
+              <span className="bs-count">{T.recentCount(recentClients.length)}</span>
+            </div>
+            <div className="bs-list">
+              {recentClients.length === 0 ? (
+                <div className="bs-none">{T.recentEmpty}</div>
+              ) : (
+                recentClients.map((c) => row(c, { lastTime: c.lastTime, msgCount: c.msgCount }))
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="modern-portal-client-chat tw-mx-auto tw-flex tw-min-h-full tw-w-full tw-max-w-6xl tw-flex-col tw-bg-[#FDFBF5]">
@@ -3053,6 +3237,81 @@ function BotChatScreen({
     if (last < text.length) out.push(text.slice(last));
     return out;
   };
+
+  // "Classic Design" (Settings → home style = classic), lawyer's read-only
+  // view of a client's bot conversation: the same transcript, links and back
+  // action in the dark navy + gold look of the office design.
+  if (state.homeStyle === 'classic' && lawyerView) {
+    const ar = lang === 'ar';
+    return (
+      <div className="bc-root">
+        <div className="bc-art" aria-hidden>
+          <img src="/classic/tasks-art-2.jpg" alt="" />
+        </div>
+        <header className="bc-hero">
+          <i className="far fa-comment-dots bc-hero-fa" aria-hidden />
+          <div className="bc-hero-text">
+            <h2 className="bc-h">{ar ? 'محادثة الموكل مع البوت' : 'שיחת הלקוח עם הבוט'}</h2>
+            <span className="bc-rule" aria-hidden />
+            <p className="bc-sub">
+              {ar ? 'مراجعة واستعراض محادثة الموكل مع المساعد الذكي' : 'עיון וצפייה בשיחת הלקוח עם העוזר החכם'}
+            </p>
+          </div>
+        </header>
+        <div className="bc-box">
+          <div className="bc-head">
+            <span className="bc-head-av" aria-hidden>
+              <i className="fas fa-robot" />
+            </span>
+            <span className="bc-head-text">
+              <b>{T.title}</b>
+              <small>
+                <span className="bc-dot" aria-hidden />
+                {T.online}
+              </small>
+            </span>
+            <button type="button" className="bc-back" onClick={onBack} aria-label={ar ? 'رجوع' : 'חזרה'} title={ar ? 'رجوع' : 'חזרה'}>
+              <i className="fas fa-arrow-left" aria-hidden />
+              <span>{ar ? 'رجوع' : 'חזרה'}</span>
+            </button>
+          </div>
+          <div className="bc-note">
+            <i className="fas fa-shield-halved" aria-hidden />
+            <span>{T.lawyerBanner}</span>
+          </div>
+          <div className="bc-msgs">
+            <div className="bc-msg bc-bot">
+              <span className="bc-av" aria-hidden><i className="fas fa-robot" /></span>
+              <div className="bc-say">{greet}</div>
+            </div>
+            {orderedHistory.map((h) => (
+              <div key={h.id} className="bc-pair">
+                <div className="bc-msg bc-client">
+                  <span className="bc-av" aria-hidden><i className="far fa-user" /></span>
+                  <div className="bc-say">
+                    {h.question}
+                    <time>{formatBubbleTime(h.time)}</time>
+                  </div>
+                </div>
+                <div className="bc-msg bc-bot">
+                  <span className="bc-av" aria-hidden><i className="fas fa-robot" /></span>
+                  <div className="bc-say">
+                    {renderAnswerBody(h.answer)}
+                    <time>{formatBubbleTime(h.time)}</time>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="bc-foot">
+            <i className="fas fa-circle-info" aria-hidden />
+            <span>{ar ? 'وضع القراءة فقط — لا يمكن إرسال رسائل جديدة' : 'מצב קריאה בלבד — לא ניתן לשלוח הודעות חדשות'}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="modern-portal-bot-chat tw-mx-auto tw-flex tw-min-h-full tw-w-full tw-max-w-4xl tw-flex-col tw-bg-[#FDFBF5]">
       <header className="tw-sticky tw-top-0 tw-z-20 tw-border-b tw-border-slate-200 tw-bg-[#FDFBF5]/95 tw-px-4 tw-py-3 tw-backdrop-blur">

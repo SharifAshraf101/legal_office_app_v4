@@ -95,14 +95,14 @@ export function ClientsScreen() {
     const modern = state.homeStyle === 'modern';
     const ar = lang === 'ar';
     const L = {
-      h: modern ? (ar ? 'الموكلون' : 'לקוחות') : ar ? 'البحث في الموكلين' : 'חיפוש בלקוחות',
+      h: ar ? 'الموكلون' : 'לקוחות',
       sub: modern
         ? ar
           ? 'عرض وإدارة بيانات الموكلين وعلاقتهم بالملفات والقضايا'
           : 'הצגה וניהול של פרטי הלקוחות והקשר שלהם לתיקים'
         : ar
-          ? 'إدارة بيانات الموكلين ومتابعة حالة التعاون'
-          : 'ניהול פרטי הלקוחות ומעקב אחר מצב ההתקשרות',
+          ? 'إدارة بيانات الموكلين وملفاتهم وحالة التعاقد'
+          : 'ניהול פרטי הלקוחות, תיקים ומצב ההתקשרות',
       ph: ar
         ? 'البحث حسب اسم الموكل، رقم الهوية، رقم الهاتف أو أي معلومة...'
         : 'חיפוש לפי שם לקוח, תעודת זהות, מספר טלפון או כל פרט אחר...',
@@ -120,7 +120,7 @@ export function ClientsScreen() {
       <section className={modern ? 'kx-root kx-modern' : 'kx-root'}>
         <MainScreenBackButton />
         <div className="kx-art" aria-hidden>
-          <img src={modern ? '/classic/modern-clients-art.png' : '/classic/clients-art.png'} alt="" />
+          <img src={modern ? '/classic/modern-clients-art.png' : '/classic/clients-art-2.jpg'} alt="" />
         </div>
         <header className="kx-hero">
           <span className="kx-hero-fa" aria-hidden>

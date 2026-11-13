@@ -141,7 +141,7 @@ export function TasksScreen() {
       <section className={'kx-root kx-tasks' + (modern ? ' kx-modern' : '')}>
         <MainScreenBackButton />
         <div className="kx-art" aria-hidden>
-          <img src={modern ? '/classic/modern-tasks-art.png' : '/classic/tasks-art.png'} alt="" />
+          <img src={modern ? '/classic/modern-tasks-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
         </div>
         <header className="kx-hero">
           <span className="kx-hero-fa" aria-hidden>

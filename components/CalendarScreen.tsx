@@ -192,7 +192,7 @@ export function CalendarScreen() {
       <section className="cx-root" data-view={view}>
         <MainScreenBackButton />
         <div className="cx-art" aria-hidden>
-          <img src="/classic/cal-art.png" alt="" />
+          <img src="/classic/cal-art-2.jpg" alt="" />
         </div>
         <header className="cx-hero">
           <span className="cx-hero-fa" aria-hidden>
@@ -201,6 +201,7 @@ export function CalendarScreen() {
           <div className="cx-hero-text">
             <h2 className="cx-h">{listTitle}</h2>
             <span className="cx-rule" aria-hidden />
+            <p className="cx-sub">{lang === 'ar' ? 'إدارة ومتابعة جميع المواعيد والنشاطات في المكتب' : 'ניהול ומעקב אחר כל המועדים והפעילויות במשרד'}</p>
           </div>
         </header>
         {view === 'list' && (
@@ -215,6 +216,39 @@ export function CalendarScreen() {
             />
           </label>
         )}
+        {(() => {
+          // Figures (Classic): events + task due-dates from the same list the
+          // agenda shows; open tasks and reminders from the system.
+          const now = new Date();
+          const day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const day1 = new Date(day0.getTime() + 86400000);
+          const week0 = new Date(day0.getTime() - day0.getDay() * 86400000);
+          const week1 = new Date(week0.getTime() + 7 * 86400000);
+          const month0 = new Date(now.getFullYear(), now.getMonth(), 1);
+          const month1 = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+          const inRange = (a: Date, b: Date) => items.filter((x) => x.date >= a && x.date < b).length;
+          const ar = lang === 'ar';
+          const figs = [
+            { k: 'a', fa: 'far fa-calendar-check', label: ar ? 'اليوم' : 'היום', v: inRange(day0, day1) },
+            { k: 'b', fa: 'far fa-calendar-days', label: ar ? 'هذا الأسبوع' : 'השבוע', v: inRange(week0, week1) },
+            { k: 'c', fa: 'far fa-calendar', label: ar ? 'هذا الشهر' : 'החודש', v: inRange(month0, month1) },
+            { k: 'd', fa: 'far fa-square-check', label: ar ? 'مهام مفتوحة' : 'משימות פתוחות', v: (state.tasksArr || []).filter((x) => x.status !== 'done').length },
+            { k: 'e', fa: 'far fa-bell', label: ar ? 'تذكيرات قادمة' : 'תזכורות קרובות', v: state.eventsList.filter((e) => e.type === 'reminder' && new Date(e.dateTime) >= day0).length },
+          ];
+          return (
+            <div className="cx-figs">
+              {figs.map((f) => (
+                <div key={f.k} className={'cx-fig cx-f' + f.k}>
+                  <i className={f.fa} aria-hidden />
+                  <span className="cx-fig-text">
+                    <span className="cx-fig-lbl">{f.label}</span>
+                    <b>{f.v}</b>
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
         <div className="cx-bar">
           <div className="cx-views">
             {(['day', 'week', 'month', 'list'] as CalendarView[]).map((v) => (
@@ -253,6 +287,15 @@ export function CalendarScreen() {
           {view !== 'month' && <span className="cx-range">{calendarRangeTitle(focus, view, lang)}</span>}
         </div>
         <div className="cx-scroll">
+          {(view === 'day' || view === 'list') && (
+            <div className="cx-cols" aria-hidden>
+              <span><i className="far fa-calendar" /> {lang === 'ar' ? 'التاريخ' : 'תאריך'}</span>
+              <span><i className="far fa-clock" /> {lang === 'ar' ? 'الساعة' : 'שעה'}</span>
+              <span />
+              <span>{lang === 'ar' ? 'وصف الحدث' : 'תיאור האירוע'}</span>
+              <span><i className="far fa-folder" /> {lang === 'ar' ? 'رقم الملف' : 'מספר תיק'}</span>
+            </div>
+          )}
           {view === 'day' && <DayView focus={focus} items={items} />}
           {view === 'week' && <WeekView focus={focus} items={items} />}
           {view === 'month' && <MonthView focus={focus} items={items} />}

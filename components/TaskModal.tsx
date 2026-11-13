@@ -166,15 +166,19 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
       }}
     >
       <div
-        className={'new-task-popup-box modal-box' + (existing ? ' edit-screen-box' : '')}
+        className={
+          'new-task-popup-box modal-box' +
+          (existing ? ' edit-screen-box' : '') +
+          (state.homeStyle === 'classic' ? ' ne-classic tk-classic' : '')
+        }
         style={{
           position: 'relative',
-          width: 'min(520px, 92vw)',
+          width: state.homeStyle === 'classic' ? 'min(800px, 94vw)' : 'min(520px, 92vw)',
           maxHeight: 'min(88vh, 820px)',
           overflowY: 'auto',
-          background: '#FDFBF5',
+          background: state.homeStyle === 'classic' ? undefined : '#FDFBF5',
           borderRadius: 22,
-          padding: '60px 22px 22px',
+          padding: state.homeStyle === 'classic' ? undefined : '60px 22px 22px',
           boxShadow:
             '0 28px 70px rgba(15,23,42,.55), 0 0 0 1px rgba(15,23,42,.08)',
         }}
@@ -204,12 +208,28 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
         >
           ×
         </button>
-        <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>
-          {titleLabel}
-        </h2>
+        {state.homeStyle === 'classic' ? (
+          // "Classic Design": the office's banner (the new-event window's look).
+          <div className="ne-banner">
+            <img src="/classic/event-art.jpg" alt="" className="ne-banner-art" aria-hidden />
+            <i className="far fa-calendar-check ne-banner-fa" aria-hidden />
+            <div className="ne-banner-text">
+              <h2 className="ne-h">{titleLabel}</h2>
+              <span className="ne-sub">
+                {existing
+                  ? taskText('עדכון פרטי המשימה במערכת', 'تحديث تفاصيل المهمة في النظام', lang)
+                  : taskText('הוספת משימה חדשה למערכת', 'إضافة مهمة جديدة إلى النظام', lang)}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>
+            {titleLabel}
+          </h2>
+        )}
       <form className="task-form" onSubmit={onSubmit}>
         <label className="full">
-          {taskText('שם המשימה', 'اسم المهمة', lang)}
+          <span className="tk-l">{taskText('שם המשימה', 'اسم المهمة', lang)}</span>
           <input
             id="taskTitleInput"
             type="text"
@@ -224,7 +244,7 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
           />
         </label>
         <label className="full">
-          {t('caseDetails')}
+          <span className="tk-l">{t('caseDetails')}</span>
           <div className="search-box">
             <input
               id="taskCaseInput"
@@ -268,7 +288,7 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
           </div>
         </label>
         <label>
-          {taskText('תאריך יעד', 'تاريخ الاستحقاق', lang)}
+          <span className="tk-l">{taskText('תאריך יעד', 'تاريخ الاستحقاق', lang)}</span>
           <input
             id="taskDueInput"
             type="date"
@@ -279,7 +299,7 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
           />
         </label>
         <label>
-          {t('status')}
+          <span className="tk-l">{t('status')}</span>
           <select
             id="taskStatusInput"
             value={status}
@@ -291,7 +311,7 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
           </select>
         </label>
         <label>
-          {taskText('עדיפות', 'الأولوية', lang)}
+          <span className="tk-l">{taskText('עדיפות', 'الأولوية', lang)}</span>
           <select
             id="taskPriorityInput"
             value={priority}
@@ -303,7 +323,7 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
           </select>
         </label>
         <label className="full">
-          {t('notes')}
+          <span className="tk-l">{t('notes')}</span>
           <textarea
             id="taskNotesInput"
             value={notes}

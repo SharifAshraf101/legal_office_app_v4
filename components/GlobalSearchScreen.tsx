@@ -228,7 +228,7 @@ export function GlobalSearchScreen() {
       <section className={modern ? 'sx-root gx-root gx-modern' : 'kx-root gx-root'}>
         <MainScreenBackButton />
         <div className={modern ? 'sx-art' : 'kx-art'} aria-hidden>
-          <img src={modern ? '/classic/modern-search-art.png' : '/classic/search-art.png'} alt="" />
+          <img src={modern ? '/classic/modern-search-art.png' : '/classic/search-art-2.jpg'} alt="" />
         </div>
         <header className={modern ? 'sx-hero' : 'kx-hero'}>
           <span className={modern ? 'sx-hero-fa' : 'kx-hero-fa'} aria-hidden>

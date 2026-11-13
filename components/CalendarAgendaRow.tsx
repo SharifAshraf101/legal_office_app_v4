@@ -122,13 +122,8 @@ export function CalendarAgendaRow({ entry }: { entry: CalendarItem }) {
         </span>
         <span className="cx-line">
           <b>{main || caseLine}</b>
-          {num && (
-            <>
-              <span className="cx-dot" aria-hidden>·</span>
-              <bdi className="cx-num">{num}</bdi>
-            </>
-          )}
         </span>
+        <span className="cx-numcell">{num ? <bdi className="cx-num">{num}</bdi> : null}</span>
       </div>
     );
   }

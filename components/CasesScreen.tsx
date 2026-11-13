@@ -73,7 +73,7 @@ export function CasesScreen() {
     const modern = state.homeStyle === 'modern';
     const ar = lang === 'ar';
     const L = {
-      h: modern ? (ar ? 'الملفات' : 'תיקים') : ar ? 'البحث في الملفات' : 'חיפוש בתיקים',
+      h: ar ? 'الملفات' : 'תיקים',
       sub: modern
         ? ar
           ? 'عرض وإدارة ملفات القضايا ومتابعة حالتها وتفاصيلها'
@@ -94,7 +94,7 @@ export function CasesScreen() {
       <section className={'kx-root kx-cases' + (modern ? ' kx-modern' : '')}>
         <MainScreenBackButton />
         <div className="kx-art" aria-hidden>
-          <img src={modern ? '/classic/modern-cases-art.png' : '/classic/cases-art.png'} alt="" />
+          <img src={modern ? '/classic/modern-cases-art.png' : '/classic/cases-art-2.jpg'} alt="" />
         </div>
         <header className="kx-hero">
           <span className="kx-hero-fa" aria-hidden>
@@ -118,6 +118,31 @@ export function CasesScreen() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
+        {!modern && (() => {
+          // Office-wide figures (Classic): the same status rule as the rows.
+          const all = state.casesArr;
+          const st = (c: (typeof all)[number]) => (c.status === 'active' ? 'active' : c.status === 'pending' ? 'pending' : 'inactive');
+          const figs = [
+            { k: 'total', fa: 'fa-folder', label: ar ? 'إجمالي الملفات' : 'סה"כ תיקים', v: all.length },
+            { k: 'closed', fa: 'fa-folder-open', label: ar ? 'ملفات مغلقة' : 'תיקים סגורים', v: all.filter((c) => st(c) === 'inactive').length },
+            { k: 'open', fa: 'fa-gavel', label: ar ? 'ملفات نشطة' : 'תיקים פעילים', v: all.filter((c) => st(c) === 'active').length },
+            { k: 'on', fa: 'fa-building-columns', label: ar ? 'لها رقم في المحكمة' : 'עם מספר בבית משפט', v: all.filter((c) => String(c.caseNumber || '').trim()).length },
+            { k: 'off', fa: 'fa-hourglass-half', label: ar ? 'ملفات معلّقة' : 'תיקים ממתינים', v: all.filter((c) => st(c) === 'pending').length },
+          ];
+          return (
+            <div className="kx-stats">
+              {figs.map((f) => (
+                <div key={f.k} className={'kx-stat kx-t-' + f.k}>
+                  <i className={'fas ' + f.fa} aria-hidden />
+                  <span className="kx-stat-text">
+                    <span className="kx-stat-lbl">{f.label}</span>
+                    <b>{f.v}</b>
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
         <div className="kx-frame">
           <div className="kx-cols" aria-hidden>
             <span>{L.num}</span>

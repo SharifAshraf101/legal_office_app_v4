@@ -48,6 +48,137 @@ export function FinanceDetail() {
   const debt = Math.max(0, Number(c.agreedFee || 0) - feeTotal);
   const debtClass = debt > 0 ? 'debt' : 'clear';
   const zero = lang === 'ar' ? '0 ₪' : '0 ש״ח';
+  const openEdit = () => modalStack.open(<FinanceEdit caseId={c.id} />);
+
+  // "Classic Design" (Settings → home style = classic): the same figures,
+  // payments, edit and back actions, in the dark navy + gold look.
+  if (state.homeStyle === 'classic') {
+    const ar = lang === 'ar';
+    const H = {
+      h: ar ? 'الأتعاب والدفعات' : 'שכר טרחה ותשלומים',
+      sub: ar ? 'إدارة أتعاب الملف والدفعات المرتبطة به' : 'ניהול שכר הטרחה של התיק והתשלומים הקשורים אליו',
+      caseLbl: ar ? 'الملف المرتبط' : 'התיק הקשור',
+      fee: ar ? 'مجموع دفعات الأتعاب' : 'סך הכל תשלומי שכר טרחה',
+      nonFee: ar ? 'رسوم، ودائع ومتفرقات' : 'סך תשלומי אגרות, פיקדונות ושונות',
+      debt: ar ? 'الدين المتبقي' : 'החוב הנותר',
+      log: ar ? 'قائمة الدفعات' : 'רשימת התשלומים',
+      logSub: ar ? 'الدفعات التي دفعها الموكل' : 'התשלומים ששולמו על ידי הלקוח',
+      date: ar ? 'التاريخ' : 'תאריך',
+      desc: ar ? 'البيان' : 'פירוט',
+      amount: ar ? 'المبلغ' : 'סכום',
+      empty: ar ? 'لا توجد دفعات مسجلة' : 'אין תשלומים רשומים',
+      back: ar ? 'رجوع' : 'חזרה',
+    };
+    return (
+      <section className="kx-root fd-root">
+        <div className="kx-art" aria-hidden>
+          <img src="/classic/tasks-art-2.jpg" alt="" />
+        </div>
+        <header className="kx-hero">
+          <span className="kx-hero-fa" aria-hidden>
+            <i className="fas fa-coins" />
+          </span>
+          <div className="kx-hero-text">
+            <h2 className="kx-h">{H.h}</h2>
+            <span className="kx-rule" aria-hidden />
+            <p className="kx-sub">{H.sub}</p>
+          </div>
+        </header>
+        <div className="fd-panel">
+          <div className="fd-bar">
+            <button type="button" className="fd-edit" onClick={openEdit}>
+              <i className="fas fa-pen" aria-hidden />
+              <span>{t('edit')}</span>
+            </button>
+            <button type="button" className="fd-back" aria-label={H.back} title={H.back} onClick={goBack}>
+              <i className="fas fa-arrow-left" aria-hidden />
+            </button>
+          </div>
+          <div className="fd-grid">
+            <div className="fd-card fd-a-cl">
+              <i className="far fa-user" aria-hidden />
+              <span className="fd-card-text">
+                <span className="fd-lbl">{t('clientName')}</span>
+                <strong>{clientDisplayName(client, lang)}</strong>
+              </span>
+            </div>
+            <div className="fd-card fd-a-cs">
+              <i className="far fa-folder-open" aria-hidden />
+              <span className="fd-card-text">
+                <span className="fd-lbl">{H.caseLbl}</span>
+                <strong>
+                  {caseName(c, lang)} · <bdi>{c.caseNumber}</bdi>
+                </strong>
+              </span>
+            </div>
+            <div className="fd-card fd-a-nf">
+              <i className="far fa-file-lines" aria-hidden />
+              <span className="fd-card-text">
+                <span className="fd-lbl">{H.nonFee}</span>
+                <strong><bdi>{money(nonFeeTotal)}</bdi></strong>
+              </span>
+            </div>
+            <div className="fd-card fd-a-ag">
+              <i className="fas fa-calculator" aria-hidden />
+              <span className="fd-card-text">
+                <span className="fd-lbl">{t('agreedFee')}</span>
+                <strong><bdi>{money(c.agreedFee || 0)}</bdi></strong>
+              </span>
+            </div>
+            <div className="fd-card fd-a-pd">
+              <i className="fas fa-coins" aria-hidden />
+              <span className="fd-card-text">
+                <span className="fd-lbl">{H.fee}</span>
+                <strong><bdi>{money(feeTotal)}</bdi></strong>
+              </span>
+            </div>
+            <div className="fd-card fd-a-db">
+              <span className="fd-db-head">
+                <i className="fas fa-coins" aria-hidden />
+                <span className="fd-lbl">{H.debt}</span>
+              </span>
+              <button type="button" className={'finance-debt-pill fd-pill ' + debtClass}>
+                <bdi>{debt > 0 ? money(debt) : zero}</bdi>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="fd-log">
+          <div className="fd-log-head">
+            <i className="fas fa-list-ul" aria-hidden />
+            <span>
+              <b>{H.log}</b>
+              <small>{H.logSub}</small>
+            </span>
+          </div>
+          <div className="fd-paylist">
+            <div className="fd-ln fd-hd" aria-hidden>
+              <span><i className="far fa-calendar" /> {H.date}</span>
+              <span>{H.desc}</span>
+              <span><i className="fas fa-coins" /> {H.amount}</span>
+            </div>
+            {payments.length === 0 ? (
+              <div className="fd-none">{H.empty}</div>
+            ) : (
+              payments.map((p) => {
+                const desc = String((p.description || p.descriptionAr || '') as string).trim();
+                return (
+                  <div key={p.id} className="fd-ln">
+                    <span className="fd-date"><bdi>{p.date || ''}</bdi></span>
+                    <span className="fd-desc">
+                      {paymentTypeLabel(p.type, lang)}
+                      {desc ? ' - ' + desc : ''}
+                    </span>
+                    <span className="fd-amt"><bdi>{money(p.amount || 0)}</bdi></span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="panel finance-detail-panel">
@@ -62,7 +193,7 @@ export function FinanceDetail() {
           <button
             type="button"
             className="case-edit-btn"
-            onClick={() => modalStack.open(<FinanceEdit caseId={c.id} />)}
+            onClick={openEdit}
           >
             <i className="fas fa-pen" />
             <span>{t('edit')}</span>

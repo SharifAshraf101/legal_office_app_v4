@@ -84,15 +84,15 @@ export function AddPaymentModal() {
       }}
     >
       <div
-        className="new-payment-popup-box modal-box"
+        className={'new-payment-popup-box modal-box' + (state.homeStyle === 'classic' ? ' ne-classic nc-classic np-classic' : '')}
         style={{
           position: 'relative',
-          width: 'min(520px, 92vw)',
+          width: state.homeStyle === 'classic' ? 'min(780px, 94vw)' : 'min(520px, 92vw)',
           maxHeight: 'min(88vh, 820px)',
           overflowY: 'auto',
-          background: '#FDFBF5',
+          background: state.homeStyle === 'classic' ? undefined : '#FDFBF5',
           borderRadius: 22,
-          padding: '60px 22px 22px',
+          padding: state.homeStyle === 'classic' ? undefined : '60px 22px 22px',
           boxShadow:
             '0 28px 70px rgba(15,23,42,.55), 0 0 0 1px rgba(15,23,42,.08)',
         }}
@@ -122,17 +122,31 @@ export function AddPaymentModal() {
         >
           ×
         </button>
-        <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>
-          {lang === 'ar' ? 'إضافة دفعة' : 'הוספת תשלום'}
-        </h2>
+        {state.homeStyle === 'classic' ? (
+          // "Classic Design": the office's banner (the new-event window's look).
+          <div className="ne-banner">
+            <img src="/classic/event-art.jpg" alt="" className="ne-banner-art" aria-hidden />
+            <i className="fas fa-coins ne-banner-fa" aria-hidden />
+            <div className="ne-banner-text">
+              <h2 className="ne-h">{lang === 'ar' ? 'إضافة دفعة' : 'הוספת תשלום'}</h2>
+              <span className="ne-sub">
+                {lang === 'ar' ? 'إضافة دفعة جديدة إلى ملف الموكل' : 'הוספת תשלום חדש לתיק הלקוח'}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>
+            {lang === 'ar' ? 'إضافة دفعة' : 'הוספת תשלום'}
+          </h2>
+        )}
       <form id="addPaymentForm" className="form-grid finance-add-form" onSubmit={onSubmit}>
         <div className="form-field">
           <label>{t('clientName')}</label>
-          <input value={clientDisplayName(client || ({} as never), lang)} readOnly />
+          <input id="paymentClientInput" value={clientDisplayName(client || ({} as never), lang)} readOnly />
         </div>
         <div className="form-field">
           <label>{t('caseType')}</label>
-          <input value={caseName(c, lang)} readOnly />
+          <input id="paymentCaseInput" value={caseName(c, lang)} readOnly />
         </div>
         <div className="form-field">
           <label>{lang === 'ar' ? 'نوع الدفعة' : 'סוג התשלום'}</label>

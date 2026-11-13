@@ -563,9 +563,11 @@ export function NewEventModal({
       ? 'سيتم حفظ نسخة من الملف داخل مجلد documents الخارجي، وليس داخل ملف HTML.'
       : 'עותק של הקובץ יישמר בתיקיית documents החיצונית, ולא בתוך קובץ ה-HTML.';
 
+  // "Classic Design": the same form in the navy + gold look (CSS: .ne-classic).
+  const neClassic = state.homeStyle === 'classic';
   return (
     <div
-      className="new-event-popup-overlay"
+      className={'new-event-popup-overlay' + (neClassic ? ' ne-classic-wrap' : '')}
       // No backdrop-click close: this form closes ONLY via the X / cancel /
       // save buttons, so an accidental outside click never discards input.
       style={{
@@ -581,13 +583,13 @@ export function NewEventModal({
       }}
     >
       <div
-        className="new-event-popup-box modal-box"
+        className={'new-event-popup-box modal-box' + (neClassic ? ' ne-classic' + (type === 'document' ? ' nc-classic nd-classic' : '') : '')}
         style={{
           position: 'relative',
-          width: 'min(520px, 92vw)',
+          width: neClassic ? 'min(760px, 94vw)' : 'min(520px, 92vw)',
           maxHeight: 'min(88vh, 820px)',
           overflowY: 'auto',
-          background: '#ffffff',
+          background: neClassic ? undefined : '#ffffff',
           borderRadius: 22,
           padding: 22,
           boxShadow:
@@ -619,9 +621,28 @@ export function NewEventModal({
         >
           ×
         </button>
-        <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>
-          {titleOverride || t('newEvent')}
-        </h2>
+        {neClassic ? (
+          <div className="ne-banner">
+            <img src="/classic/event-art.jpg" alt="" className="ne-banner-art" aria-hidden />
+            <i className={(type === 'document' ? 'fas fa-file-circle-plus' : 'far fa-calendar-plus') + ' ne-banner-fa'} aria-hidden />
+            <div className="ne-banner-text">
+              <h2 className="ne-h">{titleOverride || t('newEvent')}</h2>
+              <span className="ne-sub">
+                {type === 'document'
+                  ? lang === 'ar'
+                    ? 'إضافة مستند جديد إلى النظام'
+                    : 'הוספת מסמך חדש למערכת'
+                  : lang === 'ar'
+                    ? 'إضافة حدث جديد إلى أجندة القضايا والجلسات'
+                    : 'הוספת אירוע חדש ליומן התיקים והדיונים'}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>
+            {titleOverride || t('newEvent')}
+          </h2>
+        )}
       <form id="eventForm" className="form-grid" onSubmit={onSubmit}>
         {!(noteOnly || taskOnly || callOnly) && (
         <div className="form-field">

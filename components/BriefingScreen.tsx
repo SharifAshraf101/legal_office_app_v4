@@ -203,6 +203,23 @@ export function BriefingScreen() {
   }, [day, lang]);
 
   const label = dayLabel(day, lang);
+  // "Classic Design" (Settings → home style = classic): the same briefing in
+  // the navy + gold look, with the office's banner on top (CSS: .bf-classic).
+  const classic = state.homeStyle === 'classic';
+  const rootCls = 'bf-root' + (classic ? ' bf-classic' : '');
+  const banner = classic ? (
+    <div className="bf-banner">
+      <img src="/classic/briefing-art.jpg" alt="" className="bf-banner-art" aria-hidden />
+      <div className="bf-banner-text">
+        <b className="bf-banner-h">
+          <i className="far fa-calendar" aria-hidden /> {T.title}
+        </b>
+        <span className="bf-banner-sub">
+          {lang === 'ar' ? 'ملخص شامل لأهم أحداث ومهام اليوم' : 'סיכום מקיף של אירועי היום והמשימות'}
+        </span>
+      </div>
+    </div>
+  ) : null;
   const header = (
     <div className="bftop">
       <button type="button" className="bf-back" onClick={() => dispatch({ type: 'SET_TAB', tab: 'home' })}>
@@ -267,7 +284,8 @@ export function BriefingScreen() {
 
   if (!data) {
     return (
-      <div className="bf-root">
+      <div className={rootCls}>
+        {banner}
         {header}
         <div className="bf-state">
           {error ? (
@@ -295,7 +313,8 @@ export function BriefingScreen() {
     [c.clientName, c.caseNumber && `${t.caseNo} ${c.caseNumber}`, c.court].filter(Boolean).join(' · ');
 
   return (
-    <div className="bf-root">
+    <div className={rootCls}>
+      {banner}
       {header}
 
       <div className="bf-tiles">

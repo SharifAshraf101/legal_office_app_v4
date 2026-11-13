@@ -175,6 +175,105 @@ export function UpcomingAgendaModal() {
   // "Task to do" — shown as the type label for task rows instead of a
   // hearing/appointment label.
   const taskDoLabel = lang === 'ar' ? 'مهمة للتنفيذ' : 'משימה לביצוע';
+
+  // "Classic Design" (Settings → home style = classic): the same items, day
+  // grouping, overlap marking and task actions (done / edit / delete), in the
+  // dark navy + gold look of the office design.
+  if (state.homeStyle === 'classic') {
+    const ar = lang === 'ar';
+    return (
+      <Modal onClose={close} className="upcoming-agenda-modal ug-classic" hideCloseX hideBackBtn={true}>
+        <div className="ug-hero">
+          <img src="/classic/tasks-art-2.jpg" alt="" className="ug-art" aria-hidden />
+          <button type="button" className="ug-back" aria-label={backLabel} title={backLabel} onClick={close}>
+            <i className="fas fa-arrow-left" aria-hidden />
+            <span>{backLabel}</span>
+          </button>
+          <i className="far fa-calendar ug-hero-fa" aria-hidden />
+          <div className="ug-hero-text">
+            <h2 className="ug-h">{title}</h2>
+            <span className="ug-rule" aria-hidden />
+            <p className="ug-sub">{subtitle}</p>
+          </div>
+        </div>
+        <div className="ug-frame">
+          {items.length === 0 ? (
+            <div className="ug-none">{empty}</div>
+          ) : (
+            items.map((entry, i) => {
+              const c = state.casesArr.find((x) => x.id === entry.item.caseId);
+              const client = c ? clientName(c.clientId, state.clients, lang) : '-';
+              const caseTitle = c ? caseName(c, lang) : '';
+              const courtName = c ? (ar ? c.courtAr || c.court : c.court || c.courtAr) || '' : '';
+              const titleText = ar ? entry.item.titleAr || entry.item.title : entry.item.title || entry.item.titleAr;
+              const dayKey = calendarDateValue(entry.date);
+              const newDay = i === 0 || calendarDateValue(items[i - 1].date) !== dayKey;
+              const timeKey = agendaTimeKey(entry.date);
+              const conflict = counts[timeKey] > 1;
+              const sameClient = conflict && clientsAtTime[timeKey]?.size === 1;
+              const isTaskOrReminder = entry.item.type === 'task' || entry.item.type === 'reminder';
+              const taskContent = String(titleText || '')
+                .replace(/^\s*מועד דיוני:\s*/, '')
+                .replace(/^\s*موعد إجرائي:\s*/, '')
+                .trim();
+              const taskDoText = taskContent && taskContent !== taskDoLabel ? `${taskDoLabel}: ${taskContent}` : taskDoLabel;
+              return (
+                <Fragment key={i}>
+                  {newDay && (
+                    <div className="ug-day">
+                      <i className="far fa-calendar-days" aria-hidden />
+                      <b>{dayTopLine(entry.date, dayKey)}{ar ? '، ' : ', '}{dayDateLine(entry.date, dayKey)}</b>
+                    </div>
+                  )}
+                  <div className={'ug-item' + (conflict ? ' conflict-blink ug-clash' : '') + (sameClient ? ' conflict-same-client' : '')}>
+                    <span className="ug-time">
+                      <i className="far fa-clock" aria-hidden />
+                      <bdi>{timeOf(entry.date)}</bdi>
+                    </span>
+                    <i className={'fas ug-kind ' + (isTaskOrReminder ? 'fa-list-check' : 'fa-building-columns')} aria-hidden />
+                    <div className="ug-txt">
+                      <div className="ug-title">
+                        <b>{isTaskOrReminder ? taskDoText : titleText}</b>
+                        {conflict && (
+                          <span className="ug-warn">
+                            <i className="fas fa-triangle-exclamation" aria-hidden />
+                            {ar ? 'تعارض' : 'חפיפה'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="ug-meta">
+                        {eventTypeLabel(String(entry.item.type ?? ''), lang, t)} · {client}
+                        {caseTitle ? ' · ' + caseTitle : ''}
+                        {c ? <> · <bdi>{c.caseNumber}</bdi></> : null}
+                        {courtName ? ' · ' + courtName : ''}
+                      </div>
+                      {isTaskOrReminder && (
+                        <div className="ug-acts">
+                          <button type="button" className="ug-act ug-done" onClick={() => markDone(entry)}>
+                            <i className="fas fa-check" aria-hidden />
+                            <span>{actionLabels.done}</span>
+                          </button>
+                          <button type="button" className="ug-act ug-edit" onClick={() => editRow(entry)}>
+                            <i className="fas fa-pen" aria-hidden />
+                            <span>{actionLabels.edit}</span>
+                          </button>
+                          <button type="button" className="ug-act ug-del" onClick={() => void deleteRow(entry)}>
+                            <i className="fas fa-trash" aria-hidden />
+                            <span>{actionLabels.remove}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Fragment>
+              );
+            })
+          )}
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       onClose={close}

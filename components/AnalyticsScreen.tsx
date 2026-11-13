@@ -357,7 +357,7 @@ function Donut({ parts, center, sub }: { parts: { label: string; value: number; 
 
 /* --------------------------------------------------------------- screen */
 export function AnalyticsScreen() {
-  const { dispatch } = useAppState();
+  const { state, dispatch } = useAppState();
   const { lang } = useT();
   const T = L[lang === 'ar' ? 'ar' : 'he'];
   const money = useMoney(lang);
@@ -405,6 +405,24 @@ export function AnalyticsScreen() {
     );
   };
 
+  // "Classic Design": the same screen in the navy + gold look with the
+  // office's banner on top (CSS: .an-classic).
+  const classic = state.homeStyle === 'classic';
+  const rootCls = 'an-root' + (classic ? ' an-classic' : '');
+  const banner = classic ? (
+    <div className="an-banner">
+      <img src="/classic/briefing-art.jpg" alt="" className="an-banner-art" aria-hidden />
+      <div className="an-banner-text">
+        <b className="an-banner-h">
+          <i className="fas fa-chart-column" aria-hidden /> {T.title}
+        </b>
+        <span className="an-banner-sub">
+          {lang === 'ar' ? 'تحليل الأداء والأنشطة اليومية للمكتب' : 'ניתוח הביצועים והפעילות של המשרד'}
+        </span>
+      </div>
+    </div>
+  ) : null;
+
   const header = (
     <div className="antop">
       <button type="button" className="an-back" onClick={() => dispatch({ type: 'SET_TAB', tab: 'home' })}>
@@ -435,7 +453,8 @@ export function AnalyticsScreen() {
 
   if (!data) {
     return (
-      <div className="an-root">
+      <div className={rootCls}>
+        {banner}
         {header}
         <div className="an-state">
           {error ? (
@@ -473,7 +492,8 @@ export function AnalyticsScreen() {
   ];
 
   return (
-    <div className="an-root">
+    <div className={rootCls}>
+      {banner}
       {header}
 
       <div className="an-tiles">

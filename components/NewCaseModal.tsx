@@ -109,6 +109,9 @@ export function NewCaseModal() {
     close();
   };
 
+  // "Classic Design": the same form in the navy + gold look (the new-client
+  // window's classic styles: .ne-classic .nc-classic, plus .nk-classic).
+  const nkClassic = state.homeStyle === 'classic';
   return (
     <div
       className="new-case-popup-overlay"
@@ -127,15 +130,15 @@ export function NewCaseModal() {
       }}
     >
       <div
-        className="new-case-popup-box modal-box"
+        className={'new-case-popup-box modal-box' + (nkClassic ? ' ne-classic nc-classic nk-classic' : '')}
         style={{
           position: 'relative',
-          width: 'min(520px, 92vw)',
+          width: nkClassic ? 'min(780px, 94vw)' : 'min(520px, 92vw)',
           maxHeight: 'min(88vh, 820px)',
           overflowY: 'auto',
-          background: '#FDFBF5',
+          background: nkClassic ? undefined : '#FDFBF5',
           borderRadius: 22,
-          padding: '60px 22px 22px',
+          padding: nkClassic ? undefined : '60px 22px 22px',
           boxShadow:
             '0 28px 70px rgba(15,23,42,.55), 0 0 0 1px rgba(15,23,42,.08)',
         }}
@@ -165,9 +168,20 @@ export function NewCaseModal() {
         >
           ×
         </button>
-        <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>
-          {lang === 'ar' ? 'ملف جديد' : 'תיק חדש'}
-        </h2>
+        {nkClassic ? (
+          <div className="ne-banner">
+            <img src="/classic/case-art.jpg" alt="" className="ne-banner-art" aria-hidden />
+            <i className="fas fa-folder-plus ne-banner-fa" aria-hidden />
+            <div className="ne-banner-text">
+              <h2 className="ne-h">{lang === 'ar' ? 'ملف جديد' : 'תיק חדש'}</h2>
+              <span className="ne-sub">{lang === 'ar' ? 'إنشاء ملف/قضية جديدة في النظام' : 'פתיחת תיק חדש במערכת'}</span>
+            </div>
+          </div>
+        ) : (
+          <h2 style={{ margin: 0, textAlign: 'center', padding: '0 48px' }}>
+            {lang === 'ar' ? 'ملف جديد' : 'תיק חדש'}
+          </h2>
+        )}
       <form id="newCaseForm" className="form-grid new-case-form" onSubmit={onSubmit}>
         <div className="form-field search-box">
           <label>{lang === 'ar' ? 'بحث عن موكل' : 'חיפוש לקוח'}</label>
