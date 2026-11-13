@@ -14,7 +14,12 @@ node scripts/adam-bridge.mjs take <id>                 # לקחת בקשה (נש
 node scripts/adam-bridge.mjs progress <id> "<הודעה>"   # שורת מצב שמוצגת במערכת
 node scripts/adam-bridge.mjs result <id> <file.json>   # שליחת התוצאה
 node scripts/adam-bridge.mjs fail <id> "<סיבה>"        # דיווח על כישלון
+node scripts/adam-bridge.mjs ask <id> <questions.json>  # שאלות לעו"ד שריף – נפתח טופס במערכת
+node scripts/adam-bridge.mjs wait <id> [דקות]          # המתנה לתשובות (ברירת מחדל 30)
 ```
+
+## שאלות לעו"ד שריף
+כשחסרות עובדות, אדם לא שואל בצ'אט אלא במערכת: כותב `~/adam-jobs/<id>/questions.json` – מערך של `{"q":"שאלה","hint":"דוגמה / פורמט"}`, בשפת הבקשה – ומריץ `ask <id> ~/adam-jobs/<id>/questions.json` ואחריו `wait <id>`. במסך מוח התיק נפתח טופס; כשעו"ד שריף שולח, `wait` מדפיס את השאלות והתשובות (נשמרות גם ב-answers.json) ואדם ממשיך. אם `wait` הסתיים בלי תשובה – להריץ `wait` שוב.
 
 ## שלבי העבודה של אדם על בקשה
 1. `list` → `take <id>`. לקרוא את package.json: `language` קובעת את שפת התוצר (ar – ערבית בלבד, he – עברית בלבד). `request` – הנחיות עו"ד שריף לבקשה זו. `docLink` – קישור למסמך (Dropbox); לקרוא את המסמך עצמו אם ניתן.

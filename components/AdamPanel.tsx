@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { cancelAdamJob, latestAdamJob, sendToAdam, type AdamJob, type AdamPackage } from '@/lib/adam';
+import { answerAdam, applyAdamDraft, cancelAdamJob, latestAdamJob, sendToAdam, type AdamJob, type AdamPackage } from '@/lib/adam';
 
 /**
  * "טיוטת אדם" — the case-brain card for the Adam bridge. "שלח לאדם" stores a
@@ -16,6 +16,7 @@ export function AdamPanel({
   lang,
   buildPackage,
   onOpenWord,
+  onApplied,
   className = '',
 }: {
   caseId: string;
@@ -23,6 +24,8 @@ export function AdamPanel({
   lang: 'he' | 'ar';
   buildPackage: (request: string) => AdamPackage;
   onOpenWord: (text: string) => void;
+  /** Called after Adam's draft became the document's reply draft. */
+  onApplied?: (text: string) => void;
   className?: string;
 }) {
   const ar = lang === 'ar';
@@ -35,7 +38,9 @@ export function AdamPanel({
     again: ar ? 'طلب جديد من آدم' : 'בקשה חדשה מאדם',
     cancel: ar ? 'إلغاء الطلب' : 'בטל בקשה',
     placeholder: ar ? 'تعليمات لآدم (اختياري)…' : 'הנחיות לאדם (לא חובה)…',
-    pending: ar ? 'الطلب بانتظار آدم. شغّل آدم على الحاسوب.' : 'הבקשה ממתינה לאדם. הפעל את אדם במחשב.',
+    pending: ar
+      ? 'تم حفظ الطلب وهو بانتظار آدم. اكتب لآدم على الحاسوب (في تبويب Code): «افحص الطلبات من النظام».'
+      : 'הבקשה נשמרה וממתינה לאדם. כתוב לאדם במחשב (בלשונית Code): "בדוק בקשות מהמערכת".',
     working: ar ? 'آدم يعمل على المسودة…' : 'אדם עובד על הטיוטה…',
     error: ar ? 'تعذّر على آدم إكمال الطلب:' : 'אדם לא הצליח להשלים את הבקשה:',
     word: ar ? 'فتح في Word' : 'פתח ב-Word',
@@ -49,6 +54,12 @@ export function AdamPanel({
     devil: ar ? 'محامي الشيطان' : 'פרקליט השטן',
     none: ar ? 'لا يوجد.' : 'אין.',
     sending: ar ? 'جارٍ الإرسال…' : 'שולח…',
+    qTitle: ar ? 'آدم يحتاج إلى معلومات منك:' : 'אדם צריך ממך מידע:',
+    qSend: ar ? 'إرسال الأجوبة لآدم' : 'שלח תשובות לאדם',
+    qPh: ar ? 'الجواب…' : 'התשובה…',
+    apply: ar ? 'اعتماد كمسودة الرد' : 'העבר לטיוטת התגובה',
+    applied: ar ? 'اعتُمدت كمسودة الرد' : 'הועבר לטיוטת התגובה',
+    answered: ar ? 'أُرسلت الأجوبة. آدم يتابع العمل…' : 'התשובות נשלחו. אדם ממשיך לעבוד…',
   };
   const [job, setJob] = useState<AdamJob | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -56,6 +67,8 @@ export function AdamPanel({
   const [askOpen, setAskOpen] = useState(false);
   const [req, setReq] = useState('');
   const [tab, setTab] = useState<'draft' | 'table' | 'disputes' | 'yosef' | 'saeed'>('draft');
+  // Answers typed into Adam's questions form, keyed by question id.
+  const [ans, setAns] = useState<Record<string, string>>({});
 
   const refresh = useCallback(async () => {
     try {
@@ -70,7 +83,7 @@ export function AdamPanel({
   }, [refresh]);
   // Poll while Adam has the request.
   useEffect(() => {
-    if (!job || (job.status !== 'pending' && job.status !== 'working')) return;
+    if (!job || !['pending', 'working', 'question', 'answered'].includes(job.status)) return;
     const t = setInterval(() => void refresh(), 15000);
     return () => clearInterval(t);
   }, [job, refresh]);
@@ -82,6 +95,32 @@ export function AdamPanel({
       if (j) setJob(j);
       setAskOpen(false);
       setReq('');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const submitAnswers = async () => {
+    if (!job) return;
+    setBusy(true);
+    try {
+      const j = await answerAdam(job.id, ans);
+      if (j) {
+        setJob(j);
+        setAns({});
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  const apply = async () => {
+    if (!job || !job.result) return;
+    setBusy(true);
+    try {
+      const j = await applyAdamDraft(job.id);
+      if (j) {
+        setJob(j);
+        onApplied?.(job.result.draft);
+      }
     } finally {
       setBusy(false);
     }
@@ -98,7 +137,8 @@ export function AdamPanel({
   };
 
   const r = job?.status === 'done' ? job.result : null;
-  const open = job && (job.status === 'pending' || job.status === 'working');
+  const open = job && (job.status === 'pending' || job.status === 'working' || job.status === 'answered');
+  const asking = job?.status === 'question' && !!job.questions?.length;
 
   return (
     <section className={'adam-box ' + className} dir="rtl" lang={lang}>
@@ -110,10 +150,38 @@ export function AdamPanel({
         {job && <span className={'adam-state adam-s-' + job.status}>{statusLabel(job.status, ar)}</span>}
       </header>
 
-      {!loaded ? null : open ? (
+      {!loaded ? null : asking ? (
+        <div className="adam-qs">
+          <b className="adam-qs-h">
+            <i className="fas fa-circle-question" aria-hidden /> {L.qTitle}
+          </b>
+          {job!.questions!.map((q, i) => (
+            <label key={q.id} className="adam-q">
+              <span>
+                {i + 1}. {q.q}
+              </span>
+              {q.hint && <small>{q.hint}</small>}
+              <textarea
+                rows={2}
+                value={ans[q.id] || ''}
+                placeholder={L.qPh}
+                onChange={(e) => setAns((p) => ({ ...p, [q.id]: e.target.value }))}
+              />
+            </label>
+          ))}
+          <div className="adam-acts">
+            <button type="button" className="adam-go" disabled={busy} onClick={submitAnswers}>
+              <i className="fas fa-paper-plane" aria-hidden /> {busy ? L.sending : L.qSend}
+            </button>
+            <button type="button" className="adam-link" disabled={busy} onClick={cancel}>
+              {L.cancel}
+            </button>
+          </div>
+        </div>
+      ) : open ? (
         <div className="adam-wait">
           <i className={'fas ' + (job!.status === 'working' ? 'fa-spinner fa-spin' : 'fa-hourglass-half')} aria-hidden />
-          <span>{job!.status === 'working' ? job!.note || L.working : L.pending}</span>
+          <span>{job!.status === 'working' ? job!.note || L.working : job!.status === 'answered' ? L.answered : L.pending}</span>
           <button type="button" className="adam-link" disabled={busy} onClick={cancel}>
             {L.cancel}
           </button>
@@ -201,6 +269,9 @@ export function AdamPanel({
             <button type="button" className="adam-go" onClick={() => onOpenWord(r.draft)}>
               <i className="far fa-file-word" aria-hidden /> {L.word}
             </button>
+            <button type="button" className="adam-go" disabled={busy || !!r.appliedAt} onClick={apply}>
+              <i className={'fas ' + (r.appliedAt ? 'fa-check' : 'fa-file-import')} aria-hidden /> {r.appliedAt ? L.applied : L.apply}
+            </button>
             <button type="button" className="adam-go adam-go2" onClick={() => setAskOpen((v) => !v)}>
               <i className="fas fa-rotate" aria-hidden /> {L.again}
             </button>
@@ -237,7 +308,7 @@ export function AdamPanel({
 }
 
 function statusLabel(s: AdamJob['status'], ar: boolean): string {
-  const he = { pending: 'ממתין', working: 'בעבודה', done: 'מוכן', error: 'שגיאה', cancelled: 'בוטל' };
-  const a = { pending: 'بالانتظار', working: 'قيد العمل', done: 'جاهز', error: 'خطأ', cancelled: 'ملغى' };
+  const he = { pending: 'ממתין', working: 'בעבודה', question: 'שאלות אליך', answered: 'נענה', done: 'מוכן', error: 'שגיאה', cancelled: 'בוטל' };
+  const a = { pending: 'بالانتظار', working: 'قيد العمل', question: 'أسئلة لك', answered: 'تمّت الإجابة', done: 'جاهز', error: 'خطأ', cancelled: 'ملغى' };
   return (ar ? a : he)[s];
 }

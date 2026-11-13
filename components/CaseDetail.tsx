@@ -3181,6 +3181,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         onOpenWord={(text) =>
                           openDraftInWord(text, (primaryDoc.title || primaryDoc.fileName || 'draft') + ' - Adam')
                         }
+                        onApplied={(text) => {
+                          setDraftNeeded(true);
+                          setReplyDraft(text);
+                          setDraftLoaded(true);
+                        }}
                         buildPackage={(request) => {
                           const caseObj = state.casesArr.find((x) => String(x.id) === String(caseId));
                           return {

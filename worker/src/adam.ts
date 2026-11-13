@@ -10,6 +10,8 @@
 //   3. Adam posts the result → POST /api/adam/jobs/:id/result (status → done);
 //      the case-brain screen shows it in the "טיוטת אדם" card.
 //
+import { buildUpsert } from './db';
+
 // Office-session / APP_TOKEN auth like every other office route; each office's
 // jobs live in its own database (ctx.db).
 
@@ -20,7 +22,7 @@ const DDL =
   'result TEXT, note TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)';
 
 const MAX_JSON = 400_000;
-const STATUSES = ['pending', 'working', 'done', 'error', 'cancelled'] as const;
+const STATUSES = ['pending', 'working', 'question', 'answered', 'done', 'error', 'cancelled'] as const;
 type Status = (typeof STATUSES)[number];
 
 type Row = {
@@ -31,6 +33,8 @@ type Row = {
   title: string | null;
   package: string;
   result: string | null;
+  questions?: string | null;
+  answers?: string | null;
   note: string | null;
   created_at: string;
   updated_at: string;
@@ -59,11 +63,21 @@ function view(r: Row, full: boolean) {
     updatedAt: r.updated_at,
     ...(full ? { package: parse(r.package) } : {}),
     result: parse(r.result),
+    questions: parse(r.questions ?? null),
+    answers: parse(r.answers ?? null),
   };
 }
 
 async function ready(db: D1Database) {
   await db.prepare(DDL).run();
+  // Columns added after the first release (questions from Adam / the lawyer's answers).
+  for (const col of ['questions', 'answers']) {
+    try {
+      await db.prepare(`ALTER TABLE adam_jobs ADD COLUMN ${col} TEXT`).run();
+    } catch {
+      /* already there */
+    }
+  }
 }
 
 /** POST /api/adam/jobs — `{ package: {...} }`; package.caseId is required. */
@@ -144,7 +158,7 @@ export async function getAdamJob(db: D1Database, id: string): Promise<Res> {
 /** POST /api/adam/jobs/:id/status — `{ status, note? }` (Adam: working / error; office: cancelled). */
 export async function setAdamJobStatus(db: D1Database, id: string, body: { status?: string; note?: string }): Promise<Res> {
   const status = String(body?.status || '') as Status;
-  if (!STATUSES.includes(status) || status === 'done') return { status: 400, body: { error: 'bad status' } };
+  if (!STATUSES.includes(status) || status === 'done' || status === 'question' || status === 'answered') return { status: 400, body: { error: 'bad status' } };
   await ready(db);
   const r = await db
     .prepare('UPDATE adam_jobs SET status = ?2, note = ?3, updated_at = ?4 WHERE id = ?1')
@@ -168,5 +182,81 @@ export async function saveAdamResult(db: D1Database, id: string, body: { result?
     .bind(id, json, String(body?.note || '').slice(0, 2000), new Date().toISOString())
     .run();
   if (!r.meta.changes) return { status: 404, body: { error: 'not_found' } };
+  return getAdamJob(db, id);
+}
+
+/** Adam: POST /api/adam/jobs/:id/questions — `{ questions: [{ q, hint? }] | string[], note? }`
+ *  → status "question"; the case-brain card shows a form for them. */
+export async function askAdamQuestions(db: D1Database, id: string, body: { questions?: unknown[]; note?: string }): Promise<Res> {
+  const qs = (Array.isArray(body?.questions) ? body.questions : [])
+    .map((x) => (typeof x === 'string' ? { q: x } : (x as { q?: string; hint?: string })))
+    .filter((x) => x && String(x.q || '').trim())
+    .slice(0, 30)
+    .map((x, i) => ({ id: 'q' + (i + 1), q: String(x.q).slice(0, 2000), hint: String(x.hint || '').slice(0, 500) }));
+  if (!qs.length) return { status: 400, body: { error: 'questions required' } };
+  await ready(db);
+  const r = await db
+    .prepare("UPDATE adam_jobs SET status = 'question', questions = ?2, answers = NULL, note = ?3, updated_at = ?4 WHERE id = ?1")
+    .bind(id, JSON.stringify(qs), String(body?.note || '').slice(0, 2000), new Date().toISOString())
+    .run();
+  if (!r.meta.changes) return { status: 404, body: { error: 'not_found' } };
+  return getAdamJob(db, id);
+}
+
+/** Office: POST /api/adam/jobs/:id/answers — `{ answers: { [questionId]: text } }` → status "answered". */
+export async function saveAdamAnswers(db: D1Database, id: string, body: { answers?: Record<string, string> }): Promise<Res> {
+  const a = body?.answers;
+  if (!a || typeof a !== 'object') return { status: 400, body: { error: 'answers required' } };
+  const clean: Record<string, string> = {};
+  for (const [k, v] of Object.entries(a)) clean[String(k).slice(0, 20)] = String(v ?? '').slice(0, 8000);
+  await ready(db);
+  const r = await db
+    .prepare("UPDATE adam_jobs SET status = 'answered', answers = ?2, note = '', updated_at = ?3 WHERE id = ?1 AND status = 'question'")
+    .bind(id, JSON.stringify(clean), new Date().toISOString())
+    .run();
+  if (!r.meta.changes) return { status: 409, body: { error: 'not_waiting_for_answers' } };
+  return getAdamJob(db, id);
+}
+
+/** Office: POST /api/adam/jobs/:id/apply — copy Adam's merged draft into the
+ *  document's reply draft (drafts row DRAFT-<documentId>), the "טיוטת תגובה"
+ *  card. The draft it replaces is kept on the job (result.previousDraft). */
+export async function applyAdamDraft(db: D1Database, tenantId: string, id: string): Promise<Res> {
+  await ready(db);
+  const r = await db.prepare('SELECT * FROM adam_jobs WHERE id = ?1').bind(id).first<Row>();
+  if (!r) return { status: 404, body: { error: 'not_found' } };
+  const result = (parse(r.result) || {}) as Record<string, unknown>;
+  const draft = String(result.draft || '').trim();
+  if (r.status !== 'done' || !draft) return { status: 409, body: { error: 'no_result' } };
+  if (!r.document_id) return { status: 400, body: { error: 'no_document' } };
+  const pkg = (parse(r.package) || {}) as Record<string, unknown>;
+  const lang = String(pkg.language || 'he') === 'ar' ? 'ar' : 'he';
+  const sourceId = 'DRAFT-' + r.document_id;
+  const prev = await db
+    .prepare('SELECT draft_he, draft_ar, draft_orig FROM drafts WHERE user_id = ?1 AND source_id = ?2')
+    .bind(tenantId, sourceId)
+    .first<{ draft_he: string | null; draft_ar: string | null; draft_orig: string | null }>();
+  const row: Record<string, unknown> = {
+    source_id: sourceId,
+    document_source_id: r.document_id,
+    case_source_id: r.case_id,
+    draft_he: lang === 'he' ? draft : null,
+    draft_ar: lang === 'ar' ? draft : null,
+    draft_orig: draft,
+    language: lang,
+    status: 'approved',
+    date: new Date().toISOString().slice(0, 10),
+  };
+  const built = buildUpsert('drafts', row, tenantId);
+  if (!built) return { status: 500, body: { error: 'upsert_failed' } };
+  await db.prepare(built.sql).bind(...built.binds).run();
+  if (prev && result.previousDraft === undefined) {
+    result.previousDraft = (lang === 'ar' ? prev.draft_ar : prev.draft_he) || prev.draft_orig || '';
+  }
+  result.appliedAt = new Date().toISOString();
+  await db
+    .prepare('UPDATE adam_jobs SET result = ?2, updated_at = ?3 WHERE id = ?1')
+    .bind(id, JSON.stringify(result), new Date().toISOString())
+    .run();
   return getAdamJob(db, id);
 }

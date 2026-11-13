@@ -44512,3 +44512,12 @@ html body #content .mn-root.mn-root :is(.mn-dd,.mn-num){font-family:Georgia,"Tim
 .adam-link{background:none;border:0;color:#6b7280;font-weight:700;font-size:13px;cursor:pointer;text-decoration:underline}
 .adam-ask textarea{width:100%;box-sizing:border-box;border:1px solid #e5e1d8;border-radius:10px;padding:8px 10px;font:inherit;font-size:13.5px;resize:vertical;margin-bottom:8px}
 html[lang="ar"] .adam-box :is(p,span,button,li,b,i,em,small,pre,td,th,textarea){font-size:inherit}
+/* Adam's questions form (status "question"). */
+.adam-qs{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:12px;background:#fff8e6;border:1px solid #f3d58a}
+.adam-qs-h{display:flex;align-items:center;gap:8px;font-size:14.5px;font-weight:900;color:#7a4f0f}
+.adam-q{display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:700;color:#16223b}
+.adam-q small{font-size:12px;font-weight:500;color:#6b7280}
+.adam-q textarea{box-sizing:border-box;width:100%;border:1px solid #e5d7b4;border-radius:10px;padding:8px 10px;font:inherit;font-weight:500;font-size:14px;background:#fff;resize:vertical}
+.adam-s-question{background:#fff1d6;color:#9a5b00}
+.adam-s-answered{background:#e0f2fe;color:#075985}
+html[lang="ar"] .adam-qs :is(span,small,b,i,textarea){font-size:inherit}

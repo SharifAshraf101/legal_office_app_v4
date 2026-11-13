@@ -28,3 +28,7 @@ worker/.wrangler
 ngrok.exe
 _dom.html
 .env*
+
+# Adam bridge — local working files with client data (never commit)
+.adam_*
+Claude outputs/

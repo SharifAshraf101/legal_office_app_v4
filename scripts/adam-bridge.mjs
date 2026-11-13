@@ -7,6 +7,8 @@
 //   node scripts/adam-bridge.mjs progress <id> "<note>"   status line shown in the app
 //   node scripts/adam-bridge.mjs result <id> <file.json>  send the finished result
 //   node scripts/adam-bridge.mjs fail <id> "<reason>"     report a failure
+//   node scripts/adam-bridge.mjs ask <id> <questions.json> ask the lawyer (a form opens in the app)
+//   node scripts/adam-bridge.mjs wait <id> [minutes]       wait for the lawyer's answers (default 30)
 //   node scripts/adam-bridge.mjs show <id>            print a request / result
 //
 // The worker URL comes from ADAM_WORKER_URL or .env.local
@@ -98,11 +100,41 @@ try {
   } else if (cmd === 'fail' && id) {
     await call('POST', `/api/adam/jobs/${id}/status`, { status: 'error', note: arg || '' });
     console.log('ok');
+  } else if (cmd === 'ask' && id && arg) {
+    // questions.json: ["question", …] or [{ "q": "question", "hint": "example / format" }, …]
+    const questions = JSON.parse(fs.readFileSync(path.resolve(arg), 'utf8'));
+    await call('POST', `/api/adam/jobs/${id}/questions`, { questions, note: 'ממתין לתשובות עו"ד שריף' });
+    console.log('Questions sent — a form is open in the case-brain screen. Run: wait ' + id);
+  } else if (cmd === 'wait' && id) {
+    const minutes = Number(arg) > 0 ? Number(arg) : 30;
+    const until = Date.now() + minutes * 60_000;
+    let job;
+    for (;;) {
+      ({ job } = await call('GET', `/api/adam/jobs/${id}`));
+      if (job.status !== 'question') break;
+      if (Date.now() > until) {
+        console.log('Still waiting — no answers yet. Run wait again, or ask in the chat.');
+        process.exit(2);
+      }
+      await new Promise((r) => setTimeout(r, 10_000));
+    }
+    if (job.status !== 'answered') {
+      console.log('Request is now: ' + job.status);
+      process.exit(3);
+    }
+    await call('POST', `/api/adam/jobs/${id}/status`, { status: 'working', note: 'אדם קיבל את התשובות וממשיך' });
+    const dir = path.join(jobsDir, id);
+    fs.mkdirSync(dir, { recursive: true });
+    const qa = (job.questions || []).map((q) => ({ q: q.q, a: (job.answers || {})[q.id] || '' }));
+    fs.writeFileSync(path.join(dir, 'answers.json'), JSON.stringify(qa, null, 2), 'utf8');
+    for (const x of qa) console.log(`ש: ${x.q}
+ת: ${x.a || '(לא נענה)'}
+`);
   } else if (cmd === 'show' && id) {
     const { job } = await call('GET', `/api/adam/jobs/${id}`);
     console.log(JSON.stringify(job, null, 2));
   } else {
-    console.log('Usage: list | take <id> | progress <id> "<note>" | result <id> <file.json> | fail <id> "<reason>" | show <id>');
+    console.log('Usage: list | take <id> | progress <id> "<note>" | ask <id> <questions.json> | wait <id> [min] | result <id> <file.json> | fail <id> "<reason>" | show <id>');
     process.exitCode = 1;
   }
 } catch (e) {

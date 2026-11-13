@@ -8,7 +8,13 @@ import { officeAuthHeader } from './officeToken';
 
 const WORKER_URL = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(/\/$/, '');
 
-export type AdamStatus = 'pending' | 'working' | 'done' | 'error' | 'cancelled';
+export type AdamStatus = 'pending' | 'working' | 'question' | 'answered' | 'done' | 'error' | 'cancelled';
+
+export interface AdamQuestion {
+  id: string;
+  q: string;
+  hint?: string;
+}
 
 export interface AdamComparisonRow {
   claim: string;
@@ -39,6 +45,9 @@ export interface AdamResult {
   /** Items still to complete / citations not verified. */
   toVerify?: string[];
   devilsAdvocate?: string;
+  /** Set when the draft was copied into the document's reply draft. */
+  appliedAt?: string;
+  previousDraft?: string;
 }
 
 export interface AdamJob {
@@ -51,6 +60,8 @@ export interface AdamJob {
   createdAt: string;
   updatedAt: string;
   result: AdamResult | null;
+  questions?: AdamQuestion[] | null;
+  answers?: Record<string, string> | null;
 }
 
 export interface AdamPackage {
@@ -103,4 +114,26 @@ export async function cancelAdamJob(id: string): Promise<void> {
     headers: headers(),
     body: JSON.stringify({ status: 'cancelled' }),
   });
+}
+
+export async function answerAdam(id: string, answers: Record<string, string>): Promise<AdamJob | null> {
+  if (!WORKER_URL) return null;
+  const res = await fetch(WORKER_URL + '/api/adam/jobs/' + encodeURIComponent(id) + '/answers', {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ answers }),
+  });
+  if (!res.ok) return null;
+  return ((await res.json()) as { job: AdamJob }).job;
+}
+
+/** Copy Adam's merged draft into the document's reply draft ("טיוטת תגובה"). */
+export async function applyAdamDraft(id: string): Promise<AdamJob | null> {
+  if (!WORKER_URL) return null;
+  const res = await fetch(WORKER_URL + '/api/adam/jobs/' + encodeURIComponent(id) + '/apply', {
+    method: 'POST',
+    headers: headers(),
+  });
+  if (!res.ok) return null;
+  return ((await res.json()) as { job: AdamJob }).job;
 }

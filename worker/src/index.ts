@@ -46,7 +46,7 @@ import {
 import { portalContext, portalLink, verifyPortalToken } from './portal';
 import { handleAnalytics } from './analytics';
 import { handleBriefing, handleBriefingArgument } from './briefing';
-import { createAdamJob, getAdamJob, listAdamJobs, saveAdamResult, setAdamJobStatus } from './adam';
+import { applyAdamDraft, askAdamQuestions, createAdamJob, getAdamJob, listAdamJobs, saveAdamAnswers, saveAdamResult, setAdamJobStatus } from './adam';
 import { officeClearTurns, officeListTurns, officeSaveTurn, portalListTurns, portalSaveTurn } from './botHistory';
 import { handleDocQueue, idsFromFileName, type DocJob, type PipelineCtx } from './docpipeline';
 import { citedKnownDecisions, looksSharia, relevantRulings } from './rulings';
@@ -688,7 +688,7 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
     }
   }
   {
-    const m = path.match(/^\/api\/adam\/jobs\/([A-Za-z0-9-]+)(?:\/(status|result))?$/);
+    const m = path.match(/^\/api\/adam\/jobs\/([A-Za-z0-9-]+)(?:\/(status|result|questions|answers|apply))?$/);
     if (m) {
       const id = m[1];
       if (!m[2] && method === 'GET') {
@@ -698,6 +698,20 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
       if (m[2] === 'status' && method === 'POST') {
         const b = (await request.json().catch(() => ({}))) as Parameters<typeof setAdamJobStatus>[2];
         const r = await setAdamJobStatus(ctx.db, id, b);
+        return json(r.body, request, env, r.status);
+      }
+      if (m[2] === 'apply' && method === 'POST') {
+        const r = await applyAdamDraft(ctx.db, ctx.tenantId, id);
+        return json(r.body, request, env, r.status);
+      }
+      if (m[2] === 'questions' && method === 'POST') {
+        const b = (await request.json().catch(() => ({}))) as Parameters<typeof askAdamQuestions>[2];
+        const r = await askAdamQuestions(ctx.db, id, b);
+        return json(r.body, request, env, r.status);
+      }
+      if (m[2] === 'answers' && method === 'POST') {
+        const b = (await request.json().catch(() => ({}))) as Parameters<typeof saveAdamAnswers>[2];
+        const r = await saveAdamAnswers(ctx.db, id, b);
         return json(r.body, request, env, r.status);
       }
       if (m[2] === 'result' && method === 'POST') {
