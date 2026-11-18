@@ -311,9 +311,9 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
   };
 
   return (
-    <Modal onClose={close} className={'case-docs-modal' + (state.homeStyle === 'classic' ? ' cdm-classic' : '')}>
+    <Modal onClose={close} className={'case-docs-modal' + (state.homeStyle !== 'minimalist' ? ' cdm-classic' : '')}>
       {/* "Classic Design": the office's banner above the same contents. */}
-      {state.homeStyle === 'classic' && (
+      {state.homeStyle !== 'minimalist' && (
         <div className="cdm-banner">
           <img src="/classic/docs-art-2.jpg" alt="" className="cdm-banner-art" aria-hidden />
           <i className="far fa-file-lines cdm-banner-fa" aria-hidden />

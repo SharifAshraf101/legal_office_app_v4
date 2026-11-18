@@ -224,7 +224,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   // "Classic Design" (Settings → home style = classic): the same details,
   // links and buttons (back / ✕ / edit / delete / call / WhatsApp / case
   // rows / avatar), in the dark navy + gold look of the office design.
-  if (state.homeStyle === 'classic') {
+  if (state.homeStyle !== 'minimalist') {
     const ar = lang === 'ar';
     const totalDebt = clientCases.reduce((sum, x) => sum + financeCaseBalance(x, state.finances), 0);
     return (

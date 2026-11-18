@@ -52,7 +52,7 @@ export function FinanceDetail() {
 
   // "Classic Design" (Settings → home style = classic): the same figures,
   // payments, edit and back actions, in the dark navy + gold look.
-  if (state.homeStyle === 'classic') {
+  if (state.homeStyle !== 'minimalist') {
     const ar = lang === 'ar';
     const H = {
       h: ar ? 'الأتعاب والدفعات' : 'שכר טרחה ותשלומים',
@@ -70,9 +70,9 @@ export function FinanceDetail() {
       back: ar ? 'رجوع' : 'חזרה',
     };
     return (
-      <section className="kx-root fd-root">
+      <section className={'kx-root fd-root' + (state.homeStyle === 'modern' ? ' kx-modern' : '')}>
         <div className="kx-art" aria-hidden>
-          <img src="/classic/tasks-art-2.jpg" alt="" />
+          <img src={state.homeStyle === 'modern' ? '/classic/modern-fees-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
         </div>
         <header className="kx-hero">
           <span className="kx-hero-fa" aria-hidden>

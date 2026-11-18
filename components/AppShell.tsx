@@ -24,6 +24,7 @@ import {
 import { hasOfficeToken, setOperatorOffice } from '@/lib/officeToken';
 import { clearOfficeBilling } from '@/lib/officeBilling';
 import { clearOfficeDataFromLocalStorage } from '@/lib/storage';
+import { contentClassFor } from '@/lib/contentClass';
 
 /**
  * Top-level shell. Mirrors the original HTML structure:
@@ -159,30 +160,7 @@ function ShellInner() {
             <main className="main">
               <Topbar />
               <section
-                className={
-                  'content' +
-                  (state.currentTab === 'home' ? ' home-content' : '') +
-                  (state.currentTab === 'home' && (state.homeStyle === 'classic' || state.homeStyle === 'modern' || state.homeStyle === 'minimalist')
-                    ? ' home-classic'
-                    : '') +
-                  (state.currentTab === 'calendar' && state.homeStyle === 'classic' ? ' calendar-classic' : '') +
-                  (state.currentTab === 'calendar' && state.homeStyle === 'modern' ? ' calendar-modern' : '') +
-                  (state.currentTab === 'search' && state.homeStyle === 'modern' ? ' calendar-modern search-modern' : '') +
-                  (state.currentTab === 'contacts' && state.homeStyle === 'modern' ? ' contacts-classic contacts-modern' : '') +
-                  (state.currentTab === 'cases' && state.homeStyle === 'modern' ? ' contacts-classic cases-classic contacts-modern' : '') +
-                  (state.currentTab === 'tasks' && state.homeStyle === 'modern' ? ' contacts-classic tasks-classic contacts-modern' : '') +
-                  (state.currentTab === 'documents' && state.homeStyle === 'modern' ? ' contacts-classic docs-classic contacts-modern' : '') +
-                  (state.currentTab === 'finance' && state.homeStyle === 'modern' ? ' contacts-classic fees-classic contacts-modern' : '') +
-                  (state.currentTab === 'contacts' && state.homeStyle === 'classic' ? ' contacts-classic' : '') +
-                  (state.currentTab === 'cases' && state.homeStyle === 'classic' ? ' contacts-classic cases-classic' : '') +
-                  (state.currentTab === 'search' && state.homeStyle === 'classic' ? ' contacts-classic search-classic' : '') +
-                  (state.currentTab === 'documents' && state.homeStyle === 'classic' ? ' contacts-classic docs-classic' : '') +
-                  (state.currentTab === 'tasks' && state.homeStyle === 'classic' ? ' contacts-classic tasks-classic' : '') +
-                  (state.currentTab === 'finance' && state.homeStyle === 'classic' ? ' contacts-classic fees-classic' : '') +
-                  (state.currentTab === 'financeDetail' && state.homeStyle === 'classic' ? ' contacts-classic fd-classic' : '') +
-                  (state.currentTab === 'analytics' ? ' analytics-content' + (state.homeStyle === 'classic' ? ' analytics-classic' : '') : '') +
-                  (state.currentTab === 'briefing' ? ' analytics-content briefing-content' + (state.homeStyle === 'classic' ? ' briefing-classic' : '') : '')
-                }
+                className={contentClassFor(state.currentTab, state.homeStyle)}
                 id="content"
               >
                 <ScreenRouter />

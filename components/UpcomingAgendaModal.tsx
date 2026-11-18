@@ -179,7 +179,7 @@ export function UpcomingAgendaModal() {
   // "Classic Design" (Settings → home style = classic): the same items, day
   // grouping, overlap marking and task actions (done / edit / delete), in the
   // dark navy + gold look of the office design.
-  if (state.homeStyle === 'classic') {
+  if (state.homeStyle !== 'minimalist') {
     const ar = lang === 'ar';
     return (
       <Modal onClose={close} className="upcoming-agenda-modal ug-classic" hideCloseX hideBackBtn={true}>

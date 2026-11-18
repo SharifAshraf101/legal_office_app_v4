@@ -79,7 +79,7 @@ export function NewClientModal() {
 
   // "Classic Design": the same form in the navy + gold look — reuses the
   // new-event window's classic styles (.ne-classic) plus .nc-classic rows.
-  const ncClassic = state.homeStyle === 'classic';
+  const ncClassic = state.homeStyle !== 'minimalist';
   return (
     <div
       className="new-client-popup-overlay"

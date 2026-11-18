@@ -564,7 +564,7 @@ export function NewEventModal({
       : 'עותק של הקובץ יישמר בתיקיית documents החיצונית, ולא בתוך קובץ ה-HTML.';
 
   // "Classic Design": the same form in the navy + gold look (CSS: .ne-classic).
-  const neClassic = state.homeStyle === 'classic';
+  const neClassic = state.homeStyle !== 'minimalist';
   return (
     <div
       className={'new-event-popup-overlay' + (neClassic ? ' ne-classic-wrap' : '')}

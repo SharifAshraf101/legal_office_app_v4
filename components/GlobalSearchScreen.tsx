@@ -60,38 +60,69 @@ export function GlobalSearchScreen() {
     });
   }, [state.casesArr, state.clients, q]);
 
+  // Tasks, events and documents are also found by the client and the case they
+  // belong to, in both languages: typing a client's name (Hebrew or Arabic)
+  // brings up that client's hearings, tasks and documents, not only the rows
+  // whose own title happens to contain the name.
+  const linkedText = useMemo(() => {
+    const clientById = new Map(state.clients.map((c) => [String(c.id), c]));
+    const caseById = new Map(state.casesArr.map((c) => [String(c.id), c]));
+    return (caseId?: string | number | null, clientId?: string | number | null): string => {
+      const k = caseId != null && caseId !== '' ? caseById.get(String(caseId)) : undefined;
+      const cid = clientId != null && clientId !== '' ? clientId : k?.clientId;
+      const c = cid != null && cid !== '' ? clientById.get(String(cid)) : undefined;
+      return [c?.name, c?.nameAr, c?.idNumber, c?.phone, k?.caseNumber, k?.title, k?.titleAr]
+        .filter(Boolean)
+        .join(' · ');
+    };
+  }, [state.clients, state.casesArr]);
+
   const taskMatches = useMemo(() => {
     if (!q) return [];
     return state.tasksArr.filter((t) =>
-      [t.title, t.notes, t.dueDate, t.status, t.priority]
+      [t.title, t.notes, t.dueDate, t.status, t.priority, linkedText(t.caseId, (t as { clientId?: string }).clientId)]
         .filter(Boolean)
         .join(' · ')
         .toLowerCase()
         .includes(q),
     );
-  }, [state.tasksArr, q]);
+  }, [state.tasksArr, q, linkedText]);
 
   const eventMatches = useMemo(() => {
     if (!q) return [];
     return state.eventsList.filter((e) =>
-      [e.title, e.titleAr, e.description, e.descriptionAr, e.dateTime]
+      [e.title, e.titleAr, e.description, e.descriptionAr, e.dateTime, linkedText(e.caseId, e.clientId)]
         .filter(Boolean)
         .join(' · ')
         .toLowerCase()
         .includes(q),
     );
-  }, [state.eventsList, q]);
+  }, [state.eventsList, q, linkedText]);
 
   const docMatches = useMemo(() => {
     if (!q) return [];
     return state.documentsArr.filter((d) =>
-      [d.title, d.fileName, d.relativePath]
+      [d.title, d.fileName, d.relativePath, linkedText(d.caseId, d.clientId)]
         .filter(Boolean)
         .join(' · ')
         .toLowerCase()
         .includes(q),
     );
-  }, [state.documentsArr, q]);
+  }, [state.documentsArr, q, linkedText]);
+
+  // An event row names whose hearing it is: the client and the case beside the
+  // kind of sitting, and the date on its own (shown in red).
+  const eventWho = (e: { caseId?: string | number | null; clientId?: string | number | null }): string => {
+    const k = e.caseId != null && e.caseId !== '' ? state.casesArr.find((x) => String(x.id) === String(e.caseId)) : undefined;
+    const cid = e.clientId != null && e.clientId !== '' ? e.clientId : k?.clientId;
+    const c = cid != null && cid !== '' ? state.clients.find((x) => String(x.id) === String(cid)) : undefined;
+    return [c ? clientDisplayName(c, lang) : '', k ? caseName(k, lang) : '', k?.caseNumber || ''].filter(Boolean).join(' · ');
+  };
+  const eventWhen = (dt?: string): string => {
+    const m = String(dt || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+    if (!m) return String(dt || '');
+    return `${m[3]}.${m[2]}.${m[1]}` + (m[4] && !(m[4] === '00' && m[5] === '00') ? ` · ${m[4]}:${m[5]}` : '');
+  };
 
   const total =
     clientMatches.length +
@@ -158,7 +189,7 @@ export function GlobalSearchScreen() {
     ];
     const show = (k: typeof cat) => cat === 'all' || cat === k;
     const shownTotal = cat === 'all' ? total : tabs.find((x) => x.k === cat)!.n;
-    const Item = ({ fa, main, meta, onOpen }: { fa: React.ReactNode; main: string; meta?: string; onOpen?: () => void }) => (
+    const Item = ({ fa, main, meta, onOpen }: { fa: React.ReactNode; main: React.ReactNode; meta?: React.ReactNode; onOpen?: () => void }) => (
       <div
         className={'gx-item' + (onOpen ? ' gx-go' : '')}
         role={onOpen ? 'button' : undefined}
@@ -318,8 +349,13 @@ export function GlobalSearchScreen() {
                   <Item
                     key={e.id}
                     fa={<i className="fas fa-calendar-check" />}
-                    main={(ar ? e.titleAr || e.title : e.title || e.titleAr) || '-'}
-                    meta={e.dateTime}
+                    main={
+                      <>
+                        {(ar ? e.titleAr || e.title : e.title || e.titleAr) || '-'}
+                        {eventWho(e) && <span className="gx-who"> · {eventWho(e)}</span>}
+                      </>
+                    }
+                    meta={<span className="gx-when">{eventWhen(e.dateTime)}</span>}
                     onOpen={() => modalStack.open(<CalendarEventDetail source="event" id={e.id} />)}
                   />
                 ))}
@@ -477,8 +513,9 @@ export function GlobalSearchScreen() {
                   <div>
                     <div className="row-title">
                       {lang === 'ar' ? e.titleAr || e.title : e.title || e.titleAr}
+                      {eventWho(e) ? ' · ' + eventWho(e) : ''}
                     </div>
-                    <div className="sub">{e.dateTime}</div>
+                    <div className="sub" style={{ color: '#dc2626', fontWeight: 800 }}>{eventWhen(e.dateTime)}</div>
                   </div>
                 </div>
               </div>

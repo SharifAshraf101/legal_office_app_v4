@@ -111,7 +111,7 @@ export function NewCaseModal() {
 
   // "Classic Design": the same form in the navy + gold look (the new-client
   // window's classic styles: .ne-classic .nc-classic, plus .nk-classic).
-  const nkClassic = state.homeStyle === 'classic';
+  const nkClassic = state.homeStyle !== 'minimalist';
   return (
     <div
       className="new-case-popup-overlay"

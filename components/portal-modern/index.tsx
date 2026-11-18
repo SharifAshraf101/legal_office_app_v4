@@ -770,7 +770,7 @@ function HubScreen({
   // "Classic Design" (Settings → home style = classic): the same search, the
   // same client list and the same open-chat actions (row / case chip), in the
   // dark navy + gold look of the office design.
-  if (appState.homeStyle === 'classic') {
+  if (appState.homeStyle !== 'minimalist') {
     const ar = lang === 'ar';
     const unreadLabel = (n: number) =>
       n <= 0
@@ -781,7 +781,7 @@ function HubScreen({
     return (
       <div className="wh-root">
         <div className="wh-art" aria-hidden>
-          <img src="/classic/tasks-art-2.jpg" alt="" />
+          <img src={appState.homeStyle === 'modern' ? '/classic/modern-clients-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
         </div>
         <button type="button" className="wh-back" onClick={onBack} aria-label={backLabel} title={backLabel}>
           <i className="fas fa-arrow-left" aria-hidden />
@@ -1577,10 +1577,28 @@ function ClientChatScreen({
   // Keep the chat pinned to the newest message. Without this, a message added
   // by the 5s poll lands below the fold and looks like it "didn't arrive" until
   // a manual refresh re-lays-out the list.
+  // Only while the reader is already at the bottom: the poll replaces `messages`
+  // every 5s, and jumping down each time made it impossible to read back
+  // through the conversation. Scrolling up releases the pin; scrolling back to
+  // the bottom restores it.
   const chatListRef = useRef<HTMLDivElement | null>(null);
+  const chatPinnedRef = useRef(true);
+  const chatSeenCountRef = useRef(0);
+  const onChatScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    chatPinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
+  useEffect(() => {
+    // A different client's chat opens at its newest message.
+    chatPinnedRef.current = true;
+    chatSeenCountRef.current = 0;
+  }, [pollPhone]);
   useEffect(() => {
     const el = chatListRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    const first = chatSeenCountRef.current === 0 && messages.length > 0;
+    chatSeenCountRef.current = messages.length;
+    if (first || chatPinnedRef.current) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   // All of this client's cases. The two-step quick-actions flow uses
@@ -1721,6 +1739,7 @@ function ClientChatScreen({
   // Used by the "new document → pick from list" double-click flow.
   const attachDocumentToChat = async (doc: DocumentRecord) => {
     const fileName = doc.fileName || doc.title || (lang === 'ar' ? 'مستند' : 'מסמך');
+    chatPinnedRef.current = true;
     setMessages((prev) => [
       ...prev,
       {
@@ -1826,6 +1845,7 @@ function ClientChatScreen({
  const sendChatText = async (raw: string) => {
   const text = raw.trim();
   if (!text) return;
+  chatPinnedRef.current = true;
   setMessages((prev) => [
     ...prev,
     {
@@ -1859,6 +1879,7 @@ function ClientChatScreen({
   // File object is kept on the message so future flows (e.g. saving
   // it to the case docs list) can use the real bytes.
   const attachFileToChat = (file: File) => {
+    chatPinnedRef.current = true;
     setMessages((prev) => [
       ...prev,
       {
@@ -1880,6 +1901,7 @@ function ClientChatScreen({
     const url = URL.createObjectURL(blob);
     const mm = Math.floor(durationSeconds / 60);
     const ss = String(Math.floor(durationSeconds % 60)).padStart(2, '0');
+    chatPinnedRef.current = true;
     setMessages((prev) => [
       ...prev,
       {
@@ -1983,7 +2005,7 @@ function ClientChatScreen({
     today: lang === 'ar' ? 'اليوم' : 'היום',
   };
   return (
-    <div className={'portal-wa-chat tw-flex tw-min-h-full tw-flex-col tw-bg-[#FDFBF5]' + (state.homeStyle === 'classic' ? ' wc-classic' : '')}>
+    <div className={'portal-wa-chat tw-flex tw-min-h-full tw-flex-col tw-bg-[#FDFBF5]' + (state.homeStyle !== 'minimalist' ? ' wc-classic' : '')}>
       {/* Back arrow — visually identical to the Global Search
        *  `.main-screen-back-btn` (white pill, slate border, dark
        *  text + arrow, hover inverts). Positioned at 0.25cm from
@@ -1999,11 +2021,11 @@ function ClientChatScreen({
         <i className="fas fa-arrow-left" />
         <span>{lang === 'ar' ? 'رجوع' : 'חזרה'}</span>
       </button>
-      {state.homeStyle === 'classic' && (
+      {state.homeStyle !== 'minimalist' && (
         // "Classic Design": the office design's heading + artwork.
         <div className="wc-hero">
           <div className="wc-art" aria-hidden>
-            <img src="/classic/tasks-art-2.jpg" alt="" />
+            <img src={state.homeStyle === 'modern' ? '/classic/modern-clients-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
           </div>
           <i className="fab fa-whatsapp wc-hero-fa" aria-hidden />
           <div className="wc-hero-text">
@@ -2146,7 +2168,7 @@ function ClientChatScreen({
            *  the chat content is centered to the same 896px max as
            *  the bot chat, giving bubbles identical inset from the
            *  visible chat area boundaries. */}
-          <div ref={chatListRef} className="portal-wa-chat-list tw-flex-1 tw-space-y-4 tw-overflow-y-auto tw-p-5 tw-mx-auto tw-w-full tw-max-w-4xl">
+          <div ref={chatListRef} onScroll={onChatScroll} className="portal-wa-chat-list tw-flex-1 tw-space-y-4 tw-overflow-y-auto tw-p-5 tw-mx-auto tw-w-full tw-max-w-4xl">
             {/* "היום" pill — wrapped in a flex `justify-center` row
              *  so it lands at the true horizontal center of the
              *  chat area regardless of any padding asymmetry on
@@ -2311,7 +2333,7 @@ function LawyerSearchScreen({
   // "Classic Design" (Settings → home style = classic): the same search,
   // the same two lists and the same row → bot-conversation action, in the
   // dark navy + gold look of the office design.
-  if (appState.homeStyle === 'classic') {
+  if (appState.homeStyle !== 'minimalist') {
     const row = (c: ClientRow, recent?: { lastTime: number; msgCount: number }) => (
       <button key={c.id} type="button" className={'bs-item' + (recent ? ' bs-recent' : '')} onClick={() => onPick(c)}>
         <span className="bs-item-av" aria-hidden>{c.avatar}</span>
@@ -2335,7 +2357,7 @@ function LawyerSearchScreen({
     return (
       <div className="bs-root">
         <div className="bs-art" aria-hidden>
-          <img src="/classic/tasks-art-2.jpg" alt="" />
+          <img src={appState.homeStyle === 'modern' ? '/classic/modern-clients-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
         </div>
         <button type="button" className="bs-back" onClick={onBack} aria-label={T.back} title={T.back}>
           <i className="fas fa-arrow-left" aria-hidden />
@@ -3241,12 +3263,12 @@ function BotChatScreen({
   // "Classic Design" (Settings → home style = classic), lawyer's read-only
   // view of a client's bot conversation: the same transcript, links and back
   // action in the dark navy + gold look of the office design.
-  if (state.homeStyle === 'classic' && lawyerView) {
+  if (state.homeStyle !== 'minimalist' && lawyerView) {
     const ar = lang === 'ar';
     return (
       <div className="bc-root">
         <div className="bc-art" aria-hidden>
-          <img src="/classic/tasks-art-2.jpg" alt="" />
+          <img src={state.homeStyle === 'modern' ? '/classic/modern-clients-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
         </div>
         <header className="bc-hero">
           <i className="far fa-comment-dots bc-hero-fa" aria-hidden />

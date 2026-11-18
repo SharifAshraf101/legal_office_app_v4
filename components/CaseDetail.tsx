@@ -475,7 +475,7 @@ export function CaseDetail({ caseId, startTimelineEdit = false }: CaseDetailProp
   return (
     <Modal
       onClose={close}
-      className={modalClass + (state.homeStyle === 'classic' ? ' ck-classic' : '')}
+      className={modalClass + (state.homeStyle !== 'minimalist' ? ' ck-classic' : '')}
       boxClassName={boxClass}
       hideBackBtn={true}
       hideCloseX={true}
@@ -532,7 +532,7 @@ export function CaseDetail({ caseId, startTimelineEdit = false }: CaseDetailProp
           ×
         </button>
         {/* Title h2 — visible on both viewports. */}
-        {state.homeStyle === 'classic' ? (
+        {state.homeStyle !== 'minimalist' ? (
           // "Classic Design": the office design's heading + artwork.
           <div className="case-detail-title ck-hero">
             <img src="/classic/tasks-art-2.jpg" alt="" className="ck-art" aria-hidden />
