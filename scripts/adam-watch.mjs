@@ -130,8 +130,9 @@ function promptFor(id) {
     '3. אם חסרות עובדות שבלעדיהן אי אפשר להתקדם – שאל רק דרך המערכת: ask ואחריו wait (כמתואר במסמך). אם wait הסתיים בלי תשובה, המשך עם מה שיש וסמן את החסר ב-toVerify.',
     '4. התייעץ עם יוסף (הפרויקט "יוסף" ב-chatgpt.com) ועם סעיד (ה-Gem "סעיד" ב-gemini.google.com) בדפדפן Chrome, בכלי Claude in Chrome. עבוד בלשונית חדשה, והמתן עד שהתשובה מסתיימת לפני הקריאה. אם אחד מהם לא זמין (דורש התחברות, שגיאה, מגבלה) – נסה שוב פעם אחת; אם עדיין לא, המשך עם השני, כתוב זאת במפורש ב-summary והשאר את השדה שלו ריק.',
     '5. עדכן שורת מצב בכל שלב: progress (מכין טיוטה / מתייעץ עם יוסף / מתייעץ עם סעיד / משלב ומשווה).',
-    `6. בסיום כתוב את ~/adam-jobs/${id}/result.json ושלח: node scripts/adam-bridge.mjs result ${id} <הקובץ>. התוצאה היא התשובה הסופית אחרי ההתייעצות בין שלושתכם.`,
-    `7. אם נכשלת ואי אפשר להשלים – דווח: node scripts/adam-bridge.mjs fail ${id} "<הסיבה בקצרה>". אל תסיים בלי result או fail.`,
+    '6. שמירה ב-Google Drive (בכלי Google Drive המחובר לחשבון), לפני שליחת התוצאה – לפי הסעיף "שמירה ב-Google Drive" במסמך: תיקיית האב "התייעצויות בין אדם ויוסף וסעיד", בתוכה תיקייה על שם הלקוח (clientName), ובתוכה תיקייה על שם מהות התיק (caseTitle). אם תיקייה כבר קיימת – להשתמש בה ולא ליצור כפולה. לשמור שם את מסמכי ההתייעצות הזאת, ולכתוב את הקישור לתיקייה בסוף ה-summary. אם Google Drive לא זמין – לא לעצור: לכתוב זאת ב-summary ולהמשיך.',
+    `7. בסיום כתוב את ~/adam-jobs/${id}/result.json ושלח: node scripts/adam-bridge.mjs result ${id} <הקובץ>. התוצאה היא התשובה הסופית אחרי ההתייעצות בין שלושתכם.`,
+    `8. אם נכשלת ואי אפשר להשלים – דווח: node scripts/adam-bridge.mjs fail ${id} "<הסיבה בקצרה>". אל תסיים בלי result או fail.`,
     '',
     'חיסיון: קבצי העבודה נשמרים רק ב-~/adam-jobs. אל תדפיס את ה-token ואל תשנה קבצים בפרויקט.',
   ].join('\n');
@@ -164,7 +165,12 @@ function runAdam(id) {
       'mcp__claude_ai_2',
       // read the request's document (docLink) from the office Dropbox
       'mcp__claude_ai_Dropbox',
+      // keep each consultation's documents in the client's Google Drive folder
+      'mcp__claude_ai_Google_Drive',
       'Bash(node scripts/adam-bridge.mjs:*)',
+      // a computer without Git Bash runs the same command through PowerShell
+      'PowerShell(node scripts/adam-bridge.mjs:*)',
+      'PowerShell(node scripts\\adam-bridge.mjs:*)',
       '--max-turns',
       '400',
     ];
@@ -261,7 +267,7 @@ if (checkOnly) {
     if (!hasAdam) hasAdam = fs.readdirSync(skills).some((d) => fs.existsSync(path.join(skills, d, 'adam-paralegal', 'SKILL.md')));
   } catch {}
   say(hasAdam, 'Adam skill (adam-paralegal) available on this computer');
-  console.log('Package version: 3');
+  console.log('Package version: 5');
   console.log(ok ? 'READY' : 'NOT READY');
   process.exitCode = ok ? 0 : 1;
 } else {
