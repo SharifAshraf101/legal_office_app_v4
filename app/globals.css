@@ -45664,3 +45664,14 @@ html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.
  * title bar grow to fit them. */
 html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls:has(form.case-edit-form):is(#ce-x,.modal) .case-detail-title{height:auto!important;min-height:38px!important;flex-wrap:wrap!important;row-gap:10px!important;padding-bottom:8px!important;overflow:visible!important}
 html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls:has(form.case-edit-form):is(#ce-x,.modal) .case-detail-title-actions{position:relative!important;z-index:6!important;display:flex!important;flex-wrap:wrap!important;gap:8px!important;height:auto!important;transform:none!important}
+
+/* Phones: no browser "pull to refresh". Several screens (search, clients,
+ * cases, calendar, tasks, documents…) scroll an INNER list, so a downward
+ * swipe at the top of that list chained to the page and the browser reloaded
+ * the app (back to the language screen). The page itself never needs to
+ * overscroll, and inner scrollers keep their own scroll to themselves. */
+html:not(.x1):not(.x2),
+html:not(.x1):not(.x2) body:not(.x1):not(.x2){overscroll-behavior-y:none!important}
+html body #mainApp,html body #content.content{overscroll-behavior-y:none}
+html body #content.content :is(.kx-list,.kx-root,.cx-scroll,.mx-scroll,.gx-results,.sx-root,.bs-list,.bs-root,.wh-list,.wh-root,.bc-msgs,.bc-root,.fd-root,.portal-wa-chat-list,.tasks-scroll-list){overscroll-behavior-y:contain}
+html body .modal .modal-box,html body .modal :is(.kd-body,.ug-frame,.case-detail-dark-wrapper,.client-detail-scroll-body,.agenda-modal-list){overscroll-behavior-y:contain}
