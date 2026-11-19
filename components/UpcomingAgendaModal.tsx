@@ -15,6 +15,7 @@ import { Fragment } from 'react';
 import { rememberDismissedEventId } from '@/lib/dismissedEvents';
 import {
   completeTaskEverywhere,
+  REMINDER_PREFIX_RE,
   removeTaskEverywhere,
   taskIdentityKey,
 } from '@/lib/tasks';
@@ -213,7 +214,7 @@ export function UpcomingAgendaModal() {
               const sameClient = conflict && clientsAtTime[timeKey]?.size === 1;
               const isTaskOrReminder = entry.item.type === 'task' || entry.item.type === 'reminder';
               const taskContent = String(titleText || '')
-                .replace(/^\s*מועד דיוני:\s*/, '')
+                .replace(REMINDER_PREFIX_RE, '')
                 .replace(/^\s*موعد إجرائي:\s*/, '')
                 .trim();
               const taskDoText = taskContent && taskContent !== taskDoLabel ? `${taskDoLabel}: ${taskContent}` : taskDoLabel;
@@ -334,7 +335,7 @@ export function UpcomingAgendaModal() {
             // (Arabic "موعد إجرائي: <content>") — strip just that prefix so the
             // reminder/task content survives next to the label.
             const taskContent = String(titleText || '')
-              .replace(/^\s*מועד דיוני:\s*/, '')
+              .replace(REMINDER_PREFIX_RE, '')
               .replace(/^\s*موعد إجرائي:\s*/, '')
               .trim();
             const taskDoText =

@@ -7,8 +7,8 @@
 // communication screen's inner steps — and while anything is registered one
 // extra history entry is kept. BACK pops that entry; the most recently
 // registered handler (the topmost modal / innermost screen) runs, and the entry
-// is put back while there is still somewhere to go back to. With nothing left
-// (Home, no modal open), BACK leaves the app as it always did.
+// is put back while there is still somewhere to go back to. The Home screen
+// registers a do-nothing handler, so BACK there keeps the app open.
 
 import { useEffect, useRef } from 'react';
 

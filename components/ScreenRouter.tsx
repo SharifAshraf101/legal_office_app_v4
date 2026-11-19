@@ -37,7 +37,11 @@ import { BriefingScreen } from './BriefingScreen';
 export function ScreenRouter() {
   const { state, dispatch } = useAppState();
   // The phone's BACK on a main screen does what its back button does: Home.
-  useBackHandler(state.currentTab !== 'home', () => dispatch({ type: 'SET_TAB', tab: 'home' }));
+  // On Home itself it does nothing — the app stays open instead of closing
+  // (and restarting from scratch the next time it is opened).
+  useBackHandler(true, () => {
+    if (state.currentTab !== 'home') dispatch({ type: 'SET_TAB', tab: 'home' });
+  });
   const waEnabled = useWhatsAppEnabled();
 
   // The portal needs WhatsApp: the operator's original number, or an office

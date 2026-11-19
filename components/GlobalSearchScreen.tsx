@@ -1,5 +1,6 @@
 'use client';
 
+import { reminderDisplayTitle } from '@/lib/tasks';
 import { useMemo, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
@@ -351,7 +352,7 @@ export function GlobalSearchScreen() {
                     fa={<i className="fas fa-calendar-check" />}
                     main={
                       <>
-                        {(ar ? e.titleAr || e.title : e.title || e.titleAr) || '-'}
+                        {reminderDisplayTitle(ar ? e.titleAr || e.title : e.title || e.titleAr) || '-'}
                         {eventWho(e) && <span className="gx-who"> · {eventWho(e)}</span>}
                       </>
                     }
@@ -512,7 +513,7 @@ export function GlobalSearchScreen() {
                   </div>
                   <div>
                     <div className="row-title">
-                      {lang === 'ar' ? e.titleAr || e.title : e.title || e.titleAr}
+                      {reminderDisplayTitle(lang === 'ar' ? e.titleAr || e.title : e.title || e.titleAr)}
                       {eventWho(e) ? ' · ' + eventWho(e) : ''}
                     </div>
                     <div className="sub" style={{ color: '#dc2626', fontWeight: 800 }}>{eventWhen(e.dateTime)}</div>

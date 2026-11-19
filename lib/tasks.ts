@@ -199,12 +199,22 @@ export function rememberDecisionImportKey(set: Set<string>, key: string): void {
 // as a calendar reminder titled "מועד דיוני: <title>" — under different ids and
 // sometimes different dates. They are matched by (case, core title).
 
-/** A task/reminder title without the procedural-deadline prefix. */
-export function taskCoreTitle(title?: string): string {
+/** The prefix of a deadline reminder's title. Reminders are titled
+ *  "תזכורת: <title>" ("تذكير: <title>"); records saved before that carry the
+ *  old "מועד דיוני:" / "موعد إجرائي:" prefix, which is still recognized. */
+export const REMINDER_PREFIX_RE = /^\s*(?:מועד דיוני|תזכורת|موعد إجرائي|تذكير):\s*/;
+
+/** A stored reminder title as it is shown: the old "מועד דיוני:" prefix reads
+ *  "תזכורת:" (Arabic "تذكير:"). Other titles are returned unchanged. */
+export function reminderDisplayTitle(title?: string): string {
   return String(title || '')
-    .replace(/^\s*מועד דיוני:\s*/, '')
-    .replace(/^\s*موعد إجرائي:\s*/, '')
-    .trim();
+    .replace(/^\s*מועד דיוני:\s*/, 'תזכורת: ')
+    .replace(/^\s*موعد إجرائي:\s*/, 'تذكير: ');
+}
+
+/** A task/reminder title without the reminder prefix. */
+export function taskCoreTitle(title?: string): string {
+  return String(title || '').replace(REMINDER_PREFIX_RE, '').trim();
 }
 
 /** (case, core title) — the identity shared by every copy of one task. */

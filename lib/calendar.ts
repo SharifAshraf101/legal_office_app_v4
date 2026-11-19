@@ -9,7 +9,7 @@ import {
   officeDateTimeToIso,
 } from './dates';
 import { caseName, clientName } from './cases';
-import { doneTaskKeys, taskIdentityKey } from './tasks';
+import { doneTaskKeys, reminderDisplayTitle, REMINDER_PREFIX_RE, taskIdentityKey } from './tasks';
 import type {
   CalendarEvent,
   Case,
@@ -197,7 +197,7 @@ export function calendarItemTitle(
     if (raw && !generic.includes(String(raw).trim())) return String(raw);
     return calendarHearingNatureFallback(item, lang);
   }
-  return raw ?? '';
+  return reminderDisplayTitle(raw ?? '');
 }
 
 /** Source line 4090. */
@@ -393,7 +393,7 @@ export function upcomingAgendaItems(
   // title) — so keyed on (caseId, core-title, day) it must not appear twice.
   const coreTitle = (s?: string): string =>
     String(s || '')
-      .replace(/^\s*מועד דיוני:\s*/, '')
+      .replace(REMINDER_PREFIX_RE, '')
       .replace(/^\s*موعد إجرائي:\s*/, '')
       .trim();
   const dayKey = (d: Date, caseId?: string, title?: string): string =>
