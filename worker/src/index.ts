@@ -1429,6 +1429,40 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
     return json({ error: 'file_too_large', detail: fieldTooBig }, request, env, 413);
   }
 
+  // "async": true — answer at once and write the draft in the background (the
+  // queue consumer calls this handler again, without the flag). For callers
+  // whose HTTP step gives up after a few minutes (make.com: 300 s), which a
+  // long draft exceeds; the unfinished request then saved nothing.
+  if (body.async === true && env.DOC_QUEUE) {
+    try {
+      const bin = atob(pdfB64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const key = `${ctx.tenantId}/tmp-draft/${crypto.randomUUID()}.pdf`;
+      await env.DOCS.put(key, bytes, { httpMetadata: { contentType: 'application/pdf' } });
+      const draftBody: Record<string, unknown> = { ...body };
+      delete draftBody.pdf_base64;
+      delete draftBody.async;
+      // A queue message holds 128 KB: drop the app's extra notes if they are huge
+      // (the handler reads the case notes from the database anyway).
+      if (JSON.stringify(draftBody).length > 90_000) delete draftBody.notes_context;
+      await env.DOC_QUEUE.send({
+        tenantId: ctx.tenantId,
+        key,
+        fileName: String(body.file_name || ''),
+        docId: '',
+        caseId: String(body.case_source_id || ''),
+        clientId: String(body.client_source_id || ''),
+        stage: 'draft',
+        attempt: 0,
+        draftBody,
+      });
+      return json({ ok: true, queued: true }, request, env, 202);
+    } catch (e) {
+      console.warn('[draft] could not queue, drafting inline', e);
+    }
+  }
+
   const clientSrc = String(body.client_source_id || '').trim();
   const caseSrc = String(body.case_source_id || '').trim();
   const fileName = String(body.file_name || '').trim();

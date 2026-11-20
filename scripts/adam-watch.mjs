@@ -138,6 +138,55 @@ function promptFor(id) {
   ].join('\n');
 }
 
+/** Start PowerShell once and wait for it to exit, so it is "warm" when Adam
+ *  needs it. On a computer without Git Bash, Claude Code runs every command —
+ *  the bridge commands included — through PowerShell, and gives a cold
+ *  PowerShell only 5 seconds to start ("pwsh timed out after 5000ms"). After the
+ *  computer has been idle the first start takes longer than that, so the run
+ *  could not execute a single command and ended without a result; the same
+ *  request sent again then worked, because PowerShell was by then in memory. */
+function warmShell() {
+  if (process.platform !== 'win32') return Promise.resolve();
+  const one = (exe) =>
+    new Promise((resolve) => {
+      const t0 = Date.now();
+      let done = false;
+      const end = (how) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        resolve(`${exe} ${how} ${Date.now() - t0}ms`);
+      };
+      let child;
+      try {
+        child = spawn(exe, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', 'exit'], {
+          windowsHide: true,
+          stdio: 'ignore',
+        });
+      } catch {
+        return resolve(`${exe} not started`);
+      }
+      const timer = setTimeout(() => {
+        try {
+          child.kill();
+        } catch {}
+        end('still starting after');
+      }, 90_000);
+      child.on('error', () => end('missing'));
+      child.on('close', () => end('ready in'));
+    });
+  // Both editions: Claude Code uses pwsh (PowerShell 7) when it is installed,
+  // Windows PowerShell otherwise. Twice — the second start shows the warm time.
+  return (async () => {
+    const out = [];
+    for (const exe of ['pwsh.exe', 'powershell.exe']) {
+      out.push(await one(exe));
+      out.push(await one(exe));
+    }
+    return out.join(', ');
+  })();
+}
+
 function runAdam(id) {
   return new Promise((resolve) => {
     const dir = path.join(jobsDir, id);
@@ -209,6 +258,11 @@ async function handle(id) {
   } catch (e) {
     log(`${id}: could not mark working — ${e.message}`);
   }
+  try {
+    log(`${id}: PowerShell warm-up — ${await warmShell()}`);
+  } catch (e) {
+    log(`${id}: PowerShell warm-up failed — ${e && e.message ? e.message : e}`);
+  }
   const r = await runAdam(id);
   log(`${id}: Adam finished (exit ${r.code}${r.error ? ', ' + r.error : ''})`);
   // Never leave a request hanging: if Adam ended without a result, report it.
@@ -267,7 +321,7 @@ if (checkOnly) {
     if (!hasAdam) hasAdam = fs.readdirSync(skills).some((d) => fs.existsSync(path.join(skills, d, 'adam-paralegal', 'SKILL.md')));
   } catch {}
   say(hasAdam, 'Adam skill (adam-paralegal) available on this computer');
-  console.log('Package version: 5');
+  console.log('Package version: 6');
   console.log(ok ? 'READY' : 'NOT READY');
   process.exitCode = ok ? 0 : 1;
 } else {

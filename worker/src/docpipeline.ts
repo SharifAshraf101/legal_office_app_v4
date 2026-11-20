@@ -22,9 +22,13 @@ export interface DocJob {
   docId: string; // DOC-NNN
   caseId: string;
   clientId: string;
-  /** 'process' = summary + draft; 'attach' = copy the summary onto the row. */
-  stage: 'process' | 'attach';
+  /** 'process' = summary + draft; 'attach' = copy the summary onto the row;
+   *  'draft' = only the reply draft, for a PDF parked in R2 by POST /api/draft
+   *  with "async": true (see handleDraft). */
+  stage: 'process' | 'attach' | 'draft';
   attempt: number;
+  /** stage 'draft': the /api/draft request fields, without the PDF. */
+  draftBody?: Record<string, unknown>;
 }
 
 /** The subset of the Worker's Ctx the draft handler uses. */
@@ -154,6 +158,23 @@ async function processJob(env: Env, job: DocJob, runDraft: RunDraft): Promise<vo
     if (!(await attachSummary(db, job)) && job.attempt < ATTACH_TRIES) {
       await env.DOC_QUEUE?.send({ ...job, attempt: job.attempt + 1 }, { delaySeconds: ATTACH_DELAY_S });
     }
+    return;
+  }
+
+  // A reply draft asked for in the background: a long draft (an affidavit that
+  // answers a whole questionnaire) takes longer to write than the caller's HTTP
+  // step is allowed to wait, so the request only parks the PDF and this
+  // consumer — which has no such limit — writes the draft.
+  if (job.stage === 'draft') {
+    const parked = await env.DOCS.get(job.key);
+    if (!parked) return; // already done (a redelivered message)
+    const res = await runDraft(
+      { tenantId: job.tenantId, db },
+      { ...(job.draftBody || {}), pdf_base64: b64(new Uint8Array(await parked.arrayBuffer())) },
+    );
+    // A model / network failure is worth another try; anything else is final.
+    if (res.status >= 500) throw new Error('draft failed: HTTP ' + res.status);
+    await env.DOCS.delete(job.key);
     return;
   }
 
