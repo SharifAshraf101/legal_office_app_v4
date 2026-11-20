@@ -575,33 +575,64 @@ export async function fetchSuggestedActionDetailed(
   return null;
 }
 
-/** True when a document is (or contains) a court DECISION / PROTOCOL — checked
- *  against the document's type/title/file name AND, when provided, its summary
- *  text. The summary check matters because a decision is often written ON
- *  another document (e.g. a defense), so the file is named "כתב הגנה" while the
- *  summary says "קיימת החלטה…". Those get the split decode (decision first,
- *  then the rest). */
+/** A party's own filing, judged by how its TITLE OPENS: a motion, response,
+ *  claim, defence, affidavit, appeal, notice… Such a title often NAMES a
+ *  decision without being one — "בקשה למתן החלטה", "תגובה לפי החלטת קאדי",
+ *  "כתב תביעה - פסק דין הצהרתי" — so the decision words in it prove nothing. */
+const PARTY_FILING_TITLE_RE =
+  /^(?:בקשה|בקשת|תגובה|תגובת|תשובה|תשובת|כתב|תצהיר|סיכומים|סיכומי|ערעור|הודעה|הודעת|עיקרי|התנגדות|המצאת|אישור|ייפוי|טופס|מכתב|طلب|رد|ردّ|لائحة|تصريح|استئناف|مذكرة|إشعار|اعتراض|وكالة|motion|response|reply|claim|statement|affidavit|appeal|notice)(?![֐-׿؀-ۿa-z])/i;
+const DECISION_WORD_RE =
+  /החלטה|פרוטוקול|פסק[\s-]?דין|قرار|محضر|حكم|protocol|decision|ruling/;
+
+/** The human title inside a filing name: drops the "CLT-1_CS-2_" prefix, a
+ *  leading court serial ("149802"), the "_DOC-003.pdf" tail and list numbering. */
+function bareDocTitle(raw?: string): string {
+  return String(raw || '')
+    .replace(/\.[a-z0-9]{2,5}$/i, '')
+    .replace(/_?DOC-\d+$/i, '')
+    .replace(/^(?:CLT-\d+_)?(?:CS-\d+_)?/i, '')
+    .replace(/^[\s\d._-]+/, '')
+    .trim()
+    .toLowerCase();
+}
+
+/** True when a document IS a court DECISION / PROTOCOL — judged by its type /
+ *  title / file name and, failing that, by how its summary OPENS.
+ *
+ *  A filing by a party (a response, a motion, a claim…) is never a decision,
+ *  even though it — and its summary — routinely CITES earlier decisions. Only
+ *  the OPENING of the summary counts, because the summary states the nature of
+ *  the document first ("החלטה המורה…", "قرار صادر عن…"); a decision mentioned
+ *  further down is one the document merely refers to. (The old test matched a
+ *  decision word ANYWHERE in the summary, so almost every party filing got the
+ *  "ההחלטה" split and a made-up operative decision.) */
 export function isDecisionOrProtocol(
   doc: { type?: string; title?: string; titleAr?: string; fileName?: string },
   summary?: string | null,
 ): boolean {
-  const meta = [doc.type, doc.title, doc.titleAr, doc.fileName]
-    .filter(Boolean)
-    .join(' ')
+  const titles = [doc.title, doc.titleAr, doc.fileName].map(bareDocTitle).filter(Boolean);
+  const partyFiling = titles.some((t) => PARTY_FILING_TITLE_RE.test(t));
+  if (!partyFiling) {
+    const meta = [String(doc.type || '').toLowerCase(), ...titles].join(' ');
+    if (DECISION_WORD_RE.test(meta)) return true;
+  }
+  // How the summary opens — skipping markdown marks.
+  const head = (summary || '')
+    .replace(/[*#_>]+/g, ' ')
+    .trim()
+    .slice(0, 160)
     .toLowerCase();
-  const inMeta =
-    !!meta &&
-    /החלטה|פרוטוקול|פסק[\s-]?דין|قرار|محضر|حكم|protocol|decision|ruling/.test(
-      meta,
+  if (!head) return false;
+  // A party filing counts only when the summary's very FIRST words say the
+  // document is a decision (one written on the filing itself); a decision named
+  // later in the sentence is the one the filing asks for or answers.
+  if (partyFiling) {
+    return /^(?:קיימת\s+|ניתנה\s+|יש\s+)?ה?(?:החלטה|פסק[\s-]?דין|פרוטוקול)|^(?:ال)?(?:قرار|حكم|محضر)/.test(
+      head,
     );
-  if (inMeta) return true;
-  const sum = (summary || '').toLowerCase();
-  // Strong decision markers inside the summary text.
-  return (
-    !!sum &&
-    /החלטה|פסק[\s-]?דין|פרוטוקול|בית\s*(הדין|המשפט)\s*(מורה|קובע|מחייב|דוחה|הורה|פסק)|נדרש[הת]?\s*להגיב|צו\b|قرار|حكم|محضر|تقرر|يُلزم|أمرت/.test(
-      sum,
-    )
+  }
+  return /החלטה|פסק[\s-]?דין|פרוטוקול|בית\s*(הדין|המשפט)\s*(מורה|קובע|מחייב|דוחה|הורה|פסק)|قرار|حكم|محضر|تقرر|قررت|أمرت/.test(
+    head,
   );
 }
 
