@@ -1,5 +1,6 @@
 'use client';
 
+import { officeMarkup } from '@/lib/contentClass';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CalendarEvent, Lang } from '@/types';
 import { useAppState } from '@/hooks/useAppState';
@@ -475,7 +476,7 @@ export function CaseDetail({ caseId, startTimelineEdit = false }: CaseDetailProp
   return (
     <Modal
       onClose={close}
-      className={modalClass + (state.homeStyle !== 'minimalist' ? ' ck-classic' : '')}
+      className={modalClass + (officeMarkup(state.homeStyle) ? ' ck-classic' : '')}
       boxClassName={boxClass}
       hideBackBtn={true}
       hideCloseX={true}
@@ -532,7 +533,7 @@ export function CaseDetail({ caseId, startTimelineEdit = false }: CaseDetailProp
           ×
         </button>
         {/* Title h2 — visible on both viewports. */}
-        {state.homeStyle !== 'minimalist' ? (
+        {officeMarkup(state.homeStyle) ? (
           // "Classic Design": the office design's heading + artwork.
           <div className="case-detail-title ck-hero">
             <img src="/classic/tasks-art-2.jpg" alt="" className="ck-art" aria-hidden />

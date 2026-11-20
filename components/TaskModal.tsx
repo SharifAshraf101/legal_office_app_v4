@@ -1,5 +1,6 @@
 'use client';
 
+import { officeMarkup } from '@/lib/contentClass';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
@@ -169,16 +170,16 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
         className={
           'new-task-popup-box modal-box' +
           (existing ? ' edit-screen-box' : '') +
-          (state.homeStyle !== 'minimalist' ? ' ne-classic tk-classic' : '')
+          (officeMarkup(state.homeStyle) ? ' ne-classic tk-classic' : '')
         }
         style={{
           position: 'relative',
-          width: state.homeStyle !== 'minimalist' ? 'min(800px, 94vw)' : 'min(520px, 92vw)',
+          width: officeMarkup(state.homeStyle) ? 'min(800px, 94vw)' : 'min(520px, 92vw)',
           maxHeight: 'min(88vh, 820px)',
           overflowY: 'auto',
-          background: state.homeStyle !== 'minimalist' ? undefined : '#FDFBF5',
+          background: officeMarkup(state.homeStyle) ? undefined : '#FDFBF5',
           borderRadius: 22,
-          padding: state.homeStyle !== 'minimalist' ? undefined : '60px 22px 22px',
+          padding: officeMarkup(state.homeStyle) ? undefined : '60px 22px 22px',
           boxShadow:
             '0 28px 70px rgba(15,23,42,.55), 0 0 0 1px rgba(15,23,42,.08)',
         }}
@@ -208,7 +209,7 @@ export function TaskModal({ preselectedCaseId = '', editTaskId = '' }: TaskModal
         >
           ×
         </button>
-        {state.homeStyle !== 'minimalist' ? (
+        {officeMarkup(state.homeStyle) ? (
           // "Classic Design": the office's banner (the new-event window's look).
           <div className="ne-banner">
             <img src="/classic/event-art.jpg" alt="" className="ne-banner-art" aria-hidden />

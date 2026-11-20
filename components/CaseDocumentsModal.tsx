@@ -1,5 +1,6 @@
 'use client';
 
+import { officeMarkup } from '@/lib/contentClass';
 import { useEffect, useRef, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
@@ -311,9 +312,9 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
   };
 
   return (
-    <Modal onClose={close} className={'case-docs-modal' + (state.homeStyle !== 'minimalist' ? ' cdm-classic' : '')}>
+    <Modal onClose={close} className={'case-docs-modal' + (officeMarkup(state.homeStyle) ? ' cdm-classic' : '')}>
       {/* "Classic Design": the office's banner above the same contents. */}
-      {state.homeStyle !== 'minimalist' && (
+      {officeMarkup(state.homeStyle) && (
         <div className="cdm-banner">
           <img src="/classic/docs-art-2.jpg" alt="" className="cdm-banner-art" aria-hidden />
           <i className="far fa-file-lines cdm-banner-fa" aria-hidden />

@@ -1,5 +1,6 @@
 'use client';
 
+import { officeMarkup } from '@/lib/contentClass';
 import { useMemo, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
@@ -91,8 +92,8 @@ export function ClientsScreen() {
   // "Classic Design" (Settings → home style = classic): the same search, rows,
   // click and right-click handlers, laid out in the dark navy + gold look.
   // "Modern Design" reuses this layout in a light shell (.kx-modern), without the figure tiles.
-  if (state.homeStyle === 'classic' || state.homeStyle === 'modern') {
-    const modern = state.homeStyle === 'modern';
+  if (officeMarkup(state.homeStyle)) {
+    const modern = state.homeStyle !== 'classic';
     const ar = lang === 'ar';
     const L = {
       h: ar ? 'الموكلون' : 'לקוחות',

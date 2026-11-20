@@ -1,5 +1,6 @@
 'use client';
 
+import { officeMarkup } from '@/lib/contentClass';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -180,7 +181,7 @@ export function UpcomingAgendaModal() {
   // "Classic Design" (Settings → home style = classic): the same items, day
   // grouping, overlap marking and task actions (done / edit / delete), in the
   // dark navy + gold look of the office design.
-  if (state.homeStyle !== 'minimalist') {
+  if (officeMarkup(state.homeStyle)) {
     const ar = lang === 'ar';
     return (
       <Modal onClose={close} className="upcoming-agenda-modal ug-classic" hideCloseX hideBackBtn={true}>

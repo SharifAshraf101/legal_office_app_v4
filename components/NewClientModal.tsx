@@ -1,5 +1,6 @@
 'use client';
 
+import { officeMarkup } from '@/lib/contentClass';
 import { useState, type FormEvent } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
@@ -79,7 +80,7 @@ export function NewClientModal() {
 
   // "Classic Design": the same form in the navy + gold look — reuses the
   // new-event window's classic styles (.ne-classic) plus .nc-classic rows.
-  const ncClassic = state.homeStyle !== 'minimalist';
+  const ncClassic = officeMarkup(state.homeStyle);
   return (
     <div
       className="new-client-popup-overlay"

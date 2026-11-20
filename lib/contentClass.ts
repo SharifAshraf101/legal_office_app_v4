@@ -2,11 +2,13 @@
  *  CSS is scoped by these classes ("contacts-classic", "calendar-modern", …). */
 export function contentClassFor(tab: string, hs: string): string {
   const classic = hs === 'classic';
-  const modern = hs === 'modern';
+  // "Minimal Design" shares the Modern (light) screens; its own look is CSS
+  // scoped by body[data-home-style="minimalist"].
+  const modern = hs === 'modern' || hs === 'minimalist';
   return (
     'content' +
     (tab === 'home' ? ' home-content' : '') +
-    (tab === 'home' && (classic || modern || hs === 'minimalist') ? ' home-classic' : '') +
+    (tab === 'home' && (classic || modern) ? ' home-classic' : '') +
     (tab === 'calendar' && classic ? ' calendar-classic' : '') +
     (tab === 'calendar' && modern ? ' calendar-modern' : '') +
     (tab === 'search' && modern ? ' calendar-modern search-modern' : '') +
@@ -25,4 +27,11 @@ export function contentClassFor(tab: string, hs: string): string {
     (tab === 'analytics' ? ' analytics-content' + (classic ? ' analytics-classic' : '') : '') +
     (tab === 'briefing' ? ' analytics-content briefing-content' + (classic ? ' briefing-classic' : '') : '')
   );
+}
+
+/** Every design (Classic, Modern, Minimal) renders the office markup of the
+ *  windows and screens; they differ in CSS only. The older markup behind the
+ *  `else` branches is kept for a design that opts out. */
+export function officeMarkup(hs: string): boolean {
+  return hs === 'classic' || hs === 'modern' || hs === 'minimalist';
 }

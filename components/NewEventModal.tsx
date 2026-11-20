@@ -1,5 +1,6 @@
 'use client';
 
+import { officeMarkup } from '@/lib/contentClass';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
@@ -564,7 +565,7 @@ export function NewEventModal({
       : 'עותק של הקובץ יישמר בתיקיית documents החיצונית, ולא בתוך קובץ ה-HTML.';
 
   // "Classic Design": the same form in the navy + gold look (CSS: .ne-classic).
-  const neClassic = state.homeStyle !== 'minimalist';
+  const neClassic = officeMarkup(state.homeStyle);
   return (
     <div
       className={'new-event-popup-overlay' + (neClassic ? ' ne-classic-wrap' : '')}

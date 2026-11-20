@@ -59,7 +59,7 @@ export function CalendarAgendaRow({ entry }: { entry: CalendarItem }) {
     modalStack.open(<CalendarEventDetail source={entry.source} id={String(item.id || '')} />);
 
   // "Modern Design": date over time · mark · case line over the event's note.
-  if (state.homeStyle === 'modern') {
+  if (state.homeStyle !== 'classic') {
     const main = [parts.client, parts.caseType, parts.court, parts.caseNumber].filter((p) => p && p !== '-').join(' - ');
     return (
       <div

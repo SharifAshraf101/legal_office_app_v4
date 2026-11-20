@@ -1,5 +1,6 @@
 'use client';
 
+import { officeMarkup } from '@/lib/contentClass';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
@@ -111,7 +112,7 @@ export function NewCaseModal() {
 
   // "Classic Design": the same form in the navy + gold look (the new-client
   // window's classic styles: .ne-classic .nc-classic, plus .nk-classic).
-  const nkClassic = state.homeStyle !== 'minimalist';
+  const nkClassic = officeMarkup(state.homeStyle);
   return (
     <div
       className="new-case-popup-overlay"

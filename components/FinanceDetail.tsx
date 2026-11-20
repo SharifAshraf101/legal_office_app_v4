@@ -1,5 +1,6 @@
 'use client';
 
+import { officeMarkup } from '@/lib/contentClass';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
@@ -52,7 +53,7 @@ export function FinanceDetail() {
 
   // "Classic Design" (Settings → home style = classic): the same figures,
   // payments, edit and back actions, in the dark navy + gold look.
-  if (state.homeStyle !== 'minimalist') {
+  if (officeMarkup(state.homeStyle)) {
     const ar = lang === 'ar';
     const H = {
       h: ar ? 'الأتعاب والدفعات' : 'שכר טרחה ותשלומים',
@@ -70,9 +71,9 @@ export function FinanceDetail() {
       back: ar ? 'رجوع' : 'חזרה',
     };
     return (
-      <section className={'kx-root fd-root' + (state.homeStyle === 'modern' ? ' kx-modern' : '')}>
+      <section className={'kx-root fd-root' + (state.homeStyle !== 'classic' ? ' kx-modern' : '')}>
         <div className="kx-art" aria-hidden>
-          <img src={state.homeStyle === 'modern' ? '/classic/modern-fees-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
+          <img src={state.homeStyle !== 'classic' ? '/classic/modern-fees-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
         </div>
         <header className="kx-hero">
           <span className="kx-hero-fa" aria-hidden>

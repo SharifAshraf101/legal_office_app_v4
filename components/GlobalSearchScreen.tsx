@@ -1,5 +1,6 @@
 'use client';
 
+import { officeMarkup } from '@/lib/contentClass';
 import { reminderDisplayTitle } from '@/lib/tasks';
 import { useMemo, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
@@ -154,8 +155,8 @@ export function GlobalSearchScreen() {
   // buttons only choose which of the existing result groups is shown.
   const [cat, setCat] = useState<'all' | 'clients' | 'cases' | 'tasks' | 'events' | 'docs'>('all');
   // "Modern Design" uses the same logic with a light shell ("sx-" classes).
-  if (state.homeStyle === 'classic' || state.homeStyle === 'modern') {
-    const modern = state.homeStyle === 'modern';
+  if (officeMarkup(state.homeStyle)) {
+    const modern = state.homeStyle !== 'classic';
     const ar = lang === 'ar';
     const L = {
       h: ar ? 'البحث الشامل' : 'חיפוש כולל',

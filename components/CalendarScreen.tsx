@@ -75,7 +75,7 @@ export function CalendarScreen() {
 
   // "Modern Design" (Settings → home style = modern): the same controls,
   // handlers and data in the light cream + gold look, with a "today" card.
-  if (state.homeStyle === 'modern') {
+  if (state.homeStyle !== 'classic') {
     const ar = lang === 'ar';
     const now = new Date();
     const todayCount = items.filter((x) => sameCalendarDay(x.date, now)).length;

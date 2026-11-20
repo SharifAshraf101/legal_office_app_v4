@@ -1,5 +1,6 @@
 'use client';
 
+import { officeMarkup } from '@/lib/contentClass';
 import { useMemo, useRef, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
@@ -169,8 +170,8 @@ export function DocumentsScreen() {
   // drag-and-drop, double-tap preview and row actions, in the dark navy +
   // gold look (the clients screen's "kx-" shell).
   // "Modern Design" reuses this layout in a light shell (.kx-modern).
-  if (state.homeStyle === 'classic' || state.homeStyle === 'modern') {
-    const modern = state.homeStyle === 'modern';
+  if (officeMarkup(state.homeStyle)) {
+    const modern = state.homeStyle !== 'classic';
     const ar = lang === 'ar';
     const L = {
       h: ar ? 'المستندات' : 'מסמכים',

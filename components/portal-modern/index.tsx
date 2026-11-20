@@ -1,5 +1,6 @@
 'use client';
 
+import { officeMarkup } from '@/lib/contentClass';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Bot,
@@ -770,7 +771,7 @@ function HubScreen({
   // "Classic Design" (Settings → home style = classic): the same search, the
   // same client list and the same open-chat actions (row / case chip), in the
   // dark navy + gold look of the office design.
-  if (appState.homeStyle !== 'minimalist') {
+  if (officeMarkup(appState.homeStyle)) {
     const ar = lang === 'ar';
     const unreadLabel = (n: number) =>
       n <= 0
@@ -781,7 +782,7 @@ function HubScreen({
     return (
       <div className="wh-root">
         <div className="wh-art" aria-hidden>
-          <img src={appState.homeStyle === 'modern' ? '/classic/modern-clients-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
+          <img src={appState.homeStyle !== 'classic' ? '/classic/modern-clients-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
         </div>
         <button type="button" className="wh-back" onClick={onBack} aria-label={backLabel} title={backLabel}>
           <i className="fas fa-arrow-left" aria-hidden />
@@ -942,8 +943,8 @@ function ChooserScreen({
   // with the same handlers, as two glowing glass cards on the office's
   // artwork (public/classic/portal-*.jpg, cut from the office's mock-up).
   // "Modern Design": the same two choices in a light shell (.cp-modern).
-  if (appState.homeStyle === 'classic' || appState.homeStyle === 'modern') {
-    const modern = appState.homeStyle === 'modern';
+  if (officeMarkup(appState.homeStyle)) {
+    const modern = appState.homeStyle !== 'classic';
     const ar = lang === 'ar';
     const C = {
       title: ar ? 'بوابة التواصل مع الموكلين' : 'שער התקשורת עם הלקוחות',
@@ -2005,7 +2006,7 @@ function ClientChatScreen({
     today: lang === 'ar' ? 'اليوم' : 'היום',
   };
   return (
-    <div className={'portal-wa-chat tw-flex tw-min-h-full tw-flex-col tw-bg-[#FDFBF5]' + (state.homeStyle !== 'minimalist' ? ' wc-classic' : '')}>
+    <div className={'portal-wa-chat tw-flex tw-min-h-full tw-flex-col tw-bg-[#FDFBF5]' + (officeMarkup(state.homeStyle) ? ' wc-classic' : '')}>
       {/* Back arrow — visually identical to the Global Search
        *  `.main-screen-back-btn` (white pill, slate border, dark
        *  text + arrow, hover inverts). Positioned at 0.25cm from
@@ -2021,11 +2022,11 @@ function ClientChatScreen({
         <i className="fas fa-arrow-left" />
         <span>{lang === 'ar' ? 'رجوع' : 'חזרה'}</span>
       </button>
-      {state.homeStyle !== 'minimalist' && (
+      {officeMarkup(state.homeStyle) && (
         // "Classic Design": the office design's heading + artwork.
         <div className="wc-hero">
           <div className="wc-art" aria-hidden>
-            <img src={state.homeStyle === 'modern' ? '/classic/modern-clients-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
+            <img src={state.homeStyle !== 'classic' ? '/classic/modern-clients-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
           </div>
           <i className="fab fa-whatsapp wc-hero-fa" aria-hidden />
           <div className="wc-hero-text">
@@ -2333,7 +2334,7 @@ function LawyerSearchScreen({
   // "Classic Design" (Settings → home style = classic): the same search,
   // the same two lists and the same row → bot-conversation action, in the
   // dark navy + gold look of the office design.
-  if (appState.homeStyle !== 'minimalist') {
+  if (officeMarkup(appState.homeStyle)) {
     const row = (c: ClientRow, recent?: { lastTime: number; msgCount: number }) => (
       <button key={c.id} type="button" className={'bs-item' + (recent ? ' bs-recent' : '')} onClick={() => onPick(c)}>
         <span className="bs-item-av" aria-hidden>{c.avatar}</span>
@@ -2357,7 +2358,7 @@ function LawyerSearchScreen({
     return (
       <div className="bs-root">
         <div className="bs-art" aria-hidden>
-          <img src={appState.homeStyle === 'modern' ? '/classic/modern-clients-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
+          <img src={appState.homeStyle !== 'classic' ? '/classic/modern-clients-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
         </div>
         <button type="button" className="bs-back" onClick={onBack} aria-label={T.back} title={T.back}>
           <i className="fas fa-arrow-left" aria-hidden />
@@ -3263,12 +3264,12 @@ function BotChatScreen({
   // "Classic Design" (Settings → home style = classic), lawyer's read-only
   // view of a client's bot conversation: the same transcript, links and back
   // action in the dark navy + gold look of the office design.
-  if (state.homeStyle !== 'minimalist' && lawyerView) {
+  if (officeMarkup(state.homeStyle) && lawyerView) {
     const ar = lang === 'ar';
     return (
       <div className="bc-root">
         <div className="bc-art" aria-hidden>
-          <img src={state.homeStyle === 'modern' ? '/classic/modern-clients-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
+          <img src={state.homeStyle !== 'classic' ? '/classic/modern-clients-art.png' : '/classic/tasks-art-2.jpg'} alt="" />
         </div>
         <header className="bc-hero">
           <i className="far fa-comment-dots bc-hero-fa" aria-hidden />
