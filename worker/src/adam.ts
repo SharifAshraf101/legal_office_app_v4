@@ -78,7 +78,20 @@ async function ready(db: D1Database) {
       /* already there */
     }
   }
+  // How many times a run that stopped by itself was put back in the queue.
+  try {
+    await db.prepare('ALTER TABLE adam_jobs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0').run();
+  } catch {
+    /* already there */
+  }
 }
+
+// A run that ends without a result is reported by the watcher with this note
+// (scripts/adam-watch.mjs). About half of the runs stop like that a few minutes
+// in, and sending the same request again then works — so the request goes back
+// to the queue by itself instead of asking the lawyer to send it again.
+const AUTO_STOP_NOTE = 'אדם לא השלים את הבקשה (הריצה האוטומטית נעצרה)';
+const AUTO_RETRIES = 2;
 
 /** POST /api/adam/jobs — `{ package: {...} }`; package.caseId is required. */
 export async function createAdamJob(db: D1Database, body: { package?: Record<string, unknown> }): Promise<Res> {
@@ -160,6 +173,16 @@ export async function setAdamJobStatus(db: D1Database, id: string, body: { statu
   const status = String(body?.status || '') as Status;
   if (!STATUSES.includes(status) || status === 'done' || status === 'question' || status === 'answered') return { status: 400, body: { error: 'bad status' } };
   await ready(db);
+  if (status === 'error' && String(body?.note || '').startsWith(AUTO_STOP_NOTE)) {
+    const again = await db
+      .prepare(
+        "UPDATE adam_jobs SET status = 'pending', attempts = attempts + 1, note = ?2, updated_at = ?3 " +
+          "WHERE id = ?1 AND attempts < ?4 AND status IN ('working', 'pending', 'answered')",
+      )
+      .bind(id, 'הריצה נעצרה — אדם מתחיל שוב אוטומטית', new Date().toISOString(), AUTO_RETRIES)
+      .run();
+    if (again.meta.changes) return getAdamJob(db, id);
+  }
   const r = await db
     .prepare('UPDATE adam_jobs SET status = ?2, note = ?3, updated_at = ?4 WHERE id = ?1')
     .bind(id, status, String(body?.note || '').slice(0, 2000), new Date().toISOString())

@@ -3194,6 +3194,12 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         caseId={caseId}
                         documentId={primaryDoc.id}
                         lang={(docLang || (forceArabicCourt ? 'ar' : lang)) === 'ar' ? 'ar' : 'he'}
+                        onShowDocument={(id) => {
+                          const hit = caseDocumentsForCase(caseId, state.documentsArr).find(
+                            (d) => String(d.id).toUpperCase() === String(id).toUpperCase(),
+                          );
+                          if (hit) setSelectedDocId(String(hit.id));
+                        }}
                         onOpenWord={(text) =>
                           openDraftInWord(text, (primaryDoc.title || primaryDoc.fileName || 'draft') + ' - Adam')
                         }

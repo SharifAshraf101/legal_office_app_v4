@@ -1323,6 +1323,88 @@ async function syncCaseNotes(env: Env, ctx: Ctx): Promise<void> {
 // ---------------------------------------------------------------------------
 // POST /api/draft
 // ---------------------------------------------------------------------------
+// What KIND of document the draft must be — decided by the incoming document,
+// not always a "תגובה". A questionnaire is answered by an affidavit, a
+// discovery demand by a discovery affidavit, a claim by a defence, and so on.
+const DRAFT_KIND_RULE =
+  'قاعدة نوع المسودة (إلزامية): المسودة ليست دائماً «رداً/תגובה». حدِّد نوع المستند الذي يوجبه الإجراء القانوني رداً على المستند الوارد، وصُغ المسودة بهذا النوع وبهيكله وعنوانه، وضع العنوان نفسه في الحقل title:\n' +
+  '- שאלון / استجواب خطي ← «תצהיר תשובות לשאלון» / «تصريح مشفوع بالقسم بالإجابة على الاستجواب»: تصريح بصيغة المتكلم باسم موكّلنا، يبدأ بصيغة التحذير القانونية للتصريح، ثم إجابة مرقَّمة عن كل سؤال بحسب رقمه وترتيب فصوله في المستند الوارد، وينتهي بتوقيع المصرِّح وتصديق المحامي (אישור עורך דין). إجابة لا تظهر وقائعها في المستند أو في ملاحظات القضية تُكتب «[להשלים על ידי הלקוח]» / «[يُستكمل من الموكّل]» ولا تُختلق. سؤال يجوز الاعتراض عليه (غير ذي صلة، حصانة، إرهاق) يُذكر الاعتراض وسببه في موضعه.\n' +
+  '- דרישה לגילוי מסמכים / طلب كشف مستندات (عام أو محدَّد) ← «תצהיר גילוי מסמכים» / «تصريح كشف المستندات»: تصريح يعدِّد المستندات المطلوبة واحداً واحداً، وما هو بحوزة موكّلنا منها وما ليس بحوزته، وما يُعترض على كشفه وسبب الاعتراض.\n' +
+  '- إذا جمع المستند الوارد שאלון ودרישה לגילוי מסמכים معاً ← مسودة واحدة تضم التصريحين متتاليين، كلٌّ بعنوانه.\n' +
+  '- כתב תביעה / لائحة دعوى ضد موكّلنا ← «כתב הגנה» / «لائحة جوابية».\n' +
+  '- בקשה / طلب من الطرف المقابل ← «תגובה לבקשה» / «رد على الطلب».\n' +
+  '- תגובה من الطرف المقابل على طلبنا ← «תשובה לתגובה» / «تعقيب على الرد».\n' +
+  '- ערעור / استئناف من الطرف المقابل ← «תשובה לערעור» / «لائحة جوابية على الاستئناف».\n' +
+  '- قرار/حكم/أمر قضائي ← المستند الذي يقتضيه القرار نفسه (رد، تعقيب، إشعار، تصريح، طلب) بحسب ما يأمر به.\n' +
+  '- غير ذلك ← النوع الذي تقتضيه أصول المحاكمات لذلك المستند.';
+
+// The reply format of /api/draft: a small classification object, then the draft
+// as FREE TEXT inside a tag — never as a JSON string (see the note where the
+// request is built).
+const DRAFT_OUTPUT_FORMAT =
+  'صيغة الإخراج (إلزامية، بالضبط):\n' +
+  '1) أولاً كائن JSON واحد للتصنيف فقط، كل مفتاح في سطر مستقل، دون نص المسودة:\n' +
+  '{\n' +
+  '"detected_language": "رمز لغة المستند مثل ar أو he أو en أو fr أو ru",\n' +
+  '"author_side": "ours or opposing or court",\n' +
+  '"signatory": "اسم الموقّع في نهاية المستند، أو سلسلة فارغة",\n' +
+  '"is_court_decision": true or false,\n' +
+  '"contains_court_decision": true or false,\n' +
+  '"court_requires_response": true or false,\n' +
+  '"is_sharia_court": true or false,\n' +
+  '"doc_type": "نوع المستند الوارد",\n' +
+  '"title": "عنوان المسودة بلغة المستند (بحسب قاعدة نوع المسودة)، أو سلسلة فارغة"\n' +
+  '}\n' +
+  'لا تستخدم علامة الاقتباس المزدوجة داخل قيم هذا الكائن (اكتب الاختصارات العبرية بعلامة ״ أو دون علامة).\n' +
+  '2) ثم مباشرةً نص المسودة الكامل كنص حر داخل الوسمين:\n' +
+  '<draft>\n' +
+  '…نص المسودة كاملاً حتى التوقيع…\n' +
+  '</draft>\n' +
+  'داخل <draft> اكتب بحرية تامة — علامات الاقتباس والأسطر الجديدة مسموحة — ولا تختصر ولا تتوقف قبل نهاية المسودة وتوقيعها. إذا لم تلزم مسودة فاترك ما بين الوسمين فارغاً: <draft></draft>. لا تكتب أي شيء بعد </draft>.';
+
+/** Reads a /api/draft model reply: the classification object, then the draft
+ *  between <draft> tags. Tolerant on purpose — a stray quote in a short field
+ *  must not lose a finished draft, so the fields are also read one by one. */
+export function parseDraftReply(raw: string): Record<string, unknown> | null {
+  const text = String(raw || '')
+    .replace(/^```(?:json)?\s*/i, '')
+    .trim();
+  const open = text.search(/<draft>/i);
+  const head = open >= 0 ? text.slice(0, open) : text;
+  let body = '';
+  if (open >= 0) {
+    const rest = text.slice(open).replace(/^<draft>/i, '');
+    const close = rest.search(/<\/draft>/i);
+    body = (close >= 0 ? rest.slice(0, close) : rest).trim();
+  }
+  let meta: Record<string, unknown> = {};
+  const a = head.indexOf('{');
+  const b = head.lastIndexOf('}');
+  let parsed = false;
+  if (a >= 0 && b > a) {
+    try {
+      meta = JSON.parse(head.slice(a, b + 1)) as Record<string, unknown>;
+      parsed = true;
+    } catch {
+      /* read the fields one by one below */
+    }
+  }
+  if (!parsed) {
+    for (const k of ['is_court_decision', 'contains_court_decision', 'court_requires_response', 'is_sharia_court']) {
+      const m = new RegExp('"' + k + '"\\s*:\\s*"?(true|false)', 'i').exec(head);
+      if (m) meta[k] = m[1].toLowerCase() === 'true';
+    }
+    for (const k of ['detected_language', 'author_side', 'signatory', 'doc_type', 'title']) {
+      const m = new RegExp('"' + k + '"\\s*:\\s*"(.*?)"\\s*,?\\s*(?:\\r?\\n|}|$)').exec(head);
+      if (m) meta[k] = m[1].trim();
+    }
+  }
+  // An older-style reply that put the draft inside the object.
+  if (!body && typeof meta.draft === 'string') body = meta.draft.trim();
+  if (!meta.author_side && !body) return null;
+  return { ...meta, draft: body };
+}
+
 async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Response> {
   // Refuse an oversized body from its Content-Length, BEFORE reading it. A
   // Worker isolate has a hard 128 MB ceiling and this endpoint holds several
@@ -1434,7 +1516,7 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
   const systemPrompt =
     'أنت محامٍ خبير في الأحوال الشخصية للمسلمين في إسرائيل، تترافع أمام المحاكم الشرعية ومحاكم شؤون العائلة. مهمتك: قراءة المستند المرفق بالكامل (وهو مستند وارد مثل قرار محكمة أو لائحة دعوى أو طلب من الطرف الآخر) وصياغة مسودة رد قانوني عليه. القالب الحاكم للصياغة والتنسيق وتفاصيل المحامي وبنية الفقرات المرقّمة هو الوثيقة المرجعية التالية، والتزم بها حرفياً كمرجع للأسلوب والشكل:\n\n<skill>\n' +
     skill +
-    '\n</skill>\n\nقاعدة اللغة الإلزامية: اكتشف لغة المستند المرفق أياً كانت (عربية، عبرية، إنجليزية، فرنسية، روسية، أو أي لغة أخرى) بالاعتماد على متن المستند القانوني نفسه لا على صفحة الغلاف. كثير من الملفات تبدأ بصفحة أولى آلية بالعبرية هي مجرد "אישור הגשה" (إشعار استلام من نظام المحكمة الإلكتروني) — تجاهل هذه الصفحة عند تحديد اللغة واعتمد على المتن الذي يليها. وبوجه خاص: إذا كان المستند مرتبطاً بالمحكمة الشرعية (בית הדין השרעי / المحكمة الشرعية) بأي شكل — مقدَّماً إليها أو موجَّهاً إليها أو صادراً عنها (قرار أو حكم أو محضر أو أمر منها، مثل "החלטה"/"قرار"/"حكم"/"محضر") — أو كان متنه مكتوباً بالعربية، فاللغة هي ar واكتب المسودة بالعربية حتى لو كانت الصفحة الأولى (إشعار الاستلام) بالعبرية. اكتب المسودة بلغة المستند نفسها فقط، ولا تخلط لغتين في مسودة واحدة. ضع رمز اللغة في الحقل detected_language (مثل ar أو he أو en أو fr أو ru) وضع نص المسودة الكامل في الحقل draft بلغة المستند. لا تختلق وقائع أو تواريخ أو أسماء غير موجودة في المستند أو في ملاحظات القضية. أعِد كائن JSON واحداً فقط، دون أي نص خارج JSON، ودون Markdown، وأول حرف في ردك يجب أن يكون القوس {.' +
+    '\n</skill>\n\nقاعدة اللغة الإلزامية: اكتشف لغة المستند المرفق أياً كانت (عربية، عبرية، إنجليزية، فرنسية، روسية، أو أي لغة أخرى) بالاعتماد على متن المستند القانوني نفسه لا على صفحة الغلاف. كثير من الملفات تبدأ بصفحة أولى آلية بالعبرية هي مجرد "אישור הגשה" (إشعار استلام من نظام المحكمة الإلكتروني) — تجاهل هذه الصفحة عند تحديد اللغة واعتمد على المتن الذي يليها. وبوجه خاص: إذا كان المستند مرتبطاً بالمحكمة الشرعية (בית הדין השרעי / المحكمة الشرعية) بأي شكل — مقدَّماً إليها أو موجَّهاً إليها أو صادراً عنها (قرار أو حكم أو محضر أو أمر منها، مثل "החלטה"/"قرار"/"حكم"/"محضر") — أو كان متنه مكتوباً بالعربية، فاللغة هي ar واكتب المسودة بالعربية حتى لو كانت الصفحة الأولى (إشعار الاستلام) بالعبرية. اكتب المسودة بلغة المستند نفسها فقط، ولا تخلط لغتين في مسودة واحدة. ضع رمز اللغة في الحقل detected_language (مثل ar أو he أو en أو fr أو ru) واكتب نص المسودة الكامل بلغة المستند داخل الوسم <draft>. لا تختلق وقائع أو تواريخ أو أسماء غير موجودة في المستند أو في ملاحظات القضية. التزم بصيغة الإخراج المحدَّدة في نهاية الطلب (كائن JSON للتصنيف ثم الوسم <draft>)، دون Markdown، وأول حرف في ردك يجب أن يكون القوس {.' +
     '\n\n' +
     AR_GLOSSARY;
 
@@ -1477,49 +1559,20 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
         rulings.text +
         '\n</sharia_rulings>'
       : '') +
-    '\n\nصُغ (عند الحاجة فقط) مسودة رد قانوني كامل على هذا المستند وفق القالب الحاكم، بلغة المستند نفسها. أعِد كائن JSON واحداً فقط بهذا الهيكل بالضبط: {"detected_language": "رمز لغة المستند مثل ar أو he أو en أو fr أو ru", "author_side": "ours or opposing or court", "signatory": "اسم الموقّع في نهاية المستند أو null", "is_court_decision": true or false, "contains_court_decision": true or false, "court_requires_response": true or false, "is_sharia_court": "true إذا كان المستند مرتبطاً بالمحكمة الشرعية (مقدَّماً إليها أو صادراً عنها)، وإلا false", "doc_type": "نوع المستند الوارد", "title": "عنوان المسودة بلغة المستند أو null", "draft": "نص المسودة الكامل بلغة المستند أو null"}. لا تكتب أي شيء خارج JSON.';
+    '\n\n' +
+    DRAFT_KIND_RULE +
+    '\n\nصُغ (عند الحاجة فقط) المسودة كاملة وفق القالب الحاكم، بلغة المستند نفسها.\n\n' +
+    DRAFT_OUTPUT_FORMAT;
 
   const anthropicBody = {
     model: 'claude-sonnet-4-6',
     max_tokens: 12000,
     system: systemPrompt,
-    // Structured output: the reply is always valid JSON in this shape. A draft
-    // that quotes a ruling ("القرار 244/2025") or the document can't break the
-    // parse any more (it did, as an unescaped quote inside the JSON string).
-    // Empty string = "none" (the prompt's null).
-    output_config: {
-      format: {
-        type: 'json_schema',
-        schema: {
-          type: 'object',
-          properties: {
-            detected_language: { type: 'string' },
-            author_side: { type: 'string', enum: ['ours', 'opposing', 'court'] },
-            signatory: { type: 'string' },
-            is_court_decision: { type: 'boolean' },
-            contains_court_decision: { type: 'boolean' },
-            court_requires_response: { type: 'boolean' },
-            is_sharia_court: { type: 'boolean' },
-            doc_type: { type: 'string' },
-            title: { type: 'string' },
-            draft: { type: 'string' },
-          },
-          required: [
-            'detected_language',
-            'author_side',
-            'signatory',
-            'is_court_decision',
-            'contains_court_decision',
-            'court_requires_response',
-            'is_sharia_court',
-            'doc_type',
-            'title',
-            'draft',
-          ],
-          additionalProperties: false,
-        },
-      },
-    },
+    // NO JSON schema here. The draft used to be a JSON string under a schema,
+    // and a quotation mark inside it (a quoted ruling, a quoted question) CLOSED
+    // the string: the stored draft stopped mid-sentence and still parsed as
+    // valid JSON. The draft is now free text inside <draft>…</draft>, after a
+    // small classification object (see DRAFT_OUTPUT_FORMAT / parseDraftReply).
     messages: [
       {
         role: 'user',
@@ -1575,16 +1628,9 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
     .filter((b) => b.type === 'text')
     .map((b) => b.text || '')
     .join('');
-  const cleaned = textOut
-    .trim()
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/, '')
-    .replace(/```\s*$/, '')
-    .trim();
-  let draft: Record<string, unknown>;
-  try {
-    draft = JSON.parse(cleaned) as Record<string, unknown>;
-  } catch {
+  const cleaned = textOut.trim();
+  const firstReply = parseDraftReply(cleaned);
+  if (!firstReply) {
     return json(
       { error: 'draft_parse_failed', raw: cleaned.slice(0, 600) },
       request,
@@ -1592,6 +1638,7 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
       502,
     );
   }
+  let draft: Record<string, unknown> = firstReply;
 
   // Mandatory citations: a draft for an ARABIC document of the SHARIA court
   // must cite the office's Sharia Court of Appeals rulings. If it cites none
@@ -1615,7 +1662,7 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
               {
                 type: 'text',
                 text:
-                  'المسودة لا تتضمن أي استشهاد بقرارات محكمة الاستئناف الشرعية العليا الواردة في <sharia_rulings>، وهذا إلزامي لمستند عربي مرتبط بالمحكمة الشرعية. أعد الكائن نفسه كاملاً، مع المسودة كاملة، وأضف في مواضعها من الحجج استشهاداً بقرارين على الأقل من تلك المراجع: رقم القرار كما ورد ("القرار 244/2025") والمبدأ الوارد بجانبه في المرجع. لا تذكر رقم قرار غير وارد فيها، ولا تغيّر باقي الحقول.',
+                  'المسودة لا تتضمن أي استشهاد بقرارات محكمة الاستئناف الشرعية العليا الواردة في <sharia_rulings>، وهذا إلزامي لمستند عربي مرتبط بالمحكمة الشرعية. أعد الرد كاملاً بالصيغة نفسها (كائن التصنيف ثم <draft>…</draft>) مع المسودة كاملة، وأضف في مواضعها من الحجج استشهاداً بقرارين على الأقل من تلك المراجع: رقم القرار كما ورد ("القرار 244/2025") والمبدأ الوارد بجانبه في المرجع. لا تذكر رقم قرار غير وارد فيها، ولا تغيّر باقي الحقول.',
               },
             ],
           },
@@ -1625,11 +1672,9 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
       if (again.response?.ok) {
         const d2 = (await again.response.json()) as { content?: Array<{ type: string; text?: string }> };
         const t2 = (d2.content || []).filter((b) => b.type === 'text').map((b) => b.text || '').join('').trim();
-        try {
-          const parsed = JSON.parse(t2) as Record<string, unknown>;
-          if (typeof parsed.draft === 'string' && citedKnownDecisions(parsed.draft).length > 0) draft = parsed;
-        } catch {
-          /* keep the first draft */
+        const parsed = parseDraftReply(t2);
+        if (parsed && typeof parsed.draft === 'string' && citedKnownDecisions(parsed.draft).length > 0) {
+          draft = parsed;
         }
       }
     }
@@ -2963,21 +3008,40 @@ async function handleDocument(request: Request, env: Env, ctx: Ctx): Promise<Res
 // reflected). The office desktop keeps writing to its local synced folder.
 // -----------------------------------------------------------------------
 async function handleUploadDocument(request: Request, env: Env, ctx: Ctx): Promise<Response> {
-  let form: FormData;
+  // Two request shapes:
+  //  • RAW (the app, now): the file is the request body as-is, and the path and
+  //    ids are query parameters. Nothing is parsed, so a large PDF costs the
+  //    Worker almost no CPU — parsing a multipart body of several MB could run
+  //    past the CPU limit, and that error page carries no CORS headers, which
+  //    the browser reports only as "Failed to fetch".
+  //  • multipart form (file, path, …): kept for app tabs loaded before the change.
+  const url = new URL(request.url);
+  const multipart = /^multipart\/form-data/i.test(request.headers.get('Content-Type') || '');
+  let form: FormData | null = null;
+  let bytes: ArrayBuffer;
   try {
-    form = await request.formData();
+    if (multipart) {
+      form = await request.formData();
+      const entry = form.get('file');
+      if (!entry || typeof entry === 'string') {
+        return json({ error: 'no file' }, request, env, 400);
+      }
+      bytes = await (entry as unknown as { arrayBuffer(): Promise<ArrayBuffer> }).arrayBuffer();
+    } else {
+      bytes = await request.arrayBuffer();
+    }
   } catch {
-    return json({ error: 'expected multipart/form-data' }, request, env, 400);
+    return json({ error: 'could_not_read_upload' }, request, env, 400);
   }
-  const entry = form.get('file');
-  const relPath = String(form.get('path') || '').trim();
-  if (!entry || typeof entry === 'string') {
+  const field = (k: string) => String((form ? form.get(k) : url.searchParams.get(k)) || '').trim();
+  const relPath = field('path');
+  if (!bytes.byteLength) {
     return json({ error: 'no file' }, request, env, 400);
   }
   if (!relPath) {
     return json({ error: 'missing_path' }, request, env, 400);
   }
-  const file = entry as unknown as { arrayBuffer(): Promise<ArrayBuffer> };
+  const file = { arrayBuffer: async () => bytes };
 
   // Per-office R2 storage (every office except the operator's Dropbox-backed one).
   if (!usesDropbox(env, ctx)) {
@@ -2990,7 +3054,6 @@ async function handleUploadDocument(request: Request, env: Env, ctx: Ctx): Promi
     // does for the operator. Ids come from the form, else the filing name.
     if (/\.pdf$/i.test(fileName) && env.DOC_QUEUE) {
       const fromName = idsFromFileName(fileName);
-      const field = (k: string) => String(form.get(k) || '').trim();
       const job: DocJob = {
         tenantId: ctx.tenantId,
         key: docKey(ctx, rel),
@@ -3020,15 +3083,17 @@ async function handleUploadDocument(request: Request, env: Env, ctx: Ctx): Promi
     return json({ error: 'dropbox_not_configured' }, request, env, 500);
   }
   const apiPath = dropboxApiPath(relPath, env.DROPBOX_BASE_FOLDER || '');
-  let dbxRes: Response;
-  try {
-    dbxRes = await fetch('https://content.dropboxapi.com/2/files/upload', {
+  // add + autorename: the client's _DOC-NNN suffix already makes the name
+  // unique; autorename is only a last-resort guard so a different file is never
+  // overwritten. Sending the SAME file again (the app retries a failed upload
+  // by itself) is not a conflict for Dropbox — identical content at the same
+  // path is left as it is, with no "name (1).pdf" copy.
+  const sendToDropbox = () =>
+    fetch('https://content.dropboxapi.com/2/files/upload', {
       method: 'POST',
       headers: {
         Authorization: 'Bearer ' + token,
         'Content-Type': 'application/octet-stream',
-        // add + autorename: the client's _DOC-NNN suffix already makes the name
-        // unique; autorename is only a last-resort collision guard.
         'Dropbox-API-Arg': dropboxApiArgHeader({
           path: apiPath,
           mode: 'add',
@@ -3036,10 +3101,22 @@ async function handleUploadDocument(request: Request, env: Env, ctx: Ctx): Promi
           mute: true,
         }),
       },
-      body: await file.arrayBuffer(),
+      body: bytes,
     });
-  } catch (e) {
-    console.warn('[worker dropbox] upload error', e);
+  let dbxRes: Response | null = null;
+  // One more try on a network error, a rate limit or a Dropbox server error.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 1200));
+    try {
+      dbxRes = await sendToDropbox();
+    } catch (e) {
+      console.warn('[worker dropbox] upload error', e);
+      dbxRes = null;
+      continue;
+    }
+    if (dbxRes.ok || (dbxRes.status !== 429 && dbxRes.status < 500)) break;
+  }
+  if (!dbxRes) {
     return json({ error: 'dropbox_unreachable' }, request, env, 502);
   }
   if (!dbxRes.ok) {

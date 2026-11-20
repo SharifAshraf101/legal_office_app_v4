@@ -853,35 +853,46 @@ export async function uploadDocumentViaWorker(
   // office's DROPBOX_BASE_FOLDER, guarding the doubled-"Clients" case itself.
   const relPath = `${FILING_ROOT}/${segments.join('/')}/${filename}`;
 
-  const form = new FormData();
-  form.append('file', file);
-  form.append('path', relPath);
-  // Ids for the server's automatic processing (summary + reply draft).
-  if (opts.docId) form.append('docId', opts.docId);
-  if (opts.caseObj?.id) form.append('caseId', String(opts.caseObj.id));
-  if (opts.client?.id) form.append('clientId', String(opts.client.id));
-  try {
-    const res = await fetch(WORKER_URL + '/api/document', {
-      method: 'POST',
-      // No Content-Type — the browser sets the multipart boundary.
-      headers: authHeader(),
-      body: form,
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => '');
-      console.warn('[LegalOffice Cloudflare storage] document upload failed', res.status, detail);
-      return {
-        ok: false,
-        error: `Worker upload failed (${res.status}): ${detail || 'unknown error'}`,
-      };
+  // The file goes as the RAW request body; the path and the ids (for the
+  // server's automatic summary + reply draft) ride in the query string. A
+  // multipart form made the Worker parse the whole file, which could run past
+  // its CPU limit on a large PDF and surface here only as "Failed to fetch".
+  const q = new URLSearchParams({ path: relPath });
+  if (opts.docId) q.set('docId', opts.docId);
+  if (opts.caseObj?.id) q.set('caseId', String(opts.caseObj.id));
+  if (opts.client?.id) q.set('clientId', String(opts.client.id));
+
+  // A dropped connection ("Failed to fetch"), a rate limit or a server error is
+  // usually momentary: try again before telling the lawyer. Safe to repeat —
+  // Dropbox leaves an identical file at the same path as it is (no second copy).
+  const WAITS_MS = [0, 1500, 4000];
+  let lastError = 'unknown error';
+  for (let attempt = 0; attempt < WAITS_MS.length; attempt++) {
+    if (WAITS_MS[attempt]) await new Promise((r) => setTimeout(r, WAITS_MS[attempt]));
+    try {
+      const res = await fetch(WORKER_URL + '/api/document?' + q.toString(), {
+        method: 'POST',
+        headers: { ...authHeader(), 'Content-Type': 'application/octet-stream' },
+        body: file,
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        console.warn('[LegalOffice Cloudflare storage] document upload failed', res.status, detail);
+        lastError = `Worker upload failed (${res.status}): ${detail || 'unknown error'}`;
+        // A request the server understood and refused will be refused again.
+        if (res.status < 500 && res.status !== 429 && res.status !== 408) break;
+        continue;
+      }
+      const data = (await res.json()) as { ok?: boolean; path?: string; error?: string };
+      if (!data.ok || !data.path) {
+        lastError = data.error || 'Worker returned no path.';
+        break;
+      }
+      return { ok: true, relativePath: data.path };
+    } catch (e) {
+      console.warn('[LegalOffice Cloudflare storage] document upload error', attempt + 1, e);
+      lastError = e instanceof Error ? e.message : String(e);
     }
-    const data = (await res.json()) as { ok?: boolean; path?: string; error?: string };
-    if (!data.ok || !data.path) {
-      return { ok: false, error: data.error || 'Worker returned no path.' };
-    }
-    return { ok: true, relativePath: data.path };
-  } catch (e) {
-    console.warn('[LegalOffice Cloudflare storage] document upload error', e);
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
+  return { ok: false, error: lastError };
 }

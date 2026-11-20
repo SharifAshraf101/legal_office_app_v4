@@ -107,6 +107,20 @@ export async function latestAdamJob(caseId: string, documentId?: string): Promis
   return jobs.find((j) => j.status !== 'cancelled') || null;
 }
 
+/** Every request of the case, newest first (cancelled ones left out). */
+export async function caseAdamJobs(caseId: string): Promise<AdamJob[]> {
+  if (!WORKER_URL || !caseId) return [];
+  try {
+    const q = new URLSearchParams({ caseId });
+    const res = await fetch(WORKER_URL + '/api/adam/jobs?' + q.toString(), { headers: headers(), cache: 'no-store' });
+    if (!res.ok) return [];
+    const jobs = ((await res.json()) as { jobs: AdamJob[] }).jobs || [];
+    return jobs.filter((j) => j.status !== 'cancelled');
+  } catch {
+    return [];
+  }
+}
+
 export async function cancelAdamJob(id: string): Promise<void> {
   if (!WORKER_URL) return;
   await fetch(WORKER_URL + '/api/adam/jobs/' + encodeURIComponent(id) + '/status', {

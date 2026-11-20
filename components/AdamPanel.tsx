@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { answerAdam, applyAdamDraft, cancelAdamJob, latestAdamJob, sendToAdam, type AdamJob, type AdamPackage } from '@/lib/adam';
+import { answerAdam, applyAdamDraft, cancelAdamJob, caseAdamJobs, latestAdamJob, sendToAdam, type AdamJob, type AdamPackage } from '@/lib/adam';
 
 /**
  * "טיוטת אדם" — the case-brain card for the Adam bridge. "שלח לאדם" stores a
@@ -17,6 +17,7 @@ export function AdamPanel({
   buildPackage,
   onOpenWord,
   onApplied,
+  onShowDocument,
   className = '',
 }: {
   caseId: string;
@@ -26,6 +27,8 @@ export function AdamPanel({
   onOpenWord: (text: string) => void;
   /** Called after Adam's draft became the document's reply draft. */
   onApplied?: (text: string) => void;
+  /** Show another document of the case (one Adam has a request for). */
+  onShowDocument?: (documentId: string) => void;
   className?: string;
 }) {
   const ar = lang === 'ar';
@@ -70,9 +73,25 @@ export function AdamPanel({
   // Answers typed into Adam's questions form, keyed by question id.
   const [ans, setAns] = useState<Record<string, string>>({});
 
+  // Adam's requests for the OTHER documents of this case. A request belongs to
+  // one document, and the screen opens on the newest document — so a request
+  // sent a moment ago for another document would otherwise look as if it was
+  // gone (and get sent again).
+  const [others, setOthers] = useState<AdamJob[]>([]);
+
   const refresh = useCallback(async () => {
     try {
-      setJob(await latestAdamJob(caseId, documentId));
+      const [mine, all] = await Promise.all([latestAdamJob(caseId, documentId), caseAdamJobs(caseId)]);
+      setJob(mine);
+      const seen = new Set<string>();
+      setOthers(
+        all.filter((j) => {
+          const d = String(j.documentId || '');
+          if (!d || d === String(documentId || '') || seen.has(d)) return false;
+          seen.add(d); // newest request per document
+          return j.status !== 'error';
+        }),
+      );
     } finally {
       setLoaded(true);
     }
@@ -82,11 +101,13 @@ export function AdamPanel({
     void refresh();
   }, [refresh]);
   // Poll while Adam has the request.
+  const live = (j: AdamJob | null) => !!j && ['pending', 'working', 'question', 'answered'].includes(j.status);
+  const anyLive = live(job) || others.some(live);
   useEffect(() => {
-    if (!job || !['pending', 'working', 'question', 'answered'].includes(job.status)) return;
+    if (!anyLive) return;
     const t = setInterval(() => void refresh(), 15000);
     return () => clearInterval(t);
-  }, [job, refresh]);
+  }, [anyLive, refresh]);
 
   const send = async () => {
     setBusy(true);
@@ -288,6 +309,40 @@ export function AdamPanel({
             </div>
           )}
         </>
+      )}
+
+      {loaded && others.length > 0 && (
+        <ul className="adam-others">
+          {others.map((o) => (
+            <li key={o.id}>
+              <i
+                className={
+                  'fas ' +
+                  (o.status === 'done' ? 'fa-circle-check' : o.status === 'question' ? 'fa-circle-question' : 'fa-spinner fa-spin')
+                }
+                aria-hidden
+              />
+              <span>
+                {(o.status === 'done'
+                  ? ar
+                    ? 'مسودة آدم جاهزة للمستند: '
+                    : 'טיוטת אדם מוכנה למסמך: '
+                  : o.status === 'question'
+                    ? ar
+                      ? 'آدم ينتظر إجاباتك في المستند: '
+                      : 'אדם מחכה לתשובות שלך במסמך: '
+                    : ar
+                      ? 'آدم يعمل الآن على مستند آخر في هذا الملف: '
+                      : 'אדם עובד כעת על מסמך אחר בתיק: ') + (o.title || o.documentId || '')}
+              </span>
+              {onShowDocument && o.documentId && (
+                <button type="button" className="adam-link" onClick={() => onShowDocument(String(o.documentId))}>
+                  {ar ? 'عرض' : 'הצג'}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
 
       {askOpen && (
