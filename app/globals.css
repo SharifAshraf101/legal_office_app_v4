@@ -42352,10 +42352,13 @@ html body .content .bf-root.bf-root .bfbox-top h3{margin:0;font-size:14px;font-w
 .bf-none{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--bf-muted);font-weight:700}
 .bf-none i{font-size:34px;opacity:.55}
 .bf-muted{margin:0;color:var(--bf-muted);font-size:13px}
-.bf-hcards{display:grid;gap:12px;height:100%;min-height:0}
-.bf-hcards.bf-n1{grid-template-columns:1fr}
-.bf-hcards.bf-n2{grid-template-columns:repeat(2,minmax(0,1fr))}
-.bf-hcards.bf-n3{grid-template-columns:repeat(3,minmax(0,1fr))}
+/* One case under the other, each at its full height; the box scrolls. Side by
+   side, the cards were squeezed into the box height and their text ran over
+   the card below. */
+.bf-hcards{display:flex;flex-direction:column;gap:12px}
+.bf-hcards>.bf-hc{flex:none}
+.bf-hcards.bf-n1{min-height:100%}
+.bf-hcards.bf-n1>.bf-hc{flex:1 0 auto}
 .bf-hc{display:flex;flex-direction:column;gap:8px;min-height:0;min-width:0;border:1px solid var(--bf-line);border-radius:14px;padding:12px;background:var(--bf-soft)}
 .bf-hctop{display:flex;align-items:flex-start;gap:10px}
 .bf-time{flex:none;background:var(--bf-a);color:#fff;font-weight:900;font-size:14px;border-radius:10px;padding:6px 10px;font-variant-numeric:tabular-nums}
@@ -42398,12 +42401,10 @@ html body .content .bf-root.bf-root .bfbox-top h3{margin:0;font-size:14px;font-w
 .bf-state{display:grid;place-items:center;color:var(--bf-ink-2);grid-row:2 / -1;text-align:center}
 .bf-foot{margin:0;font-size:11px;color:var(--bf-muted)}
 @media (max-height:760px) and (min-width:900px){.bf-root{gap:9px}.bf-tile{padding:8px 12px}.bf-tn{font-size:21px}.bfbox{padding:9px 12px}}
-@media (max-width:1100px){.bf-hcards.bf-n3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:899px){
   .bf-root{flex:none;grid-template-rows:none}
   .bf-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
   .bf-grid,.bf-side{grid-template-columns:1fr;grid-template-rows:none}
-  .bf-hcards.bf-n2,.bf-hcards.bf-n3{grid-template-columns:1fr}
   .bfbox-body{overflow:visible}
   .bf-dayname{min-width:120px}
 }

@@ -25,6 +25,7 @@ import {
 import {
   isPortalMode,
   legalOfficeLoadFromSupabaseV88,
+  legalOfficeForgetLoadVersion,
   legalOfficeSaveToSupabase,
 } from '@/lib/cloudflare';
 import { normalizeFontFamily } from '@/lib/translations';
@@ -537,13 +538,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const result = await legalOfficeLoadFromSupabaseV88({ force: true });
+      // ifChanged: the server answers "nothing changed" without sending the
+      // data (result.state is then absent and the screen is left as it is).
+      const result = await legalOfficeLoadFromSupabaseV88({ force: true, ifChanged: true });
       // Mirror the boot guard: do NOT REPLACE_ALL while a local edit is still
       // un-pushed (the flush above failed, or the user edited during the pull).
       // Otherwise the pull overwrites the dirty edit and the rescheduled
       // auto-save pushes the overwritten data back — losing the edit.
       if (result.loaded && result.state && !dirtyRef.current) {
         dispatch({ type: 'REPLACE_ALL', payload: result.state });
+      } else if (result.loaded && result.state) {
+        // Downloaded but not shown: the next poll must download it again.
+        legalOfficeForgetLoadVersion();
       }
     };
 

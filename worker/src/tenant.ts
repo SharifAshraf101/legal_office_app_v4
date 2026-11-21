@@ -32,6 +32,13 @@ export interface Ctx {
  * Resolve the tenant for a request, or null if it isn't authorized for data.
  * The app-token is checked FIRST, so your office never pays the session lookup.
  */
+// A logged-in office's requests each built a Better Auth instance and ran two
+// control-database lookups before doing any work — on every 15–30 second poll.
+// The answer for one session is remembered for a minute per isolate. A sign-out
+// or a suspended office therefore takes effect within a minute, not at once.
+const SESSION_CACHE_MS = 60_000;
+const sessionCache = new Map<string, { ctx: Ctx; until: number }>();
+
 export async function resolveTenant(
   request: Request,
   env: Env,
@@ -53,6 +60,20 @@ export async function resolveTenant(
   }
 
   // 2) Better Auth session → the caller's OWN office, on its own D1 (REST).
+  const cacheKey = hdr || request.headers.get('Cookie') ? hdr + '\n' + (request.headers.get('Cookie') || '') : '';
+  if (cacheKey) {
+    const hit = sessionCache.get(cacheKey);
+    if (hit && hit.until > Date.now()) return hit.ctx;
+    if (hit) sessionCache.delete(cacheKey);
+  }
+  const remember = (ctx: Ctx): Ctx => {
+    if (cacheKey) {
+      if (sessionCache.size > 200) sessionCache.clear();
+      sessionCache.set(cacheKey, { ctx, until: Date.now() + SESSION_CACHE_MS });
+    }
+    return ctx;
+  };
+
   const authResult = await createAuth(env)
     .api.getSession({ headers: request.headers })
     .catch(() => null);
@@ -89,7 +110,7 @@ export async function resolveTenant(
       // Fast path: an office whose database IS this Worker's native binding
       // (your original office = tenant #1) uses env.DB directly — no REST hop.
       if (row.data_db === env.NATIVE_DB_ID) {
-        return { tenantId: row.tenant_id, db: env.DB, mode: 'tenant', billing };
+        return remember({ tenantId: row.tenant_id, db: env.DB, mode: 'tenant', billing });
       }
       // Every other office is reached over the D1 REST API.
       if (env.CF_ACCOUNT_ID && env.CF_D1_TOKEN) {
@@ -98,7 +119,7 @@ export async function resolveTenant(
           apiToken: env.CF_D1_TOKEN,
           databaseId: row.data_db,
         }) as unknown as D1Database;
-        return { tenantId: row.tenant_id, db, mode: 'tenant', billing };
+        return remember({ tenantId: row.tenant_id, db, mode: 'tenant', billing });
       }
     }
   }

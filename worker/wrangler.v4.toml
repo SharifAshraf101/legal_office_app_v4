@@ -26,6 +26,12 @@ queue = "legal-office-doc-pipeline"
 max_batch_size = 1
 max_retries = 3
 
+# Workers Logs: every request's outcome and CPU time, searchable in the
+# dashboard (Workers -> legal-office-api-v4 -> Logs). Shows WHICH requests hit
+# the CPU limit ("exceededCpu"). Included in the free plan (200,000 lines/day).
+[observability]
+enabled = true
+
 # Workers AI — Whisper speech-to-text for incoming WhatsApp voice messages.
 [ai]
 binding = "AI"

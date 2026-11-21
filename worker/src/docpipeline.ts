@@ -10,6 +10,7 @@
 // Tasks, hearings and the suggested action still come from the app (the brain
 // screen and the hearing sweep), off what these steps store.
 
+import { Buffer } from 'node:buffer';
 import { AR_GLOSSARY } from './arabicGlossary';
 import type { Env } from './db';
 import { callAnthropicWithRetry, oversizedPdfField } from './pdfLimits';
@@ -62,12 +63,10 @@ Return ONLY valid JSON (no markdown, no code fences) with EXACTLY these keys:
 
 ${AR_GLOSSARY}`;
 
+// Native encoder (nodejs_compat). The old loop built the string 32 KB at a
+// time in script, several times the CPU of this for a PDF of a few MB.
 function b64(bytes: Uint8Array): string {
-  let s = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(s);
+  return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('base64');
 }
 
 function extractJson(text: string): Record<string, string> {
@@ -168,10 +167,12 @@ async function processJob(env: Env, job: DocJob, runDraft: RunDraft): Promise<vo
   if (job.stage === 'draft') {
     const parked = await env.DOCS.get(job.key);
     if (!parked) return; // already done (a redelivered message)
-    const res = await runDraft(
-      { tenantId: job.tenantId, db },
-      { ...(job.draftBody || {}), pdf_base64: b64(new Uint8Array(await parked.arrayBuffer())) },
-    );
+    // ".b64" = parked as base64 text (no conversion at all); ".pdf" = a job
+    // parked by the previous version.
+    const pdf_base64 = job.key.endsWith('.b64')
+      ? await parked.text()
+      : b64(new Uint8Array(await parked.arrayBuffer()));
+    const res = await runDraft({ tenantId: job.tenantId, db }, { ...(job.draftBody || {}), pdf_base64 });
     // A model / network failure is worth another try; anything else is final.
     if (res.status >= 500) throw new Error('draft failed: HTTP ' + res.status);
     await env.DOCS.delete(job.key);
@@ -232,6 +233,18 @@ export async function handleDocQueue(
       await processJob(env, msg.body, runDraft);
       msg.ack();
     } catch (e) {
+      // A background reply draft gets ONE more run, not the queue's three: each
+      // run is a full, paid model call that can last minutes.
+      if (msg.body.stage === 'draft' && msg.attempts >= 2) {
+        console.warn('[docpipeline] draft failed twice, giving up', e);
+        try {
+          await env.DOCS.delete(msg.body.key);
+        } catch {
+          /* the parked file is only temporary */
+        }
+        msg.ack();
+        continue;
+      }
       console.warn('[docpipeline] job failed, retrying', e);
       msg.retry({ delaySeconds: 120 });
     }

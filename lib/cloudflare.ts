@@ -351,6 +351,9 @@ export interface SupabaseLoadResult {
 interface LoadOptions {
   force?: boolean;
   currentState?: AppState;
+  /** Background poll: ask the server whether anything changed since the last
+   *  full load, and skip the download when nothing did. */
+  ifChanged?: boolean;
 }
 
 interface LoadResponse {
@@ -362,6 +365,10 @@ interface LoadResponse {
   payments?: Row[];
   timeline_items?: Row[];
   app_state?: Record<string, unknown> | null;
+  /** Fingerprint of the office's data; sent back as ?v= by the next poll. */
+  version?: string;
+  /** The answer to ?v=<current fingerprint>: nothing changed, no rows sent. */
+  unchanged?: boolean;
   /** Who this office is — drives the operator-only feature gate + billing UI. */
   office?: {
     is_operator?: boolean;
@@ -374,6 +381,26 @@ interface LoadResponse {
 
 let loading = false;
 let loadedOnce = false;
+
+// The data fingerprint from the last full load. The 30-second poll sends it, and
+// the server answers "unchanged" with a few bytes instead of reading and
+// sending the whole office (which cost it more CPU time than its plan allows,
+// 120 times an hour). A full load still happens at least every 10 minutes.
+let loadVersion = '';
+let lastFullLoadAt = 0;
+const FULL_RELOAD_MS = 10 * 60 * 1000;
+
+/** Make the next poll a full load (its result was not applied to the screen). */
+export function legalOfficeForgetLoadVersion(): void {
+  loadVersion = '';
+}
+
+// What the server holds, as the exact rows a save would send: table ->
+// source_id -> row JSON. A save sends only rows that differ from this. It used
+// to send EVERY row of the office on every edit — hundreds of upserts for one
+// changed task, and stale copies written over rows another device or the
+// document pipeline had just updated. null = not known yet -> send everything.
+let syncedRows: Record<string, Map<string, string>> | null = null;
 
 export async function legalOfficeLoadFromSupabaseV88(
   options: LoadOptions = {},
@@ -390,12 +417,24 @@ export async function legalOfficeLoadFromSupabaseV88(
           WORKER_URL + '/api/portal-context?t=' + encodeURIComponent(portalToken),
           { cache: 'no-store' },
         )
-      : await fetch(WORKER_URL + '/api/load', { headers: jsonHeaders(), cache: 'no-store' });
+      : await fetch(
+          WORKER_URL +
+            '/api/load' +
+            (options.ifChanged && loadVersion && Date.now() - lastFullLoadAt < FULL_RELOAD_MS
+              ? '?v=' + encodeURIComponent(loadVersion)
+              : ''),
+          { headers: jsonHeaders(), cache: 'no-store' },
+        );
     if (!res.ok) {
       console.warn('[LegalOffice Cloudflare load] failed', res.status, await res.text());
       return { loaded: false };
     }
     const data = (await res.json()) as LoadResponse;
+    if (data.unchanged) return { loaded: true };
+    if (!portalToken) {
+      loadVersion = String(data.version || '');
+      lastFullLoadAt = Date.now();
+    }
     if (portalToken) {
       portalOffice =
         ((data.office as { contact?: PortalOfficeContact } | undefined)?.contact) || null;
@@ -592,6 +631,23 @@ export async function legalOfficeLoadFromSupabaseV88(
       finances: loadedFinances.length,
       timeline: loadedTimeline.length,
     });
+    if (!portalToken) {
+      const st = applied.state as Partial<SupabaseSaveInput>;
+      syncedRows = {};
+      for (const [table, rows] of Object.entries(
+        saveRows({
+          clients: st.clients || [],
+          casesArr: st.casesArr || [],
+          tasksArr: st.tasksArr || [],
+          eventsList: st.eventsList || [],
+          documentsArr: st.documentsArr || [],
+          finances: st.finances || [],
+          timelineItems: st.timelineItems || [],
+        }),
+      )) {
+        syncedRows[table] = new Map(rows.map((r) => [String(r.source_id), JSON.stringify(r)]));
+      }
+    }
     return { loaded: true, state: applied.state };
   } catch (e) {
     // A transient network failure (laptop sleep/wake, worker cold start, brief
@@ -748,6 +804,19 @@ export interface SupabaseSaveInput {
   deletions?: Record<string, string[]>;
 }
 
+/** The rows a save writes, per backend table. */
+function saveRows(s: Omit<SupabaseSaveInput, 'deletions'>): Record<string, Record<string, unknown>[]> {
+  return {
+    clients: s.clients.filter((x) => x.id).map(clientToRow),
+    cases: s.casesArr.filter((x) => x.id).map(caseToRow),
+    tasks: s.tasksArr.filter((x) => x.id).map(taskToRow),
+    calendar_events: s.eventsList.filter((x) => x.id).map(eventToRow),
+    documents: s.documentsArr.filter((x) => x.id).map(docToRow),
+    payments: s.finances.filter((x) => x.id).map(financeToRow),
+    timeline_items: s.timelineItems.filter((x) => x.id).map(timelineToRow),
+  };
+}
+
 // Returns true only when the backend confirmed the save (HTTP 2xx). Callers use
 // this to decide whether it's safe to clear the un-synced/dirty markers — a
 // failed save must keep them set so the edit is retried, not silently dropped.
@@ -756,18 +825,26 @@ export async function legalOfficeSaveToSupabase(s: SupabaseSaveInput): Promise<b
   if (portalToken) return true;
   const hasDeletions =
     !!s.deletions && Object.values(s.deletions).some((a) => Array.isArray(a) && a.length > 0);
-  const body = {
-    clients: s.clients.filter((x) => x.id).map(clientToRow),
-    cases: s.casesArr.filter((x) => x.id).map(caseToRow),
-    tasks: s.tasksArr.filter((x) => x.id).map(taskToRow),
-    calendar_events: s.eventsList.filter((x) => x.id).map(eventToRow),
-    documents: s.documentsArr.filter((x) => x.id).map(docToRow),
-    payments: s.finances.filter((x) => x.id).map(financeToRow),
-    timeline_items: s.timelineItems.filter((x) => x.id).map(timelineToRow),
-    // Only present when there is something to delete — `undefined` is dropped
-    // from the JSON so an ordinary save never carries an empty deletions block.
-    deletions: hasDeletions ? s.deletions : undefined,
-  };
+  // Only the rows that differ from what the server already holds (syncedRows).
+  const body: Record<string, unknown> = {};
+  const sent: Array<[string, string, string]> = [];
+  for (const [table, rows] of Object.entries(saveRows(s))) {
+    const known = syncedRows ? syncedRows[table] : undefined;
+    const changed: Record<string, unknown>[] = [];
+    for (const r of rows) {
+      const id = String(r.source_id);
+      const text = JSON.stringify(r);
+      if (known && known.get(id) === text) continue;
+      changed.push(r);
+      sent.push([table, id, text]);
+    }
+    body[table] = changed;
+  }
+  // Nothing differs and nothing was deleted: the server is already up to date.
+  if (!sent.length && !hasDeletions) return true;
+  // Only present when there is something to delete — `undefined` is dropped
+  // from the JSON so an ordinary save never carries an empty deletions block.
+  body.deletions = hasDeletions ? s.deletions : undefined;
   try {
     const res = await fetch(WORKER_URL + '/api/save', {
       method: 'POST',
@@ -782,6 +859,11 @@ export async function legalOfficeSaveToSupabase(s: SupabaseSaveInput): Promise<b
       if (res.status === 402) markBillingBlocked();
       console.warn('[LegalOffice Cloudflare save] failed', res.status, await res.text());
       return false;
+    }
+    if (syncedRows) {
+      for (const [table, id, text] of sent) {
+        (syncedRows[table] ||= new Map()).set(id, text);
+      }
     }
     return true;
   } catch (e) {

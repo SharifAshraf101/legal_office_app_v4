@@ -103,12 +103,11 @@ export default {
   /** Document pipeline consumer (see docpipeline.ts). */
   async queue(batch: MessageBatch<DocJob>, env: Env): Promise<void> {
     await handleDocQueue(batch, env, (pctx: PipelineCtx, body: Record<string, unknown>) =>
+      // The body is handed over as an object: serializing a base64 PDF of
+      // several MB into a Request only for handleDraft to parse it again cost
+      // two full passes of CPU time.
       handleDraft(
-        new Request('https://internal/api/draft', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        }),
+        new Request('https://internal/api/draft', { method: 'POST' }),
         env,
         { tenantId: pctx.tenantId, db: pctx.db, mode: 'tenant', billing: operatorBilling() },
       ),
@@ -804,9 +803,54 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
 // ---------------------------------------------------------------------------
 // GET /api/load
 // ---------------------------------------------------------------------------
+// Tables /api/save accepts but the app never reads from /api/load: the reply
+// drafts (about 1.7 MB of text — the app reads them per case from /api/drafts)
+// and the drafting skills. Serializing them on every 30-second poll was most of
+// this endpoint's CPU time. `?all=1` still returns them.
+const LOAD_SKIP = new Set(['drafts', 'skills']);
+const VERSION_TABLES = [
+  'clients', 'cases', 'tasks', 'calendar_events', 'documents', 'payments', 'timeline_items',
+];
+
+/** A short fingerprint of everything /api/load returns, from ONE cheap query:
+ *  per table the row count and the newest updated_at (every write sets it), for
+ *  documents also the total summary length. The app sends back the one it holds
+ *  (`?v=`); when it still matches, nothing is read or serialized. '' = unknown
+ *  (an office schema without these columns) -> always a full load. */
+async function loadVersion(ctx: Ctx): Promise<string> {
+  try {
+    const parts = VERSION_TABLES.map(
+      (t) =>
+        `(SELECT count(*) || ':' || coalesce(max(updated_at), '')` +
+        (t === 'documents'
+          ? " || ':' || coalesce(sum(length(coalesce(summary_he, '')) + length(coalesce(summary_ar, ''))), 0)"
+          : '') +
+        ` FROM ${t} WHERE user_id = ?1)`,
+    );
+    parts.push(
+      "(SELECT coalesce(max(updated_at), '') || ':' || coalesce(sum(length(state) + length(payload) + length(data)), 0) FROM app_state WHERE user_id = ?1)",
+    );
+    const row = await ctx.db
+      .prepare('SELECT ' + parts.join(" || '|' || ") + ' AS v')
+      .bind(ctx.tenantId)
+      .first<{ v?: string }>();
+    const v = String(row?.v || '');
+    return v ? v + '|' + (ctx.billing.blocked ? 'b' : 'a') : '';
+  } catch {
+    return '';
+  }
+}
+
 async function handleLoad(request: Request, env: Env, ctx: Ctx): Promise<Response> {
-  const out: Record<string, unknown> = {};
+  const url = new URL(request.url);
+  const version = await loadVersion(ctx);
+  if (version && url.searchParams.get('v') === version) {
+    return json({ unchanged: true, version }, request, env);
+  }
+  const wantAll = url.searchParams.get('all') === '1';
+  const out: Record<string, unknown> = { version };
   for (const table of LOAD_TABLES) {
+    if (!wantAll && LOAD_SKIP.has(table)) continue;
     const extra = table === 'documents' ? " AND source_id NOT LIKE '%/%'" : '';
     const rs = await ctx.db.prepare(
       `SELECT * FROM ${table} WHERE user_id = ?${extra}`,
@@ -1405,7 +1449,13 @@ export function parseDraftReply(raw: string): Record<string, unknown> | null {
   return { ...meta, draft: body };
 }
 
-async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Response> {
+async function handleDraft(
+  request: Request,
+  env: Env,
+  ctx: Ctx,
+  /** Set by the queue consumer: the request fields, already an object. */
+  given?: Record<string, unknown>,
+): Promise<Response> {
   // Refuse an oversized body from its Content-Length, BEFORE reading it. A
   // Worker isolate has a hard 128 MB ceiling and this endpoint holds several
   // copies of the base64 PDF; parsing first is what killed the isolate.
@@ -1414,10 +1464,14 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
     return json({ error: 'file_too_large', detail: tooBig }, request, env, 413);
   }
   let body: Record<string, unknown>;
-  try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
-    return json({ error: 'invalid json' }, request, env, 400);
+  if (given) {
+    body = given;
+  } else {
+    try {
+      body = (await request.json()) as Record<string, unknown>;
+    } catch {
+      return json({ error: 'invalid json' }, request, env, 400);
+    }
   }
   // NO .trim() here: on a ~37 MB base64 string that is a pointless full copy at
   // exactly the moment the isolate can least afford one. Base64 from our own
@@ -1435,11 +1489,11 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
   // long draft exceeds; the unfinished request then saved nothing.
   if (body.async === true && env.DOC_QUEUE) {
     try {
-      const bin = atob(pdfB64);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const key = `${ctx.tenantId}/tmp-draft/${crypto.randomUUID()}.pdf`;
-      await env.DOCS.put(key, bytes, { httpMetadata: { contentType: 'application/pdf' } });
+      // Parked as the base64 TEXT it arrived in (".b64"): decoding it here and
+      // encoding it again in the consumer were two byte-by-byte passes over the
+      // whole file, in script — far over the CPU limit for a PDF of a few MB.
+      const key = `${ctx.tenantId}/tmp-draft/${crypto.randomUUID()}.b64`;
+      await env.DOCS.put(key, pdfB64, { httpMetadata: { contentType: 'text/plain' } });
       const draftBody: Record<string, unknown> = { ...body };
       delete draftBody.pdf_base64;
       delete draftBody.async;
@@ -1624,9 +1678,22 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
   // Retries with backoff on 429/529/5xx. A bare fetch (no retry) meant one
   // transient overload surfaced as a hard failure and stopped the make.com
   // module driving this endpoint.
+  // How long one attempt may take. The reply arrives only when the whole draft
+  // is written, and a long one (an affidavit answering a questionnaire) takes
+  // well over the default 2 minutes — it timed out on every attempt and was
+  // never saved. In the background (the queue consumer) there is no caller
+  // waiting, so allow 9 minutes; a waiting caller gets 4.5 (make.com's own
+  // limit is 5).
+  // One attempt in the background: the queue itself runs the job once more
+  // after a failure (see handleDocQueue), and every extra attempt at a long
+  // draft is paid for.
+  const draftCallOpts = request.url.startsWith('https://internal/')
+    ? { timeoutMs: 540_000, maxAttempts: 1 }
+    : { timeoutMs: 270_000, maxAttempts: 2 };
   const call = await callAnthropicWithRetry(
     env.ANTHROPIC_API_KEY || '',
     JSON.stringify(anthropicBody),
+    draftCallOpts,
   );
   if (!call.response) {
     return json(
@@ -1702,7 +1769,7 @@ async function handleDraft(request: Request, env: Env, ctx: Ctx): Promise<Respon
           },
         ],
       };
-      const again = await callAnthropicWithRetry(env.ANTHROPIC_API_KEY || '', JSON.stringify(retryBody));
+      const again = await callAnthropicWithRetry(env.ANTHROPIC_API_KEY || '', JSON.stringify(retryBody), draftCallOpts);
       if (again.response?.ok) {
         const d2 = (await again.response.json()) as { content?: Array<{ type: string; text?: string }> };
         const t2 = (d2.content || []).filter((b) => b.type === 'text').map((b) => b.text || '').join('').trim();
