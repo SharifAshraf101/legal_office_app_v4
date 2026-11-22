@@ -7,6 +7,8 @@
 import { officeAuthHeader } from './officeToken';
 
 const WORKER_URL = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(/\/$/, '');
+/** The app's public address — the same one the client-bot links use. */
+const PUBLIC_APP_URL = 'https://legal-office-app-v4.vercel.app';
 
 /** Where the signature goes: a page and a box on it, as fractions of the page
  *  (0–1) measured from its TOP-LEFT corner, so it survives any zoom. */
@@ -42,7 +44,12 @@ export interface SignRequest extends SignBox {
 
 /** The link the client opens. */
 export function signLink(token: string): string {
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  // The client opens it on their own phone, so it must be the public address.
+  // On the office computer the app can run from a local address (localhost),
+  // which exists only on that computer — a link built from it opens nowhere.
+  const here = typeof window !== 'undefined' ? window.location : null;
+  const local = !here || /^(localhost|127\.|192\.168\.|10\.|\[::1\])/.test(here.hostname);
+  const origin = local ? PUBLIC_APP_URL : here.origin;
   return origin + '/sign/?t=' + token;
 }
 
