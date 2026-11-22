@@ -35,6 +35,10 @@ function sync(): void {
     // Closed from inside the app: drop the now-pointless entry, so the NEXT
     // hardware back leaves the app instead of doing nothing.
     sentinel = false;
+    // ...but only while that entry is still the current one. When the app was
+    // left for another page (the admin console), the current entry is that
+    // page: going back here would undo the navigation and restart the app.
+    if (!(window.history.state as { __appBack?: boolean } | null)?.__appBack) return;
     ignoreNextPop = true;
     window.history.back();
   }

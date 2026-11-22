@@ -114,6 +114,10 @@ type ClientRow = {
   lastTs?: number;
   /** Digits of the client's phone, for search. */
   phoneDigits?: string;
+  /** The WhatsApp number itself (972…) — set on a sender who is not a client
+   *  in the system, so the chat can still be opened and answered. */
+  phone?: string;
+  unknownSender?: boolean;
 };
 
 /** One row of GET /api/whatsapp-summary. */
@@ -303,6 +307,49 @@ function PortalShell({
     });
   }, [state.clients, state.casesArr, lang, waSummary]);
 
+  // The second list of the WhatsApp screen: everyone whose message is neither
+  // answered nor opened yet — the same messages the home bell counts. A sender
+  // whose number belongs to no client is listed by the number itself (the bell
+  // used to count such a message while no row anywhere showed it). Opening the
+  // chat marks the messages seen, which takes the sender off this list.
+  const pendingWa = useMemo<ClientRow[]>(() => {
+    const byPhone = new Map<string, ClientRow>();
+    for (const c of state.clients) {
+      const key = normalizePhoneForLinks(c.phone);
+      const row = key ? clients.find((r) => r.id === c.id) : undefined;
+      if (key && row && !byPhone.has(key)) byPhone.set(key, row);
+    }
+    const out: ClientRow[] = [];
+    for (const [key, wa] of waSummary) {
+      const unseen = Number(wa.unseen) || 0;
+      if (unseen <= 0) continue;
+      const known = byPhone.get(key);
+      const lastTs = Number(wa.last_ts) || 0;
+      if (known) {
+        out.push({ ...known, unread: unseen });
+        continue;
+      }
+      const local = key.startsWith('972') ? '0' + key.slice(3) : '+' + key;
+      out.push({
+        id: 'wa:' + key,
+        name: local,
+        caseNo: '',
+        caseType: lang === 'ar' ? 'رقم غير مسجَّل كموكّل' : 'מספר שאינו רשום כלקוח',
+        cases: [],
+        time: hubTimeLabel(lastTs, lang),
+        unread: unseen,
+        waiting: true,
+        avatar: '?',
+        status: 'online',
+        lastTs,
+        phoneDigits: key,
+        phone: key,
+        unknownSender: true,
+      });
+    }
+    return out.sort((a, b) => (b.lastTs || 0) - (a.lastTs || 0));
+  }, [state.clients, clients, waSummary, lang]);
+
   const [screen, setScreen] = useState<Screen>(deepLink ? 'gate' : 'chooser');
   const [selectedClient, setSelectedClient] = useState<ClientRow | null>(null);
   // The raw matched client (deep link) — kept so the ClientRow can be rebuilt in
@@ -447,7 +494,7 @@ function PortalShell({
     // The chat screen marks this client's messages read on the server; clear
     // the badge now rather than on the next summary poll.
     const key = normalizePhoneForLinks(
-      String(state.clients.find((c) => c.id === client.id)?.phone || ''),
+      String(state.clients.find((c) => c.id === client.id)?.phone || client.phone || ''),
     );
     if (key && waSummary.get(key)?.unseen) {
       setWaSummary((prev) => {
@@ -479,6 +526,7 @@ function PortalShell({
       {screen === 'hub' && (
         <HubScreen
           clients={clients}
+          pending={pendingWa}
           onOpenChat={openChat}
           onBack={() => setScreen('chooser')}
           lang={lang}
@@ -732,16 +780,21 @@ function TopBar({
 
 function HubScreen({
   clients,
+  pending,
   onOpenChat,
   onBack,
   lang,
 }: {
   clients: ClientRow[];
+  /** Senders whose message is neither answered nor opened (the second list). */
+  pending: ClientRow[];
   onOpenChat: (c: ClientRow, caseId?: string) => void;
   onBack: () => void;
   lang: 'he' | 'ar';
 }) {
   const { state: appState } = useAppState();
+  const pendingTitle = lang === 'ar' ? 'رسائل لم يُرد عليها' : 'הודעות שטרם נענו';
+  const pendingEmpty = lang === 'ar' ? 'لا توجد رسائل بانتظار الرد' : 'אין הודעות שממתינות למענה';
   const T = {
     title:
       lang === 'ar' ? 'مركز التواصل مع الموكلين' : 'מרכז תקשורת עם לקוחות',
@@ -808,6 +861,8 @@ function HubScreen({
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
+        <div className="wh-cols">
+        <section className="wh-col">
         <h3 className="wh-title">{ar ? 'محادثات الموكلين' : 'שיחות הלקוחות'}</h3>
         <div className="wh-list">
           {clients.length === 0 && <div className="wh-none">{ar ? 'لا يوجد موكلون بعد' : 'אין לקוחות עדיין'}</div>}
@@ -821,6 +876,7 @@ function HubScreen({
                     <b>
                       {client.status === 'online' && <span className="wh-dot" aria-hidden />}
                       {client.name}
+                      {client.unread > 0 && <span className="wh-badge" aria-label={unreadLabel(client.unread)}>{client.unread}</span>}
                     </b>
                     <small>{unreadLabel(client.unread)}</small>
                   </span>
@@ -843,6 +899,35 @@ function HubScreen({
               <span className="wh-when">{client.time || ''}</span>
             </div>
           ))}
+        </div>
+        </section>
+        <section className="wh-col wh-col-pending">
+          <h3 className="wh-title">
+            {pendingTitle}
+            {pending.length > 0 && <span className="wh-badge">{pending.reduce((n, c) => n + c.unread, 0)}</span>}
+          </h3>
+          <div className="wh-list">
+            {pending.length === 0 && <div className="wh-none">{pendingEmpty}</div>}
+            {pending.map((client) => (
+              <div key={client.id} className="wh-entry wh-new">
+                <div className="wh-box">
+                  <button type="button" className="wh-main" onClick={() => onOpenChat(client, client.cases[0]?.id)} aria-label={client.name}>
+                    <span className="wh-av" aria-hidden>{client.avatar}</span>
+                    <span className="wh-txt">
+                      <b>
+                        <bdi>{client.name}</bdi>
+                        <span className="wh-badge" aria-label={unreadLabel(client.unread)}>{client.unread}</span>
+                      </b>
+                      <small>{client.unknownSender ? client.caseType : unreadLabel(client.unread)}</small>
+                    </span>
+                    <i className="far fa-comment wh-go" aria-hidden />
+                  </button>
+                </div>
+                <span className="wh-when">{client.time || ''}</span>
+              </div>
+            ))}
+          </div>
+        </section>
         </div>
       </div>
     );
@@ -886,6 +971,24 @@ function HubScreen({
       <div className="tw-grid tw-flex-1 tw-grid-cols-1 tw-gap-5 tw-px-5 tw-pb-5 tw-pt-3 lg:tw-px-10 lg:tw-pb-10">
         <Panel className="tw-min-h-[520px]">
           <div>
+            {pending.length > 0 && (
+              <div className="tw-mb-5">
+                <div className="tw-mb-3 tw-text-sm tw-font-semibold tw-text-emerald-700">{pendingTitle}</div>
+                <div className="tw-flex tw-flex-col tw-gap-2">
+                  {pending.map((client) => (
+                    <button
+                      key={client.id}
+                      type="button"
+                      onClick={() => onOpenChat(client, client.cases[0]?.id)}
+                      className="tw-flex tw-items-center tw-justify-between tw-gap-3 tw-rounded-2xl tw-border tw-border-emerald-200 tw-bg-emerald-50 tw-px-4 tw-py-3 tw-text-start"
+                    >
+                      <span className="tw-truncate tw-font-bold tw-text-slate-900"><bdi>{client.name}</bdi></span>
+                      <span className="tw-grid tw-h-6 tw-min-w-6 tw-place-items-center tw-rounded-full tw-bg-red-600 tw-px-2 tw-text-xs tw-font-bold tw-text-white">{client.unread}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="tw-mb-3 tw-text-sm tw-font-semibold tw-text-slate-500">
               {T.recent}
             </div>
@@ -1772,7 +1875,7 @@ function ClientChatScreen({
       ]);
 
     const clientRecord = state.clients.find((c) => c.id === client.id);
-    const phone = normalizePhoneForLinks(clientRecord?.phone || '');
+    const phone = normalizePhoneForLinks(clientRecord?.phone || client.phone || '');
     if (!phone) {
       warn(
         'המסמך לא נשלח: אין מספר טלפון ללקוח.',
@@ -1860,7 +1963,7 @@ function ClientChatScreen({
   ]);
   // שלוף את הטלפון מ-state.clients
   const clientRecord = state.clients.find((c) => c.id === client.id);
-  const phone = normalizePhoneForLinks(clientRecord?.phone || '');
+  const phone = normalizePhoneForLinks(clientRecord?.phone || client.phone || '');
   if (phone) {
     try {
      // The send route persists the outgoing message to D1 on success.

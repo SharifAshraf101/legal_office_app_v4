@@ -1209,6 +1209,15 @@ async function handleSave(request: Request, env: Env, ctx: Ctx): Promise<Respons
       // never fail the save because the consolidation hiccuped
     }
   }
+  // Same for tasks: several pipelines (the decision import, the procedural
+  // deadline, make.com) each file a task for the same step of the same case.
+  if (Array.isArray(body.tasks)) {
+    try {
+      await consolidateTasks(ctx);
+    } catch {
+      // never fail the save because the consolidation hiccuped
+    }
+  }
   const submitted = LOAD_TABLES.reduce(
     (n, t) => n + (Array.isArray(body[t]) ? (body[t] as unknown[]).length : 0),
     0,
@@ -1274,8 +1283,11 @@ async function consolidateHearings(env: Env, ctx: Ctx): Promise<void> {
   // first in each group is the earliest — the one we keep.
   const groups = new Map<string, typeof rows>();
   for (const r of rows) {
-    const day = String(r.date_time ?? '').slice(0, 10);
-    if (!day) continue;
+    // The same hearing = the same case at the same date AND time. Two hearings
+    // of one case on the same day at different hours are two hearings.
+    const day = String(r.date_time ?? '').slice(0, 16);
+    // A hearing with no case can't be matched to another one safely.
+    if (!day || !String(r.case_source_id ?? '').trim()) continue;
     const key = String(r.case_source_id ?? '').toLowerCase() + '|' + day;
     const g = groups.get(key);
     if (g) g.push(r);
@@ -1287,21 +1299,31 @@ async function consolidateHearings(env: Env, ctx: Ctx): Promise<void> {
     // Determine the source(s) of this same-day hearing FIRST — a hearing that
     // came from a judicial decision/protocol must NEVER carry the decision's
     // content/summary in the calendar; it shows ONLY the date + a clean note.
+    // Imported = created by a document pipeline: its source names the document
+    // ("…_doc-293.pdf-hearing", "EV-HRG-DOC-271") or its text says so. A hearing
+    // the lawyer typed in has neither.
+    const imported = (r: (typeof rows)[number]) =>
+      hearingSourceType(r) !== 'other' || /doc-\d+|-hearing$|^ev-hrg-/i.test(String(r.source_id ?? ''));
+    const docNo = (r: (typeof rows)[number]) => {
+      const m = /doc-(\d+)/i.exec(String(r.source_id ?? ''));
+      return m ? Number(m[1]) : -1;
+    };
     const sources = new Set(group.map(hearingSourceType));
     sources.delete('other');
     const hasInv = sources.has('invitation');
     const hasDec = sources.has('decision');
-    const isImported = hasInv || hasDec;
+    const isImported = group.some(imported);
     // Manual-only groups are left COMPLETELY alone — never delete or relabel a
     // hearing the lawyer entered by hand. Two same-day manual hearings (or two
     // case-less manual hearings sharing the '|day' key) are legitimate and must
     // both survive. (This guard must run BEFORE any delete is queued.)
     if (!isImported) continue;
-    // Collapse only DUPLICATE IMPORTED hearings (the same session that arrived
-    // from both an invitation and a decision). Keep the earliest imported event
-    // as canonical; never touch a manual ('other') member of a mixed group.
-    const importedMembers = group.filter((r) => hearingSourceType(r) !== 'other');
-    const keep = importedMembers[0];
+    // Collapse only DUPLICATE IMPORTED hearings (the same session found in
+    // several documents). The office's rule: the hearing of the LATEST document
+    // stays and the earlier documents' copies go — by document number, then by
+    // creation order. A hearing typed in by hand is never touched.
+    const importedMembers = group.filter(imported);
+    const keep = importedMembers.reduce((a, b) => (docNo(b) >= docNo(a) ? b : a));
     for (const r of importedMembers) if (r.id !== keep.id) toDelete.push(r.id);
     let he = '';
     let ar = '';
@@ -1342,6 +1364,58 @@ async function consolidateHearings(env: Env, ctx: Ctx): Promise<void> {
     await ctx.db.prepare(
       `DELETE FROM calendar_events WHERE user_id = ?1 AND id IN (${ph})`,
     )
+      .bind(ctx.tenantId, ...chunk)
+      .run();
+  }
+}
+
+// One task per step. The automatic sources word the same step differently each
+// time ("הגשת תשובה לדרישה…", "הגשת תשובה מנומקת לדרישה…"), so open AUTOMATIC
+// tasks of the same case with the same due date are one task: the newest stays
+// and the others are deleted. A task the lawyer wrote by hand, and a finished
+// task, are never touched.
+async function consolidateTasks(ctx: Ctx): Promise<void> {
+  const rs = await ctx.db
+    .prepare(
+      `SELECT id, source_id, case_source_id, title, due_date, notes, created_at
+         FROM tasks
+        WHERE user_id = ?1 AND due_date IS NOT NULL AND coalesce(case_source_id, '') <> ''
+          AND lower(coalesce(status, '')) NOT IN ('done', 'completed', 'closed')
+        ORDER BY created_at ASC, id ASC`,
+    )
+    .bind(ctx.tenantId)
+    .all();
+  const rows = (rs.results ?? []) as Array<{
+    id: string; source_id?: string; case_source_id?: string; title?: string;
+    due_date?: string; notes?: string; created_at?: string;
+  }>;
+  const automatic = (r: (typeof rows)[number]) =>
+    /^task-dec-|-task$/i.test(String(r.source_id ?? '')) ||
+    /\(AI\)|הבינה המלאכותית|الذكاء الاصطناعي/.test(String(r.notes ?? ''));
+  const groups = new Map<string, typeof rows>();
+  for (const r of rows) {
+    if (!automatic(r)) continue;
+    const key = String(r.case_source_id).toLowerCase() + '|' + String(r.due_date).slice(0, 10);
+    const g = groups.get(key);
+    if (g) g.push(r);
+    else groups.set(key, [r]);
+  }
+  const toDelete: string[] = [];
+  for (const g of groups.values()) {
+    if (g.length < 2) continue;
+    // Newest wins; made at the same moment → the fuller wording.
+    const keep = g.reduce((a, b) => {
+      const ca = String(a.created_at ?? ''), cb = String(b.created_at ?? '');
+      if (cb !== ca) return cb > ca ? b : a;
+      return String(b.title ?? '').length >= String(a.title ?? '').length ? b : a;
+    });
+    for (const r of g) if (r.id !== keep.id) toDelete.push(r.id);
+  }
+  for (let i = 0; i < toDelete.length; i += 50) {
+    const chunk = toDelete.slice(i, i + 50);
+    const ph = chunk.map((_, j) => '?' + (j + 2)).join(', ');
+    await ctx.db
+      .prepare(`DELETE FROM tasks WHERE user_id = ?1 AND id IN (${ph})`)
       .bind(ctx.tenantId, ...chunk)
       .run();
   }
@@ -1525,7 +1599,7 @@ async function handleDraft(
   // The registered lawyer / our office (Settings name appended to the built-in
   // one). Authorship is read off the SIGNATURE at the END of the document: our
   // own signature → no reply draft; opposing counsel's signature → draft. A
-  // judge's decision always gets a draft, whatever it orders.
+  // judge's decision gets one only when it orders our side to respond.
   // Another office's "our side" is ITS lawyer, never the operator's name.
   const lawyerName =
     ctx.tenantId !== env.USER_ID
@@ -1627,13 +1701,13 @@ async function handleDraft(
     '- signatory = اسم الموقّع كما ورد في نهاية المستند حرفياً (أو null إذا لم يوجد توقيع).\n' +
     '- is_court_decision = true إذا كان المستند قراراً أو حكماً أو أمراً صادراً عن القاضي/المحكمة (החלטה / פסק דין / צו / قرار / حكم / أمر)، وإلا false.\n' +
     CONTAINS_DECISION_RULE +
-    '- court_requires_response = true إذا كان المستند يأمر أو يطلب تقديم رد/جواب/تعقيب، وإلا false.\n\n' +
+    COURT_REQUIRES_RESPONSE_RULE +
+    '\n' +
     'قاعدة إعداد المسودة (إلزامية، طبّقها حرفياً):\n' +
     '1. author_side = "opposing" (الموقّع في نهاية المستند هو وكيل الطرف المقابل) ← يجب إلزامياً ملء الحقل draft بنص مسودة رد قانونية كاملة على هذا المستند وفق القالب الحاكم، ولا تتركه null أبداً.\n' +
-    '2. is_court_decision = true (قرار/حكم صادر عن القاضي) ← يجب إلزامياً ملء الحقل draft في كل الأحوال، سواء طلب القرار رداً صراحةً أم لم يطلب، وتُصاغ المسودة وفق مضمون القرار نفسه وما يقتضيه من امتثال أو تعقيب أو إجراء تالٍ.\n' +
-    '3. contains_court_decision = true (يتضمن المستند قراراً قضائياً في داخله، حتى لو كان موقّعاً من جانبنا) ← يجب إلزامياً ملء الحقل draft، وتُصاغ المسودة وفق مضمون ذلك القرار.\n' +
-    '4. author_side = "court" و court_requires_response = true ← يجب ملء الحقل draft كذلك.\n' +
-    '5. author_side = "ours" (المستند موقّع من مكتبنا/المحامي المسجَّل أو من موكّلنا أو مقدَّم نيابةً عنه) ولا يتضمن أي قرار قضائي ← لا حاجة لمسودة: اترك draft = null.\n\n' +
+    '   هذه القاعدة لا تنطبق إذا كان على المستند قرار قضائي (البند 2 هو الحاكم عندئذ).\n' +
+    '2. المستند قرار قضائي أو يتضمن قراراً قضائياً (is_court_decision = true أو contains_court_decision = true، أو author_side = "court") ← المسودة تُعدّ فقط إذا كان court_requires_response = true، أي أن القاضي أمر جانبنا بتقديم رد. في هذه الحالة يجب إلزامياً ملء الحقل draft، ويجب أن ترد المسودة تحديداً وبنداً بنداً على ادعاءات الطرف المقابل التي أشار إليها القاضي في قراره أو أمر بالرد عليها (الطلب أو الرد أو الادعاءات التي أحال إليها القرار)، لا على غيرها. أما إذا لم يأمر القرار جانبنا بتقديم رد (court_requires_response = false) — مثلاً قرار يحدد موعد جلسة فقط، أو يفصل في طلب، أو يأمر الطرف المقابل وحده — فلا مسودة: اترك draft = null، حتى لو كان المستند موقّعاً من الطرف المقابل.\n' +
+    '3. author_side = "ours" (المستند موقّع من مكتبنا/المحامي المسجَّل أو من موكّلنا أو مقدَّم نيابةً عنه) ولا يوجد قرار يأمر جانبنا بالرد ← لا حاجة لمسودة: اترك draft = null. لا تُعِدّ أبداً مسودة رد على مستند قدّمناه نحن.\n\n' +
     'قبل صياغة المسودة اقرأ كل ملاحظات الموكل والقضية التالية (ملاحظات القضية، ملاحظة الموكل، ملاحظات المحامي في شاشة الملف، ملاحظات عند رفع المستندات، وملخصات باقي مستندات الملف). لا تؤثر هذه الملاحظات على التصنيف أعلاه، لكن عند إعداد المسودة يجب أن تُكيِّف الرد على المستند وفقها: اعتمد الوقائع والمواقف والتعليمات والخلفية الواردة فيها، وابنِ الرد على موقف موكّلنا كما يظهر منها، ولا تخالفها. إذا ادّعى المستند خلاف ما في الملاحظات فاعرض موقف موكّلنا كما في الملاحظات ورُدّ على ادعاء المستند صراحةً. لا تختلق ما لم يرد في المستند أو في الملاحظات:\n<case_notes>\n' +
     (notes.text || '(لا توجد ملاحظات محفوظة)') +
     '\n</case_notes>\n' +
@@ -1980,7 +2054,7 @@ async function handleDraftDecision(request: Request, env: Env, ctx: Ctx): Promis
     '- signatory = اسم الموقّع في نهاية المستند حرفياً (أو null).\n' +
     '- is_court_decision = true إذا كان المستند قراراً أو حكماً أو أمراً صادراً عن القاضي/المحكمة (החלטה / פסק דין / צו / قرار / حكم / أمر)، وإلا false.\n' +
     CONTAINS_DECISION_RULE +
-    '- court_requires_response = true إذا كان المستند يأمر أو يطلب تقديم رد/جواب/تعقيب، وإلا false.\n' +
+    COURT_REQUIRES_RESPONSE_RULE +
     'أعِد JSON فقط: {"author_side":"ours or opposing or court","signatory":"اسم الموقّع أو null","is_court_decision":true or false,"contains_court_decision":true or false,"court_requires_response":true or false}.';
 
   let draftNeeded = true; // safe default on any failure
@@ -2102,22 +2176,27 @@ async function handleDraftDecision(request: Request, env: Env, ctx: Ctx): Promis
 const CONTAINS_DECISION_RULE =
   '- contains_court_decision = true إذا تضمّن المستند في أي موضع منه قراراً أو حكماً أو أمراً صادراً عن القاضي/المحكمة، حتى لو كان المستند نفسه لائحة أو طلباً موقّعاً من أي طرف (مثل قرار مدوَّن أو مختوم على الطلب، أو قرار مرفق به)، وإلا false. لا يُعدّ مجرد ذكر قرار سابق في المتن أو إشعار استلام أو دعوة لجلسة قراراً.\n';
 
-// The reply-draft rule. A draft is prepared ONLY for a judge's decision, a
-// document containing one, or a filing by the other side. Our own document
-// (signed by our lawyer or the client we represent) with no decision in it never
-// gets one, even if it asks for a response; nor does a court document that is
-// neither a decision nor a reply order (e.g. a filing receipt — the
-// suggested-action card covers those). An unknown author still gets a draft: a
-// missed deadline is far worse than an extra draft.
+// When the judge's decision counts as an order to respond: only when it tells
+// OUR side (or all the parties) to file a response.
+const COURT_REQUIRES_RESPONSE_RULE =
+  '- court_requires_response = true فقط إذا كان في المستند قرار/أمر من القاضي يأمر أو يطلب من جانبنا (مكتبنا أو موكّلنا) — أو من الطرفين/جميع الأطراف — تقديم رد أو جواب أو تعقيب أو موقف خطي (مثل: «המשיב יגיב תוך 7 ימים»، «תגובת הצד שכנגד תוך…»، «הצדדים יגישו עמדתם»، «على المدعى عليه تقديم رده خلال…»). يكون false إذا كان الأمر بالرد موجَّهاً إلى الطرف المقابل وحده، أو إذا اكتفى القرار بتحديد موعد جلسة أو بالفصل في طلب أو بإجراء آخر دون طلب رد خطي، أو إذا لم يكن في المستند قرار قضائي أصلاً (طلب الرد الوارد في متن طلب أحد الأطراف ليس أمراً من القاضي).\n';
+
+// The reply-draft rule (the office's rule):
+//   • a judge's decision — the document itself, or written on any filing — gets
+//     a draft ONLY when it orders our side to respond; the draft then answers
+//     the other side's claims the judge pointed to. No order to respond → none;
+//   • otherwise a filing by the other side gets a draft;
+//   • our own filing (signed by our lawyer or the client we represent) never.
+// An unknown author with no decision still gets a draft: a missed deadline is
+// far worse than an extra draft.
 function replyDraftNeeded(
   authorSide: string,
   isCourtDecision: boolean,
   containsCourtDecision: boolean,
   courtRequiresResponse: boolean,
 ): boolean {
-  if (isCourtDecision || containsCourtDecision) return true;
+  if (isCourtDecision || containsCourtDecision || authorSide === 'court') return courtRequiresResponse;
   if (authorSide === 'ours') return false;
-  if (authorSide === 'court') return courtRequiresResponse;
   return true;
 }
 

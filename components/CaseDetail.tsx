@@ -1133,6 +1133,28 @@ function documentToneClass(fileName?: string): string {
   return fileExt(fileName) === 'pdf' ? ' timeline-icon-pdf' : '';
 }
 
+/** The colour a file type is known by — Adobe's red for a PDF, Word's blue,
+ *  Excel's green, PowerPoint's orange. Unknown types stay neutral grey. */
+function documentTypeColor(fileName?: string): string {
+  switch (documentTypeIcon(fileName)) {
+    case 'fa-file-pdf':
+      return '#e2231a';
+    case 'fa-file-word':
+      return '#2b579a';
+    case 'fa-file-excel':
+      return '#217346';
+    case 'fa-file-powerpoint':
+      return '#d24726';
+    case 'fa-file-image':
+      return '#0e9f6e';
+    case 'fa-file-audio':
+    case 'fa-file-video':
+      return '#7c3aed';
+    default:
+      return '#94a3b8';
+  }
+}
+
 /** Pick a file-type FontAwesome 6 (`fas`) icon from a document's file name.
  *  Falls back to the generic file icon when the extension is unknown or the
  *  name is missing (e.g. timeline-sourced rows that carry no actual file). */
@@ -2017,8 +2039,26 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
       // Approved WITH text → show it. Approved but EMPTY (e.g. an older
       // generation that produced no draft) falls through to (3) to regenerate,
       // so an opposing document always ends up with a counter-draft.
-      if (state0.status === 'approved' && state0.text)
+      if (state0.status === 'approved' && state0.text) {
+        // Drafts written BEFORE the office's rule (no draft for our own filing;
+        // a judge's decision only when it orders our side to respond) are
+        // re-checked ONCE with the cheap classifier. The text is kept in the
+        // database either way — only the card is hidden.
+        if (primary && isPdf && !genAttempts.has('draftresponserule:' + primary.id)) {
+          rememberGenAttempt(genAttempts, 'draftresponserule:' + primary.id);
+          const { draftNeeded: stillNeeded } = await classifyDraftDecision({
+            relativePath: primary.relativePath,
+            fileName: renamed || primary.fileName || '',
+            clientId: primary.clientId,
+            caseId,
+            documentId: primary.id,
+            lawyerName: state.officeName || undefined,
+            clientName: representedClientName || undefined,
+          });
+          if (!stillNeeded) return apply(null, false);
+        }
         return apply(state0.text, true);
+      }
 
       // 2. Unclassified Make draft (status='draft', has text) → classify ONCE
       //    (cheap, no regeneration). Keep the existing text when still needed.
@@ -2333,8 +2373,13 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
     // (case + triggering document) WITHOUT the due date, so later anchor-date
     // edits (which only change the live display) never spawn a duplicate.
     const taskKey = 'procdl:task:' + caseId + ':' + docKey;
+    // An open task of this case due the same day IS this step: the suggestion is
+    // reworded on every regeneration, so comparing titles let duplicates in.
     const taskExists = tasksRef.current.some(
-      (t) => String(t.caseId) === String(caseId) && t.title === title,
+      (t) =>
+        String(t.caseId) === String(caseId) &&
+        (t.title === title ||
+          (t.status !== 'done' && !!dueYmd && String(t.dueDate || '').slice(0, 10) === dueYmd)),
     );
     if (!decisionImportKeys.has(taskKey) && !taskExists) {
       rememberDecisionImportKey(decisionImportKeys, taskKey);
@@ -3098,7 +3143,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                           </span>
                           {primaryDoc.title || primaryDoc.fileName || '-'}
                         </span>
-                        <i className="fas fa-file tw-text-slate-400" aria-hidden="true" />
+                        <i
+                          className={'fas ' + documentTypeIcon(primaryDoc.fileName)}
+                          style={{ color: documentTypeColor(primaryDoc.fileName), fontSize: '1.15em' }}
+                          aria-hidden="true"
+                        />
                       </div>
                       <span className="tw-rounded-full tw-bg-emerald-100 tw-px-2.5 tw-py-1 tw-font-semibold tw-text-emerald-700">
                         {T.aiAnalyzed}
@@ -3359,6 +3408,21 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         tabIndex={0}
                         aria-pressed={isActive}
                         onClick={() => setSelectedDocId(doc.id)}
+                        // Double-click shows the file itself, as in the case's
+                        // documents list. Not from the row's own buttons.
+                        onDoubleClick={(e) => {
+                          if ((e.target as HTMLElement).closest('button')) return;
+                          const file = state.documentsArr.find((d) => String(d.id) === String(doc.id));
+                          if (!file?.relativePath) {
+                            window.alert(
+                              lang === 'ar'
+                                ? 'لم يتم حفظ ملف لهذا المستند.'
+                                : 'לא נשמר קובץ עבור מסמך זה.',
+                            );
+                            return;
+                          }
+                          modalStack.open(<DocumentPreviewModal doc={file} />);
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
@@ -3380,7 +3444,8 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                       >
                         <div className="tw-flex tw-items-center tw-gap-2 tw-min-w-0">
                           <i
-                            className="fas fa-file tw-text-slate-400 tw-flex-shrink-0"
+                            className={'fas ' + documentTypeIcon(doc.fileName) + ' tw-flex-shrink-0'}
+                            style={{ color: documentTypeColor(doc.fileName), fontSize: '1.15em' }}
                             aria-hidden="true"
                           />
                           <span className="tw-truncate tw-font-medium tw-text-slate-900">

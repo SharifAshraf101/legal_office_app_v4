@@ -43145,6 +43145,12 @@ html body #content.content .kx-root.kx-cases .kx-cols,
 html body #content.content .kx-root.kx-cases .kx-line{grid-template-columns:minmax(100px,.75fr) minmax(0,1.7fr) minmax(0,1.3fr) minmax(0,1.1fr) minmax(0,1.1fr) minmax(90px,.7fr)}
 html body #content.content .kx-root.kx-cases .kx-cols span:nth-child(n+3){text-align:center}
 html body #content.content .kx-root.kx-cases .kx-cols span:nth-child(2){text-align:start}
+/* Column headings sort the rows; the file number hugs the table's right edge. */
+html body #content.content .kx-root.kx-cases .kx-cols .kx-sort{cursor:pointer;user-select:none;pointer-events:auto}
+html body #content.content .kx-root.kx-cases .kx-cols .kx-sort .kx-arrow{display:inline-block;margin-inline-start:7px;font-size:.7em!important;font-weight:900;opacity:.45;color:inherit!important;-webkit-text-fill-color:currentColor!important}
+html body #content.content .kx-root.kx-cases .kx-cols .kx-sort:hover .kx-arrow{opacity:.8}
+html body #content.content .kx-root.kx-cases .kx-cols .kx-sorted .kx-arrow{opacity:1}
+html body #content.content .kx-root.kx-cases .kx-c-num{text-align:right}
 html body #content.content .kx-root.kx-cases .kx-root > .kx-art{aspect-ratio:600/200}
 html body #content.content .kx-root.kx-cases > .kx-art{width:clamp(260px,33vw,600px);aspect-ratio:600/200}
 html body #content.content .kx-root.kx-cases.kx-cases :is(.kx-c-who,.kx-c-court-no,.kx-c-body){text-align:center;font-size:clamp(14px,1.2vw,19px)!important;font-weight:700;color:#fff!important;-webkit-text-fill-color:#fff!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -44013,11 +44019,11 @@ html body #content .cd-root.cd-root .cd-chip-wa i{color:#fca5a5!important;-webki
 /* Six figures in one glass bar */
 .cd-strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));padding:10px 6px;border-radius:22px;border:1.5px solid rgba(140,175,225,.45);
   background:linear-gradient(180deg,rgba(26,44,78,.78),rgba(12,24,48,.82));box-shadow:0 14px 34px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.07)}
-html body #content .cd-root .cd-fig{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 10px;background:transparent!important;border:0!important;cursor:pointer;border-radius:14px;transition:background .15s}
+html body #content .cd-root .cd-fig{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 10px;background:transparent!important;border:0!important;cursor:pointer;border-radius:14px;transition:background .15s;min-width:0}
 html body #content .cd-root .cd-fig:hover{background:rgba(255,255,255,.05)!important}
 html body #content .cd-root .cd-fig + .cd-fig{border-inline-start:1px solid rgba(255,255,255,.12)!important;border-radius:0}
-.cd-fig-top{display:flex;align-items:center;gap:10px}
-html body #content .cd-root.cd-root .cd-fig-lbl{font-size:clamp(13px,1vw,16.5px)!important;font-weight:800;color:#fff!important;-webkit-text-fill-color:#fff!important;white-space:nowrap}
+.cd-fig-top{display:flex;align-items:center;gap:10px;min-width:0;max-width:100%}
+html body #content .cd-root.cd-root .cd-fig-lbl{font-size:clamp(13px,1vw,16.5px)!important;font-weight:800;color:#fff!important;-webkit-text-fill-color:#fff!important;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
 html body #content .cd-root .cd-fig-sym{width:clamp(34px,2.6vw,44px);height:clamp(34px,2.6vw,44px);border-radius:50%;display:grid;place-items:center;background:var(--cd-f-bg,#24406f)}
 html body #content .cd-root .cd-fig-sym i{font-size:clamp(15px,1.15vw,20px)!important;color:var(--cd-f,#fff)!important;-webkit-text-fill-color:var(--cd-f,#fff)!important}
 html body #content .cd-root.cd-root .cd-fig > b{font-size:clamp(22px,2vw,34px)!important;font-weight:900;line-height:1.1;color:var(--cd-n,#fff)!important;-webkit-text-fill-color:var(--cd-n,#fff)!important;white-space:nowrap}
@@ -45371,6 +45377,11 @@ html body #content.content .wh-root .wh-search input::placeholder{color:#d1d5db;
 html body #content.content .wh-root .wh-search input::-webkit-search-cancel-button{display:none}
 html body #content.content .wh-root .wh-title{flex:none;margin:2px 0 0;font-size:clamp(17px,1.4vw,21px)!important;font-weight:900;color:#fff!important;-webkit-text-fill-color:#fff!important}
 .wh-list{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:4px 4px 8px}
+/* Two lists side by side: every client · messages not yet answered. */
+.wh-cols{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.wh-col{min-width:0;min-height:0;display:flex;flex-direction:column;gap:10px}
+html body #content.content .wh-root .wh-title{display:flex;align-items:center;gap:10px}
+html body #content.content .wh-root .wh-badge{flex:none;display:inline-grid;place-items:center;min-width:23px;height:23px;padding:0 7px;border-radius:999px;background:#dc2626!important;font-size:12.5px!important;font-weight:900;line-height:1;color:#fff!important;-webkit-text-fill-color:#fff!important;box-shadow:0 0 10px rgba(220,38,38,.55)}
 .wh-entry{display:flex;align-items:flex-start;gap:12px}
 .wh-box{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;padding:12px 16px;border-radius:18px;border:1.5px solid rgba(96,165,250,.8);background:rgba(8,18,38,.82);box-shadow:0 0 14px rgba(56,189,248,.22)}
 html body #content.content .wh-root .wh-new .wh-box{border-color:rgba(74,222,128,.85);box-shadow:0 0 16px rgba(74,222,128,.3)}
@@ -45402,6 +45413,9 @@ html body #content.content .wh-root .wh-none{padding:22px;text-align:center;font
   html body #content.content .wh-root .wh-h{font-size:19px!important}
   html body #content.content .wh-root .wh-sub{font-size:12.5px!important}
   html body #content.content .wh-root .wh-search{height:48px}
+  .wh-cols{display:flex;flex-direction:column;gap:12px}
+  .wh-col{flex:1 1 auto}
+  .wh-col-pending{order:-1;flex:none;max-height:34vh}
   .wh-entry{flex-direction:column-reverse;gap:4px}
   html body #content.content .wh-root .wh-when{margin:0;align-self:flex-end;min-width:0;font-size:12.5px!important;padding:2px 10px}
   .wh-box{padding:10px 12px}
@@ -45496,6 +45510,8 @@ html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.
 html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-body{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:0 20px 20px}
 html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-hero{position:relative;display:flex;align-items:center;gap:18px;margin:0 -20px;padding:18px 26px;min-height:150px;border-bottom:1px solid rgba(96,165,250,.2)}
 html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-hero > *{position:relative;z-index:1}
+/* The body is a scrolling column: its parts keep their own height. Without this a part with min-height:0 (the hero, in the light designs) was squeezed to nothing on a phone and its photo, title and buttons spilled over the fields below. */
+html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-body > *{flex-shrink:0}
 html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-hero > .kd-art{position:absolute!important;z-index:0!important;inset-block:0;inset-inline-end:0;height:100%;width:44%;object-fit:cover;object-position:left center;-webkit-mask-image:linear-gradient(to right,#000 60%,transparent 100%);mask-image:linear-gradient(to right,#000 60%,transparent 100%);pointer-events:none}
 html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-av{flex:none;width:clamp(84px,8vw,110px);height:clamp(84px,8vw,110px);border-radius:50%;border:3px solid #f0b14e;box-shadow:0 0 18px rgba(246,190,90,.5);overflow:hidden;display:grid;place-items:center;background:rgba(8,20,44,.9)}
 html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-av > *{width:100%!important;height:100%!important;max-width:none!important}
@@ -45552,6 +45568,7 @@ html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.
   html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-hero{flex-wrap:wrap;margin:0 -12px;padding:14px 14px;min-height:0;gap:12px}
   html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-hero > .kd-art{width:70%;opacity:.45}
   html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-tools{width:100%;justify-content:flex-start}
+  html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-hero-text{flex:1 1 0;min-width:0}
   html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-g3,html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-g4{grid-template-columns:1fr 1fr;gap:10px}
   html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-g3 > :first-child,html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-g4 > :first-child{grid-column:1/-1}
   html body:not(.x1):not(.x2) .modal.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.ls.kd-classic.kd-classic .kd-f{min-height:60px;padding:8px 12px!important;gap:10px}

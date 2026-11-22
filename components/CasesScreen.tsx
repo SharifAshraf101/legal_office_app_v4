@@ -30,6 +30,12 @@ export function CasesScreen() {
   const { t, lang } = useT();
   const modalStack = useModalStack();
   const [query, setQuery] = useState('');
+  // Which column the rows are ordered by — a click on a column heading picks
+  // it, a second click reverses the order. Starts as it always was: by client.
+  type SortKey = 'num' | 'subject' | 'client' | 'courtNo' | 'court' | 'status';
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'client', dir: 1 });
+  const sortBy = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
 
   const placeholder =
     lang === 'ar'
@@ -48,15 +54,38 @@ export function CasesScreen() {
           caseSearchText(c, state.clients).toLowerCase().includes(q),
         )
       : state.casesArr;
-    // Sort alphabetically by client name (locale-aware for Hebrew + Arabic).
+    // Text columns sort alphabetically (locale-aware for Hebrew + Arabic, and
+    // "CS-9" before "CS-10"); the status column by active → pending → closed.
+    const loc = lang === 'ar' ? 'ar' : 'he';
+    const text = (c: (typeof matches)[number]): string => {
+      switch (sort.key) {
+        case 'num':
+          return String(c.id || '');
+        case 'subject':
+          return caseName(c, lang) || '';
+        case 'courtNo':
+          return String(c.caseNumber || '');
+        case 'court':
+          return (lang === 'ar' ? c.courtAr || c.court : c.court) || '';
+        default:
+          return clientName(c.clientId, state.clients, lang) || '';
+      }
+    };
+    const rank = (c: (typeof matches)[number]) => (c.status === 'active' ? 0 : c.status === 'pending' ? 1 : 2);
     return [...matches].sort((a, b) => {
-      const nameA = clientName(a.clientId, state.clients, lang) || '';
-      const nameB = clientName(b.clientId, state.clients, lang) || '';
-      return nameA.localeCompare(nameB, lang === 'ar' ? 'ar' : 'he', {
-        sensitivity: 'base',
-      });
+      let d = 0;
+      if (sort.key === 'status') d = rank(a) - rank(b);
+      else {
+        const x = text(a);
+        const y = text(b);
+        // Rows with nothing in the column stay at the bottom either way.
+        if (!x !== !y) return x ? -1 : 1;
+        d = x.localeCompare(y, loc, { sensitivity: 'base', numeric: true });
+      }
+      if (d === 0) d = String(a.id).localeCompare(String(b.id), loc, { numeric: true });
+      return d * sort.dir;
     });
-  }, [state.casesArr, state.clients, query, lang]);
+  }, [state.casesArr, state.clients, query, lang, sort]);
 
   const openCase = (id: string) => {
     modalStack.open(<CaseDetail caseId={id} />);
@@ -90,6 +119,7 @@ export function CasesScreen() {
       courtNo: ar ? 'رقم الملف في المحكمة' : 'מספר תיק בבית המשפט',
       body: ar ? 'الجهة' : 'ערכאה',
       empty: ar ? 'لا توجد ملفات مطابقة للبحث' : 'אין תיקים התואמים לחיפוש',
+      sortTip: ar ? 'ترتيب حسب هذا العمود — نقرة ثانية تعكس الترتيب' : 'מיון לפי עמודה זו — לחיצה נוספת הופכת את הסדר',
     };
     return (
       <section className={'kx-root kx-cases' + (modern ? ' kx-modern' : '')}>
@@ -145,13 +175,39 @@ export function CasesScreen() {
           );
         })()}
         <div className="kx-frame">
-          <div className="kx-cols" aria-hidden>
-            <span>{L.num}</span>
-            <span>{L.subject}</span>
-            <span>{t('clientName')}</span>
-            {!modern && <span>{L.courtNo}</span>}
-            <span>{L.body}</span>
-            <span>{t('status')}</span>
+          <div className="kx-cols">
+            {(
+              [
+                ['num', L.num],
+                ['subject', L.subject],
+                ['client', t('clientName')],
+                ...(modern ? [] : [['courtNo', L.courtNo]]),
+                ['court', L.body],
+                ['status', t('status')],
+              ] as Array<[SortKey, string]>
+            ).map(([key, label]) => {
+              const on = sort.key === key;
+              return (
+                <span
+                  key={key}
+                  role="button"
+                  tabIndex={0}
+                  className={'kx-sort' + (on ? ' kx-sorted' : '')}
+                  title={L.sortTip}
+                  aria-sort={on ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}
+                  onClick={() => sortBy(key)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      sortBy(key);
+                    }
+                  }}
+                >
+                  {label}
+                  <b className="kx-arrow" aria-hidden>{on ? (sort.dir === 1 ? '▲' : '▼') : '↕'}</b>
+                </span>
+              );
+            })}
           </div>
           <div className="kx-list" id="casesTableWrap">
             {filtered.length === 0 && <div className="kx-none">{L.empty}</div>}

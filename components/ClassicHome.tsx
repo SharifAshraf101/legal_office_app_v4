@@ -40,7 +40,7 @@ const TXT = {
     clients: 'לקוחות',
     openFiles: 'תיקים פתוחים',
     closedFiles: 'תיקים סגורים',
-    collected: 'כספים שנגבו',
+    collected: (month: string) => 'נגבה ב' + month,
     debt: 'חובות (לגבייה)',
     desc: {
       contacts: 'ניהול פרטי הלקוחות ותיקיהם',
@@ -63,7 +63,7 @@ const TXT = {
     clients: 'الموكلون',
     openFiles: 'الملفات المفتوحة',
     closedFiles: 'الملفات المغلقة',
-    collected: 'الأموال المقبوضة',
+    collected: (month: string) => 'مقبوضات ' + month,
     debt: 'الديون (مستحقات)',
     desc: {
       contacts: 'إدارة بيانات الموكلين وملفاتهم',
@@ -98,16 +98,24 @@ export function ClassicHome({
   const go = (tab: string) => dispatch({ type: 'SET_TAB', tab });
   const openUpcoming = () => modalStack.open(<UpcomingAgendaModal />);
 
+  // "2026-11" in Israel time: the month the collected figure covers.
+  const thisMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit' })
+    .format(new Date())
+    .slice(0, 7);
   // The same sources the other screens read.
   const figures = useMemo(() => {
     const status = (s: unknown) => String(s || 'active').toLowerCase();
     const activeCases = state.casesArr.filter((c) => status(c.status) === 'active').length;
     const openFiles = state.casesArr.filter((c) => ['active', 'pending'].includes(status(c.status))).length;
     const closedFiles = state.casesArr.length - openFiles;
-    const collected = state.finances.filter((f) => f.paid !== false).reduce((s, f) => s + (Number(f.amount) || 0), 0);
+    // Collected THIS calendar month (Israel time) — starts again from zero on
+    // the 1st. The all-time and per-month figures are on the Analytics screen.
+    const collected = state.finances
+      .filter((f) => f.paid !== false && String(f.date || '').slice(0, 7) === thisMonth)
+      .reduce((s, f) => s + (Number(f.amount) || 0), 0);
     const debt = state.casesArr.reduce((s, c) => s + financeCaseBalance(c, state.finances), 0);
     return { activeCases, clients: state.clients.length, openFiles, closedFiles, collected, debt };
-  }, [state.casesArr, state.finances, state.clients]);
+  }, [state.casesArr, state.finances, state.clients, thisMonth]);
 
   const loc = lang === 'ar' ? 'ar-u-nu-latn' : 'he-IL';
   const money = (n: number) => '₪ ' + new Intl.NumberFormat(loc, { maximumFractionDigits: 0 }).format(Math.round(n));
@@ -115,12 +123,13 @@ export function ClassicHome({
   const weekday = new Intl.DateTimeFormat(loc, { weekday: 'long', timeZone: 'Asia/Jerusalem' }).format(now);
   const dateLine = new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jerusalem' }).format(now);
 
+  const monthName = new Intl.DateTimeFormat(loc, { month: 'long', timeZone: 'Asia/Jerusalem' }).format(now);
   const stats = [
     { k: 'active', label: T.activeCases, v: String(figures.activeCases), fa: 'fa-gavel', tone: 'red', act: () => go('cases') },
     { k: 'clients', label: T.clients, v: String(figures.clients), fa: 'fa-users', tone: 'green', act: () => go('contacts') },
     { k: 'open', label: T.openFiles, v: String(figures.openFiles), fa: 'fa-folder-open', tone: 'blue', act: () => go('cases') },
     { k: 'closed', label: T.closedFiles, v: String(figures.closedFiles), fa: 'fa-square-check', tone: 'violet', act: () => go('cases') },
-    { k: 'collected', label: T.collected, v: money(figures.collected), fa: 'fa-coins', tone: 'mint', act: () => go('analytics') },
+    { k: 'collected', label: T.collected(monthName), v: money(figures.collected), fa: 'fa-coins', tone: 'mint', act: () => go('analytics') },
     { k: 'debt', label: T.debt, v: money(figures.debt), fa: 'fa-database', tone: 'peach', act: () => go('analytics') },
   ];
 
