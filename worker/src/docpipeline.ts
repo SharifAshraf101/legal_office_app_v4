@@ -175,6 +175,7 @@ async function processJob(env: Env, job: DocJob, runDraft: RunDraft): Promise<vo
     const res = await runDraft({ tenantId: job.tenantId, db }, { ...(job.draftBody || {}), pdf_base64 });
     // A model / network failure is worth another try; anything else is final.
     if (res.status >= 500) throw new Error('draft failed: HTTP ' + res.status);
+    if (!res.ok) console.warn('[docpipeline] draft refused: HTTP ' + res.status, (await res.text()).slice(0, 300));
     await env.DOCS.delete(job.key);
     return;
   }

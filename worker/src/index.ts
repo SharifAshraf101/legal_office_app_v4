@@ -110,6 +110,7 @@ export default {
         new Request('https://internal/api/draft', { method: 'POST' }),
         env,
         { tenantId: pctx.tenantId, db: pctx.db, mode: 'tenant', billing: operatorBilling() },
+        body,
       ),
     );
   },
