@@ -19,6 +19,7 @@ import {
 import { Modal } from './Modal';
 import { NewEventModal } from './NewEventModal';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
+import { SignRequestModal } from './SignRequestModal';
 import type { DocumentRecord } from '@/types';
 
 /**
@@ -578,6 +579,22 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
                     ) : null;
                   })()}
                 </div>
+                {/* A PDF of the case can be sent to the client for a signature. */}
+                {!pickMode && !onSendToChat && !doc.isTask && doc.relativePath && /.pdf$/i.test(doc.fileName || doc.relativePath) && (
+                  <div className="case-docs-modal-row-actions">
+                    <button
+                      type="button"
+                      className="case-docs-modal-btn send"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        modalStack.open(<SignRequestModal doc={doc} caseId={caseId} />);
+                      }}
+                    >
+                      <i className="fas fa-pen" />
+                      {lang === 'ar' ? 'إرسال للتوقيع' : 'שלח לחתימה'}
+                    </button>
+                  </div>
+                )}
                 {!doc.isTask && onSendToChat && (
                   <div className="case-docs-modal-row-actions">
                     <button

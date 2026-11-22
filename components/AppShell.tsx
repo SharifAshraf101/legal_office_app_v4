@@ -11,6 +11,7 @@ import { TrialWatermark } from './TrialWatermark';
 import { SplashFlower } from './SplashFlower';
 import { DropboxConnectModal } from './DropboxConnectModal';
 import { AppStateProvider, useAppState } from '@/hooks/useAppState';
+import { SignedDocsFiler } from './SignedDocsFiler';
 import { useThemeAndFont } from '@/hooks/useThemeAndFont';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useTaskDeadlineAlerts } from '@/hooks/useTaskDeadlineAlerts';
@@ -173,6 +174,8 @@ function ShellInner() {
               until the splash clears, so its five seconds are five seconds the
               office actually sees rather than time spent behind the intro. */}
           {splashDone && <TrialWatermark />}
+          {/* Stamps and files the documents clients signed through a link. */}
+          <SignedDocsFiler />
         </div>
       )}
       {!splashDone && <SplashFlower onDone={finishSplash} />}

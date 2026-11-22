@@ -45,6 +45,16 @@ import {
 } from './whatsapp';
 import { portalContext, portalLink, verifyPortalToken } from './portal';
 import { handleAnalytics } from './analytics';
+import {
+  cancelSignRequest,
+  claimSignRequest,
+  createSignRequest,
+  listSignRequests,
+  markSignRequestFiled,
+  signFileTarget,
+  signMeta,
+  submitSignature,
+} from './sign';
 import { handleBriefing, handleBriefingArgument } from './briefing';
 import { applyAdamDraft, askAdamQuestions, createAdamJob, getAdamJob, listAdamJobs, saveAdamAnswers, saveAdamResult, setAdamJobStatus } from './adam';
 import { officeClearTurns, officeListTurns, officeSaveTurn, portalListTurns, portalSaveTurn } from './botHistory';
@@ -160,6 +170,30 @@ export default {
     if (method === 'GET' && path === '/api/portal-verify') {
       const who = await verifyPortalToken(env, url.searchParams.get('t') || '');
       return json({ ok: !!who }, request, env, who ? 200 : 401);
+    }
+
+    // ----- client signature on a document: public, authorized by the random
+    //       token of the link the office sent (see sign.ts). -----
+    if (method === 'GET' && path === '/api/sign/meta') {
+      const r = await signMeta(env, url.searchParams.get('t') || '');
+      return json(r.body, request, env, r.status);
+    }
+    if (method === 'GET' && path === '/api/sign/file') {
+      const target = await signFileTarget(env, url.searchParams.get('t') || '');
+      if (!target) return json({ error: 'not_available' }, request, env, 404);
+      // The same storage read the app uses, on behalf of the link's office.
+      return handleDocument(
+        new Request(url.origin + '/api/document?path=' + encodeURIComponent(target.relativePath), {
+          headers: request.headers,
+        }),
+        env,
+        { tenantId: target.tenantId, db: env.DB, mode: 'tenant', billing: operatorBilling() },
+      );
+    }
+    if (method === 'POST' && path === '/api/sign/submit') {
+      const b = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+      const r = await submitSignature(env, request, b);
+      return json(r.body, request, env, r.status);
     }
 
     if (path === '/api/health') {
@@ -769,6 +803,26 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
   if (method === 'GET' && path.startsWith('/api/whatsapp-messages/')) {
     return handleGetWhatsAppMessages(request, env, ctx);
   }
+    if (path === '/api/sign-requests' || path.startsWith('/api/sign-requests/')) {
+      if (method === 'GET' && path === '/api/sign-requests') {
+        const r = await listSignRequests(env, ctx.tenantId, url);
+        return json(r.body, request, env, r.status);
+      }
+      if (method === 'POST') {
+        const b = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+        const r =
+          path === '/api/sign-requests'
+            ? await createSignRequest(env, ctx.tenantId, b)
+            : path === '/api/sign-requests/claim'
+              ? await claimSignRequest(env, ctx.tenantId, b)
+              : path === '/api/sign-requests/filed'
+                ? await markSignRequestFiled(env, ctx.tenantId, b)
+                : path === '/api/sign-requests/cancel'
+                  ? await cancelSignRequest(env, ctx.tenantId, b)
+                  : { status: 404, body: { error: 'not found' } };
+        return json(r.body, request, env, r.status);
+      }
+    }
     if (method === 'GET' && path === '/api/document') {
       return handleDocument(request, env, ctx);
     }
