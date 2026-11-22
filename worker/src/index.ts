@@ -1315,12 +1315,18 @@ function hearingSourceType(
 //   • same day, MULTIPLE sources (e.g. an invitation to a hearing AND a decision
 //     that both point to the same hearing) → MERGE into one event with a clear
 //     note that it was merged from those sources.
-// Only hearing-type events are touched; meetings, reminders, etc. are left alone.
+//
+// The office's rule covers EVERY calendar entry, not only imported hearings:
+// one entry per case, per day, per kind (a hearing, a reminder, a meeting…).
+// When there are several, the LATEST stays — the one from the latest document,
+// or, for entries typed in by hand, the one entered last — and the earlier ones
+// are deleted. Kinds are kept apart on purpose: a reminder on the day of a
+// hearing is not a duplicate of the hearing.
 async function consolidateHearings(env: Env, ctx: Ctx): Promise<void> {
   const rs = await ctx.db.prepare(
-    `SELECT id, source_id, title, description, case_source_id, date_time
+    `SELECT id, source_id, title, description, case_source_id, date_time, type, created_at
      FROM calendar_events
-     WHERE user_id = ?1 AND lower(type) IN ('hearing', 'hearingmeeting')
+     WHERE user_id = ?1
      ORDER BY created_at ASC, id ASC`,
   )
     .bind(ctx.tenantId)
@@ -1332,17 +1338,25 @@ async function consolidateHearings(env: Env, ctx: Ctx): Promise<void> {
     description?: string;
     case_source_id?: string;
     date_time?: string;
+    type?: string;
+    created_at?: string;
   }>;
+  const kindOf = (r: (typeof rows)[number]) => {
+    const t = String(r.type ?? '').toLowerCase();
+    return t === 'hearing' || t === 'hearingmeeting' ? 'hearing' : t || 'other';
+  };
   // Group by (case, calendar day). Insertion order = created_at ASC, so the
   // first in each group is the earliest — the one we keep.
   const groups = new Map<string, typeof rows>();
   for (const r of rows) {
-    // The same hearing = the same case at the same date AND time. Two hearings
-    // of one case on the same day at different hours are two hearings.
-    const day = String(r.date_time ?? '').slice(0, 16);
+    // The same hearing = the same case on the same DAY. The documents of one
+    // hearing often give different hours (a decision says 11:00, a later motion
+    // about the same hearing says 9:00) or no hour at all — the office's rule
+    // is one hearing per case per day, the latest document's.
+    const day = String(r.date_time ?? '').slice(0, 10);
     // A hearing with no case can't be matched to another one safely.
     if (!day || !String(r.case_source_id ?? '').trim()) continue;
-    const key = String(r.case_source_id ?? '').toLowerCase() + '|' + day;
+    const key = String(r.case_source_id ?? '').toLowerCase() + '|' + day + '|' + kindOf(r);
     const g = groups.get(key);
     if (g) g.push(r);
     else groups.set(key, [r]);
@@ -1366,19 +1380,32 @@ async function consolidateHearings(env: Env, ctx: Ctx): Promise<void> {
     sources.delete('other');
     const hasInv = sources.has('invitation');
     const hasDec = sources.has('decision');
-    const isImported = group.some(imported);
-    // Manual-only groups are left COMPLETELY alone — never delete or relabel a
-    // hearing the lawyer entered by hand. Two same-day manual hearings (or two
-    // case-less manual hearings sharing the '|day' key) are legitimate and must
-    // both survive. (This guard must run BEFORE any delete is queued.)
-    if (!isImported) continue;
-    // Collapse only DUPLICATE IMPORTED hearings (the same session found in
-    // several documents). The office's rule: the hearing of the LATEST document
-    // stays and the earlier documents' copies go — by document number, then by
-    // creation order. A hearing typed in by hand is never touched.
-    const importedMembers = group.filter(imported);
-    const keep = importedMembers.reduce((a, b) => (docNo(b) >= docNo(a) ? b : a));
+    const isHearing = kindOf(group[0]) === 'hearing';
+    // The latest of the group stays. Two entries that both name a document are
+    // ordered by document number; otherwise by when they were entered (the
+    // rows arrive oldest first, so a tie goes to the later one).
+    const importedMembers = group;
+    const keep = group.reduce((a, b) =>
+      docNo(a) >= 0 && docNo(b) >= 0
+        ? docNo(b) >= docNo(a) ? b : a
+        : String(b.created_at ?? '') >= String(a.created_at ?? '') ? b : a,
+    );
+    // Only an imported hearing gets the "where it came from" note below; an
+    // entry the lawyer wrote keeps its own text.
+    const isImported = isHearing && imported(keep);
+    // The latest document may give the date alone. Don't lose the hour an
+    // earlier document of the same hearing gave.
+    if (String(keep.date_time ?? '').length <= 10) {
+      const timed = importedMembers.find((r) => r.id !== keep.id && String(r.date_time ?? '').length > 10);
+      if (timed) {
+        await ctx.db
+          .prepare('UPDATE calendar_events SET date_time = ?2, updated_at = ?3 WHERE user_id = ?1 AND id = ?4')
+          .bind(ctx.tenantId, timed.date_time, now, keep.id)
+          .run();
+      }
+    }
     for (const r of importedMembers) if (r.id !== keep.id) toDelete.push(r.id);
+    if (!isImported) continue;
     let he = '';
     let ar = '';
     if (sources.size >= 2) {
