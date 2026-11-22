@@ -48,8 +48,11 @@ export function todayInIsrael(): string {
 }
 
 const isDone = (s: unknown) => ['done', 'completed', 'closed'].includes(str(s).toLowerCase());
+// An office reminder is never a hearing, even when its text mentions one
+// ("prepare the documents for the hearing").
 const isHearing = (e: R) =>
-  str(e.type) === 'hearingMeeting' || /דיון|جلسة|ישיבה/.test(str(e.title) + ' ' + str(e.title_ar));
+  str(e.type) !== 'reminder' &&
+  (str(e.type) === 'hearingMeeting' || str(e.type) === 'hearing' || /דיון|جلسة|ישיבה/.test(str(e.title) + ' ' + str(e.title_ar)));
 
 export async function handleBriefing(env: Env, ctx: Ctx, url: URL): Promise<unknown> {
   const day = /^\d{4}-\d{2}-\d{2}$/.test(url.searchParams.get('day') || '')
