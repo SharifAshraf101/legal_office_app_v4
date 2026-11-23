@@ -5,6 +5,7 @@ import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
 import { CalendarEventDetail } from './CalendarEventDetail';
+import { GoogleCalendarModal } from './GoogleCalendarModal';
 import {
   calendarAllItems,
   calendarCaseLine,
@@ -64,6 +65,11 @@ export function CalendarScreen() {
   const shift = (delta: number) =>
     dispatch({ type: 'SET_CALENDAR_FOCUS', date: shiftCalendar(focus, view, delta) });
   const goToday = () => dispatch({ type: 'SET_CALENDAR_FOCUS', date: new Date() });
+
+  // The office calendar inside Google Calendar (one-way, see GoogleCalendarModal).
+  const modalStack = useModalStack();
+  const openGoogle = () => modalStack.open(<GoogleCalendarModal />);
+  const googleLabel = lang === 'ar' ? 'تقويم Google' : 'יומן גוגל';
 
   const prevLabel = lang === 'ar' ? 'السابق' : 'הקודם';
   const nextLabel = lang === 'ar' ? 'التالي' : 'הבא';
@@ -131,6 +137,9 @@ export function CalendarScreen() {
               </button>
             ))}
           </div>
+          <button type="button" className="mx-view mx-gcal" onClick={openGoogle}>
+            <i className="fab fa-google" aria-hidden /> {googleLabel}
+          </button>
           {view !== 'list' && (
             <div className="mx-nav">
               <button type="button" className="mx-step" data-calendar-prev aria-label={prevLabel} onClick={() => shift(-1)}>
@@ -264,6 +273,9 @@ export function CalendarScreen() {
               </button>
             ))}
           </div>
+          <button type="button" className="cx-view cx-gcal" onClick={openGoogle}>
+            <i className="fab fa-google" aria-hidden /> {googleLabel}
+          </button>
           {view !== 'list' && (
             <div className="cx-nav">
               <button type="button" className="cx-step" data-calendar-prev aria-label={prevLabel} onClick={() => shift(-1)}>

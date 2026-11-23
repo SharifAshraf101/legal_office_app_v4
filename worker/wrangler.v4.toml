@@ -26,6 +26,12 @@ queue = "legal-office-doc-pipeline"
 max_batch_size = 1
 max_retries = 3
 
+# Workers Paid plan: CPU time allowed per request, in milliseconds (the paid
+# default is 30 s, the maximum 5 min). Heavy document work — Hebrew/Arabic PDF
+# text, summaries — no longer stops at the free plan's 10 ms.
+[limits]
+cpu_ms = 300000
+
 # Workers Logs: every request's outcome and CPU time, searchable in the
 # dashboard (Workers -> legal-office-api-v4 -> Logs). Shows WHICH requests hit
 # the CPU limit ("exceededCpu"). Included in the free plan (200,000 lines/day).

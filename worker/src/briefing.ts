@@ -12,6 +12,7 @@
 import type { Env } from './db';
 import { callAnthropicWithRetry } from './pdfLimits';
 import type { Ctx } from './tenant';
+import { purgeDismissedEvents } from './dismissed';
 
 const TZ = 'Asia/Jerusalem';
 const ARGUMENT_MODEL = 'claude-sonnet-4-6';
@@ -63,6 +64,9 @@ export async function handleBriefing(env: Env, ctx: Ctx, url: URL): Promise<unkn
 
   const all = async (sql: string, ...binds: unknown[]) =>
     ((await ctx.db.prepare(sql).bind(ctx.tenantId, ...binds).all()).results ?? []) as R[];
+
+  // A calendar entry the office deleted must not be briefed (dismissed.ts).
+  await purgeDismissedEvents(ctx.db, ctx.tenantId).catch(() => 0);
 
   // Events are stored in UTC — take a ±1 day window and keep the Israel day.
   const lo = new Date(Date.parse(day + 'T00:00:00Z') - 86400000).toISOString();

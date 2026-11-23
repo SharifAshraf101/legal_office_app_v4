@@ -13,7 +13,7 @@ import {
   rememberDecisionImportKey,
   removeTaskEverywhere,
 } from '@/lib/tasks';
-import { rememberDismissedEventId } from '@/lib/dismissedEvents';
+import { rememberDismissedEventId, reportDismissedEvent } from '@/lib/dismissedEvents';
 import { hearingImportKey } from '@/lib/hearings';
 import { calendarDateValue, officeInputParts, officeDateTimeToIso } from '@/lib/dates';
 import { pad } from '@/lib/utils';
@@ -85,6 +85,12 @@ export function CalendarEventEdit({ source, id }: CalendarEventEditProps) {
             loadDecisionImportKeys(),
             hearingImportKey(String(deleted.caseId), calendarDateValue(when)),
           );
+          // The server too: no imported hearing of this case on this day may
+          // return — not from another device, not from a document pipeline.
+          reportDismissedEvent(String(id), {
+            caseId: String(deleted.caseId),
+            day: calendarDateValue(when),
+          });
         }
       }
       dispatch({

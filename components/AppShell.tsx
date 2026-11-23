@@ -12,6 +12,7 @@ import { SplashFlower } from './SplashFlower';
 import { DropboxConnectModal } from './DropboxConnectModal';
 import { AppStateProvider, useAppState } from '@/hooks/useAppState';
 import { SignedDocsFiler } from './SignedDocsFiler';
+import { syncDismissedEventsToServer } from '@/lib/dismissedEvents';
 import { useThemeAndFont } from '@/hooks/useThemeAndFont';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useTaskDeadlineAlerts } from '@/hooks/useTaskDeadlineAlerts';
@@ -44,6 +45,11 @@ import { contentClassFor } from '@/lib/contentClass';
  *   - ModalStackProvider (hooks/useModalStack — replaces source's modal())
  */
 export function AppShell() {
+  // Calendar entries deleted on this device: make sure the server knows, so
+  // they are also gone from the daily briefing and from every other device.
+  useEffect(() => {
+    void syncDismissedEventsToServer();
+  }, []);
   return (
     <AppStateProvider>
       <ModalStackProvider>

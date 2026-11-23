@@ -19,6 +19,8 @@
 import { corsHeaders, json, preflight } from './cors';
 import { buildUpsert, LOAD_TABLES, safeParse, type Env } from './db';
 import { resolveTenant, type Ctx } from './tenant';
+import { calendarFeedResponse, officeFeed } from './calfeed';
+import { purgeDismissedEvents, rememberDismissed } from './dismissed';
 import { createAuth, runAuthMigrations } from './auth';
 import { provisionOfficeDb } from './provision';
 import {
@@ -194,6 +196,13 @@ export default {
       const b = (await request.json().catch(() => ({}))) as Record<string, unknown>;
       const r = await submitSignature(env, request, b);
       return json(r.body, request, env, r.status);
+    }
+
+    // ----- the office calendar as a subscription feed for Google Calendar:
+    //       public, authorized by the random token in the link (calfeed.ts). -----
+    if (method === 'GET' && path.startsWith('/api/calendar-feed/')) {
+      const token = path.slice('/api/calendar-feed/'.length).replace(/\.ics$/i, '');
+      return calendarFeedResponse(env, token);
     }
 
     if (path === '/api/health') {
@@ -803,6 +812,17 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
   if (method === 'GET' && path.startsWith('/api/whatsapp-messages/')) {
     return handleGetWhatsAppMessages(request, env, ctx);
   }
+    // Calendar entries the office deleted — remembered so they stay deleted.
+    if (method === 'POST' && path === '/api/dismissed-events') {
+      const b = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+      const r = await rememberDismissed(ctx.db, ctx.tenantId, b);
+      return json({ ok: true, ...r }, request, env);
+    }
+    // The office's own calendar-feed link (GET = show it, POST = replace it).
+    if (path === '/api/calendar-feed' && (method === 'GET' || method === 'POST')) {
+      const r = await officeFeed(env, ctx.tenantId, method === 'POST');
+      return json(r.body, request, env, r.status);
+    }
     if (path === '/api/sign-requests' || path.startsWith('/api/sign-requests/')) {
       if (method === 'GET' && path === '/api/sign-requests') {
         const r = await listSignRequests(env, ctx.tenantId, url);
@@ -1257,6 +1277,13 @@ async function handleSave(request: Request, env: Env, ctx: Ctx): Promise<Respons
   // When calendar events were saved, collapse any duplicate hearings a document
   // pipeline may have created for the same case + day.
   if (Array.isArray(body.calendar_events)) {
+    // An entry the office deleted must not come back because another device
+    // still held it, or a document pipeline filed it again (dismissed.ts).
+    try {
+      await purgeDismissedEvents(ctx.db, ctx.tenantId);
+    } catch {
+      // never fail the save because of it
+    }
     try {
       await consolidateHearings(env, ctx);
     } catch {

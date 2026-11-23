@@ -46224,3 +46224,8 @@ html body[data-home-style="minimalist"]:not(#mnl1):not(#mnl2):not(#mnl3):not(#mn
 html body[data-home-style="minimalist"]:not(#mnl1):not(#mnl2):not(#mnl3):not(#mnl4) :is(.kx-hero,.sx-hero,.mx-hero,.ug-hero,.ck-hero,.wc-hero,.wh-hero,.bs-hero,.bc-hero,.cp-hero,.cdm-banner,.ne-banner){padding:44px 8px 4px!important}
 }
 /* === END minimal design (hand-tuned) === */
+
+/* Calendar toolbar: "Google Calendar" button (opens GoogleCalendarModal). */
+html body #content.content .mx-root.mx-root .mx-view.mx-gcal,html body #content.content .cx-root.cx-root .cx-view.cx-gcal{min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
+html body #content.content .mx-root.mx-root .mx-view.mx-gcal{height:38px;font-size:15px!important}
+html body #content.content .cx-root.cx-root .cx-view.cx-gcal{height:42px;font-size:16px!important}
