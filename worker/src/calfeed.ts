@@ -105,14 +105,27 @@ function eventLines(e: Row, stamp: string): string[] {
   const start = new Date(allDay ? raw + 'T00:00:00Z' : raw);
   if (!raw || isNaN(start.getTime())) return [];
 
-  const title = str(e.title) || str(e.title_ar) || TYPE_LABEL[str(e.type).toLowerCase()] || 'מועד';
+  const typeLabel = TYPE_LABEL[str(e.type).toLowerCase()] || 'מועד';
+  const isHearing = str(e.type).toLowerCase().startsWith('hearing');
+  // An imported entry's title is often only the note "imported by the AI" —
+  // that says nothing about the hearing, so the plain kind stands in for it.
+  const rawTitle = str(e.title) || str(e.title_ar);
+  const title = !rawTitle || /בינה המלאכותית|\(AI\)/.test(rawTitle) ? (isHearing ? 'דיון' : typeLabel) : rawTitle;
   const client = str(e.client_name) || str(e.client_name_ar);
-  // The client's name goes in the heading unless the title already carries it.
-  const summary = client && !title.includes(client) ? `${title} – ${client}` : title;
-
   const court = str(e.court) || str(e.court_ar);
   const caseTitle = str(e.case_title) || str(e.case_title_ar);
-  const caseNumber = str(e.case_number);
+  // The court's number as typed, without a leading "תיק מס'" and without the
+  // "00" some cases carry until the court gives a number.
+  const caseNumber = str(e.case_number)
+    .replace(/^תיק\s*(מס(פר|['׳])?)?\s*[:.]?\s*/, '')
+    .replace(/^0+$/, '');
+
+  // The heading, as the office writes its own entries: client, court, case
+  // number, what the hearing is (its kind and the case's subject).
+  let nature = title;
+  if (caseTitle && !nature.includes(caseTitle)) nature = isHearing ? `${nature} – ${caseTitle}` : nature;
+  if (nature.length > 110) nature = nature.slice(0, 107).trimEnd() + '…';
+  const summary = [client, court, caseNumber ? 'תיק ' + caseNumber : '', nature].filter(Boolean).join(', ');
   const details = [
     TYPE_LABEL[str(e.type).toLowerCase()] ? 'סוג: ' + TYPE_LABEL[str(e.type).toLowerCase()] : '',
     client ? 'לקוח: ' + client : '',
@@ -120,7 +133,9 @@ function eventLines(e: Row, stamp: string): string[] {
     caseNumber ? 'מספר תיק בבית המשפט: ' + caseNumber : '',
     court ? 'בית משפט: ' + court : '',
     str(e.case_source_id) ? 'מספר תיק במשרד: ' + str(e.case_source_id) : '',
-    str(e.description) || str(e.description_ar),
+    // A long title is cut short in the heading — the whole of it goes here.
+    title.length > 110 ? title : '',
+    (str(e.description) || str(e.description_ar)) !== title ? str(e.description) || str(e.description_ar) : '',
   ].filter(Boolean);
 
   const lines = [
@@ -168,8 +183,9 @@ export async function calendarFeedResponse(env: Env, token: string): Promise<Res
               c.title AS case_title, c.title_ar AS case_title_ar, c.case_number, c.court, c.court_ar,
               cl.full_name AS client_name, cl.full_name_ar AS client_name_ar
          FROM calendar_events e
-         LEFT JOIN cases c ON c.user_id = e.user_id AND c.source_id = e.case_source_id
-         LEFT JOIN clients cl ON cl.user_id = e.user_id AND cl.source_id = COALESCE(NULLIF(e.client_source_id, ''), c.client_source_id)
+         LEFT JOIN cases c ON c.user_id = e.user_id AND UPPER(c.source_id) = UPPER(e.case_source_id)
+         LEFT JOIN clients cl ON cl.user_id = e.user_id
+              AND UPPER(cl.source_id) = UPPER(COALESCE(NULLIF(e.client_source_id, ''), c.client_source_id))
         WHERE e.user_id = ?1 AND e.date_time >= ?2
         ORDER BY e.date_time ASC
         LIMIT 3000`,
