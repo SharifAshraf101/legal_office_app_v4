@@ -8,6 +8,7 @@ import {
   exportLegalOfficeBackupFile,
   importLegalOfficeBackupFile,
   clearOfficeDataFromLocalStorage,
+  clearPendingOfficeChanges,
 } from '@/lib/storage';
 import { signOut, changePassword } from '@/lib/officeAuth';
 import { clearOfficeToken } from '@/lib/officeToken';
@@ -159,6 +160,9 @@ export function SettingsDrawer() {
     // one's subscription banner.
     clearOfficeBilling();
     clearOfficeDataFromLocalStorage();
+    // Unsent changes cannot be sent any more (the session is gone) and must not
+    // be sent by whoever signs in next.
+    clearPendingOfficeChanges();
     window.location.reload();
   };
 

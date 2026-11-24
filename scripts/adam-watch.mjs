@@ -120,7 +120,24 @@ function claudeExe() {
 }
 
 /** The instructions Adam gets for one request (he also loads his own skill). */
-function promptFor(id) {
+/** Extra instructions for a request that came from ANOTHER office using the
+ *  system (the request carries `office`): Adam serves it, but it is not the
+ *  operator's matter — not his name, not his Drive, not his files. */
+function otherOfficeLines(office) {
+  if (!office) return [];
+  const name = String(office.name || '').trim() || 'משרד אחר';
+  return [
+    '',
+    `בקשה זו שייכת למשרד אחר שמשתמש במערכת: "${name}" – לא למשרדו של עו"ד שריף. לכן, בבקשה הזאת בלבד:`,
+    'א. התוצר נכתב עבור עורך הדין של אותו משרד (officeName ושאר פרטי החבילה). אין להשתמש בשמו, בחתימתו, בפרטי ההתקשרות או בנייר המכתבים של עו"ד שריף. אם שם עורך הדין החותם לא ידוע – להשאיר מקום לחתימה ולרשום זאת ב-toVerify.',
+    'ב. שאלות (ask) מופנות לעורך הדין של אותו משרד, וה-summary נכתב אליו.',
+    'ג. לדלג על שלב 6: לא לשמור דבר ב-Google Drive של עו"ד שריף. לכתוב ב-summary שההתייעצות לא נשמרה ב-Drive.',
+    'ד. לעבוד רק מתוך החבילה של הבקשה. אין להשתמש במידע, במסמכים או בתיקים של משרדו של עו"ד שריף או של כל משרד אחר, ואין לחפש אותם. אם docLink לא נפתח – לעבוד לפי הפענוח והטיוטה שבחבילה.',
+    'ה. ההתממה לפני פנייה ליוסף ולסעיד נשארת חובה מוחלטת, כמו בכל בקשה.',
+  ];
+}
+
+function promptFor(id, office) {
   return [
     `יש בקשה חדשה ממערכת המשרד: ${id}. אתה אדם. הפעל את המיומנות adam-paralegal וקרא את docs/adam-bridge.md, ואז טפל בבקשה הזאת מתחילתה ועד סופה לפי "שלבי העבודה של אדם על בקשה".`,
     '',
@@ -133,6 +150,7 @@ function promptFor(id) {
     '6. שמירה ב-Google Drive (בכלי Google Drive המחובר לחשבון), לפני שליחת התוצאה – לפי הסעיף "שמירה ב-Google Drive" במסמך: תיקיית האב "התייעצויות בין אדם ויוסף וסעיד", בתוכה תיקייה על שם הלקוח (clientName), ובתוכה תיקייה על שם מהות התיק (caseTitle). אם תיקייה כבר קיימת – להשתמש בה ולא ליצור כפולה. לשמור שם את מסמכי ההתייעצות הזאת, ולכתוב את הקישור לתיקייה בסוף ה-summary. אם Google Drive לא זמין – לא לעצור: לכתוב זאת ב-summary ולהמשיך.',
     `7. בסיום כתוב את ~/adam-jobs/${id}/result.json ושלח: node scripts/adam-bridge.mjs result ${id} <הקובץ>. התוצאה היא התשובה הסופית אחרי ההתייעצות בין שלושתכם.`,
     `8. אם נכשלת ואי אפשר להשלים – דווח: node scripts/adam-bridge.mjs fail ${id} "<הסיבה בקצרה>". אל תסיים בלי result או fail.`,
+    ...otherOfficeLines(office),
     '',
     'חיסיון: קבצי העבודה נשמרים רק ב-~/adam-jobs. אל תדפיס את ה-token ואל תשנה קבצים בפרויקט.',
   ].join('\n');
@@ -187,14 +205,14 @@ function warmShell() {
   })();
 }
 
-function runAdam(id) {
+function runAdam(id, office) {
   return new Promise((resolve) => {
     const dir = path.join(jobsDir, id);
     fs.mkdirSync(dir, { recursive: true });
     const out = fs.createWriteStream(path.join(dir, 'run.log'), { flags: 'a' });
     const args = [
       '-p',
-      promptFor(id),
+      promptFor(id, office),
       '--chrome',
       '--add-dir',
       jobsDir,
@@ -251,8 +269,8 @@ function runAdam(id) {
   });
 }
 
-async function handle(id) {
-  log(`${id}: starting Adam`);
+async function handle(id, office) {
+  log(`${id}: starting Adam${office ? ' (another office: ' + (office.name || office.id) + ')' : ''}`);
   try {
     await call('POST', `/api/adam/jobs/${id}/status`, { status: 'working', note: 'אדם התחיל לעבוד (אוטומטי)' });
   } catch (e) {
@@ -263,7 +281,7 @@ async function handle(id) {
   } catch (e) {
     log(`${id}: PowerShell warm-up failed — ${e && e.message ? e.message : e}`);
   }
-  const r = await runAdam(id);
+  const r = await runAdam(id, office);
   log(`${id}: Adam finished (exit ${r.code}${r.error ? ', ' + r.error : ''})`);
   // Never leave a request hanging: if Adam ended without a result, report it.
   try {
@@ -287,10 +305,11 @@ async function tick() {
   if (busy) return;
   busy = true;
   try {
-    const { jobs } = await call('GET', '/api/adam/jobs?status=pending');
+    // offices=all: the requests of every office using the system, not only this one's.
+    const { jobs } = await call('GET', '/api/adam/jobs?status=pending&offices=all');
     // Oldest first, one at a time.
     const queue = (jobs || []).slice().sort((x, y) => String(x.createdAt).localeCompare(String(y.createdAt)));
-    for (const j of queue) if (!only || j.id === only) await handle(j.id);
+    for (const j of queue) if (!only || j.id === only) await handle(j.id, j.office);
   } catch (e) {
     log('poll failed — ' + (e && e.message ? e.message : e));
   } finally {
@@ -309,7 +328,7 @@ if (checkOnly) {
   const cc = claudeCmd();
   say(cc.found, 'Claude Code: ' + (cc.found ? claudeExe() : 'not installed (run the Claude Code installer, then run this file again)'));
   try {
-    const { jobs } = await call('GET', '/api/adam/jobs?status=pending');
+    const { jobs } = await call('GET', '/api/adam/jobs?status=pending&offices=all');
     say(true, 'System reachable. Pending requests: ' + (jobs || []).length);
   } catch (e) {
     say(false, 'System not reachable: ' + (e && e.message ? e.message : e));
@@ -321,7 +340,7 @@ if (checkOnly) {
     if (!hasAdam) hasAdam = fs.readdirSync(skills).some((d) => fs.existsSync(path.join(skills, d, 'adam-paralegal', 'SKILL.md')));
   } catch {}
   say(hasAdam, 'Adam skill (adam-paralegal) available on this computer');
-  console.log('Package version: 6');
+  console.log('Package version: 7');
   console.log(ok ? 'READY' : 'NOT READY');
   process.exitCode = ok ? 0 : 1;
 } else {

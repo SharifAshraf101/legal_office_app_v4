@@ -9,11 +9,12 @@
 import {
   applyLegalOfficeData,
   clearOfficeDataFromLocalStorage,
+  clearPreviousOfficeFromLocalStorage,
   persistCurrentDataToLocalStorage,
 } from './storage';
 import { firstNonEmpty, isNonEmpty } from './utils';
 import { FILING_ROOT, filingFolderSegments, filingFileName } from './filing';
-import { loadDismissedEventIds } from './dismissedEvents';
+import { loadDismissedEventIds, syncDismissedEventsToServer } from './dismissedEvents';
 import { getOfficeToken, setAdminUser, setOperatorOffice, setWhatsAppEnabled } from './officeToken';
 import {
   clearOfficeBilling,
@@ -343,6 +344,16 @@ function normalizeFinance(
 /** Which office the cached localStorage dataset belongs to (see the load path). */
 const OFFICE_DATA_OWNER_KEY = 'office_data_owner';
 
+/** True from a fresh sign-in until the server has said WHICH office signed in
+ *  and the browser's data was checked against it. Nothing is saved meanwhile:
+ *  what the page still holds may be the previous office's. */
+let officeIdentityUnverified = false;
+
+/** Call when a new session starts in this page (sign-in). */
+export function markOfficeIdentityChanged(): void {
+  officeIdentityUnverified = true;
+}
+
 export interface SupabaseLoadResult {
   loaded: boolean;
   state?: ReturnType<typeof applyLegalOfficeData>['state'];
@@ -462,14 +473,35 @@ export async function legalOfficeLoadFromSupabaseV88(
           cachedOwner = '';
         }
         if (cachedOwner !== tenantId) {
-          clearOfficeDataFromLocalStorage();
+          // A DIFFERENT office was here before (not merely an unmarked browser):
+          // remove everything of it, not only the case data.
+          const otherOffice = !!cachedOwner;
+          if (otherOffice) clearPreviousOfficeFromLocalStorage();
+          else clearOfficeDataFromLocalStorage();
+          let marked = false;
           try {
             window.localStorage.setItem(OFFICE_DATA_OWNER_KEY, tenantId);
+            marked = window.localStorage.getItem(OFFICE_DATA_OWNER_KEY) === tenantId;
           } catch {
             /* ignore */
           }
+          // Parts of the previous office are also held in the running page (the
+          // deletions waiting to be sent, its name, its bot conversations).
+          // Start the page again so none of it survives. Only when the new
+          // owner was recorded — otherwise this would repeat on every load.
+          if (otherOffice && marked) {
+            window.location.reload();
+            return { loaded: false };
+          }
         }
+        // Calendar entries deleted on this device: make sure the server knows
+        // (at most once a day). Only here, after the owner check — sent earlier,
+        // a previous office's list would reach this office's server.
+        void syncDismissedEventsToServer();
       }
+      // The server answered for this session and the browser's data was checked
+      // against it — saving is safe again.
+      officeIdentityUnverified = false;
       // The office's own flags (operator, admin, WhatsApp, billing) are not the
       // portal's to set — opening a client link on an office device must not
       // overwrite them.
@@ -823,6 +855,10 @@ function saveRows(s: Omit<SupabaseSaveInput, 'deletions'>): Record<string, Recor
 export async function legalOfficeSaveToSupabase(s: SupabaseSaveInput): Promise<boolean> {
   // A client's portal is read-only: never write anything back.
   if (portalToken) return true;
+  // Just signed in, and the server has not yet said which office this is: do
+  // not send what the page holds (see officeIdentityUnverified). Reported as
+  // "not saved", so the caller keeps its marks and tries again.
+  if (officeIdentityUnverified) return false;
   const hasDeletions =
     !!s.deletions && Object.values(s.deletions).some((a) => Array.isArray(a) && a.length > 0);
   // Only the rows that differ from what the server already holds (syncedRows).

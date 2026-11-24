@@ -44,7 +44,16 @@ async function authorizeSend(
   return { ok: false };
 }
 
-async function resolveDocumentUrl(document?: { name?: string; url?: string; relativePath?: string }) {
+/**
+ * `authorization` is the identity the file is looked up under: the CALLER'S OWN
+ * session for a logged-in office, the system token only for this server's own
+ * calls. Looking every path up with the system token handed any office a
+ * download link to a file in the operator office's storage.
+ */
+async function resolveDocumentUrl(
+  document: { name?: string; url?: string; relativePath?: string } | undefined,
+  authorization: string,
+) {
   if (!document) return undefined;
 
   // A direct URL already resolved in the browser (where the office's Dropbox
@@ -70,7 +79,7 @@ async function resolveDocumentUrl(document?: { name?: string; url?: string; rela
   try {
     const res = await fetch(
       `${WORKER_URL}/api/document-link?path=${encodeURIComponent(relativePath)}`,
-      { headers: { Authorization: `Bearer ${APP_TOKEN}` } },
+      { headers: { Authorization: authorization } },
     );
     if (res.ok) {
       const data = (await res.json()) as { link?: string };
@@ -157,10 +166,12 @@ export async function POST(req: NextRequest) {
   // (which holds each office's credentials and logs into the office's own DB).
   // Only the operator — not yet connected there — answers 409 `legacy` and
   // falls through to the original Vercel-configured number below.
+  // The identity every lookup below runs under (see resolveDocumentUrl).
+  const callerAuth = auth.internal ? `Bearer ${APP_TOKEN}` : req.headers.get('authorization') || '';
   if (!auth.internal) {
     let docUrl: string | undefined;
     try {
-      docUrl = await resolveDocumentUrl(document);
+      docUrl = await resolveDocumentUrl(document, callerAuth);
     } catch {
       docUrl = undefined;
     }
@@ -198,7 +209,7 @@ export async function POST(req: NextRequest) {
 
   let resolvedDocumentUrl: string | undefined;
   try {
-    resolvedDocumentUrl = await resolveDocumentUrl(document);
+    resolvedDocumentUrl = await resolveDocumentUrl(document, callerAuth);
   } catch (error) {
     console.error('[WhatsApp send] failed to resolve document link', error);
     return NextResponse.json(

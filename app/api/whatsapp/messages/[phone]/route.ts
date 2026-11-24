@@ -12,21 +12,24 @@ export const runtime = 'nodejs';
 const WORKER_URL =
   process.env.NEXT_PUBLIC_WORKER_URL ||
   'https://legal-office-api-v4.sharifashraf.workers.dev';
-const APP_TOKEN = process.env.APP_TOKEN || process.env.NEXT_PUBLIC_APP_TOKEN || '';
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ phone: string }> },
 ) {
-  if (!(await isValidOfficeSession(req.headers.get('authorization') || ''))) {
+  const authorization = req.headers.get('authorization') || '';
+  if (!(await isValidOfficeSession(authorization))) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const { phone } = await params;
   const clean = String(phone || '').replace(/\D/g, '');
   if (!clean) return NextResponse.json({ messages: [] });
   try {
+    // With the CALLER'S OWN session — never the system token. The Worker then
+    // answers from the caller's office; with the system token every logged-in
+    // office received the operator office's conversation.
     const res = await fetch(`${WORKER_URL}/api/whatsapp-messages/${clean}`, {
-      headers: { Authorization: `Bearer ${APP_TOKEN}` },
+      headers: { Authorization: authorization },
     });
     const data = await res.json().catch(() => ({ messages: [] }));
     return NextResponse.json(data, { status: res.ok ? 200 : res.status });

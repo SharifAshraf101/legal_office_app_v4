@@ -283,3 +283,113 @@ export async function applyAdamDraft(db: D1Database, tenantId: string, id: strin
     .run();
   return getAdamJob(db, id);
 }
+
+// ---------------------------------------------------------------------------
+// One Adam for every office.
+//
+// Adam runs on the operator's computer and signs in with the system token, so
+// by itself he only sees the operator office's database. Every OTHER office's
+// request is therefore also noted in the CONTROL database (which office it
+// belongs to, and whether it is still open), so that:
+//   - Adam's list of waiting requests can include the other offices' ones;
+//   - a request id Adam works on leads back to the right office's database.
+// The request itself — the package, the questions, the result — stays in the
+// office's own database, exactly like the operator's.
+// ---------------------------------------------------------------------------
+
+import type { Env } from './db';
+import { tenantDb } from './whatsapp';
+
+let queueReady = false;
+async function ensureQueue(env: Env): Promise<void> {
+  if (queueReady) return;
+  await env.CONTROL_DB.prepare(
+    `CREATE TABLE IF NOT EXISTS adam_queue (
+       id TEXT PRIMARY KEY,
+       tenant_id TEXT NOT NULL,
+       open INTEGER NOT NULL DEFAULT 1,
+       updated_at TEXT NOT NULL
+     )`,
+  ).run();
+  queueReady = true;
+}
+
+const CLOSED: string[] = ['done', 'error', 'cancelled'];
+
+/** After any change to a request of an office other than the operator: note
+ *  whose it is and whether Adam still has something to do with it. */
+export async function trackAdamJob(env: Env, tenantId: string, res: Res): Promise<void> {
+  if (tenantId === env.USER_ID || res.status !== 200) return;
+  const job = (res.body as { job?: { id?: string; status?: string } } | null)?.job;
+  if (!job?.id) return;
+  try {
+    await ensureQueue(env);
+    await env.CONTROL_DB.prepare(
+      `INSERT INTO adam_queue (id, tenant_id, open, updated_at) VALUES (?1, ?2, ?3, ?4)
+       ON CONFLICT(id) DO UPDATE SET open = excluded.open, updated_at = excluded.updated_at`,
+    )
+      .bind(job.id, tenantId, CLOSED.includes(String(job.status)) ? 0 : 1, new Date().toISOString())
+      .run();
+  } catch {
+    /* the request itself was saved; Adam's list simply will not show it */
+  }
+}
+
+export type AdamHome = { db: D1Database; tenantId: string; officeName: string };
+
+async function officeName(env: Env, tenantId: string): Promise<string> {
+  const row = await env.CONTROL_DB.prepare('SELECT name FROM tenant WHERE id = ?1').bind(tenantId).first<{ name: string | null }>();
+  return String(row?.name || '').trim();
+}
+
+/** The office a request belongs to, when it is NOT the operator's. */
+export async function adamJobHome(env: Env, id: string): Promise<AdamHome | null> {
+  try {
+    await ensureQueue(env);
+    const row = await env.CONTROL_DB.prepare('SELECT tenant_id FROM adam_queue WHERE id = ?1').bind(id).first<{ tenant_id: string }>();
+    if (!row?.tenant_id || row.tenant_id === env.USER_ID) return null;
+    const db = await tenantDb(env, row.tenant_id);
+    if (!db) return null;
+    return { db, tenantId: row.tenant_id, officeName: await officeName(env, row.tenant_id) };
+  } catch {
+    return null;
+  }
+}
+
+/** Mark a request (as Adam sees it) with the office it came from. */
+export function withOffice(res: Res, home: AdamHome): Res {
+  const job = (res.body as { job?: Record<string, unknown> } | null)?.job;
+  if (job) {
+    job.office = { id: home.tenantId, name: home.officeName };
+    if (job.package && typeof job.package === 'object') {
+      (job.package as Record<string, unknown>).otherOffice = { name: home.officeName };
+    }
+  }
+  return res;
+}
+
+/** The other offices' requests matching the same filters as listAdamJobs. */
+export async function listOtherOfficesAdamJobs(env: Env, url: URL): Promise<unknown[]> {
+  const out: unknown[] = [];
+  try {
+    await ensureQueue(env);
+    const rs = await env.CONTROL_DB.prepare('SELECT DISTINCT tenant_id FROM adam_queue WHERE open = 1').all<{ tenant_id: string }>();
+    for (const t of rs.results ?? []) {
+      if (t.tenant_id === env.USER_ID) continue;
+      try {
+        const db = await tenantDb(env, t.tenant_id);
+        if (!db) continue; // a suspended office gets no service
+        const name = await officeName(env, t.tenant_id);
+        const r = await listAdamJobs(db, url);
+        for (const j of (r.body as { jobs?: Record<string, unknown>[] }).jobs ?? []) {
+          out.push({ ...j, office: { id: t.tenant_id, name } });
+        }
+      } catch {
+        /* one office's database not answering must not hide the others */
+      }
+    }
+  } catch {
+    /* no queue yet */
+  }
+  return out;
+}

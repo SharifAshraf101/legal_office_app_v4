@@ -79,9 +79,14 @@ const jobsDir = path.join(os.homedir(), 'adam-jobs');
 const [, , cmd, id, arg] = process.argv;
 try {
   if (cmd === 'list') {
-    const { jobs } = await call('GET', '/api/adam/jobs?status=pending');
+    // offices=all: the requests of every office using the system; one from
+    // another office is marked with that office's name.
+    const { jobs } = await call('GET', '/api/adam/jobs?status=pending&offices=all');
     if (!jobs.length) console.log('No pending requests.');
-    for (const j of jobs) console.log(`${j.id}\t${j.caseId}\t${j.title}\t${j.createdAt}`);
+    for (const j of jobs) {
+      const office = j.office ? `\t[משרד אחר: ${j.office.name || j.office.id}]` : '';
+      console.log(`${j.id}\t${j.caseId}\t${j.title}\t${j.createdAt}${office}`);
+    }
   } else if (cmd === 'take' && id) {
     const { job } = await call('POST', `/api/adam/jobs/${id}/status`, { status: 'working', note: 'אדם קיבל את הבקשה' });
     const dir = path.join(jobsDir, id);
@@ -103,7 +108,7 @@ try {
   } else if (cmd === 'ask' && id && arg) {
     // questions.json: ["question", …] or [{ "q": "question", "hint": "example / format" }, …]
     const questions = JSON.parse(fs.readFileSync(path.resolve(arg), 'utf8'));
-    await call('POST', `/api/adam/jobs/${id}/questions`, { questions, note: 'ממתין לתשובות עו"ד שריף' });
+    await call('POST', `/api/adam/jobs/${id}/questions`, { questions, note: 'ממתין לתשובות עורך הדין' });
     console.log('Questions sent — a form is open in the case-brain screen. Run: wait ' + id);
   } else if (cmd === 'wait' && id) {
     const minutes = Number(arg) > 0 ? Number(arg) : 30;

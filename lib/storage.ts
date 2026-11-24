@@ -283,6 +283,57 @@ export function clearOfficeDataFromLocalStorage(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Changes that were waiting to be sent to the server: the "unsent edits" mark
+// and the list of rows deleted here. They belong to the office that made them.
+// Cleared whenever the signed-in office may have changed (sign-out, sign-in) —
+// sent under another office's session, the deletions would remove THAT office's
+// rows with the same numbers (CLT-101, CS-1001 … repeat in every office).
+// ---------------------------------------------------------------------------
+
+export function clearPendingOfficeChanges(): void {
+  if (!isBrowser) return;
+  lsRemove(LS.PENDING_DELETIONS);
+  lsRemove(LS.PENDING_SYNC);
+}
+
+// ---------------------------------------------------------------------------
+// Everything else in this browser that belongs to ONE office and is not a plain
+// display preference. Wiped when the server says a DIFFERENT office is now
+// signed in here (lib/cloudflare.ts), so nothing of the previous office is
+// shown to, sent by, or reachable from the next one:
+//   - the lists of deleted calendar entries / imported decisions (they are sent
+//     to the server, which would delete the other office's entries);
+//   - the browser's own Dropbox connection (it opens the previous office's files);
+//   - the clients' bot conversations, the office's name and address, and the
+//     small per-case notes kept on this device.
+// The same office signing in again keeps all of it.
+// ---------------------------------------------------------------------------
+
+const OTHER_OFFICE_KEYS = [
+  LS.PORTAL_BOT_HISTORY,
+  LS.PORTAL_BOT_DOWNLOADS,
+  'law_portal_bot_history_reset',
+  LS.LAST_TASK_DROPBOX_PATH,
+  LS.OFFICE_NAME,
+  LS.OFFICE_ADDRESS,
+  'law_dismissed_event_ids_v1',
+  'law_dismissed_events_synced_v1',
+  'law_decision_import_keys_v1',
+  'law_represented_party_v1',
+  'law_gen_attempts_v1',
+  'legal_office_dropbox_tokens',
+  'legal_office_dropbox_folder',
+  'legal_office_dropbox_pkce_verifier',
+];
+
+export function clearPreviousOfficeFromLocalStorage(): void {
+  if (!isBrowser) return;
+  clearOfficeDataFromLocalStorage();
+  clearPendingOfficeChanges();
+  for (const k of OTHER_OFFICE_KEYS) lsRemove(k);
+}
+
+// ---------------------------------------------------------------------------
 // collectLegalOfficeData — source line 3088. Used by backup export and by the
 // Supabase live-save batches.
 // ---------------------------------------------------------------------------

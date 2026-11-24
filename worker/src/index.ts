@@ -58,7 +58,7 @@ import {
   submitSignature,
 } from './sign';
 import { handleBriefing, handleBriefingArgument } from './briefing';
-import { applyAdamDraft, askAdamQuestions, createAdamJob, getAdamJob, listAdamJobs, saveAdamAnswers, saveAdamResult, setAdamJobStatus } from './adam';
+import { adamJobHome, applyAdamDraft, askAdamQuestions, createAdamJob, getAdamJob, listAdamJobs, listOtherOfficesAdamJobs, saveAdamAnswers, saveAdamResult, setAdamJobStatus, trackAdamJob, withOffice } from './adam';
 import { officeClearTurns, officeListTurns, officeSaveTurn, portalListTurns, portalSaveTurn } from './botHistory';
 import { handleDocQueue, idsFromFileName, type DocJob, type PipelineCtx } from './docpipeline';
 import { citedKnownDecisions, looksSharia, relevantRulings } from './rulings';
@@ -722,11 +722,19 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
   if (path === '/api/adam/jobs') {
     if (method === 'GET') {
       const r = await listAdamJobs(ctx.db, url);
+      // Adam himself (the system token, asking for every office): the other
+      // offices' requests too, each marked with its office. An office's own
+      // screen never asks for this and never receives another office's request.
+      if (ctx.mode === 'legacy' && url.searchParams.get('offices') === 'all') {
+        const others = await listOtherOfficesAdamJobs(env, url);
+        (r.body as { jobs: unknown[] }).jobs.push(...others);
+      }
       return json(r.body, request, env, r.status);
     }
     if (method === 'POST') {
       const b = (await request.json().catch(() => ({}))) as Parameters<typeof createAdamJob>[1];
       const r = await createAdamJob(ctx.db, b);
+      await trackAdamJob(env, ctx.tenantId, r);
       return json(r.body, request, env, r.status);
     }
   }
@@ -734,33 +742,37 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
     const m = path.match(/^\/api\/adam\/jobs\/([A-Za-z0-9-]+)(?:\/(status|result|questions|answers|apply))?$/);
     if (m) {
       const id = m[1];
+      // Whose request is it? An office works on its own. Adam (the system
+      // token) is led to the office the request came from (worker/src/adam.ts).
+      const home = ctx.mode === 'legacy' ? await adamJobHome(env, id) : null;
+      const adb = home ? home.db : ctx.db;
+      const atid = home ? home.tenantId : ctx.tenantId;
+      const done = async (r: Awaited<ReturnType<typeof getAdamJob>>, changed: boolean) => {
+        if (changed) await trackAdamJob(env, atid, r);
+        const out = home ? withOffice(r, home) : r;
+        return json(out.body, request, env, out.status);
+      };
       if (!m[2] && method === 'GET') {
-        const r = await getAdamJob(ctx.db, id);
-        return json(r.body, request, env, r.status);
+        return done(await getAdamJob(adb, id), false);
       }
       if (m[2] === 'status' && method === 'POST') {
         const b = (await request.json().catch(() => ({}))) as Parameters<typeof setAdamJobStatus>[2];
-        const r = await setAdamJobStatus(ctx.db, id, b);
-        return json(r.body, request, env, r.status);
+        return done(await setAdamJobStatus(adb, id, b), true);
       }
       if (m[2] === 'apply' && method === 'POST') {
-        const r = await applyAdamDraft(ctx.db, ctx.tenantId, id);
-        return json(r.body, request, env, r.status);
+        return done(await applyAdamDraft(adb, atid, id), false);
       }
       if (m[2] === 'questions' && method === 'POST') {
         const b = (await request.json().catch(() => ({}))) as Parameters<typeof askAdamQuestions>[2];
-        const r = await askAdamQuestions(ctx.db, id, b);
-        return json(r.body, request, env, r.status);
+        return done(await askAdamQuestions(adb, id, b), true);
       }
       if (m[2] === 'answers' && method === 'POST') {
         const b = (await request.json().catch(() => ({}))) as Parameters<typeof saveAdamAnswers>[2];
-        const r = await saveAdamAnswers(ctx.db, id, b);
-        return json(r.body, request, env, r.status);
+        return done(await saveAdamAnswers(adb, id, b), true);
       }
       if (m[2] === 'result' && method === 'POST') {
         const b = (await request.json().catch(() => ({}))) as Parameters<typeof saveAdamResult>[2];
-        const r = await saveAdamResult(ctx.db, id, b);
-        return json(r.body, request, env, r.status);
+        return done(await saveAdamResult(adb, id, b), true);
       }
     }
   }

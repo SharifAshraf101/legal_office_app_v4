@@ -12,7 +12,6 @@ import { SplashFlower } from './SplashFlower';
 import { DropboxConnectModal } from './DropboxConnectModal';
 import { AppStateProvider, useAppState } from '@/hooks/useAppState';
 import { SignedDocsFiler } from './SignedDocsFiler';
-import { syncDismissedEventsToServer } from '@/lib/dismissedEvents';
 import { useThemeAndFont } from '@/hooks/useThemeAndFont';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useTaskDeadlineAlerts } from '@/hooks/useTaskDeadlineAlerts';
@@ -25,7 +24,8 @@ import {
 } from '@/lib/dropbox';
 import { hasOfficeToken, setOperatorOffice } from '@/lib/officeToken';
 import { clearOfficeBilling } from '@/lib/officeBilling';
-import { clearOfficeDataFromLocalStorage } from '@/lib/storage';
+import { clearOfficeDataFromLocalStorage, clearPendingOfficeChanges } from '@/lib/storage';
+import { markOfficeIdentityChanged } from '@/lib/cloudflare';
 import { contentClassFor } from '@/lib/contentClass';
 
 /**
@@ -45,11 +45,6 @@ import { contentClassFor } from '@/lib/contentClass';
  *   - ModalStackProvider (hooks/useModalStack — replaces source's modal())
  */
 export function AppShell() {
-  // Calendar entries deleted on this device: make sure the server knows, so
-  // they are also gone from the daily briefing and from every other device.
-  useEffect(() => {
-    void syncDismissedEventsToServer();
-  }, []);
   return (
     <AppStateProvider>
       <ModalStackProvider>
@@ -118,6 +113,11 @@ function ShellInner() {
     // office. Clearing here means the new office never renders the previous
     // one's clients and cases, not even for the moment before /api/load lands.
     clearOfficeDataFromLocalStorage();
+    // Changes that were still waiting to be sent belong to whoever was signed
+    // in before, and nothing is saved until the server has said which office
+    // this is (lib/cloudflare.ts checks the browser's data against it).
+    clearPendingOfficeChanges();
+    markOfficeIdentityChanged();
     // Pull THIS office's data with the freshly-issued session token.
     void reloadFromSupabase();
   }, [reloadFromSupabase]);
