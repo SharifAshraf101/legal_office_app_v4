@@ -177,6 +177,20 @@ export async function POST(req: NextRequest) {
   console.log('Webhook received:', JSON.stringify(body).slice(0, 200));
 
   if (!message) {
+    // A message Meta accepted and then could not deliver (most often: the client
+    // is outside the 24-hour window). Logged in full — the general log line
+    // above is cut at 200 characters, which hid the reason.
+    try {
+      const statuses = (body as { entry?: Array<{ changes?: Array<{ value?: { statuses?: Array<Record<string, any>> } }> }> })
+        ?.entry?.[0]?.changes?.[0]?.value?.statuses;
+      for (const s of Array.isArray(statuses) ? statuses : []) {
+        if (s?.status === 'failed') {
+          console.error('[WhatsApp webhook] delivery failed', JSON.stringify({ to: s.recipient_id, errors: s.errors }));
+        }
+      }
+    } catch {
+      // logging only
+    }
     // Status callbacks (delivered/read) and other events — nothing to store.
     return NextResponse.json({ status: 'ok' });
   }

@@ -1,6 +1,9 @@
 'use client';
 
+import { useRef } from 'react';
 import { useAppState } from '@/hooks/useAppState';
+import { useModalStack } from '@/hooks/useModalStack';
+import { CalendarEventDetail } from './CalendarEventDetail';
 import { useT } from '@/hooks/useT';
 import { formatCaseDateTime, getCaseHearingForStatus } from '@/lib/cases';
 
@@ -14,8 +17,10 @@ import { formatCaseDateTime, getCaseHearingForStatus } from '@/lib/cases';
  * `lh-title`, `lh-date`) so the v140/v220 stylesheets apply identically.
  */
 export function CaseLastHearingCard({ caseId }: { caseId: string }) {
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
   const { lang } = useT();
+  const modalStack = useModalStack();
+  const lastTap = useRef(0);
 
   const c = state.casesArr.find((x) => x.id === caseId);
   const active = !!c && c.status === 'active';
@@ -47,6 +52,32 @@ export function CaseLastHearingCard({ caseId }: { caseId: string }) {
         ? 'מועד הדיון הבא הקשור לתיק'
         : 'מועד הדיון האחרון הקשור לתיק';
 
+  // Double click / double tap opens this hearing in the calendar: its own
+  // "פרטי יומן" screen on top of the case (חזרה returns here). A date that
+  // comes from the case's lastHearing field has no calendar entry, so the
+  // calendar itself opens on that day instead. Two taps are timed by hand
+  // because phones do not send a reliable dblclick.
+  const openHearing = () => {
+    if (!h) return;
+    if (h.id) {
+      modalStack.open(<CalendarEventDetail source="event" id={h.id} />);
+      return;
+    }
+    dispatch({ type: 'SET_CALENDAR_FOCUS', date: h.date.toISOString() });
+    dispatch({ type: 'SET_CALENDAR_VIEW', view: 'day' });
+    dispatch({ type: 'SET_TAB', tab: 'calendar' });
+    modalStack.closeAll();
+  };
+  const onTap = () => {
+    const now = Date.now();
+    if (now - lastTap.current < 400) {
+      lastTap.current = 0;
+      openHearing();
+    } else {
+      lastTap.current = now;
+    }
+  };
+
   if (!h) {
     return (
       <div className="case-last-hearing-card no-hearing">
@@ -68,7 +99,12 @@ export function CaseLastHearingCard({ caseId }: { caseId: string }) {
   return (
     // The red "watch out, it's coming" treatment belongs to a hearing that is
     // still ahead — a session already held is shown plainly.
-    <div className={'case-last-hearing-card' + (upcoming ? ' lh-next-hearing-red' : '')}>
+    <div
+      className={'case-last-hearing-card' + (upcoming ? ' lh-next-hearing-red' : '')}
+      onClick={onTap}
+      title={lang === 'ar' ? 'نقر مزدوج لفتح الموعد في التقويم' : 'לחיצה כפולה לפתיחת המועד ביומן'}
+      style={{ cursor: 'pointer', userSelect: 'none' }}
+    >
       <div className="lh-left">
         <div className="lh-icon">
           <i className="fas fa-calendar-check" />

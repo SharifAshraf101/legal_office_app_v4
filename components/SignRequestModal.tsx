@@ -98,7 +98,7 @@ export function SignRequestModal({ doc, caseId }: { doc: DocumentRecord; caseId:
     sendOffice: ar ? 'إرسال من واتساب المكتب' : 'שלח מהוואטסאפ של המשרד',
     sending: ar ? 'جارٍ الإرسال…' : 'שולח…',
     sent: ar ? 'أُرسل إلى الموكل' : 'נשלח ללקוח',
-    sendFail: ar ? 'لم تصل الرسالة (ربما مرّ أكثر من 24 ساعة على آخر رسالة من الموكل). استعمل أحد الخيارين الآخرين.' : 'ההודעה לא נשלחה (ייתכן שעברו יותר מ-24 שעות מההודעה האחרונה של הלקוח). השתמש באחת משתי האפשרויות האחרות.',
+    sendFail: ar ? 'لم تصل الرسالة (ربما مرّ أكثر من 24 ساعة على آخر رسالة من الموكل). استعمل أحد الخيارين الآخرين.' : 'ההודעה לא נשלחה מהוואטסאפ של המשרד. אם הלקוח לא כתב למספר המשרד ב-24 השעות האחרונות, ווטסאפ מעביר רק הודעה בתבנית מאושרת, והיא לא אושרה או נדחתה. השתמש באחת משתי האפשרויות האחרות.',
     openWa: ar ? 'فتح واتساب مع الرسالة' : 'פתח וואטסאפ עם ההודעה',
     copy: ar ? 'نسخ الرابط' : 'העתק לינק',
     copied: ar ? 'تم النسخ' : 'הועתק',
@@ -228,7 +228,7 @@ export function SignRequestModal({ doc, caseId }: { doc: DocumentRecord; caseId:
       const res = await fetch('/api/whatsapp/send/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...officeAuthHeader() },
-        body: JSON.stringify({ to, message }),
+        body: JSON.stringify({ to, message, signRequest: { name: name.trim(), title, link } }),
       });
       const data = (await res.json().catch(() => null)) as { messages?: unknown } | null;
       setSendState(res.ok && data && data.messages ? 'sent' : 'failed');

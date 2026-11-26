@@ -60,9 +60,9 @@ export function caseHearingCandidates(
   events: CalendarEvent[],
   lang: Lang,
   eventTypeLabel: (type: string) => string,
-): { date: Date; title: string }[] {
+): { date: Date; title: string; id?: string }[] {
   const c = cases.find((x) => x.id === caseId);
-  const out: { date: Date; title: string }[] = [];
+  const out: { date: Date; title: string; id?: string }[] = [];
   for (const e of events) {
     if (e.caseId !== caseId) continue;
     if (!['hearingMeeting', 'hearing', 'meeting'].includes(String(e.type))) continue;
@@ -74,7 +74,7 @@ export function caseHearingCandidates(
       lang === 'ar'
         ? e.titleAr || e.title || eventTypeLabel(String(e.type))
         : e.title || e.titleAr || eventTypeLabel(String(e.type));
-    out.push({ date: d, title });
+    out.push({ date: d, title, id: String(e.id ?? '') || undefined });
   }
   if (c?.lastHearing) {
     const raw = String(c.lastHearing).includes('T')
@@ -95,7 +95,7 @@ export function getCaseHearingForStatus(
   events: CalendarEvent[],
   lang: Lang,
   eventTypeLabel: (type: string) => string,
-): { date: Date; title: string } | null {
+): { date: Date; title: string; id?: string } | null {
   const c = cases.find((x) => x.id === caseId);
   const candidates = caseHearingCandidates(caseId, cases, events, lang, eventTypeLabel);
   if (!candidates.length) return null;

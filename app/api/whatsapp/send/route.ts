@@ -135,6 +135,41 @@ async function maybeSendBotInvite(selfBase: string, to: string): Promise<void> {
   }
 }
 
+// WhatsApp delivers a free-form message only within 24 hours of the client's
+// own last message to the office number. Outside that window Meta still ANSWERS
+// 200 with a message id and then drops the message (the failure arrives later,
+// as a webhook status) — which is how a signing link showed "sent" and never
+// reached the client. Outside the window only an approved TEMPLATE is delivered.
+//   true  — the client wrote within the last 24 hours
+//   false — the log was read and holds no such message
+//   null  — the log could not be read (the caller then sends as before)
+async function clientWindowOpen(to: string): Promise<boolean | null> {
+  try {
+    const res = await fetch(`${WORKER_URL}/api/whatsapp-messages/${encodeURIComponent(to)}`, {
+      headers: { Authorization: `Bearer ${APP_TOKEN}` },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      messages?: Array<{ direction?: string; timestamp?: number }>;
+    };
+    const since = Date.now() - 24 * 60 * 60 * 1000 + 5 * 60 * 1000; // 5 min margin
+    return (Array.isArray(data?.messages) ? data.messages : []).some(
+      (m) => String(m?.direction) === 'incoming' && Number(m?.timestamp) > since,
+    );
+  } catch {
+    return null;
+  }
+}
+
+// The approved template that carries a signing link outside the 24-hour window.
+// Its body, in Meta's template manager, has three variables:
+//   {{1}} the signer's name · {{2}} the document's title · {{3}} the link
+const SIGN_TEMPLATE = process.env.WHATSAPP_SIGN_TEMPLATE || 'sign_request';
+const SIGN_TEMPLATE_ALT = `${SIGN_TEMPLATE}_v2`;
+const SIGN_TEMPLATE_LANG = process.env.WHATSAPP_SIGN_TEMPLATE_LANG || 'he';
+// A template variable may hold no line break, tab or run of spaces.
+const templateText = (s: unknown) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, 900) || '-';
+
 export async function POST(req: NextRequest) {
   // Authorize FIRST — before parsing the body, resolving any document link, or
   // touching Meta. An anonymous request must cost nothing and send nothing.
@@ -147,6 +182,9 @@ export async function POST(req: NextRequest) {
     to?: string;
     message?: string;
     document?: { name?: string; url?: string; relativePath?: string };
+    /** A signing link: sent as the approved template when the client is outside
+     *  the 24-hour window, where a free-form message is never delivered. */
+    signRequest?: { name?: string; title?: string; link?: string };
     /** When false, skip the automatic bot-invite follow-up. Set on the invite
      *  itself (and on system replies) so they never trigger another invite. */
     autoInvite?: boolean;
@@ -156,7 +194,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
-  const { to, message, document, autoInvite } = body;
+  const { to, message, document, autoInvite, signRequest } = body;
 
   if (!to) {
     return NextResponse.json({ error: 'Missing recipient phone number' }, { status: 400 });
@@ -227,7 +265,29 @@ export async function POST(req: NextRequest) {
     );
   }
   const isDocument = Boolean(resolvedDocumentUrl);
-  const finalPayload = isDocument
+  const useSignTemplate =
+    !isDocument && !!signRequest?.link && (await clientWindowOpen(to)) === false;
+  const finalPayload = useSignTemplate
+    ? {
+        messaging_product: 'whatsapp',
+        to,
+        type: 'template',
+        template: {
+          name: SIGN_TEMPLATE,
+          language: { code: SIGN_TEMPLATE_LANG },
+          components: [
+            {
+              type: 'body',
+              parameters: [
+                { type: 'text', text: templateText(signRequest?.name) },
+                { type: 'text', text: templateText(signRequest?.title) },
+                { type: 'text', text: templateText(signRequest?.link) },
+              ],
+            },
+          ],
+        },
+      }
+    : isDocument
     ? {
         messaging_product: 'whatsapp',
         to,
@@ -248,19 +308,25 @@ export async function POST(req: NextRequest) {
   console.log('[WhatsApp send]', { isDocument, finalPayload });
 
   // 1 — Send via Meta
+  const sendToMeta = (payload: unknown) =>
+    fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
   let response: Response;
   try {
-    response = await fetch(
-      `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(finalPayload),
-      },
-    );
+    response = await sendToMeta(finalPayload);
+    // The same template was submitted to Meta twice (a second copy named
+    // "<name>_v2"); whichever copy is approved carries the message.
+    if (!response.ok && useSignTemplate) {
+      const tpl = (finalPayload as { template: Record<string, unknown> }).template;
+      const second = await sendToMeta({ ...finalPayload, template: { ...tpl, name: SIGN_TEMPLATE_ALT } });
+      if (second.ok) response = second;
+    }
   } catch (error) {
     console.error('[WhatsApp send] network error', error);
     return NextResponse.json({ error: 'Failed to reach WhatsApp API' }, { status: 502 });
@@ -277,7 +343,10 @@ export async function POST(req: NextRequest) {
   // 2 — Save outgoing message to D1
   if (!response.ok) {
     console.error('[WhatsApp send] Meta responded with error', data);
-    return NextResponse.json({ error: 'WhatsApp send failed', details: data }, { status: response.status });
+    return NextResponse.json(
+      { error: 'WhatsApp send failed', details: data, ...(useSignTemplate ? { code: 'template_failed' } : {}) },
+      { status: response.status },
+    );
   }
 
   // Message already delivered by Meta above (response.ok). Logging it to D1 is
