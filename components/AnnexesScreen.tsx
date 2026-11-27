@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
 import { useT } from '@/hooks/useT';
+import { convertToPdfViaWorker } from '@/lib/cloudflare';
 import {
   endAnnexPick,
   getAnnexPickState,
@@ -33,6 +34,8 @@ const SERVER_STATE: AnnexPickState = { target: null, loading: false };
  * The frame and this app talk through window messages (same origin only):
  *   frame → app   { type: 'annexes:pick-from-case', target }   "הוספה מתיקי לקוח"
  *   app → frame   { type: 'annexes:add-files', target, files } the chosen document
+ *   frame → app   { type: 'annexes:convert', id, file }        a Word document to turn into PDF
+ *   app → frame   { type: 'annexes:convert-result', id, … }    the PDF, or why not
  */
 export function AnnexesScreen({ active }: { active: boolean }) {
   const { lang } = useT();
@@ -42,16 +45,40 @@ export function AnnexesScreen({ active }: { active: boolean }) {
   const pick = useSyncExternalStore(subscribeAnnexPick, getAnnexPickState, () => SERVER_STATE);
 
   // The language the frame was first opened with. Changing `src` later would
-  // reload the frame and lose the work in progress; the program has its own
-  // language switch.
+  // reload the frame and lose the work in progress, so a language switch is
+  // sent to the running frame instead (below).
   const src = useRef(`/annexes/index.html?lang=${lang}`);
+
+  // The office system's language is the annexes program's language. On load
+  // it comes with the address (above); a later switch is sent as a message.
+  useEffect(() => {
+    frame.current?.contentWindow?.postMessage(
+      { type: 'annexes:set-lang', lang },
+      window.location.origin,
+    );
+  }, [lang]);
 
   // frame → app: the user pressed "הוספה מתיקי לקוח"
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       if (event.source !== frame.current?.contentWindow) return;
-      const data = event.data as { type?: string; target?: string } | null;
+      const data = event.data as { type?: string; target?: string; id?: string; file?: unknown } | null;
+
+      // The frame has no way to convert Office documents; the Worker does it
+      if (data?.type === 'annexes:convert' && data.id && data.file instanceof File) {
+        const { id, file } = data;
+        const reply = (body: Record<string, unknown>) =>
+          frame.current?.contentWindow?.postMessage(
+            { type: 'annexes:convert-result', id, ...body },
+            window.location.origin,
+          );
+        void convertToPdfViaWorker(file).then((result) =>
+          result.ok ? reply({ ok: true, pdf: result.pdf }) : reply({ ok: false, reason: result.reason }),
+        );
+        return;
+      }
+
       if (data?.type !== 'annexes:pick-from-case') return;
       startAnnexPick(data.target === 'main' ? 'main' : 'annex');
       dispatch({ type: 'SET_TAB', tab: 'contacts' });

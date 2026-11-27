@@ -938,6 +938,41 @@ export async function uploadClientPhotoToStorage(
   }
 }
 
+// ---- Word / PowerPoint → PDF (POST /api/convert-to-pdf) -------------------
+// For the annexes program, which runs in the browser and cannot convert Office
+// documents itself. The Worker has Dropbox render the PDF. Available only to
+// the office whose documents live in Dropbox; `unavailable` tells the caller
+// to ask the user to save the document as PDF instead.
+
+export type ConvertToPdfResult =
+  | { ok: true; pdf: Blob }
+  | { ok: false; reason: 'unavailable' | 'too_large' | 'failed' };
+
+export async function convertToPdfViaWorker(file: File): Promise<ConvertToPdfResult> {
+  if (!WORKER_URL) return { ok: false, reason: 'unavailable' };
+  try {
+    const res = await fetch(
+      WORKER_URL + '/api/convert-to-pdf?' + new URLSearchParams({ name: file.name }).toString(),
+      {
+        method: 'POST',
+        headers: { ...authHeader(), 'Content-Type': 'application/octet-stream' },
+        body: file,
+      },
+    );
+    if (res.ok) return { ok: true, pdf: await res.blob() };
+    // 404: a Worker that predates this route
+    if (res.status === 501 || res.status === 415 || res.status === 404) {
+      return { ok: false, reason: 'unavailable' };
+    }
+    if (res.status === 413) return { ok: false, reason: 'too_large' };
+    console.warn('[LegalOffice] convert to PDF failed', res.status, await res.text().catch(() => ''));
+    return { ok: false, reason: 'failed' };
+  } catch (e) {
+    console.warn('[LegalOffice] convert to PDF error', e);
+    return { ok: false, reason: 'failed' };
+  }
+}
+
 // ---- Remote document upload (POST /api/document) --------------------------
 // Upload a filing document THROUGH the Worker into the office's canonical
 // Dropbox — the same tree make.com scans and that GET /api/document reads back.

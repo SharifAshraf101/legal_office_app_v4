@@ -864,6 +864,9 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
     if (method === 'GET' && path === '/api/document-link') {
       return handleDocumentLink(request, env, ctx);
     }
+    if (method === 'POST' && path === '/api/convert-to-pdf') {
+      return handleConvertToPdf(request, env, ctx);
+    }
     return json({ error: 'not found' }, request, env, 404);
     } catch (e) {
       // An unhandled throw (e.g. a D1 write error) would otherwise reach the
@@ -3437,6 +3440,113 @@ async function handleUploadDocument(request: Request, env: Env, ctx: Ctx): Promi
   const relativePath =
     idx >= 0 ? finalDisplay.slice(idx + 1) : finalDisplay.replace(/^\/+/, '');
   return json({ ok: true, path: relativePath }, request, env);
+}
+
+// -----------------------------------------------------------------------
+// POST /api/convert-to-pdf?name=<file name>      (body: the file, as-is)
+// Turn a Word / PowerPoint document into a PDF, for the annexes program
+// ("ניהול נספחים"), which runs in the browser and has no Office to do it.
+//
+// Dropbox renders the PDF: the file is placed in a temporary folder of the
+// office's Dropbox, its PDF preview is fetched, and the temporary file is
+// removed. The folder sits at the top of the Dropbox, OUTSIDE the office's
+// case-files folder, so make.com (which watches the case files) never sees it.
+//
+// Only for the office whose documents live in Dropbox (see usesDropbox). Other
+// offices get { error: 'conversion_unavailable' } and are asked to save as PDF.
+// -----------------------------------------------------------------------
+const CONVERT_TMP_FOLDER = '/Legal-Office-Convert-Tmp';
+/** What Dropbox renders as a PDF preview. */
+const CONVERTIBLE_EXT = new Set([
+  'doc', 'docx', 'docm', 'rtf', 'odt',
+  'ppt', 'pptx', 'pptm', 'pps', 'ppsx', 'ppsm', 'odp',
+]);
+const CONVERT_MAX_BYTES = 40 * 1024 * 1024;
+
+async function handleConvertToPdf(request: Request, env: Env, ctx: Ctx): Promise<Response> {
+  const url = new URL(request.url);
+  const name = (url.searchParams.get('name') || '').trim();
+  const ext = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
+  if (!CONVERTIBLE_EXT.has(ext)) {
+    return json({ error: 'unsupported_type' }, request, env, 415);
+  }
+  if (!usesDropbox(env, ctx)) {
+    return json({ error: 'conversion_unavailable' }, request, env, 501);
+  }
+
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await request.arrayBuffer();
+  } catch {
+    return json({ error: 'could_not_read_upload' }, request, env, 400);
+  }
+  if (!bytes.byteLength) return json({ error: 'no file' }, request, env, 400);
+  if (bytes.byteLength > CONVERT_MAX_BYTES) {
+    return json({ error: 'file_too_large' }, request, env, 413);
+  }
+
+  const token = await getDropboxAccessToken(env);
+  if (!token) return json({ error: 'dropbox_not_configured' }, request, env, 500);
+
+  // A plain ASCII name: the original (often Hebrew or Arabic) name is not needed
+  const tmpPath = `${CONVERT_TMP_FOLDER}/${crypto.randomUUID()}.${ext}`;
+  const removeTmp = () =>
+    fetch('https://api.dropboxapi.com/2/files/delete_v2', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: tmpPath }),
+    }).catch((e) => console.warn('[worker convert] could not remove temporary file', e));
+
+  try {
+    const up = await fetch('https://content.dropboxapi.com/2/files/upload', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'application/octet-stream',
+        'Dropbox-API-Arg': dropboxApiArgHeader({ path: tmpPath, mode: 'add', autorename: true, mute: true }),
+      },
+      body: bytes,
+    });
+    if (!up.ok) {
+      const detail = (await up.text().catch(() => '')).slice(0, 300);
+      console.warn('[worker convert] upload failed', up.status, detail);
+      return json({ error: 'conversion_failed', detail }, request, env, 502);
+    }
+
+    // The preview is produced on demand; a file that has only just arrived can
+    // need a moment, so a failed attempt is repeated a few times.
+    let preview: Response | null = null;
+    let detail = '';
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (attempt) await new Promise((r) => setTimeout(r, 1500));
+      preview = await fetch('https://content.dropboxapi.com/2/files/get_preview', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + token,
+          'Dropbox-API-Arg': dropboxApiArgHeader({ path: tmpPath }),
+        },
+      });
+      if (preview.ok) break;
+      detail = (await preview.text().catch(() => '')).slice(0, 300);
+      // The document itself cannot be rendered (damaged, password-protected…)
+      if (preview.status === 409 && /unsupported|in_progress/.test(detail) === false) break;
+    }
+    if (!preview || !preview.ok) {
+      console.warn('[worker convert] preview failed', preview?.status, detail);
+      return json({ error: 'conversion_failed', detail }, request, env, 502);
+    }
+
+    const pdf = await preview.arrayBuffer();
+    const headers = new Headers(corsHeaders(request, env));
+    headers.set('Content-Type', 'application/pdf');
+    headers.set('Cache-Control', 'no-store');
+    return new Response(pdf, { status: 200, headers });
+  } catch (e) {
+    console.warn('[worker convert] error', e);
+    return json({ error: 'dropbox_unreachable' }, request, env, 502);
+  } finally {
+    await removeTmp();
+  }
 }
 
 // -----------------------------------------------------------------------
