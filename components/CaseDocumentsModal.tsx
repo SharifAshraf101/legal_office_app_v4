@@ -4,6 +4,7 @@ import { officeMarkup } from '@/lib/contentClass';
 import { useEffect, useRef, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
+import { useAnnexPick } from '@/hooks/useAnnexPick';
 import { useT } from '@/hooks/useT';
 import { caseName, clientName } from '@/lib/cases';
 import { caseDocumentsForCase } from '@/lib/documents';
@@ -266,7 +267,14 @@ export function CaseDocumentsModal({ caseId, onPickDocument, onSendToChat }: Cas
   // Open a document in the in-app preview (downloads it from the Dropbox cloud
   // and renders it with a download button) — same on the office computer and on
   // a remote phone/laptop, so a remote device never has to reach a local disk.
+  const annexPick = useAnnexPick();
   const onOpen = (doc: DocumentRecord) => {
+    // Opened from the annexes screen ("הוספה מתיקי לקוח"): hand the document
+    // to the annexes screen instead of previewing it.
+    if (annexPick.picking) {
+      void annexPick.pick(doc);
+      return;
+    }
     if (!doc.relativePath) {
       window.alert(
         lang === 'ar'

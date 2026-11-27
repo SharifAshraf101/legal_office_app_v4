@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useBackHandler } from '@/hooks/useBackHandler';
 import { useWhatsAppEnabled } from '@/hooks/useIsOperatorOffice';
@@ -45,15 +46,42 @@ export function ScreenRouter() {
   });
   const waEnabled = useWhatsAppEnabled();
 
+  // The annexes program keeps its work in progress only while its frame is
+  // alive. Once the screen has been opened it therefore stays mounted — hidden
+  // on other screens — so leaving it (to pick a document from a client's case,
+  // or just to look something up) does not disturb what the user was building.
+  const onAnnexes = state.currentTab === 'annexes';
+  const [annexesOpened, setAnnexesOpened] = useState(false);
+  useEffect(() => {
+    if (onAnnexes) setAnnexesOpened(true);
+  }, [onAnnexes]);
+
+  return (
+    <>
+      {(annexesOpened || onAnnexes) && <AnnexesScreen active={onAnnexes} />}
+      {!onAnnexes && <ActiveScreen tab={state.currentTab} waEnabled={waEnabled} portalNavNonce={state.portalNavNonce} />}
+    </>
+  );
+}
+
+function ActiveScreen({
+  tab,
+  waEnabled,
+  portalNavNonce,
+}: {
+  tab: string;
+  waEnabled: boolean;
+  portalNavNonce: number;
+}) {
   // The portal needs WhatsApp: the operator's original number, or an office
   // that connected its own (each office then reads and sends only its own).
   // Without it the tab is hidden — and a stale `currentTab` restored from a
   // previous session falls back home.
-  if (state.currentTab === 'portal' && !waEnabled) {
+  if (tab === 'portal' && !waEnabled) {
     return <HomeDashboard />;
   }
 
-  switch (state.currentTab) {
+  switch (tab) {
     case 'home':
       return <HomeDashboard />;
     case 'contacts':
@@ -74,15 +102,13 @@ export function ScreenRouter() {
       // `key` remounts the communication centre whenever the portal tab is
       // (re)clicked — so the sidebar button returns to its main screen even
       // when the user is already inside a chat / bot / search sub-screen.
-      return <PortalScreen key={state.portalNavNonce} />;
+      return <PortalScreen key={portalNavNonce} />;
     case 'search':
       return <GlobalSearchScreen />;
     case 'analytics':
       return <AnalyticsScreen />;
     case 'briefing':
       return <BriefingScreen />;
-    case 'annexes':
-      return <AnnexesScreen />;
     default:
       return <HomeDashboard />;
   }

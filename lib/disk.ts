@@ -537,6 +537,32 @@ async function fetchFilingBlobViaWorker(
  *  back to a direct Dropbox/local fetch for office devices / share-URL docs.
  *  Returns false when the file couldn't be fetched from any source (caller shows
  *  a message). */
+/** Fetch a filing document as a File (bytes + a usable file name), for handing
+ *  it to another part of the app — the annexes program takes case documents
+ *  this way. Same sources and order as downloadFilingDocument. The name always
+ *  carries the stored file's extension, since receivers tell the file type by
+ *  it. Returns null when the file couldn't be fetched from any source. */
+export async function fetchFilingDocumentFile(
+  doc: {
+    relativePath?: string | null;
+    fileName?: string | null;
+    title?: string | null;
+  },
+  lang: 'he' | 'ar',
+): Promise<File | null> {
+  const rp = doc.relativePath || '';
+  if (!rp) return null;
+  const stored = rp.split('/').filter(Boolean).pop()?.split('?')[0] || '';
+  let fileName = (doc.fileName || '').trim() || stored || (doc.title || '').trim() || 'document';
+  const storedExt = /\.[A-Za-z0-9]{2,5}$/.exec(stored)?.[0] ?? '';
+  if (!/\.[A-Za-z0-9]{2,5}$/.test(fileName) && storedExt) fileName += storedExt;
+  const blob =
+    (await fetchFilingBlobViaWorker(rp)) ??
+    (await loadFilingBlobForDownload(rp, lang).catch(() => null));
+  if (!blob) return null;
+  return new File([blob], fileName, { type: blob.type || mimeFromName(fileName) });
+}
+
 export async function downloadFilingDocument(
   doc: {
     relativePath?: string | null;

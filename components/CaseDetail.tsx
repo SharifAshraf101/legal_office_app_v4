@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { CalendarEvent, Lang } from '@/types';
 import { useAppState } from '@/hooks/useAppState';
 import { useModalStack } from '@/hooks/useModalStack';
+import { useAnnexPick } from '@/hooks/useAnnexPick';
 import { useT } from '@/hooks/useT';
 import { caseName, caseStatusView, clientName, money } from '@/lib/cases';
 import { clientDisplayName } from '@/lib/clients';
@@ -327,8 +328,15 @@ export function CaseDetail({ caseId, startTimelineEdit = false }: CaseDetailProp
     modalStack.open(<CaseDocumentsModal caseId={caseId} />);
   };
 
+  const annexPick = useAnnexPick();
   const onOpenDoc = (docId: string) => {
     const doc = state.documentsArr.find((d) => String(d.id) === String(docId));
+    // Opened from the annexes screen ("הוספה מתיקי לקוח"): the double-click
+    // hands the document to the annexes screen instead of previewing it.
+    if (annexPick.picking) {
+      if (doc) void annexPick.pick(doc);
+      return;
+    }
     if (!doc?.relativePath) {
       window.alert(
         lang === 'ar'
@@ -1551,6 +1559,7 @@ export function openDraftInWord(text: string, title: string): void {
 }
 
 function CaseBrainScreen({ caseId }: { caseId: string }) {
+  const brainAnnexPick = useAnnexPick();
   const { state, dispatch } = useAppState();
   const { lang } = useT();
   const modalStack = useModalStack();
@@ -3413,6 +3422,11 @@ function CaseBrainScreen({ caseId }: { caseId: string }) {
                         onDoubleClick={(e) => {
                           if ((e.target as HTMLElement).closest('button')) return;
                           const file = state.documentsArr.find((d) => String(d.id) === String(doc.id));
+                          // Picking for the annexes screen — see onOpenDoc above
+                          if (brainAnnexPick.picking) {
+                            if (file) void brainAnnexPick.pick(file);
+                            return;
+                          }
                           if (!file?.relativePath) {
                             window.alert(
                               lang === 'ar'
