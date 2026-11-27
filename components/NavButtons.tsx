@@ -67,12 +67,12 @@ function tabLabel(
   if (id === 'tasks') return lang === 'ar' ? 'مهام' : 'משימות';
   if (id === 'annexes') {
     // Two lines, like the portal label: the narrow sidebar button cuts a
-    // single-line label short ("ادارة الملاحق…").
+    // single-line label short ("ادارة الملحق…").
     return lang === 'ar' ? (
       <>
         ادارة
         <br />
-        الملاحقات
+        الملحقات
       </>
     ) : (
       <>

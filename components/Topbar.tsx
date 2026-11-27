@@ -79,7 +79,7 @@ function pageTitle(tab: string, t: (k: string) => string, lang: 'he' | 'ar'): st
   if (tab === 'tasks') return lang === 'ar' ? 'مهام' : 'משימות';
   if (tab === 'analytics') return lang === 'ar' ? 'التحليلات' : 'אנליטיקה';
   if (tab === 'briefing') return lang === 'ar' ? 'الإحاطة اليومية' : 'תדריך יומי';
-  if (tab === 'annexes') return lang === 'ar' ? 'ادارة الملاحقات' : 'ניהול נספחים';
+  if (tab === 'annexes') return lang === 'ar' ? 'ادارة الملحقات' : 'ניהול נספחים';
   return t(tab);
 }
 

@@ -119,7 +119,7 @@ export function AnnexesScreen({ active }: { active: boolean }) {
           ref={frame}
           className="annexes-frame"
           src={src.current}
-          title={ar ? 'ادارة الملاحقات' : 'ניהול נספחים'}
+          title={ar ? 'ادارة الملحقات' : 'ניהול נספחים'}
         />
       </section>
 
@@ -129,10 +129,10 @@ export function AnnexesScreen({ active }: { active: boolean }) {
           <span>
             {pick.loading
               ? ar
-                ? 'جارٍ إضافة المستند إلى الملاحقات…'
+                ? 'جارٍ إضافة المستند إلى الملحقات…'
                 : 'מוסיף את המסמך לנספחים…'
               : ar
-                ? 'اختر موكّلاً ثم ملفاً، وانقر نقراً مزدوجاً على المستند لإضافته إلى الملاحقات'
+                ? 'اختر موكّلاً ثم ملفاً، وانقر نقراً مزدوجاً على المستند لإضافته إلى الملحقات'
                 : 'בחר לקוח ותיק, ולחץ לחיצה כפולה על מסמך כדי להוסיף אותו לנספחים'}
           </span>
           <button type="button" onClick={cancelPick} disabled={pick.loading}>

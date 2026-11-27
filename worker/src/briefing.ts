@@ -125,8 +125,15 @@ export async function handleBriefing(env: Env, ctx: Ctx, url: URL): Promise<unkn
     ...caseInfo(t.case_source_id, t.client_source_id),
   });
   const dueToday = openTasks.filter((t) => str(t.due_date).slice(0, 10) === day).sort((a, b) => prio(a.priority) - prio(b.priority));
+  // Only a task that HAS a due date can be late. A task with no date (make.com
+  // files some that way) compared as "" < day and was counted as overdue —
+  // with an empty date beside it in the list. The tasks screen never counts
+  // such a task as late (lib/tasks.ts taskIsOverdue); the briefing now agrees.
   const overdue = openTasks
-    .filter((t) => str(t.due_date).slice(0, 10) < day)
+    .filter((t) => {
+      const due = str(t.due_date).slice(0, 10);
+      return /^\d{4}-\d{2}-\d{2}$/.test(due) && due < day;
+    })
     .sort((a, b) => str(b.due_date).localeCompare(str(a.due_date)));
 
   // Hearings tied to a case: the case and its last three actions — written in
