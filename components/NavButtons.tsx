@@ -24,10 +24,16 @@ const ICONS: Record<string, string> = {
   calendar: 'fa-calendar',
   portal: 'fa-comment-dots',
   search: 'fa-magnifying-glass',
+  annexes: 'fa-folder-tree',
 };
 
 // Same `order` array as source line 3845.
-const ORDER = ['home', 'search', 'contacts', 'cases', 'documents', 'calendar', 'tasks', 'finance', 'portal'];
+const ORDER = ['home', 'search', 'contacts', 'cases', 'documents', 'calendar', 'tasks', 'finance', 'portal', 'annexes'];
+
+// Tabs offered in the desktop sidebar only. The annexes program is a wide
+// drag-and-drop workspace made for a computer screen, and the phone's bottom
+// bar has no room for a tenth button.
+const DESKTOP_ONLY = new Set(['annexes']);
 
 /** Hebrew/Arabic labels per tab id. Returns a ReactNode so that
  *  long labels (e.g. portal) can carry an explicit `<br>` for a
@@ -59,6 +65,7 @@ function tabLabel(
   }
   if (id === 'documents') return lang === 'ar' ? 'المستندات' : 'מסמכים';
   if (id === 'tasks') return lang === 'ar' ? 'مهام' : 'משימות';
+  if (id === 'annexes') return lang === 'ar' ? 'ادارة الملاحقات' : 'ניהול נספחים';
   return tFn(id);
 }
 
@@ -68,8 +75,9 @@ export function NavButtons({ mobile = false }: { mobile?: boolean } = {}) {
   // The portal runs on the operator's WhatsApp number — hidden for tenants.
   // The communication tab needs WhatsApp: the operator, or a connected office.
   const waEnabled = useWhatsAppEnabled();
-  const tabs = waEnabled ? ORDER : ORDER.filter((id) => id !== 'portal');
-  void mobile; // mobile vs desktop styling is fully handled by CSS now
+  const tabs = ORDER.filter(
+    (id) => (waEnabled || id !== 'portal') && !(mobile && DESKTOP_ONLY.has(id)),
+  );
 
   return (
     <>

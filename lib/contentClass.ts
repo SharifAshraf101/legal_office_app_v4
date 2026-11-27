@@ -25,6 +25,7 @@ export function contentClassFor(tab: string, hs: string): string {
     (tab === 'finance' && classic ? ' contacts-classic fees-classic' : '') +
     (tab === 'financeDetail' && (classic || modern) ? ' contacts-classic fd-classic' + (modern ? ' contacts-modern' : '') : '') +
     (tab === 'analytics' ? ' analytics-content' + (classic ? ' analytics-classic' : '') : '') +
+    (tab === 'annexes' ? ' annexes-content' : '') +
     (tab === 'briefing' ? ' analytics-content briefing-content' + (classic ? ' briefing-classic' : '') : '')
   );
 }

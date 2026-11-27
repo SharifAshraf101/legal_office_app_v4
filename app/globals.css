@@ -46229,3 +46229,104 @@ html body[data-home-style="minimalist"]:not(#mnl1):not(#mnl2):not(#mnl3):not(#mn
 html body #content.content .mx-root.mx-root .mx-view.mx-gcal,html body #content.content .cx-root.cx-root .cx-view.cx-gcal{min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
 html body #content.content .mx-root.mx-root .mx-view.mx-gcal{height:38px;font-size:15px!important}
 html body #content.content .cx-root.cx-root .cx-view.cx-gcal{height:42px;font-size:16px!important}
+
+/* ================================================================ *
+ * Sidebar button "ניהול נספחים" (annexes program) — the 10th button,
+ * placed under the portal button.
+ *
+ * (1) Its icon is the picture /icons/nav-annexes.png in every home
+ *     style (there is no FontAwesome glyph for it).
+ * (2) Ten buttons must fit the sidebar WITHOUT scrolling: on shorter
+ *     screens the icons, labels and inner spacing shrink step by step
+ *     so the whole column still fits the window height.
+ * ================================================================ */
+html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn i.nav-icon-annexes {
+  background-color: transparent !important;
+  background-image: url('/icons/nav-annexes.png') !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: contain !important;
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  border-radius: 0 !important;
+  font-size: 0 !important;
+  color: transparent !important;
+  line-height: 0 !important;
+}
+html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn i.nav-icon-annexes::before {
+  content: none !important;
+}
+
+@media (min-width: 1051px) and (max-height: 900px) {
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav {
+    padding-block: 4px !important;
+  }
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn {
+    padding-block: 4px !important;
+    gap: 1px !important;
+    min-height: 0 !important;
+  }
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn i[class*="nav-icon-"] {
+    width: 30px !important;
+    min-width: 30px !important;
+    height: 30px !important;
+  }
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn span {
+    font-size: 12px !important;
+    line-height: 1.1 !important;
+  }
+}
+@media (min-width: 1051px) and (max-height: 740px) {
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn {
+    padding-block: 2px !important;
+    gap: 0 !important;
+  }
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn i[class*="nav-icon-"] {
+    width: 24px !important;
+    min-width: 24px !important;
+    height: 24px !important;
+  }
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn span {
+    font-size: 11px !important;
+    line-height: 1.05 !important;
+  }
+}
+@media (min-width: 1051px) and (max-height: 620px) {
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn i[class*="nav-icon-"] {
+    width: 19px !important;
+    min-width: 19px !important;
+    height: 19px !important;
+  }
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn span {
+    font-size: 10px !important;
+    line-height: 1 !important;
+  }
+}
+
+/* ================================================================ *
+ * Screen "ניהול נספחים" — the annexes program fills the whole content
+ * area (it is a full workspace with its own bars and scrolling).
+ * ================================================================ */
+html body #content.content.annexes-content.annexes-content {
+  padding: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+html body #content.content.annexes-content .annexes-screen {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+html body #content.content.annexes-content .annexes-frame {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  display: block !important;
+  background: #f4f6fa;
+}

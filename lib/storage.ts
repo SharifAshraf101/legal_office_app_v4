@@ -331,6 +331,20 @@ export function clearPreviousOfficeFromLocalStorage(): void {
   clearOfficeDataFromLocalStorage();
   clearPendingOfficeChanges();
   for (const k of OTHER_OFFICE_KEYS) lsRemove(k);
+  clearAnnexesWorkspace();
+}
+
+// The annexes program ("ניהול נספחים", public/annexes) keeps the documents the
+// user added in this browser's own storage. They belong to the office that
+// added them, so they go with the rest when another office signs in here.
+function clearAnnexesWorkspace(): void {
+  lsRemove('annexes.activePackage');
+  lsRemove('annexes.pendingReset');
+  try {
+    window.indexedDB?.deleteDatabase('legal-annexes');
+  } catch {
+    /* storage unavailable (private mode) — nothing was kept */
+  }
 }
 
 // ---------------------------------------------------------------------------
