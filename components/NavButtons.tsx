@@ -65,7 +65,23 @@ function tabLabel(
   }
   if (id === 'documents') return lang === 'ar' ? 'المستندات' : 'מסמכים';
   if (id === 'tasks') return lang === 'ar' ? 'مهام' : 'משימות';
-  if (id === 'annexes') return lang === 'ar' ? 'ادارة الملاحقات' : 'ניהול נספחים';
+  if (id === 'annexes') {
+    // Two lines, like the portal label: the narrow sidebar button cuts a
+    // single-line label short ("ادارة الملاحق…").
+    return lang === 'ar' ? (
+      <>
+        ادارة
+        <br />
+        الملاحقات
+      </>
+    ) : (
+      <>
+        ניהול
+        <br />
+        נספחים
+      </>
+    );
+  }
   return tFn(id);
 }
 
