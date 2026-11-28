@@ -877,7 +877,6 @@ async function hearingToCalendar(env: Env, db: D1Database, h: HearingRecord): Pr
       .run();
     return status;
   };
-  if (h.event_id) return 'added';
   if (CANCELLED.test(h.status || '')) return set('cancelled', null, null);
 
   const user = env.USER_ID;
@@ -920,10 +919,28 @@ async function hearingToCalendar(env: Env, db: D1Database, h: HearingRecord): Pr
       ? ''
       : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
   };
-  const same = (events.results || []).find((e) => dayOf(e.date_time) === h.hearing_date);
-  if (same) return set('exists', caseId, null);
-
   const now = new Date().toISOString();
+  const sameDay = (events.results || []).filter((e) => dayOf(e.date_time) === h.hearing_date);
+  if (sameDay.length) {
+    // The day has its hearing. Its hour follows the court's: an entry filed
+    // from a document, or typed in, may carry another hour or none at all.
+    const mine = sameDay.some((e) => e.source_id === eventId);
+    if (!h.hearing_time) return set(mine ? 'added' : 'exists', caseId, mine ? eventId : null);
+    const at = israelToUtc(h.hearing_date, h.hearing_time);
+    const off = sameDay.filter((e) => new Date(String(e.date_time)).getTime() !== new Date(at).getTime());
+    if (off.length) {
+      await db.batch(
+        off.map((e) =>
+          db
+            .prepare('UPDATE calendar_events SET date_time = ?1, updated_at = ?2 WHERE user_id = ?3 AND source_id = ?4')
+            .bind(at, now, user, e.source_id),
+        ),
+      );
+      return set('updated', caseId, mine ? eventId : null);
+    }
+    return set(mine ? 'added' : 'exists', caseId, mine ? eventId : null);
+  }
+
   const details = [h.hearing_type, h.court, h.judge && 'בפני ' + h.judge].filter(Boolean).join(' · ');
   await db
     .prepare(
@@ -977,20 +994,36 @@ export async function enrichHearings(env: Env, db: D1Database, page: SentPage): 
         .bind(r.caseNumber, r.date, r.time, r.court, r.caseName, r.kind, r.judge, r.status, now, source),
     ),
   );
-  return netSyncHearingsToCalendar(env, db);
+  // A hearing whose hour the court moved comes back as a new row; the row with
+  // the old hour (same case, same day, not on the page sent now) is dropped.
+  await db.batch(
+    rows.map((r) =>
+      db
+        .prepare(
+          `DELETE FROM nm_hearings
+            WHERE source = ?1 AND case_number = ?2 AND hearing_date = ?3 AND last_seen_at < ?4`,
+        )
+        .bind(source, r.caseNumber, r.date, now),
+    ),
+  );
+  return netSyncHearingsToCalendar(env, db, now);
 }
 
 /** Every kept hearing that is not in the calendar yet and could be now — after
  *  a page was sent, and after a case was opened in the office's system. */
-export async function netSyncHearingsToCalendar(env: Env, db: D1Database): Promise<number> {
+export async function netSyncHearingsToCalendar(env: Env, db: D1Database, seenAt = ''): Promise<number> {
+  // `seenAt`: the hearings of the page sent just now — each is checked again
+  // against the calendar (the court may have moved its hour).
   const waiting = await db
     .prepare(
       `SELECT id, source, case_number, hearing_date, hearing_time, court, hearing_type, judge, status, event_id
          FROM nm_hearings
-        WHERE event_id IS NULL AND (calendar_status IS NULL OR calendar_status = 'no_case')
+        WHERE ((event_id IS NULL AND (calendar_status IS NULL OR calendar_status = 'no_case'))
+               OR (?1 != '' AND last_seen_at = ?1 AND COALESCE(calendar_status, '') != 'dismissed'))
           AND hearing_date >= date('now', '-1 day')
-        ORDER BY hearing_date LIMIT 40`,
+        ORDER BY hearing_date LIMIT 60`,
     )
+    .bind(seenAt)
     .all<HearingRecord>();
   let added = 0;
   for (const h of waiting.results || []) {

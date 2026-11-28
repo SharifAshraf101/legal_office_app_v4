@@ -110,7 +110,8 @@ const L = {
     colCalendar: 'ביומן המשרד',
     emptyHearings: 'עדיין לא נשלחו דיונים. בנט המשפט: "יומן דיונים" ← "הדיונים שלי" ← "הצגת דו"ח", ואז "שלח למערכת המשרד".',
     hAdded: 'נוסף ליומן',
-    hExists: 'כבר ביומן באותו יום',
+    hExists: 'כבר ביומן, באותה שעה',
+    hUpdated: 'השעה ביומן עודכנה לפי בית המשפט',
     hNoCase: 'אין במערכת תיק עם מספר התיק הזה',
     hAmbiguous: 'יש יותר מתיק אחד עם המספר הזה',
     hCancelled: 'הדיון בוטל, לא הוכנס',
@@ -192,7 +193,8 @@ const L = {
     colCalendar: 'في تقويم المكتب',
     emptyHearings: 'لم تُرسل جلسات بعد. في نت همشباط: "יומן דיונים" ← "הדיונים שלי" ← "הצגת דו"ח"، ثم "שלח למערכת המשרד".',
     hAdded: 'أُضيفت إلى التقويم',
-    hExists: 'موجودة في التقويم في اليوم نفسه',
+    hExists: 'موجودة في التقويم، بالساعة نفسها',
+    hUpdated: 'حُدّثت الساعة في التقويم حسب المحكمة',
     hNoCase: 'لا يوجد في النظام ملف بهذا الرقم',
     hAmbiguous: 'يوجد أكثر من ملف بهذا الرقم',
     hCancelled: 'الجلسة أُلغيت، لم تُدرج',
@@ -670,12 +672,14 @@ export function NetSyncScreen() {
                     <tbody>
                       {(data.hearings || []).map((h) => {
                         const st = h.calendar_status || '';
-                        const inCalendar = st === 'added' || st === 'exists';
+                        const inCalendar = st === 'added' || st === 'exists' || st === 'updated';
                         const label =
                           st === 'added'
                             ? t.hAdded
                             : st === 'exists'
                               ? t.hExists
+                              : st === 'updated'
+                                ? t.hUpdated
                               : st === 'no_case'
                                 ? t.hNoCase
                                 : st === 'ambiguous'

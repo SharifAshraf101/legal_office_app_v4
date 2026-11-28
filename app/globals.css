@@ -46442,3 +46442,63 @@ body.dark .ns-root { --ns-ink:#e8edf6; --ns-muted:#a3b0c4; --ns-line:#33415a; --
 .ns-muted { color:var(--ns-muted); font-size:12.5px; }
 .ns-why { display:inline-block; margin:0 0 4px; padding:2px 8px; border-radius:6px; background:#ffe45c; color:#3d3200; font-weight:600; }
 .ns-why.ns-why-ok { background:#bfe8c9; color:#14532d; }
+
+/* The system's sidebar: the top bar's dark navy as its background. Only the
+   background — the nav buttons on it keep their own cards and icons.
+   (Dark mode keeps its own.) */
+html body:not(.dark) .sidebar.sidebar.sidebar.sidebar.sidebar {
+  background: #0a2540 !important;
+  background-image: none !important;
+  border-color: #0a2540 !important;
+}
+/* The buttons were see-through: their cream colour was the old sidebar showing
+   through. Each now carries that same cream itself, so it looks as it did. */
+html body:not(.dark) .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn {
+  background-color: #fdfbf5 !important;
+}
+
+/* The sidebar's buttons sit between two lines: the bottom edge of the top bar
+   and a line just above the bottom of the window — with the same space left
+   above the first button and below the last. If the window is too short for
+   them all, the list scrolls instead of being cut. */
+@media (min-width: 1051px) {
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+    padding-block: 0 !important;
+  }
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin-top: 76px !important;   /* the top bar's height */
+    margin-bottom: 12px !important;
+    padding-block: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    /* the space between buttons, as before; less in a short window */
+    gap: 16px !important;
+    overflow-y: auto !important;
+  }
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav > .nav-btn {
+    flex: 0 1 auto !important;
+  }
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav > .nav-btn:first-child {
+    margin-top: auto !important;
+  }
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav > .nav-btn:last-child {
+    margin-bottom: auto !important;
+  }
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .sidebar-footer {
+    display: none !important;
+  }
+}
+@media (min-width: 1051px) and (max-height: 900px) {
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav { gap: 8px !important; }
+}
+@media (min-width: 1051px) and (max-height: 800px) {
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav { gap: 4px !important; }
+}
+@media (min-width: 1051px) and (max-height: 740px) {
+  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav { gap: 3px !important; }
+}
