@@ -122,12 +122,12 @@ async function serverPending(hrefs, diag) {
   return body.pending || [];
 }
 
-async function autoStart(tabId, items) {
+async function autoStart(tabId, items, path) {
   const all = (items || []).slice(0, AUTO_MAX);
   const pending = new Set(await serverPending(all.map((i) => i.href)));
   const queue = all.filter((i) => pending.has(i.href));
   await autoSet({
-    tabId, queue, i: 0, running: queue.length > 0, phase: "idle", nextAt: Date.now(),
+    tabId, path: path || "", queue, i: 0, running: queue.length > 0, phase: "idle", nextAt: Date.now(),
     skipped: all.length - queue.length, filed: 0, saved: 0, failed: 0, note: "",
   });
   return { ok: true, total: queue.length, skipped: all.length - queue.length };
@@ -158,11 +158,21 @@ const autoView = (a) => a ? {
 } : { running: false };
 
 // תקתוק מהעמוד של הרשימה
-function autoTick(tabId) {
+function autoTick(tabId, path) {
   return autoLocked(async () => {
     const a = await autoGet();
     if (!a || a.tabId !== tabId) return { running: false };
     if (!a.running) return autoView(a);
+    // לחיצה על מסמך העבירה את הלשונית לעמוד אחר (למשל לעמוד התיק): הרשימה כבר לא
+    // על המסך, ואין על מה ללחוץ. עוצרים, ולא מסמנים את שאר המסמכים כנכשלים.
+    if (a.path && path && path !== a.path) {
+      await closeViewer(a);
+      a.running = false;
+      a.failed += 1;
+      a.note = "אחד המסמכים פתח עמוד אחר במקום חלון צפייה, והייבוא נעצר. חזור לרשימה ולחץ שוב על הייבוא – מה שכבר יובא ידולג";
+      await autoSet(a);
+      return autoView(a);
+    }
     const now = Date.now();
     if (a.phase === "idle") {
       if (now < a.nextAt) return autoView(a);
@@ -170,11 +180,30 @@ function autoTick(tabId) {
       await rememberClick(tabId, { href: item.href, text: item.text, context: item.context });
       a.phase = "open"; a.startedAt = now; a.viewerTabId = null;
       await autoSet(a);
-      return { ...autoView(a), click: item.href };
+      // הלחיצה נעשית בתוך העמוד עצמו: קישור "פקודה" (javascript:) שנלחץ מתוך התוסף
+      // נחסם על ידי Chrome ואינו עושה דבר.
+      let clicked = false;
+      try {
+        const [r] = await chrome.scripting.executeScript({
+          target: { tabId },
+          world: "MAIN",
+          args: [item.href],
+          func: (href) => {
+            const link = [...document.querySelectorAll("a[href]")].find((x) => x.href === href);
+            if (!link) return false;
+            document.documentElement.removeAttribute("data-nm-blocked-open");
+            link.click();
+            return true;
+          },
+        });
+        clicked = !!(r && r.result);
+      } catch (_) {}
+      if (!clicked) await autoAdvance(a, "failed", "קישור של מסמך לא נמצא בעמוד");
+      return autoView(await autoGet());
     }
     if (now - a.startedAt > AUTO_ITEM_TIMEOUT) {
       const why = a.viewerTabId == null
-        ? "חלון המסמך לא נפתח – יש לאפשר חלונות קופצים לאתר נט המשפט (סמל בקצה שורת הכתובת)"
+        ? "חלון המסמך לא נפתח"
         : "הקובץ לא ירד – אם Chrome שואל על הורדת כמה קבצים, יש לאשר";
       await autoAdvance(a, "failed", why);
     }
@@ -191,6 +220,20 @@ chrome.tabs.onCreated.addListener((tab) => {
   });
 });
 
+// האתר ניסה לפתוח את חלון המסמך ו-Chrome חסם אותו: התוסף פותח אותה כתובת כלשונית
+function autoOpenBlocked(tabId, url) {
+  return autoLocked(async () => {
+    const a = await autoGet();
+    if (!a || !a.running || a.phase !== "open" || a.tabId !== tabId || a.viewerTabId != null) return;
+    let ok = false;
+    try { const u = new URL(url); ok = /(^|\.)court\.gov\.il$/.test(u.hostname) && u.protocol === "https:"; } catch (_) {}
+    if (!ok) return;
+    const tab = await chrome.tabs.create({ url, openerTabId: tabId, active: true });
+    a.viewerTabId = tab.id;
+    await autoSet(a);
+  });
+}
+
 // חלון הצפייה שואל אם הוא חלק מהייבוא האוטומטי
 function autoIsViewer(tabId) {
   return autoLocked(async () => {
@@ -202,10 +245,23 @@ function autoIsViewer(tabId) {
 }
 
 // חלון הצפייה מדווח: נלחץ כפתור השמירה, או שלא נמצא כזה
-function autoSaveReport(tabId, found, diag) {
+function autoSaveReport(tabId, frameId, found, diag) {
   return autoLocked(async () => {
     const a = await autoGet();
     if (!a || !a.running || a.viewerTabId !== tabId) return;
+    if (found) {
+      // הלחיצה על כפתור השמירה – גם היא בתוך העמוד עצמו
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId, frameIds: [frameId || 0] },
+          world: "MAIN",
+          func: () => {
+            const el = document.querySelector("[data-nm-save]");
+            if (el) el.click();
+          },
+        });
+      } catch (_) {}
+    }
     if (!a.diagSent || !found) {
       a.diagSent = true;
       await autoSet(a);
@@ -247,7 +303,32 @@ async function noteDownload(fileUrl, result) {
 chrome.downloads.onCreated.addListener(async (item) => {
   const fileUrl = item.finalUrl || item.url || "";
   const m = COURT_FILE_RE.exec(fileUrl);
-  if (!m) { await noteDownload(fileUrl, "לא קובץ של נט המשפט"); return; }
+  if (!m) {
+    await noteDownload(fileUrl, "לא קובץ של נט המשפט");
+    // הורדה מאתר שהגשר הופעל בו ידנית (בתי הדין השרעיים): פרטי ההורדה נשלחים לבדיקה,
+    // בלי ערכי הפרמטרים שבכתובת – רק כדי לדעת מאיפה ואיך הקובץ יורד שם.
+    try {
+      const [active] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      const { extraSites = [] } = await chrome.storage.local.get("extraSites");
+      const origin = active && active.url ? new URL(active.url).origin : "";
+      if (origin && extraSites.includes(origin)) {
+        const bare = (u) => {
+          try {
+            const x = new URL(u);
+            return x.protocol === "blob:" || x.protocol === "data:"
+              ? x.protocol
+              : x.origin + x.pathname + (x.search ? "?" + [...x.searchParams.keys()].join("&") : "");
+          } catch (_) { return ""; }
+        };
+        await serverPending([], "DOWNLOAD " + JSON.stringify({
+          page: origin + new URL(active.url).pathname,
+          url: bare(item.url), finalUrl: bare(item.finalUrl), referrer: bare(item.referrer),
+          mime: item.mime, filename: String(item.filename || "").split(/[\\/]/).pop(),
+        }));
+      }
+    } catch (_) {}
+    return;
+  }
   // ההורדה מתחילה מהלשונית הפעילה – חלון הצפייה שבו נלחץ "שמירה"
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   let tabId = tab ? tab.id : null;
@@ -307,11 +388,11 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   }
   const fromTab = sender.tab && sender.tab.id != null ? sender.tab.id : null;
   if (msg && msg.type === "NM_AUTO_START") {
-    autoStart(fromTab, msg.items).then(reply).catch((e) => reply({ ok: false, error: e && e.message ? e.message : String(e) }));
+    autoStart(fromTab, msg.items, msg.path).then(reply).catch((e) => reply({ ok: false, error: e && e.message ? e.message : String(e) }));
     return true;
   }
   if (msg && msg.type === "NM_AUTO_TICK") {
-    autoTick(fromTab).then(reply).catch(() => reply({ running: false }));
+    autoTick(fromTab, msg.path).then(reply).catch(() => reply({ running: false }));
     return true;
   }
   if (msg && msg.type === "NM_AUTO_VIEWER") {
@@ -319,7 +400,42 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     return true;
   }
   if (msg && msg.type === "NM_AUTO_SAVE") {
-    autoSaveReport(fromTab, !!msg.found, msg.diag).then(() => reply({ ok: true })).catch(() => reply({ ok: false }));
+    autoSaveReport(fromTab, sender.frameId, !!msg.found, msg.diag).then(() => reply({ ok: true })).catch(() => reply({ ok: false }));
+    return true;
+  }
+  if (msg && msg.type === "NM_PENDING") {
+    serverPending(msg.hrefs || []).then((pending) => reply({ ok: true, pending })).catch((e) => reply({ ok: false, error: e && e.message ? e.message : String(e) }));
+    return true;
+  }
+  // קובץ שנבנה בתוך העמוד (בתי הדין השרעיים) – מגיע מה-content script ונשלח למשרד
+  if (msg && msg.type === "NM_BLOB_FILE") {
+    (async () => {
+      const { endpoint, token } = await getConfig();
+      if (!endpoint || !token) throw new Error("יש להגדיר כתובת Worker וטוקן בהגדרות התוסף");
+      const bin = atob(msg.b64 || "");
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const q = new URLSearchParams({
+        name: msg.name, href: msg.href || "", text: msg.text || "", context: msg.context || "", source: "net-batei-hadin",
+      });
+      const res = await fetch(`${endpoint}/api/netmishpat/file?${q}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/pdf", Authorization: `Bearer ${token}` },
+        body: bytes,
+      });
+      let body = {};
+      try { body = await res.json(); } catch (_) {}
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      return { ok: true, filing: body.filing || {} };
+    })().then(reply).catch((e) => reply({ ok: false, error: e && e.message ? e.message : String(e) }));
+    return true;
+  }
+  if (msg && msg.type === "NM_PAGE_DIAG") {
+    serverPending([], String(msg.diag || "").slice(0, 60000)).catch(() => {});
+    return;
+  }
+  if (msg && msg.type === "NM_AUTO_OPEN") {
+    autoOpenBlocked(fromTab, msg.url).then(() => reply({ ok: true })).catch(() => reply({ ok: false }));
     return true;
   }
   if (msg && msg.type === "NM_AUTO_NOLINK") {

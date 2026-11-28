@@ -70,6 +70,8 @@ const L = {
     stError: 'התיוק נכשל',
     stWaiting: 'ממתין לקובץ',
     refresh: 'רענון',
+    refreshing: 'מרענן…',
+    refreshed: 'עודכן',
     loading: 'טוען נתונים…',
     error: 'לא ניתן לטעון את הנתונים כרגע.',
     retry: 'נסה שוב',
@@ -135,6 +137,8 @@ const L = {
     stError: 'فشلت الأرشفة',
     stWaiting: 'بانتظار الملف',
     refresh: 'تحديث',
+    refreshing: 'جارٍ التحديث…',
+    refreshed: 'تم التحديث',
     loading: 'جارٍ تحميل البيانات…',
     error: 'تعذّر تحميل البيانات حالياً.',
     retry: 'حاول مرة أخرى',
@@ -208,6 +212,9 @@ export function NetSyncScreen() {
   const [tab, setTab] = useState<Tab>('new');
   const [copied, setCopied] = useState(false);
   const [filingId, setFilingId] = useState<number | null>(null);
+  // The refresh button: what it is doing, so a press that brings nothing new
+  // is still seen to have worked.
+  const [refresh, setRefresh] = useState<'idle' | 'busy' | 'done'>('idle');
 
   const load = useCallback(async () => {
     setError(false);
@@ -448,8 +455,26 @@ export function NetSyncScreen() {
             {t.lastSync}: {counts?.last_sync ? <span dir="ltr">{when(counts.last_sync)}</span> : t.never}
           </strong>
         </p>
-        <button type="button" className="ns-btn ns-btn-primary" onClick={() => void load()}>
-          <i className="fas fa-rotate" aria-hidden="true" /> {t.refresh}
+        <button
+          type="button"
+          className="ns-btn ns-btn-primary"
+          disabled={refresh === 'busy'}
+          onClick={() => {
+            setRefresh('busy');
+            // kept visible for a moment even when the answer is immediate
+            void Promise.all([load(), new Promise((r) => setTimeout(r, 500))]).then(() => {
+              setRefresh('done');
+              setTimeout(() => setRefresh('idle'), 1500);
+            });
+          }}
+        >
+          <i
+            className={refresh === 'done' ? 'fas fa-check' : 'fas fa-rotate' + (refresh === 'busy' ? ' fa-spin' : '')}
+            aria-hidden="true"
+          />{' '}
+          <span aria-live="polite">
+            {refresh === 'busy' ? t.refreshing : refresh === 'done' ? t.refreshed : t.refresh}
+          </span>
         </button>
       </header>
 

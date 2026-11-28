@@ -122,6 +122,20 @@
         return;
       }
       btn.disabled = true;
+      // אתר בתי הדין השרעיים: מבנה העמוד נשלח גם הוא (שתי השורות הראשונות של כל טבלה
+      // והכפתורים שבהן), כדי שאפשר יהיה לבנות לו ייבוא אוטומטי כמו בנט המשפט.
+      if (SOURCE === "net-batei-hadin") {
+        try {
+          const rows = [...document.querySelectorAll("table")]
+            .slice(0, 6)
+            .map((t, i) => {
+              const trs = [...t.querySelectorAll("tr")].slice(0, 3);
+              return `TABLE ${i} class=${t.className}\n` + trs.map((tr) => tr.outerHTML.replace(/\s+/g, " ").slice(0, 4000)).join("\n");
+            })
+            .join("\n\n");
+          chrome.runtime.sendMessage({ type: "NM_PAGE_DIAG", diag: `PAGE ${location.origin}${location.pathname}\n${rows}` });
+        } catch (_) {}
+      }
       chrome.runtime.sendMessage({ type: "NM_PUSH", payload: snapshot() }, (res) => {
         btn.disabled = false;
         if (chrome.runtime.lastError) return toast("שגיאה: " + chrome.runtime.lastError.message, false);
@@ -184,7 +198,7 @@
       `${s.filed} תויקו בתיקים, ${s.saved} נשמרו ללא תיוק, ${s.failed} נכשלו` + (s.note ? ` | ${s.note}` : "");
 
     async function tick() {
-      const s = await send({ type: "NM_AUTO_TICK" });
+      const s = await send({ type: "NM_AUTO_TICK", path: location.pathname });
       if (!s || (!s.running && !wasRunning)) {
         if (timer) { clearInterval(timer); timer = null; }
         bar.hidden = true;
@@ -203,10 +217,11 @@
       auto.disabled = true;
       bar.hidden = false;
       barText.textContent = `מייבא מסמך ${Math.min(s.i + 1, s.total)} מתוך ${s.total}… (${summary(s)})`;
-      if (s.click) {
-        const a = [...document.querySelectorAll("a[href]")].find((x) => x.href === s.click);
-        if (a) a.click();
-        else await send({ type: "NM_AUTO_NOLINK" });
+      // חלון מסמך שהאתר ניסה לפתוח ונחסם (ראה main-world.js): התוסף יפתח אותו
+      const blocked = document.documentElement.getAttribute("data-nm-blocked-open");
+      if (blocked) {
+        document.documentElement.removeAttribute("data-nm-blocked-open");
+        await send({ type: "NM_AUTO_OPEN", url: blocked });
       }
     }
     const startTicking = () => { if (!timer) timer = setInterval(tick, 1500); };
@@ -220,7 +235,7 @@
       const items = docItems();
       if (!items.length) return toast("אין בעמוד הזה קישורים למסמכים או להחלטות", false, 6000);
       auto.disabled = true;
-      const r = await send({ type: "NM_AUTO_START", items });
+      const r = await send({ type: "NM_AUTO_START", items, path: location.pathname });
       if (!r || !r.ok) {
         auto.disabled = false;
         return toast(r && r.error ? "נכשל: " + r.error : "התוסף עודכן ולא נטען מחדש: ↻ ב-chrome://extensions ואז F5 כאן", false, 12000);
@@ -235,7 +250,7 @@
     });
 
     // העמוד נטען מחדש אחרי כל לחיצה על מסמך: אם ייבוא פעיל – ממשיכים ממנו
-    send({ type: "NM_AUTO_TICK" }).then((s) => {
+    send({ type: "NM_AUTO_TICK", path: location.pathname }).then((s) => {
       if (s && s.running) { wasRunning = true; startTicking(); void tick(); }
     });
   }
@@ -266,6 +281,7 @@
         .join("\n");
     const SAVE_RE = /save|שמיר|שמור/i;
     const findSave = () =>
+      document.getElementById("btnSave") ||
       [...document.querySelectorAll("a, button, input, img, area, [onclick]")].find((el) => {
         if (String(el.className || "").includes("nm-bridge")) return false;
         const sig = [el.id, el.getAttribute("name"), el.title, el.getAttribute("alt"), el.getAttribute("src"), el.getAttribute("onclick"), el.getAttribute("href"), el.className]
@@ -286,8 +302,9 @@
       for (let i = 0; i < 40; i++) {
         const el = findSave();
         if (el) {
+          // מסמנים את הכפתור; הלחיצה עצמה נעשית בתוך העמוד (background.js)
+          el.setAttribute("data-nm-save", "1");
           await send({ type: "NM_AUTO_SAVE", found: true, diag: frame + "\n" + describe() });
-          el.click();
           return;
         }
         await new Promise((res) => setTimeout(res, 500));
@@ -295,6 +312,188 @@
       // רק המסגרת העליונה מדווחת על כישלון, כדי שמסגרת פנימית לא תעצור את הייבוא
       if (window.top === window) await send({ type: "NM_AUTO_SAVE", found: false, diag: frame + "\n" + describe() });
     })();
+  }
+
+  // ---- נט בתי הדין השרעיים (unicourt.justice.gov.il) ----
+  // שם אין חלון צפייה: בכל שורה של הטבלה יש סמל הורדה, והעמוד עצמו בונה את הקובץ
+  // ושומר אותו. main-world.js מעביר לכאן כל קובץ שהעמוד בונה; אם זה PDF שנוצר מיד
+  // אחרי לחיצה בשורה של החלטה – הוא נשלח למשרד עם פרטי השורה (תאריך, סוג, מספר תיק,
+  // צדדים). "ייבוא כל ההחלטות שבעמוד" לוחץ על סמל ההורדה של כל שורה, אחת אחת.
+  if (SOURCE === "net-batei-hadin" && window.top === window) {
+    const ROWS = 'tr, [role="row"], mat-row';
+    const parseRow = (row) => {
+      const cells = [...row.children].map((c) => clean(c.innerText)).filter(Boolean);
+      let date = "";
+      let caseNo = "";
+      const rest = [];
+      for (const c of cells) {
+        if (!date && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(c)) date = c;
+        else if (!caseNo && /^\d{1,6}\/\d{4}$/.test(c)) caseNo = c;
+        else rest.push(c);
+      }
+      if (!date || !caseNo) return null;
+      return { date, caseNo, kind: rest[0] || "מסמך", parties: rest[1] || "" };
+    };
+    // כל השורות שבעמוד, עם מזהה קבוע לכל אחת (שתי החלטות זהות באותו יום – לפי הסדר)
+    const listRows = () => {
+      const count = new Map();
+      const out = [];
+      for (const row of document.querySelectorAll(ROWS)) {
+        const p = parseRow(row);
+        if (!p) continue;
+        const base = `sharia:${p.caseNo}|${p.date}|${p.kind}|${p.parties}`;
+        const n = count.get(base) || 0;
+        count.set(base, n + 1);
+        out.push({ row, ...p, href: n ? `${base}#${n}` : base });
+      }
+      return out;
+    };
+    // סמל ההורדה של שורה: הסמל האחרון בשורה (אחרי סמל ההצגה), או זה ששמו "הורדה".
+    // השורה עצמה היא קישור לתיק, ולכן לוחצים על הסמל עצמו ולא על מה שעוטף אותו.
+    const downloadButton = (row) => {
+      const own = (el) =>
+        [el.id, el.getAttribute("class"), el.getAttribute("title"), el.getAttribute("aria-label"), el.getAttribute("alt"), el.getAttribute("src"), el.getAttribute("href"), el.getAttribute("data-icon")]
+          .filter(Boolean)
+          .join(" ");
+      const icons = [
+        ...row.querySelectorAll('svg, img, i, mat-icon, button, [role="button"], [class*="icon" i], [class*="download" i]'),
+      ].filter((el) => !clean(el.textContent) && !el.closest('input, label, [type="checkbox"]'));
+      const el = icons.find((x) => /download|הורד/i.test(own(x))) || icons[icons.length - 1];
+      if (!el) return null;
+      const wrap = el.closest('button, a, [role="button"]');
+      return wrap && wrap !== row && row.contains(wrap) && !clean(wrap.textContent) ? wrap : el;
+    };
+    const press = (el) => el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+    const filingText = (f) => {
+      const st = String((f && f.status) || "");
+      if (st === "filed") return `המסמך תויק בתיק ${f.caseId} (${f.docId}) ✓`;
+      if (st.startsWith("duplicate:")) return `המסמך נשמר ✓ – לא תויק: נראה שכבר מתויק בתיק (${st.slice(10)})`;
+      if (st === "no_case") return "המסמך נשמר ✓ – לא תויק: אין במערכת תיק עם מספר התיק הזה";
+      if (st === "ambiguous") return "המסמך נשמר ✓ – לא תויק: יש במערכת יותר מתיק אחד עם המספר הזה";
+      return "המסמך נשמר במערכת המשרד ✓";
+    };
+
+    let lastClick = null; // השורה שנלחצה לאחרונה
+    let waiting = null;   // הייבוא האוטומטי מחכה לתוצאה של השורה הנוכחית
+
+    document.addEventListener(
+      "click",
+      (e) => {
+        const row = e.target && e.target.closest ? e.target.closest(ROWS) : null;
+        if (!row) return;
+        const hit = listRows().find((r) => r.row === row);
+        if (hit) lastClick = { ...hit, row: null, at: Date.now() };
+      },
+      true
+    );
+
+    const toBase64 = (blob) =>
+      new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result).split(",")[1] || "");
+        fr.onerror = () => reject(fr.error);
+        fr.readAsDataURL(blob);
+      });
+
+    window.addEventListener("message", async (e) => {
+      if (e.source !== window || !e.data || e.data.__nmBridgeBlob !== true) return;
+      const blob = e.data.blob;
+      const click = lastClick;
+      if (!(blob instanceof Blob) || !click || Date.now() - click.at > 60000) return;
+      const done = (r) => {
+        if (waiting) { const w = waiting; waiting = null; w(r); }
+        else if (r.ok) toast(filingText(r.filing), true, 8000);
+        else toast("שמירת המסמך במערכת המשרד נכשלה: " + r.error, false, 8000);
+      };
+      try {
+        const head = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+        if (!(head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46)) return; // לא PDF
+        lastClick = null;
+        if (blob.size > 40 * 1024 * 1024) return done({ ok: false, error: "הקובץ גדול מדי" });
+        const digest = new Uint8Array(await crypto.subtle.digest("SHA-1", await blob.arrayBuffer()));
+        const hex = [...digest].slice(0, 8).map((b) => b.toString(16).padStart(2, "0")).join("");
+        const r = await send({
+          type: "NM_BLOB_FILE",
+          b64: await toBase64(blob),
+          name: `sharia_${hex}.pdf`,
+          href: click.href,
+          text: click.kind,
+          context: `${click.date}\n${click.kind}\n${click.caseNo}\n${click.parties}`,
+        });
+        done(r || { ok: false, error: "התוסף עודכן ולא נטען מחדש (↻ ואז F5)" });
+      } catch (err) {
+        done({ ok: false, error: String(err && err.message ? err.message : err) });
+      }
+    });
+
+    const auto = document.createElement("button");
+    auto.className = "nm-bridge-btn nm-bridge-auto";
+    auto.type = "button";
+    auto.textContent = "⚖ ייבוא כל ההחלטות שבעמוד";
+    const bar = document.createElement("div");
+    bar.className = "nm-bridge-bar";
+    bar.hidden = true;
+    const barText = document.createElement("span");
+    const stopBtn = document.createElement("button");
+    stopBtn.type = "button";
+    stopBtn.textContent = "עצור";
+    bar.append(barText, stopBtn);
+    document.documentElement.append(auto, bar);
+    let stopped = false;
+    stopBtn.addEventListener("click", () => { stopped = true; });
+    const pause = (ms) => new Promise((res) => setTimeout(res, ms));
+
+    auto.addEventListener("click", async () => {
+      const rows = listRows();
+      if (!rows.length) return toast("לא נמצאו בעמוד שורות של החלטות (תאריך ומספר תיק)", false, 8000);
+      auto.disabled = true;
+      const p = await send({ type: "NM_PENDING", hrefs: rows.map((r) => r.href) });
+      if (!p || !p.ok) {
+        auto.disabled = false;
+        return toast(p && p.error ? "נכשל: " + p.error : "התוסף עודכן ולא נטען מחדש: ↻ ב-chrome://extensions ואז F5 כאן", false, 12000);
+      }
+      const want = new Set(p.pending);
+      const queue = rows.filter((r) => want.has(r.href));
+      if (!queue.length) {
+        auto.disabled = false;
+        return toast(`כל ${rows.length} ההחלטות שבעמוד כבר נמצאות במערכת המשרד`, true, 8000);
+      }
+      const s = { filed: 0, saved: 0, failed: 0, note: "" };
+      const summary = () => `${s.filed} תויקו בתיקים, ${s.saved} נשמרו ללא תיוק, ${s.failed} נכשלו` + (s.note ? ` | ${s.note}` : "");
+      stopped = false;
+      bar.hidden = false;
+      const startPath = location.pathname;
+      const rowHtml = queue[0].row.outerHTML.replace(/\s+/g, " ").slice(0, 12000);
+      for (let i = 0; i < queue.length && !stopped; i++) {
+        barText.textContent = `מייבא החלטה ${i + 1} מתוך ${queue.length}… (${summary()})`;
+        const item = queue[i];
+        const btn = item.row.isConnected ? downloadButton(item.row) : null;
+        if (!btn) { s.failed++; s.note = "לא נמצא סמל ההורדה בשורה"; continue; }
+        const result = new Promise((resolve) => {
+          waiting = resolve;
+          setTimeout(() => { if (waiting === resolve) { waiting = null; resolve({ ok: false, error: "הקובץ לא נוצר" }); } }, 45000);
+        });
+        press(btn);
+        const r = await result;
+        if (!r.ok) { s.failed++; s.note = r.error; }
+        else if (r.filing && r.filing.status === "filed") s.filed++;
+        else s.saved++;
+        // הלחיצה לא הביאה קובץ, או העבירה לעמוד אחר: מבנה השורה נשלח לבדיקה, ועוצרים
+        if (!r.ok || location.pathname !== startPath) {
+          if (i === 0 || location.pathname !== startPath) {
+            await send({ type: "NM_PAGE_DIAG", diag: `SHARIA ROW ${startPath} -> ${location.pathname}\n${rowHtml}` });
+          }
+          if (location.pathname !== startPath) {
+            s.note = "הלחיצה פתחה עמוד אחר במקום להוריד את הקובץ; מבנה השורה נשלח לבדיקה";
+            break;
+          }
+        }
+        if (i < queue.length - 1) await pause(3000);
+      }
+      bar.hidden = true;
+      auto.disabled = false;
+      toast((stopped ? "הייבוא נעצר: " : "הייבוא הסתיים: ") + summary(), s.failed === 0, 20000);
+    });
   }
 
   // לחיצה על קישור של מסמך/החלטה (קישור "פקודה" של האתר, לא כתובת): זוכרים איזה

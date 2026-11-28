@@ -46401,6 +46401,7 @@ body.dark .ns-root { --ns-ink:#e8edf6; --ns-muted:#a3b0c4; --ns-line:#33415a; --
   background:var(--ns-card); color:var(--ns-ink); font:inherit; font-size:14px; cursor:pointer; text-decoration:none; white-space:nowrap; }
 .ns-btn:hover { border-color:var(--ns-gold); }
 .ns-btn-primary { background:#12305a; color:#f3e3b5; border-color:var(--ns-gold); font-weight:600; }
+.ns-btn:disabled { opacity:.65; cursor:wait; }
 .ns-warn { margin:0; padding:10px 14px; border:1px solid #e3c36a; border-radius:10px; background:var(--ns-new); font-size:14px; }
 .ns-empty { margin:0; padding:26px 12px; text-align:center; color:var(--ns-muted); }
 .ns-tiles { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }

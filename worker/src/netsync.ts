@@ -101,6 +101,7 @@ export async function netSyncReviewed(
 // ---------------------------------------------------------------------------
 
 type SentPage = {
+  source?: unknown;
   url?: unknown;
   text?: unknown;
   caseNumbers?: { number?: unknown }[];
@@ -162,7 +163,52 @@ function splitCaseName(name: string): { parties: string; type: string } {
     : { parties: name.slice(0, cut).trim(), type: name.slice(cut + 3).trim() };
 }
 
+/** The Sharia courts' site lists decisions as four lines per row: kind, date,
+ *  a party's name, case number ("748/2026"). Nothing there is a link, so the
+ *  extension's handler sees no documents; each row is written here, under the
+ *  same key the extension gives it when its file is downloaded. */
+async function enrichShariaPage(db: D1Database, text: string): Promise<void> {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  const now = new Date().toISOString();
+  const count = new Map<string, number>();
+  const stmts: D1PreparedStatement[] = [];
+  for (let i = 1; i + 2 < lines.length; i++) {
+    const d = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(lines[i]);
+    if (!d || !/^\d{1,6}\/\d{4}$/.test(lines[i + 2])) continue;
+    const kind = lines[i - 1];
+    const parties = lines[i + 1];
+    const caseNo = lines[i + 2];
+    const base = `sharia:${caseNo}|${lines[i]}|${kind}|${parties}`;
+    const n = count.get(base) || 0;
+    count.set(base, n + 1);
+    stmts.push(
+      db
+        .prepare(
+          `INSERT OR IGNORE INTO nm_documents
+             (href, title, case_number, source, first_seen_at, doc_date, doc_type, case_name)
+           VALUES (?1, ?2, ?3, 'net-batei-hadin', ?4, ?5, ?2, ?6)`,
+        )
+        .bind(
+          n ? `${base}#${n}` : base,
+          kind,
+          caseNo,
+          now,
+          `${d[3]}-${d[2].padStart(2, '0')}-${d[1].padStart(2, '0')}`,
+          parties,
+        ),
+      db.prepare('UPDATE nm_cases SET case_name = ?1 WHERE case_number = ?2').bind(parties, caseNo),
+    );
+  }
+  if (stmts.length) await db.batch(stmts);
+}
+
 export async function enrichNetSync(db: D1Database, page: SentPage): Promise<void> {
+  if (page.source === 'net-batei-hadin') {
+    return enrichShariaPage(db, typeof page.text === 'string' ? page.text : '');
+  }
   const rows = listRowsFromText(typeof page.text === 'string' ? page.text : '');
   const stmts: D1PreparedStatement[] = [];
 
@@ -300,6 +346,8 @@ export async function netSyncStoreFile(request: Request, env: Env): Promise<Resu
   const href = q.get('href') || '';
   const row = listRowsFromText(q.get('context') || '')[0];
   const db = env.DB;
+  // which site it came from: the civil courts' (default) or the Sharia courts'
+  const source = q.get('source') === 'net-batei-hadin' ? 'net-batei-hadin' : 'net-hamishpat';
 
   if (href) {
     // The row of the link that was clicked. It exists if its list was sent
@@ -307,9 +355,9 @@ export async function netSyncStoreFile(request: Request, env: Env): Promise<Resu
     await db
       .prepare(
         `INSERT OR IGNORE INTO nm_documents (href, title, case_number, source, first_seen_at)
-         VALUES (?1, ?2, ?3, 'net-hamishpat', ?4)`,
+         VALUES (?1, ?2, ?3, ?5, ?4)`,
       )
-      .bind(href, q.get('text') || name, row ? row.caseNumber : null, now)
+      .bind(href, q.get('text') || name, row ? row.caseNumber : null, now, source)
       .run();
     await db
       .prepare(
@@ -342,9 +390,9 @@ export async function netSyncStoreFile(request: Request, env: Env): Promise<Resu
   await db
     .prepare(
       `INSERT OR IGNORE INTO nm_documents (href, title, case_number, source, first_seen_at)
-       VALUES (?1, ?2, NULL, 'net-hamishpat', ?3)`,
+       VALUES (?1, ?2, NULL, ?4, ?3)`,
     )
-    .bind(own, name, now)
+    .bind(own, name, now, source)
     .run();
   await db
     .prepare('UPDATE nm_documents SET file_key = ?1, file_size = ?2, file_at = ?3 WHERE href = ?4')
@@ -426,6 +474,7 @@ type NmRow = {
   file_key: string | null;
   filed_doc_id: string | null;
   filed_case_id: string | null;
+  source: string | null;
 };
 
 export async function netSyncFileToCase(
@@ -437,7 +486,7 @@ export async function netSyncFileToCase(
 ): Promise<Filing> {
   const nm = await db
     .prepare(
-      `SELECT id, title, case_number, doc_date, doc_type, case_name, file_key, filed_doc_id, filed_case_id
+      `SELECT id, title, case_number, doc_date, doc_type, case_name, file_key, filed_doc_id, filed_case_id, source
          FROM nm_documents WHERE id = ?1`,
     )
     .bind(nmId)
@@ -559,8 +608,8 @@ export async function netSyncFileToCase(
         cs.source_id,
         cs.client_source_id,
         stem,
-        'יובא מנט המשפט',
-        'استُورد من نت همشباط',
+        nm.source === 'net-batei-hadin' ? 'יובא מנט בתי הדין השרעיים' : 'יובא מנט המשפט',
+        nm.source === 'net-batei-hadin' ? 'استُورد من موقع المحاكم الشرعية' : 'استُورد من نت همشباط',
         fileName,
         up.path || `${folder}/${fileName}`,
         nm.doc_date || now.slice(0, 10),
