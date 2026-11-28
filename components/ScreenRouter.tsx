@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { useBackHandler } from '@/hooks/useBackHandler';
-import { useWhatsAppEnabled } from '@/hooks/useIsOperatorOffice';
+import { useIsOperatorOffice, useWhatsAppEnabled } from '@/hooks/useIsOperatorOffice';
 import { HomeDashboard } from './HomeDashboard';
 import { ClientsScreen } from './ClientsScreen';
 import { CasesScreen } from './CasesScreen';
@@ -17,6 +17,7 @@ import { GlobalSearchScreen } from './GlobalSearchScreen';
 import { AnalyticsScreen } from './AnalyticsScreen';
 import { BriefingScreen } from './BriefingScreen';
 import { AnnexesScreen } from './AnnexesScreen';
+import { NetSyncScreen } from './NetSyncScreen';
 
 /**
  * Switches on `currentTab` to render the active screen. Port of
@@ -73,11 +74,16 @@ function ActiveScreen({
   waEnabled: boolean;
   portalNavNonce: number;
 }) {
+  const isOperator = useIsOperatorOffice();
   // The portal needs WhatsApp: the operator's original number, or an office
   // that connected its own (each office then reads and sends only its own).
   // Without it the tab is hidden — and a stale `currentTab` restored from a
   // previous session falls back home.
   if (tab === 'portal' && !waEnabled) {
+    return <HomeDashboard />;
+  }
+  // "סנכרון נט" belongs to the operator office (see NavButtons); likewise.
+  if (tab === 'netsync' && !isOperator) {
     return <HomeDashboard />;
   }
 
@@ -109,6 +115,8 @@ function ActiveScreen({
       return <AnalyticsScreen />;
     case 'briefing':
       return <BriefingScreen />;
+    case 'netsync':
+      return <NetSyncScreen />;
     default:
       return <HomeDashboard />;
   }

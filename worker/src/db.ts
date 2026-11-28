@@ -28,6 +28,11 @@ export interface Env {
   DROPBOX_REFRESH_TOKEN?: string;
   DROPBOX_BASE_FOLDER?: string;
 
+  // "סנכרון נט": the token the browser extension (extensions/netmishpat-ext)
+  // sends to POST /api/netmishpat/ingest. A secret of its own, not APP_TOKEN:
+  //   npx wrangler secret put NM_BRIDGE_TOKEN -c wrangler.v4.toml
+  NM_BRIDGE_TOKEN?: string;
+
   // ── Multi-tenant control plane (Phase 1) ──────────────────────────────────
   // A SEPARATE D1 that holds ONLY the SaaS registry — accounts + sessions
   // (Better Auth) and the office/membership tables — never an office's case

@@ -46240,9 +46240,15 @@ html body #content.content .cx-root.cx-root .cx-view.cx-gcal{height:42px;font-si
  *     screens the icons, labels and inner spacing shrink step by step
  *     so the whole column still fits the window height.
  * ================================================================ */
+html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn i.nav-icon-netsync {
+  background-image: url('/icons/nav-netsync.png') !important;
+}
+html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn i.nav-icon-annexes {
+  background-image: url('/icons/nav-annexes.png') !important;
+}
+html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn i.nav-icon-netsync,
 html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn i.nav-icon-annexes {
   background-color: transparent !important;
-  background-image: url('/icons/nav-annexes.png') !important;
   background-repeat: no-repeat !important;
   background-position: center !important;
   background-size: contain !important;
@@ -46254,6 +46260,7 @@ html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn i.nav-icon
   color: transparent !important;
   line-height: 0 !important;
 }
+html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn i.nav-icon-netsync::before,
 html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn i.nav-icon-annexes::before {
   content: none !important;
 }
@@ -46378,3 +46385,48 @@ html body #content.content .annexes-screen[hidden] {
   opacity: 0.55;
   cursor: default;
 }
+
+/* ================================================================ *
+ * Screen "סנכרון נט" (components/NetSyncScreen.tsx) — what the Net
+ * HaMishpat browser extension sent. Its own small set of classes, in
+ * the office colours (navy / gold / cream), light and dark.
+ * ================================================================ */
+.ns-root { --ns-ink:#12305a; --ns-muted:#5b6b82; --ns-line:#e2dccb; --ns-card:#fff; --ns-soft:#f7f4ec; --ns-gold:#b8963e; --ns-new:#fff8e3;
+  display:flex; flex-direction:column; gap:14px; max-width:1280px; margin:0 auto; color:var(--ns-ink); }
+body.dark .ns-root { --ns-ink:#e8edf6; --ns-muted:#a3b0c4; --ns-line:#33415a; --ns-card:#1a2538; --ns-soft:#141d2d; --ns-gold:#d3b566; --ns-new:#2b2a1c; }
+.ns-head { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+.ns-intro { margin:0; font-size:15px; color:var(--ns-muted); }
+.ns-intro strong { color:var(--ns-ink); font-weight:600; margin-inline-start:6px; }
+.ns-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid var(--ns-line); border-radius:8px;
+  background:var(--ns-card); color:var(--ns-ink); font:inherit; font-size:14px; cursor:pointer; text-decoration:none; white-space:nowrap; }
+.ns-btn:hover { border-color:var(--ns-gold); }
+.ns-btn-primary { background:#12305a; color:#f3e3b5; border-color:var(--ns-gold); font-weight:600; }
+.ns-warn { margin:0; padding:10px 14px; border:1px solid #e3c36a; border-radius:10px; background:var(--ns-new); font-size:14px; }
+.ns-empty { margin:0; padding:26px 12px; text-align:center; color:var(--ns-muted); }
+.ns-tiles { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+.ns-tile { background:var(--ns-card); border:1px solid var(--ns-line); border-radius:12px; padding:12px 16px; display:flex; flex-direction:column; gap:2px; }
+.ns-tile b { font-size:26px; line-height:1.15; font-weight:700; }
+.ns-tile span { font-size:13px; color:var(--ns-muted); }
+.ns-tile-new { border-color:var(--ns-gold); background:var(--ns-new); }
+.ns-tabs { display:flex; gap:4px; flex-wrap:wrap; border-bottom:1px solid var(--ns-line); }
+.ns-tab { padding:8px 14px; border:0; border-bottom:3px solid transparent; background:none; color:var(--ns-muted); font:inherit; font-size:15px; cursor:pointer; }
+.ns-tab.active { color:var(--ns-ink); font-weight:700; border-bottom-color:var(--ns-gold); }
+.ns-panel { background:var(--ns-card); border:1px solid var(--ns-line); border-radius:12px; overflow:hidden; }
+.ns-panel-bar { display:flex; justify-content:flex-end; padding:10px 12px; border-bottom:1px solid var(--ns-line); background:var(--ns-soft); }
+.ns-table-wrap { overflow-x:auto; }
+.ns-table { width:100%; border-collapse:collapse; font-size:14px; }
+.ns-table th { text-align:start; padding:9px 12px; background:var(--ns-soft); color:var(--ns-muted); font-weight:600; font-size:13px; white-space:nowrap; }
+.ns-table td { padding:9px 12px; border-top:1px solid var(--ns-line); vertical-align:middle; text-align:start; }
+.ns-table td[dir="ltr"] { white-space:nowrap; unicode-bidi:plaintext; }
+.ns-table a:not(.ns-btn) { color:inherit; text-decoration:underline; text-underline-offset:3px; word-break:break-word; }
+.ns-table tr.ns-fresh td { background:var(--ns-new); }
+.ns-table tr.ns-fresh td:first-child { font-weight:600; }
+.ns-actions { text-align:end !important; width:1%; white-space:nowrap; }
+.ns-setup { padding:16px 20px; font-size:15px; line-height:1.6; }
+.ns-setup h3 { margin:0 0 8px; font-size:17px; }
+.ns-setup ol { margin:0; padding-inline-start:22px; display:flex; flex-direction:column; gap:10px; }
+.ns-setup code { display:block; margin-top:4px; padding:7px 10px; border-radius:8px; background:var(--ns-soft); border:1px solid var(--ns-line);
+  font-family:Consolas,'Courier New',monospace; font-size:13px; text-align:left; overflow-x:auto; white-space:nowrap; }
+.ns-url { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px; }
+.ns-url code { display:inline-block; margin:0; }
+@media (max-width:899px){ .ns-tiles { grid-template-columns:repeat(2,minmax(0,1fr)); } }

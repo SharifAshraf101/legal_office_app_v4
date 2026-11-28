@@ -19,6 +19,8 @@
 import { corsHeaders, json, preflight } from './cors';
 import { buildUpsert, LOAD_TABLES, safeParse, type Env } from './db';
 import { resolveTenant, type Ctx } from './tenant';
+import { handleNetMishpat } from '../../extensions/worker-snippet/netmishpat-ingest';
+import { netSyncOverview, netSyncReviewed } from './netsync';
 import { calendarFeedResponse, officeFeed } from './calfeed';
 import { purgeDismissedEvents, rememberDismissed } from './dismissed';
 import { createAuth, runAuthMigrations } from './auth';
@@ -132,6 +134,19 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
+
+    // ----- "סנכרון נט": the browser extension (extensions/netmishpat-ext) sends
+    //       what is on the Net HaMishpat screen. Authorised by its OWN token
+    //       (NM_BRIDGE_TOKEN), never the app token; written to the operator
+    //       office's database. Before the preflight below, since the handler
+    //       answers its own OPTIONS (an extension is not in ALLOWED_ORIGIN).
+    if (path === '/api/netmishpat/ingest') {
+      const nm = await handleNetMishpat(request, {
+        DB: env.DB,
+        NM_BRIDGE_TOKEN: env.NM_BRIDGE_TOKEN || '',
+      });
+      if (nm) return nm;
+    }
 
     if (method === 'OPTIONS') return preflight(request, env);
 
@@ -866,6 +881,16 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
     }
     if (method === 'POST' && path === '/api/convert-to-pdf') {
       return handleConvertToPdf(request, env, ctx);
+    }
+    // "סנכרון נט" screen: what the extension sent, and marking documents read.
+    if (method === 'GET' && path === '/api/netmishpat/overview') {
+      const r = await netSyncOverview(env, ctx);
+      return json(r.body, request, env, r.status);
+    }
+    if (method === 'POST' && path === '/api/netmishpat/reviewed') {
+      const b = (await request.json().catch(() => ({}))) as Parameters<typeof netSyncReviewed>[2];
+      const r = await netSyncReviewed(env, ctx, b);
+      return json(r.body, request, env, r.status);
     }
     return json({ error: 'not found' }, request, env, 404);
     } catch (e) {

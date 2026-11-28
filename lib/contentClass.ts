@@ -26,6 +26,7 @@ export function contentClassFor(tab: string, hs: string): string {
     (tab === 'financeDetail' && (classic || modern) ? ' contacts-classic fd-classic' + (modern ? ' contacts-modern' : '') : '') +
     (tab === 'analytics' ? ' analytics-content' + (classic ? ' analytics-classic' : '') : '') +
     (tab === 'annexes' ? ' annexes-content' : '') +
+    (tab === 'netsync' ? ' netsync-content' : '') +
     (tab === 'briefing' ? ' analytics-content briefing-content' + (classic ? ' briefing-classic' : '') : '')
   );
 }

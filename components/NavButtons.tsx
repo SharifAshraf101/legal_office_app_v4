@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppState } from '@/hooks/useAppState';
-import { useWhatsAppEnabled } from '@/hooks/useIsOperatorOffice';
+import { useIsOperatorOffice, useWhatsAppEnabled } from '@/hooks/useIsOperatorOffice';
 import { useT } from '@/hooks/useT';
 
 /**
@@ -24,16 +24,18 @@ const ICONS: Record<string, string> = {
   calendar: 'fa-calendar',
   portal: 'fa-comment-dots',
   search: 'fa-magnifying-glass',
+  netsync: 'fa-rotate',
   annexes: 'fa-folder-tree',
 };
 
 // Same `order` array as source line 3845.
-const ORDER = ['home', 'search', 'contacts', 'cases', 'documents', 'calendar', 'tasks', 'finance', 'portal', 'annexes'];
+const ORDER = ['home', 'search', 'contacts', 'cases', 'documents', 'calendar', 'tasks', 'finance', 'portal', 'netsync', 'annexes'];
 
 // Tabs offered in the desktop sidebar only. The annexes program is a wide
-// drag-and-drop workspace made for a computer screen, and the phone's bottom
-// bar has no room for a tenth button.
-const DESKTOP_ONLY = new Set(['annexes']);
+// drag-and-drop workspace made for a computer screen, "סנכרון נט" shows what a
+// desktop browser extension sent, and the phone's bottom bar has no room for
+// more buttons.
+const DESKTOP_ONLY = new Set(['netsync', 'annexes']);
 
 /** Hebrew/Arabic labels per tab id. Returns a ReactNode so that
  *  long labels (e.g. portal) can carry an explicit `<br>` for a
@@ -65,6 +67,7 @@ function tabLabel(
   }
   if (id === 'documents') return lang === 'ar' ? 'المستندات' : 'מסמכים';
   if (id === 'tasks') return lang === 'ar' ? 'مهام' : 'משימות';
+  if (id === 'netsync') return lang === 'ar' ? 'تزامن النت' : 'סנכרון נט';
   if (id === 'annexes') {
     // Two lines, like the portal label: the narrow sidebar button cuts a
     // single-line label short ("ادارة الملحق…").
@@ -91,8 +94,14 @@ export function NavButtons({ mobile = false }: { mobile?: boolean } = {}) {
   // The portal runs on the operator's WhatsApp number — hidden for tenants.
   // The communication tab needs WhatsApp: the operator, or a connected office.
   const waEnabled = useWhatsAppEnabled();
+  // "סנכרון נט" reads what the Net HaMishpat extension sent; the extension
+  // writes to the operator office only, so only that office gets the button.
+  const isOperator = useIsOperatorOffice();
   const tabs = ORDER.filter(
-    (id) => (waEnabled || id !== 'portal') && !(mobile && DESKTOP_ONLY.has(id)),
+    (id) =>
+      (waEnabled || id !== 'portal') &&
+      (isOperator || id !== 'netsync') &&
+      !(mobile && DESKTOP_ONLY.has(id)),
   );
 
   return (

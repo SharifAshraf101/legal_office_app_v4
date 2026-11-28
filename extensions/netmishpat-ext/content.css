@@ -1,0 +1,14 @@
+.nm-bridge-btn {
+  position: fixed; bottom: 18px; left: 18px; z-index: 2147483647;
+  background: #1b3a5f; color: #f3e3b5; border: 1px solid #b8963e;
+  border-radius: 22px; padding: 9px 16px; font: 600 14px Arial, sans-serif;
+  box-shadow: 0 3px 10px rgba(0,0,0,.25); cursor: pointer; direction: rtl;
+}
+.nm-bridge-btn:hover { background: #24507f; }
+.nm-bridge-btn:disabled { opacity: .6; cursor: wait; }
+.nm-bridge-toast {
+  position: fixed; bottom: 64px; left: 18px; z-index: 2147483647; direction: rtl;
+  padding: 10px 14px; border-radius: 8px; font: 14px Arial, sans-serif; color: #fff;
+}
+.nm-bridge-toast.ok { background: #2e7d32; }
+.nm-bridge-toast.err { background: #c62828; }
