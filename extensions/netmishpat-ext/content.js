@@ -182,7 +182,10 @@
     return out;
   }
 
-  if (window.top === window && !IS_VIEWER_PAGE && SOURCE === "net-hamishpat") {
+  // לא בעמודי הדו"חות (למשל "הדיונים שלי"): שם אין רשימת מסמכים לייבא, והסמל
+  // "מסמכים נכנסים" שבשורת הדיון רק פותח חלונית – הדיונים עצמם נשלחים ב"שלח למערכת המשרד".
+  const IS_REPORT_PAGE = /\/Reports\//i.test(location.pathname);
+  if (window.top === window && !IS_VIEWER_PAGE && !IS_REPORT_PAGE && SOURCE === "net-hamishpat") {
     const auto = document.createElement("button");
     auto.className = "nm-bridge-btn nm-bridge-auto";
     auto.type = "button";
@@ -525,6 +528,11 @@
     document.documentElement.append(auto, bar);
     let stopped = false;
     stopBtn.addEventListener("click", () => { stopped = true; });
+    // הייבוא הוא של החלטות: הכפתור מוצג רק בעמוד ההחלטות. האתר מחליף עמודים בלי
+    // טעינה מחדש, ולכן זה נבדק שוב ושוב. בעמוד הדיונים שולחים ב"שלח למערכת המשרד".
+    const showAuto = () => { auto.hidden = !/\/decisions/i.test(location.pathname); };
+    showAuto();
+    setInterval(showAuto, 1000);
     const pause = (ms) => new Promise((res) => setTimeout(res, ms));
 
     auto.addEventListener("click", async () => {

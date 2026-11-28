@@ -24,3 +24,4 @@
   border: 1px solid #f3e3b5; background: transparent; color: #f3e3b5;
   border-radius: 14px; padding: 4px 12px; font: 600 13px Arial, sans-serif; cursor: pointer;
 }
+.nm-bridge-btn[hidden] { display: none; }

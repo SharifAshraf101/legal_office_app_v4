@@ -208,6 +208,7 @@ async function enrichShariaPage(db: D1Database, text: string): Promise<void> {
 
 export async function enrichNetSync(db: D1Database, page: SentPage): Promise<void> {
   if (page.source === 'net-batei-hadin') {
+    if (/\/discussions/i.test(String(page.url || ''))) return; // hearings: enrichHearings
     return enrichShariaPage(db, typeof page.text === 'string' ? page.text : '');
   }
   const rows = listRowsFromText(typeof page.text === 'string' ? page.text : '');
@@ -769,6 +770,58 @@ export function sittingsFromText(text: string): SittingRow[] {
   return out;
 }
 
+/** The Sharia courts' site, "הדיונים שלך": a row starts with the case number
+ *  ("2217/2026"), then the chamber, the kind of case, the parties, the kind of
+ *  hearing, its date and hour, the place, the judge and the lawyer's role. */
+export function shariaSittingsFromText(text: string): SittingRow[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  const isCase = (l: string) => /^\d{1,6}\/\d{4}$/.test(l);
+  const out: SittingRow[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!isCase(lines[i])) continue;
+    let at = -1;
+    let d: RegExpExecArray | null = null;
+    for (let j = i + 1; j <= i + 7 && j < lines.length; j++) {
+      if (isCase(lines[j])) break;
+      d = /(?:^|\D)(\d{1,2})\/(\d{1,2})\/(\d{4})(?!\d)/.exec(lines[j]);
+      if (d) {
+        at = j;
+        break;
+      }
+    }
+    if (at < 0 || !d) continue;
+    // the hour: on the date's own line, or alone on the next one
+    // "09/05/2027 בשעה 11:50 - 12:30": a range, and a right-to-left line may
+    // hold its two hours in either order — the hearing starts at the earlier.
+    const inLine = [...lines[at].matchAll(/(?:^|\D)([01]?\d|2[0-3]):([0-5]\d)(?!\d)/g)].sort(
+      (a, b) => Number(a[1]) * 60 + Number(a[2]) - (Number(b[1]) * 60 + Number(b[2])),
+    );
+    const hour = inLine[0] || TIME_LINE.exec(lines[at + 1] || '');
+    const hourOnNextLine = !/:/.test(lines[at]) && !!hour;
+    const before = lines.slice(i + 1, at);
+    const after: string[] = [];
+    for (let j = at + (hourOnNextLine ? 2 : 1); j < lines.length && after.length < 3; j++) {
+      if (isCase(lines[j]) || /מתוך/.test(lines[j])) break;
+      after.push(lines[j]);
+    }
+    out.push({
+      date: `${d[3]}-${d[2].padStart(2, '0')}-${d[1].padStart(2, '0')}`,
+      time: hour ? `${hour[1].padStart(2, '0')}:${hour[2]}` : '',
+      court: ['בית דין שרעי', before[0]].filter(Boolean).join(' '),
+      caseName: before[2] || '',
+      caseNumber: lines[i],
+      kind: [before[3], before[1]].filter(Boolean).join(' - '),
+      judge: after[1] || '',
+      status: '',
+    });
+    i = at;
+  }
+  return out;
+}
+
 /** An Israel wall-clock day and hour → the true UTC instant (the calendar
  *  stores UTC and shows Israel time). */
 export function israelToUtc(day: string, time: string): string {
@@ -789,6 +842,7 @@ export function israelToUtc(day: string, time: string): string {
 
 type HearingRecord = {
   id: number;
+  source: string;
   case_number: string;
   hearing_date: string;
   hearing_time: string;
@@ -869,11 +923,16 @@ async function hearingToCalendar(env: Env, db: D1Database, h: HearingRecord): Pr
       eventId,
       cs.source_id,
       cs.client_source_id,
-      h.hearing_type ? `דיון - ${h.hearing_type}` : 'דיון',
+      !h.hearing_type ? 'דיון' : h.hearing_type.startsWith('דיון') ? h.hearing_type : `דיון - ${h.hearing_type}`,
       'جلسة',
-      israelToUtc(h.hearing_date, h.hearing_time || '09:00'),
-      'מועד הדיון יובא מיומן הדיונים בנט המשפט.' + (details ? ' ' + details : ''),
-      'أُدرج موعد الجلسة من جدول الجلسات في نت همشباط.',
+      // no hour on the court's list: the day alone
+      h.hearing_time ? israelToUtc(h.hearing_date, h.hearing_time) : h.hearing_date,
+      (h.source === 'net-batei-hadin'
+        ? 'מועד הדיון יובא מרשימת הדיונים בנט בתי הדין השרעיים.'
+        : 'מועד הדיון יובא מיומן הדיונים בנט המשפט.') + (details ? ' ' + details : ''),
+      h.source === 'net-batei-hadin'
+        ? 'أُدرج موعد الجلسة من قائمة الجلسات في موقع المحاكم الشرعية.'
+        : 'أُدرج موعد الجلسة من جدول الجلسات في نت همشباط.',
       now,
     )
     .run();
@@ -882,8 +941,11 @@ async function hearingToCalendar(env: Env, db: D1Database, h: HearingRecord): Pr
 
 /** The hearings on a sent page: kept, and entered in the calendar. */
 export async function enrichHearings(env: Env, db: D1Database, page: SentPage): Promise<number> {
-  if (page.source === 'net-batei-hadin') return 0;
-  const rows = sittingsFromText(typeof page.text === 'string' ? page.text : '');
+  const text = typeof page.text === 'string' ? page.text : '';
+  const sharia = page.source === 'net-batei-hadin';
+  if (sharia && !/\/discussions/i.test(String(page.url || ''))) return 0;
+  const source = sharia ? 'net-batei-hadin' : 'net-hamishpat';
+  const rows = sharia ? shariaSittingsFromText(text) : sittingsFromText(text);
   if (!rows.length) return 0;
   const now = new Date().toISOString();
   await db.batch(
@@ -892,12 +954,12 @@ export async function enrichHearings(env: Env, db: D1Database, page: SentPage): 
         .prepare(
           `INSERT INTO nm_hearings
              (source, case_number, hearing_date, hearing_time, court, case_name, hearing_type, judge, status, first_seen_at, last_seen_at)
-           VALUES ('net-hamishpat', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
+           VALUES (?10, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
            ON CONFLICT (source, case_number, hearing_date, hearing_time) DO UPDATE SET
              court = excluded.court, case_name = excluded.case_name, hearing_type = excluded.hearing_type,
              judge = excluded.judge, status = excluded.status, last_seen_at = excluded.last_seen_at`,
         )
-        .bind(r.caseNumber, r.date, r.time, r.court, r.caseName, r.kind, r.judge, r.status, now),
+        .bind(r.caseNumber, r.date, r.time, r.court, r.caseName, r.kind, r.judge, r.status, now, source),
     ),
   );
   return netSyncHearingsToCalendar(env, db);
@@ -908,7 +970,7 @@ export async function enrichHearings(env: Env, db: D1Database, page: SentPage): 
 export async function netSyncHearingsToCalendar(env: Env, db: D1Database): Promise<number> {
   const waiting = await db
     .prepare(
-      `SELECT id, case_number, hearing_date, hearing_time, court, hearing_type, judge, status, event_id
+      `SELECT id, source, case_number, hearing_date, hearing_time, court, hearing_type, judge, status, event_id
          FROM nm_hearings
         WHERE event_id IS NULL AND (calendar_status IS NULL OR calendar_status = 'no_case')
           AND hearing_date >= date('now', '-1 day')
