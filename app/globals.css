@@ -46284,7 +46284,7 @@ html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn i.nav-icon
     line-height: 1.1 !important;
   }
 }
-@media (min-width: 1051px) and (max-height: 740px) {
+@media (min-width: 1051px) and (max-height: 790px) {
   html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn {
     padding-block: 2px !important;
     gap: 0 !important;
@@ -46476,29 +46476,17 @@ html body:not(.dark) .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav .nav-btn
     padding-block: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    /* the space between buttons, as before; less in a short window */
-    gap: 16px !important;
+    /* The free height is shared out evenly: the same space between every two
+       buttons as above the first and below the last — so the buttons spread
+       over the whole height in a tall window and close up in a short one. */
+    justify-content: space-evenly !important;
+    gap: 0 !important;
     overflow-y: auto !important;
   }
   html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav > .nav-btn {
     flex: 0 1 auto !important;
   }
-  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav > .nav-btn:first-child {
-    margin-top: auto !important;
-  }
-  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav > .nav-btn:last-child {
-    margin-bottom: auto !important;
-  }
   html body .sidebar.sidebar.sidebar.sidebar.sidebar .sidebar-footer {
     display: none !important;
   }
-}
-@media (min-width: 1051px) and (max-height: 900px) {
-  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav { gap: 8px !important; }
-}
-@media (min-width: 1051px) and (max-height: 800px) {
-  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav { gap: 4px !important; }
-}
-@media (min-width: 1051px) and (max-height: 740px) {
-  html body .sidebar.sidebar.sidebar.sidebar.sidebar .side-nav { gap: 3px !important; }
 }
