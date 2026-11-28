@@ -20,7 +20,7 @@ import { corsHeaders, json, preflight } from './cors';
 import { buildUpsert, LOAD_TABLES, safeParse, type Env } from './db';
 import { resolveTenant, type Ctx } from './tenant';
 import { handleNetMishpat } from '../../extensions/worker-snippet/netmishpat-ingest';
-import { netSyncOverview, netSyncReviewed } from './netsync';
+import { enrichNetSync, netSyncOverview, netSyncReviewed } from './netsync';
 import { calendarFeedResponse, officeFeed } from './calfeed';
 import { purgeDismissedEvents, rememberDismissed } from './dismissed';
 import { createAuth, runAuthMigrations } from './auth';
@@ -141,11 +141,24 @@ export default {
     //       office's database. Before the preflight below, since the handler
     //       answers its own OPTIONS (an extension is not in ALLOWED_ORIGIN).
     if (path === '/api/netmishpat/ingest') {
+      const sent = method === 'POST' ? request.clone() : null;
       const nm = await handleNetMishpat(request, {
         DB: env.DB,
         NM_BRIDGE_TOKEN: env.NM_BRIDGE_TOKEN || '',
       });
-      if (nm) return nm;
+      if (nm) {
+        // Stored: now give each decision its case, date and case name
+        // (worker/src/netsync.ts). The page is already saved, so a failure
+        // here must not turn the extension's "sent" into an error.
+        if (sent && nm.ok) {
+          try {
+            await enrichNetSync(env.DB, await sent.json());
+          } catch (e) {
+            console.warn('[netsync] details step failed', e);
+          }
+        }
+        return nm;
+      }
     }
 
     if (method === 'OPTIONS') return preflight(request, env);

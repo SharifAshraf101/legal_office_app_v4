@@ -24,10 +24,15 @@ type Doc = {
   source: string;
   first_seen_at: string;
   reviewed: number;
+  doc_date: string | null;
+  doc_type: string | null;
+  summary: string | null;
+  case_name: string | null;
 };
 type CaseRow = {
   case_number: string;
   case_type: string | null;
+  case_name: string | null;
   source: string;
   last_seen_url: string | null;
   last_seen_at: string | null;
@@ -70,7 +75,8 @@ const L = {
     colCase: 'מספר תיק',
     colType: 'סוג הליך',
     colSource: 'מקור',
-    colSeen: 'נראה לראשונה',
+    colDate: 'תאריך',
+    colName: 'שם התיק',
     colLast: 'נראה לאחרונה',
     colPage: 'עמוד',
     colSent: 'נשלח',
@@ -119,7 +125,8 @@ const L = {
     colCase: 'رقم الملف',
     colType: 'نوع الإجراء',
     colSource: 'المصدر',
-    colSeen: 'شوهد لأول مرة',
+    colDate: 'التاريخ',
+    colName: 'اسم الملف',
     colLast: 'شوهد آخر مرة',
     colPage: 'الصفحة',
     colSent: 'أُرسل',
@@ -239,24 +246,33 @@ export function NetSyncScreen() {
         <table className="ns-table">
           <thead>
             <tr>
+              <th>{t.colDate}</th>
               <th>{t.colDoc}</th>
               <th>{t.colCase}</th>
+              <th>{t.colName}</th>
               <th>{t.colSource}</th>
-              <th>{t.colSeen}</th>
               <th />
             </tr>
           </thead>
           <tbody>
             {rows.map((d) => (
               <tr key={d.id} className={d.reviewed ? '' : 'ns-fresh'}>
+                <td dir="ltr">{d.doc_date ? d.doc_date.split('-').reverse().join('.') : when(d.first_seen_at)}</td>
                 <td>
-                  <a href={d.href} target="_blank" rel="noopener noreferrer">
-                    {d.title || t.untitled}
-                  </a>
+                  {/* The court site opens many documents with a script, not an
+                      address; such a "link" cannot be opened from here. */}
+                  {/^https?:\/\//i.test(d.href) ? (
+                    <a href={d.href} target="_blank" rel="noopener noreferrer">
+                      {d.doc_type || d.title || t.untitled}
+                    </a>
+                  ) : (
+                    d.doc_type || d.title || t.untitled
+                  )}
+                  {d.summary && <small className="ns-sub">{d.summary}</small>}
                 </td>
                 <td dir="ltr">{d.case_number || ''}</td>
+                <td>{d.case_name || ''}</td>
                 <td>{sourceName(d.source)}</td>
-                <td dir="ltr">{when(d.first_seen_at)}</td>
                 <td className="ns-actions">
                   <button
                     type="button"
@@ -403,6 +419,7 @@ export function NetSyncScreen() {
                     <thead>
                       <tr>
                         <th>{t.colCase}</th>
+                        <th>{t.colName}</th>
                         <th>{t.colType}</th>
                         <th>{t.colSource}</th>
                         <th>{t.colLast}</th>
@@ -413,6 +430,7 @@ export function NetSyncScreen() {
                       {(data.cases || []).map((c) => (
                         <tr key={c.case_number}>
                           <td dir="ltr">{c.case_number}</td>
+                          <td>{c.case_name || ''}</td>
                           <td>{c.case_type || ''}</td>
                           <td>{sourceName(c.source)}</td>
                           <td dir="ltr">{when(c.last_seen_at)}</td>
