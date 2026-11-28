@@ -26,6 +26,7 @@ import {
   netSyncFileToCase,
   netSyncFileToCaseRoute,
   netSyncOverview,
+  netSyncPending,
   netSyncRetryPending,
   netSyncReviewed,
   netSyncStoreFile,
@@ -171,6 +172,10 @@ export default {
     }
 
     // The PDF of a document saved from the court's viewer (same bridge token).
+    if (method === 'POST' && path === '/api/netmishpat/pending') {
+      const r = await netSyncPending(request, env);
+      return json(r.body, request, env, r.status);
+    }
     if (method === 'POST' && path === '/api/netmishpat/file') {
       const r = await netSyncStoreFile(request, env);
       // Received: file it in the client's case straight away. A failure here

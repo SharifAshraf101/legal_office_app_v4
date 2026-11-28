@@ -608,3 +608,39 @@ export async function netSyncFileToCaseRoute(
   const filing = await netSyncFileToCase(env, ctx.db, id, deps, body.force === true);
   return { status: 200, body: { ok: filing.status === 'filed', filing } };
 }
+
+/** POST /api/netmishpat/pending  { hrefs, diag? }   (bridge token)
+ *  Which of these documents have no file here yet — what the extension's
+ *  "import everything on the page" still has to open. `diag` is a description
+ *  of the court viewer's toolbar, kept for fixing the save-button lookup. */
+export async function netSyncPending(request: Request, env: Env): Promise<Result> {
+  const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!env.NM_BRIDGE_TOKEN || !sameToken(token, env.NM_BRIDGE_TOKEN)) {
+    return { status: 401, body: { error: 'unauthorized' } };
+  }
+  const body = (await request.json().catch(() => ({}))) as { hrefs?: unknown; diag?: unknown };
+  const db = env.DB;
+  if (typeof body.diag === 'string' && body.diag) {
+    const now = new Date().toISOString();
+    await db
+      .prepare(
+        `INSERT INTO nm_snapshots (source, url, title, captured_at, text_content, created_at)
+         VALUES ('diag', 'viewer-toolbar', 'viewer-toolbar', ?1, ?2, ?1)`,
+      )
+      .bind(now, body.diag.slice(0, 60000))
+      .run();
+  }
+  const hrefs = (Array.isArray(body.hrefs) ? body.hrefs : []).map((h) => String(h)).slice(0, 100);
+  const have = new Set<string>();
+  for (let i = 0; i < hrefs.length; i += 40) {
+    const chunk = hrefs.slice(i, i + 40);
+    const rs = await db
+      .prepare(
+        `SELECT href FROM nm_documents WHERE file_key IS NOT NULL AND href IN (${chunk.map((_, j) => '?' + (j + 1)).join(', ')})`,
+      )
+      .bind(...chunk)
+      .all<{ href: string }>();
+    for (const r of rs.results || []) have.add(r.href);
+  }
+  return { status: 200, body: { ok: true, pending: hrefs.filter((h) => !have.has(h)) } };
+}

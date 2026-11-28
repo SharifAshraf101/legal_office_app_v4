@@ -12,3 +12,15 @@
 }
 .nm-bridge-toast.ok { background: #2e7d32; }
 .nm-bridge-toast.err { background: #c62828; }
+.nm-bridge-auto { left: 215px; }
+.nm-bridge-bar {
+  position: fixed; bottom: 112px; left: 18px; z-index: 2147483647; direction: rtl;
+  display: flex; align-items: center; gap: 12px; max-width: 70vw;
+  padding: 10px 14px; border-radius: 8px; font: 14px Arial, sans-serif;
+  background: #1b3a5f; color: #fff; border: 1px solid #b8963e;
+}
+.nm-bridge-bar[hidden] { display: none; }
+.nm-bridge-bar button {
+  border: 1px solid #f3e3b5; background: transparent; color: #f3e3b5;
+  border-radius: 14px; padding: 4px 12px; font: 600 13px Arial, sans-serif; cursor: pointer;
+}
