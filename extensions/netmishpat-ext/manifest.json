@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "גשר נט המשפט ונט בתי הדין – משרד עו\"ד אשרף שריף",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "שולח נתוני תיקים, דיונים, החלטות ומסמכים מנט המשפט אל מערכת ניהול המשרד (legal-office-v4).",
   "permissions": [
     "storage",

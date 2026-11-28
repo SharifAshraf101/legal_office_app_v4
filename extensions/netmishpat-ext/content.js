@@ -95,8 +95,14 @@
     const btn = document.createElement("button");
     btn.className = "nm-bridge-btn";
     btn.type = "button";
-    btn.textContent = "⚖ שלח למערכת המשרד";
+    // חלון הצפייה במסמך: המסמך מוצג כתמונה ואין בעמוד נתונים לשליחה. הקובץ עצמו
+    // נשלח למערכת כשלוחצים על "שמירה" בסרגל של חלון הצפייה (ראה background.js).
+    const IS_VIEWER = /\/Viewer\//i.test(location.pathname);
+    btn.textContent = IS_VIEWER ? "⚖ שמירת המסמך במערכת המשרד" : "⚖ שלח למערכת המשרד";
     btn.addEventListener("click", () => {
+      if (IS_VIEWER) {
+        return toast("כדי לשמור את המסמך במערכת המשרד: לחץ על כפתור השמירה (💾) בסרגל שלמעלה", true);
+      }
       btn.disabled = true;
       chrome.runtime.sendMessage({ type: "NM_PUSH", payload: snapshot() }, (res) => {
         btn.disabled = false;

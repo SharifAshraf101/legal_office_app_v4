@@ -100,6 +100,7 @@ export async function netSyncReviewed(
 // ---------------------------------------------------------------------------
 
 type SentPage = {
+  url?: unknown;
   text?: unknown;
   caseNumbers?: { number?: unknown }[];
   docLinks?: { text?: unknown; href?: unknown }[];
@@ -215,6 +216,21 @@ export async function enrichNetSync(db: D1Database, page: SentPage): Promise<voi
         db
           .prepare('UPDATE nm_documents SET case_number = NULL WHERE href = ?1 AND doc_date IS NULL')
           .bind(l.href),
+      );
+    }
+  }
+
+  // A link to a place on the very page that was sent ("…#MessageA2") is part of
+  // the page's own controls, not a document. The court's document viewer has
+  // several, and its address contains "Document", so they were filed as such.
+  const pageUrl = String(page.url || '').split('#')[0];
+  for (const l of page.docLinks || []) {
+    const href = String(l.href || '');
+    if (pageUrl && href.includes('#') && href.split('#')[0] === pageUrl) {
+      stmts.push(
+        db
+          .prepare('DELETE FROM nm_documents WHERE href = ?1 AND doc_date IS NULL AND file_key IS NULL')
+          .bind(href),
       );
     }
   }
