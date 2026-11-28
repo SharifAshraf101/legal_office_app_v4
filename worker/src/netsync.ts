@@ -392,10 +392,16 @@ export type FilingDeps = {
 
 export type Filing = { status: string; docId?: string; caseId?: string };
 
-/** "תיק מס' 3392\2026" / "3392/2026" → "3392-2026"; "76695-10-26" stays. */
+/** One spelling per case number, however it was typed.
+ *  Civil courts: number-month-year, "76695-10-26".
+ *  Sharia courts: number/year — "3392/2026", "תיק מס' 3392\2026" and
+ *  "2026/3392" are all "3392-2026" (the year goes last). */
 export function caseNumberKey(raw: unknown): string {
-  const groups = String(raw ?? '').match(/\d+/g) || [];
-  return groups.length >= 2 ? groups.map((g) => String(Number(g))).join('-') : '';
+  const groups = (String(raw ?? '').match(/\d+/g) || []).map((g) => String(Number(g)));
+  if (groups.length < 2) return '';
+  const isYear = (g: string) => /^(19|20)\d\d$/.test(g);
+  if (groups.length === 2 && isYear(groups[0]) && !isYear(groups[1])) groups.reverse();
+  return groups.join('-');
 }
 
 function cleanSegment(name: string, fallback: string): string {
@@ -568,6 +574,25 @@ export async function netSyncFileToCase(
       .bind(docId, caseId, now, nmId),
   ]);
   return { status: 'filed', docId, caseId };
+}
+
+/** Documents that arrived before their case existed in the office's system
+ *  are filed as soon as it does: called when cases are saved, and when the
+ *  screen is opened. Nothing waiting = one small query. */
+export async function netSyncRetryPending(env: Env, db: D1Database, deps: FilingDeps): Promise<number> {
+  const waiting = await db
+    .prepare(
+      `SELECT id FROM nm_documents
+        WHERE file_key IS NOT NULL AND filed_doc_id IS NULL AND filing_status = 'no_case'
+        ORDER BY id LIMIT 10`,
+    )
+    .all<{ id: number }>();
+  let filed = 0;
+  for (const w of waiting.results || []) {
+    const f = await netSyncFileToCase(env, db, w.id, deps);
+    if (f.status === 'filed') filed++;
+  }
+  return filed;
 }
 
 /** POST /api/netmishpat/file-to-case  { id, force? }   (the office's session) */

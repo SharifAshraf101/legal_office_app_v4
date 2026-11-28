@@ -26,6 +26,7 @@ import {
   netSyncFileToCase,
   netSyncFileToCaseRoute,
   netSyncOverview,
+  netSyncRetryPending,
   netSyncReviewed,
   netSyncStoreFile,
 } from './netsync';
@@ -922,6 +923,15 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
     }
     // "סנכרון נט" screen: what the extension sent, and marking documents read.
     if (method === 'GET' && path === '/api/netmishpat/overview') {
+      if (ctx.tenantId === env.USER_ID) {
+        try {
+          await netSyncRetryPending(env, ctx.db, {
+            upload: (rel, bytes) => uploadToOfficeDropbox(env, rel, bytes),
+          });
+        } catch (e) {
+          console.warn('[netsync] pending filing failed', e);
+        }
+      }
       const r = await netSyncOverview(env, ctx);
       return json(r.body, request, env, r.status);
     }
@@ -1295,6 +1305,18 @@ async function handleSave(request: Request, env: Env, ctx: Ctx): Promise<Respons
   }
 
   if (statements.length) await ctx.db.batch(statements);
+
+  // "סנכרון נט": a court document that arrived before its case was opened here
+  // is filed the moment the case is saved.
+  if (ctx.tenantId === env.USER_ID && Array.isArray(body.cases) && body.cases.length) {
+    try {
+      await netSyncRetryPending(env, ctx.db, {
+        upload: (rel, bytes) => uploadToOfficeDropbox(env, rel, bytes),
+      });
+    } catch (e) {
+      console.warn('[netsync] pending filing failed', e);
+    }
+  }
 
   // Explicit deletions: rows the user removed locally. The upsert above only
   // adds/updates, so a deleted record would otherwise linger in D1 and come

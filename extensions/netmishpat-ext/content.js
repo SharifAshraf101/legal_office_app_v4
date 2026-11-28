@@ -82,12 +82,12 @@
     };
   }
 
-  function toast(msg, ok = true) {
+  function toast(msg, ok = true, ms = 4000) {
     const t = document.createElement("div");
     t.className = "nm-bridge-toast " + (ok ? "ok" : "err");
     t.textContent = msg;
     document.body.appendChild(t);
-    setTimeout(() => t.remove(), 4000);
+    setTimeout(() => t.remove(), ms);
   }
 
   // כפתור צף – רק במסגרת העליונה
@@ -101,7 +101,24 @@
     btn.textContent = IS_VIEWER ? "⚖ שמירת המסמך במערכת המשרד" : "⚖ שלח למערכת המשרד";
     btn.addEventListener("click", () => {
       if (IS_VIEWER) {
-        return toast("כדי לשמור את המסמך במערכת המשרד: לחץ על כפתור השמירה (💾) בסרגל שלמעלה", true);
+        // הכפתור הזה אינו שומר בעצמו: השמירה נעשית בכפתור 💾 של נט המשפט, והתוסף
+        // שולח את אותו קובץ למשרד. כאן מוצג מצב התוסף, כדי לדעת למה מסמך לא הגיע.
+        const stale = "התוסף עודכן ולא נטען מחדש: ב-chrome://extensions ללחוץ ↻ על התוסף, ואז F5 בעמוד הזה";
+        try {
+          chrome.runtime.sendMessage({ type: "NM_DIAG" }, (d) => {
+            if (chrome.runtime.lastError || !d) return toast(stale, false, 12000);
+            if (!d.downloads) return toast(stale, false, 12000);
+            if (!d.configured) return toast("יש להגדיר כתובת Worker וטוקן בהגדרות התוסף", false, 12000);
+            const last = (d.seen || [])[0];
+            const tail = last
+              ? ` | הורדה אחרונה: ${last.result}${last.where ? " (" + last.where + ")" : ""}`
+              : " | עדיין לא זוהתה הורדה";
+            toast(`לחץ על כפתור השמירה (💾) בסרגל שלמעלה. תוסף ${d.version}${tail}`, true, 12000);
+          });
+        } catch (_) {
+          toast(stale, false, 12000);
+        }
+        return;
       }
       btn.disabled = true;
       chrome.runtime.sendMessage({ type: "NM_PUSH", payload: snapshot() }, (res) => {

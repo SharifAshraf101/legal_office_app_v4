@@ -46435,4 +46435,4 @@ body.dark .ns-root { --ns-ink:#e8edf6; --ns-muted:#a3b0c4; --ns-line:#33415a; --
 .ns-link i { color:#c0392b; text-decoration:none; }
 .ns-filed { display:inline-flex; align-items:center; gap:6px; font-weight:600; color:#1e7e45; white-space:nowrap; }
 .ns-muted { color:var(--ns-muted); font-size:12.5px; }
-.ns-why { margin:0 0 4px; }
+.ns-why { display:inline-block; margin:0 0 4px; padding:2px 8px; border-radius:6px; background:#ffe45c; color:#3d3200; font-weight:600; }

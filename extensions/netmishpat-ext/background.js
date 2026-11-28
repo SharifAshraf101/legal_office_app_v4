@@ -98,16 +98,28 @@ async function tellTab(tabId, text, ok) {
   try { await chrome.tabs.sendMessage(tabId, { type: "NM_TOAST", text, ok }); } catch (_) {}
 }
 
+// שלוש ההורדות האחרונות שהתוסף ראה – לאבחון, מוצג בלחיצה על הכפתור שבחלון הצפייה
+async function noteDownload(fileUrl, result) {
+  let where = "";
+  try { const u = new URL(fileUrl); where = u.protocol === "https:" ? u.hostname : u.protocol; } catch (_) {}
+  const { seen = [] } = await chrome.storage.session.get("seen");
+  seen.unshift({ where, result, at: Date.now() });
+  await chrome.storage.session.set({ seen: seen.slice(0, 3) });
+}
+
 chrome.downloads.onCreated.addListener(async (item) => {
   const fileUrl = item.finalUrl || item.url || "";
   const m = COURT_FILE_RE.exec(fileUrl);
-  if (!m) return;
+  if (!m) { await noteDownload(fileUrl, "לא קובץ של נט המשפט"); return; }
   // ההורדה מתחילה מהלשונית הפעילה – חלון הצפייה שבו נלחץ "שמירה"
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   const tabId = tab ? tab.id : null;
   try {
     const { endpoint, token } = await getConfig();
-    if (!endpoint || !token) return;
+    if (!endpoint || !token) {
+      await noteDownload(fileUrl, "חסרים כתובת או טוקן בהגדרות");
+      return tellTab(tabId, "יש להגדיר כתובת Worker וטוקן בהגדרות התוסף", false);
+    }
     const click = tabId != null ? (await sessionGet("viewers"))[tabId] : null;
 
     const file = await fetch(fileUrl);
@@ -137,8 +149,10 @@ chrome.downloads.onCreated.addListener(async (item) => {
     else if (st === "no_case") text = "המסמך נשמר ✓ – לא תויק: אין במערכת תיק עם מספר התיק הזה";
     else if (st === "ambiguous") text = "המסמך נשמר ✓ – לא תויק: יש במערכת יותר מתיק אחד עם מספר התיק הזה";
     else if (st.startsWith("error:")) text = "המסמך נשמר ✓ – התיוק בתיק נכשל, אפשר לנסות שוב ממסך \"סנכרון נט\"";
+    await noteDownload(fileUrl, "נשלח: " + (st || "נשמר"));
     await tellTab(tabId, text, true);
   } catch (e) {
+    await noteDownload(fileUrl, "נכשל: " + (e && e.message ? e.message : e));
     await tellTab(tabId, "שמירת המסמך במערכת המשרד נכשלה: " + (e && e.message ? e.message : e), false);
   }
 });
@@ -147,6 +161,14 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (msg && msg.type === "NM_DOC_CLICK") {
     if (sender.tab && sender.tab.id != null) rememberClick(sender.tab.id, { href: msg.href, text: msg.text, context: msg.context });
     return;
+  }
+  if (msg && msg.type === "NM_DIAG") {
+    (async () => {
+      const { endpoint, token } = await getConfig();
+      const { seen = [] } = await chrome.storage.session.get("seen");
+      reply({ version: chrome.runtime.getManifest().version, downloads: !!chrome.downloads, configured: !!(endpoint && token), seen });
+    })().catch(() => reply(null));
+    return true;
   }
   if (msg && msg.type === "NM_PUSH") {
     push(msg.payload).then(reply).catch((e) => reply({ ok: false, error: String(e) }));
