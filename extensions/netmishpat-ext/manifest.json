@@ -1,17 +1,19 @@
 {
   "manifest_version": 3,
   "name": "גשר נט המשפט ונט בתי הדין – משרד עו\"ד אשרף שריף",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "שולח נתוני תיקים, דיונים, החלטות ומסמכים מנט המשפט אל מערכת ניהול המשרד (legal-office-v4).",
   "permissions": [
     "storage",
     "activeTab",
     "scripting",
-    "notifications"
+    "notifications",
+    "downloads"
   ],
   "host_permissions": [
     "https://*.court.gov.il/*",
-    "https://*.workers.dev/*"
+    "https://*.workers.dev/*",
+    "https://*.amazonaws.com/*"
   ],
   "optional_host_permissions": [
     "https://*/*"

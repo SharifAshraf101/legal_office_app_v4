@@ -20,7 +20,13 @@ import { corsHeaders, json, preflight } from './cors';
 import { buildUpsert, LOAD_TABLES, safeParse, type Env } from './db';
 import { resolveTenant, type Ctx } from './tenant';
 import { handleNetMishpat } from '../../extensions/worker-snippet/netmishpat-ingest';
-import { enrichNetSync, netSyncOverview, netSyncReviewed } from './netsync';
+import {
+  enrichNetSync,
+  netSyncFile,
+  netSyncOverview,
+  netSyncReviewed,
+  netSyncStoreFile,
+} from './netsync';
 import { calendarFeedResponse, officeFeed } from './calfeed';
 import { purgeDismissedEvents, rememberDismissed } from './dismissed';
 import { createAuth, runAuthMigrations } from './auth';
@@ -159,6 +165,12 @@ export default {
         }
         return nm;
       }
+    }
+
+    // The PDF of a document saved from the court's viewer (same bridge token).
+    if (method === 'POST' && path === '/api/netmishpat/file') {
+      const r = await netSyncStoreFile(request, env);
+      return json(r.body, request, env, r.status);
     }
 
     if (method === 'OPTIONS') return preflight(request, env);
@@ -898,6 +910,15 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
     // "סנכרון נט" screen: what the extension sent, and marking documents read.
     if (method === 'GET' && path === '/api/netmishpat/overview') {
       const r = await netSyncOverview(env, ctx);
+      return json(r.body, request, env, r.status);
+    }
+    if (method === 'GET' && path === '/api/netmishpat/file') {
+      const r = await netSyncFile(env, ctx, url.searchParams.get('id') || '');
+      if (r instanceof Response) {
+        const out = new Response(r.body, r);
+        for (const [k, v] of Object.entries(corsHeaders(request, env))) out.headers.set(k, v);
+        return out;
+      }
       return json(r.body, request, env, r.status);
     }
     if (method === 'POST' && path === '/api/netmishpat/reviewed') {

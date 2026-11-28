@@ -28,6 +28,8 @@ type Doc = {
   doc_type: string | null;
   summary: string | null;
   case_name: string | null;
+  has_file: number;
+  file_size: number | null;
 };
 type CaseRow = {
   case_number: string;
@@ -81,6 +83,9 @@ const L = {
     colPage: 'עמוד',
     colSent: 'נשלח',
     untitled: 'מסמך ללא כותרת',
+    openFile: 'פתיחת המסמך',
+    noFile: 'הקובץ טרם נשמר: יש לפתוח את המסמך בנט המשפט וללחוץ שם על שמירה',
+    fileError: 'לא ניתן לפתוח את המסמך כרגע.',
     emptyNew: 'אין מסמכים חדשים לבדיקה.',
     emptyDocs: 'עדיין לא נשלחו מסמכים.',
     emptyCases: 'עדיין לא נשלחו תיקים.',
@@ -131,6 +136,9 @@ const L = {
     colPage: 'الصفحة',
     colSent: 'أُرسل',
     untitled: 'مستند بلا عنوان',
+    openFile: 'فتح المستند',
+    noFile: 'لم يُحفظ الملف بعد: افتح المستند في نت همشباط واضغط هناك على حفظ',
+    fileError: 'تعذّر فتح المستند حالياً.',
     emptyNew: 'لا توجد مستندات جديدة للمراجعة.',
     emptyDocs: 'لم تُرسل مستندات بعد.',
     emptyCases: 'لم تُرسل ملفات بعد.',
@@ -223,6 +231,27 @@ export function NetSyncScreen() {
     }
   };
 
+  // The PDF the extension sent. Opened in a new tab; the tab is opened at once
+  // (inside the click) so the browser does not treat it as a pop-up.
+  const openFile = async (id: number) => {
+    const tab = window.open('', '_blank');
+    try {
+      const res = await fetch(WORKER_URL + '/api/netmishpat/file?id=' + id, {
+        headers: officeAuthHeader(),
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const url = URL.createObjectURL(await res.blob());
+      if (tab) tab.location.href = url;
+      else window.location.assign(url);
+      setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+    } catch {
+      tab?.close();
+      window.alert(t.fileError);
+    }
+  };
+
   const copyUrl = async () => {
     try {
       await navigator.clipboard.writeText(WORKER_URL);
@@ -259,14 +288,19 @@ export function NetSyncScreen() {
               <tr key={d.id} className={d.reviewed ? '' : 'ns-fresh'}>
                 <td dir="ltr">{d.doc_date ? d.doc_date.split('-').reverse().join('.') : when(d.first_seen_at)}</td>
                 <td>
-                  {/* The court site opens many documents with a script, not an
-                      address; such a "link" cannot be opened from here. */}
-                  {/^https?:\/\//i.test(d.href) ? (
+                  {/* The court site opens a document with a script, not an
+                      address, so its link cannot be followed from here. What
+                      opens is the PDF the extension sent, once there is one. */}
+                  {d.has_file ? (
+                    <button type="button" className="ns-link" onClick={() => void openFile(d.id)} title={t.openFile}>
+                      <i className="fas fa-file-pdf" aria-hidden="true" /> {d.doc_type || d.title || t.untitled}
+                    </button>
+                  ) : /^https?:\/\//i.test(d.href) ? (
                     <a href={d.href} target="_blank" rel="noopener noreferrer">
                       {d.doc_type || d.title || t.untitled}
                     </a>
                   ) : (
-                    d.doc_type || d.title || t.untitled
+                    <span title={t.noFile}>{d.doc_type || d.title || t.untitled}</span>
                   )}
                   {d.summary && <small className="ns-sub">{d.summary}</small>}
                 </td>

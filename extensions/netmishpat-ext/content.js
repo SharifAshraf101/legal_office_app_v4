@@ -107,11 +107,37 @@
     document.documentElement.appendChild(btn);
   }
 
-  // בקשה מה-popup
+  // לחיצה על קישור של מסמך/החלטה (קישור "פקודה" של האתר, לא כתובת): זוכרים איזה
+  // קישור נלחץ, כדי שהקובץ שיישמר מחלון הצפייה שנפתח ישויך לאותה החלטה.
+  document.addEventListener(
+    "click",
+    (e) => {
+      const a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+      if (!a || !/^javascript:/i.test(a.href) || !/document/i.test(a.href)) return;
+      // השורה שבה נמצא הקישור: עולים עד שהטקסט כולל מספר תיק
+      let row = a;
+      for (let i = 0; i < 8 && row.parentElement; i++) {
+        row = row.parentElement;
+        if (/\d{3,6}-\d{2}-\d{2}|\d{3,6}\/\d{4}/.test(row.innerText || "")) break;
+      }
+      try {
+        chrome.runtime.sendMessage({
+          type: "NM_DOC_CLICK",
+          href: a.href,
+          text: clean(a.innerText),
+          context: (row.innerText || "").slice(0, 600),
+        });
+      } catch (_) {}
+    },
+    true
+  );
+
+  // בקשות מה-popup ומה-service worker
   chrome.runtime.onMessage.addListener((msg, _s, reply) => {
     if (msg && msg.type === "NM_SNAPSHOT") {
       reply(snapshot());
       return true;
     }
+    if (msg && msg.type === "NM_TOAST" && window.top === window) toast(msg.text, msg.ok !== false);
   });
 })();

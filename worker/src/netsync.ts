@@ -33,7 +33,8 @@ export async function netSyncOverview(env: Env, ctx: Ctx): Promise<Result> {
       ),
       ctx.db.prepare(
         `SELECT id, href, title, case_number, source, first_seen_at, reviewed,
-                doc_date, doc_type, summary, case_name
+                doc_date, doc_type, summary, case_name,
+                (file_key IS NOT NULL) AS has_file, file_size
            FROM nm_documents
           ORDER BY reviewed ASC, COALESCE(doc_date, substr(first_seen_at, 1, 10)) DESC, id ASC
           LIMIT 300`,
@@ -219,4 +220,117 @@ export async function enrichNetSync(db: D1Database, page: SentPage): Promise<voi
   }
 
   if (stmts.length) await db.batch(stmts);
+}
+
+// ---------------------------------------------------------------------------
+// The document itself.
+//
+// A decision's link on the court site only works inside the site. Its PDF
+// reaches the office another way: when the lawyer saves a document from the
+// court's viewer, the extension sends the same file here — with the link that
+// was clicked to open it, which is how the file finds its row.
+// ---------------------------------------------------------------------------
+
+const MAX_FILE_BYTES = 100 * 1024 * 1024;
+
+function sameToken(a: string, b: string): boolean {
+  if (!a || a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
+/** POST /api/netmishpat/file?name=…[&href=…&text=…&context=…]
+ *  (bridge token; the body is the PDF) */
+export async function netSyncStoreFile(request: Request, env: Env): Promise<Result> {
+  const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!env.NM_BRIDGE_TOKEN || !sameToken(token, env.NM_BRIDGE_TOKEN)) {
+    return { status: 401, body: { error: 'unauthorized' } };
+  }
+  const q = new URL(request.url).searchParams;
+  const name = (q.get('name') || '').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 180);
+  if (!/\.pdf$/i.test(name)) return { status: 400, body: { error: 'name must be a .pdf' } };
+  const size = Number(request.headers.get('Content-Length') || 0);
+  if (size > MAX_FILE_BYTES) return { status: 413, body: { error: 'file too large' } };
+
+  const bytes = await request.arrayBuffer();
+  if (bytes.byteLength > MAX_FILE_BYTES) return { status: 413, body: { error: 'file too large' } };
+  // "%PDF" — anything else is not the document
+  const head = new Uint8Array(bytes.slice(0, 4));
+  if (!(head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46)) {
+    return { status: 415, body: { error: 'not a PDF' } };
+  }
+
+  const key = `${env.USER_ID}/netmishpat/${name}`;
+  await env.DOCS.put(key, bytes, { httpMetadata: { contentType: 'application/pdf' } });
+
+  const now = new Date().toISOString();
+  const href = q.get('href') || '';
+  const row = listRowsFromText(q.get('context') || '')[0];
+  const db = env.DB;
+
+  if (href) {
+    // The row of the link that was clicked. It exists if its list was sent
+    // before; if not, it is created now from the clicked line of the list.
+    await db
+      .prepare(
+        `INSERT OR IGNORE INTO nm_documents (href, title, case_number, source, first_seen_at)
+         VALUES (?1, ?2, ?3, 'net-hamishpat', ?4)`,
+      )
+      .bind(href, q.get('text') || name, row ? row.caseNumber : null, now)
+      .run();
+    await db
+      .prepare(
+        `UPDATE nm_documents
+            SET file_key = ?1, file_size = ?2, file_at = ?3,
+                case_number = COALESCE(?4, case_number),
+                doc_date = COALESCE(doc_date, ?5),
+                doc_type = COALESCE(doc_type, ?6),
+                case_name = COALESCE(case_name, ?7)
+          WHERE href = ?8`,
+      )
+      .bind(
+        key,
+        bytes.byteLength,
+        now,
+        row ? row.caseNumber : null,
+        row ? row.date : null,
+        row ? row.kind || null : null,
+        row ? splitCaseName(row.caseName).parties || null : null,
+        href,
+      )
+      .run();
+    return { status: 200, body: { ok: true, linked: true } };
+  }
+
+  // Saved without a known link (the viewer was opened some other way): kept
+  // on its own, under the file's name, with no case.
+  const own = 'file:' + name;
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO nm_documents (href, title, case_number, source, first_seen_at)
+       VALUES (?1, ?2, NULL, 'net-hamishpat', ?3)`,
+    )
+    .bind(own, name, now)
+    .run();
+  await db
+    .prepare('UPDATE nm_documents SET file_key = ?1, file_size = ?2, file_at = ?3 WHERE href = ?4')
+    .bind(key, bytes.byteLength, now, own)
+    .run();
+  return { status: 200, body: { ok: true, linked: false } };
+}
+
+/** GET /api/netmishpat/file?id=…   (the office's session) — the stored PDF */
+export async function netSyncFile(env: Env, ctx: Ctx, id: string): Promise<Response | Result> {
+  if (!isOperator(env, ctx)) return { status: 403, body: { error: 'not_available' } };
+  const doc = await ctx.db
+    .prepare('SELECT file_key FROM nm_documents WHERE id = ?1')
+    .bind(Number(id))
+    .first<{ file_key: string | null }>();
+  if (!doc || !doc.file_key) return { status: 404, body: { error: 'no file' } };
+  const obj = await env.DOCS.get(doc.file_key);
+  if (!obj) return { status: 404, body: { error: 'no file' } };
+  return new Response(obj.body, {
+    headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, no-store' },
+  });
 }
