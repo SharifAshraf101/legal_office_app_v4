@@ -284,6 +284,21 @@ export async function enrichNetSync(db: D1Database, page: SentPage): Promise<voi
     }
   }
 
+  // A report page (the hearings report) lists no documents: its script links
+  // are its own buttons ("הורדה ליומן", the incoming-documents icon). The
+  // extension's handler files them as documents of the first case on the page.
+  if (/\/Reports\//i.test(pageUrl)) {
+    for (const l of page.docLinks || []) {
+      const href = String(l.href || '');
+      if (!/^javascript:/i.test(href)) continue;
+      stmts.push(
+        db
+          .prepare('DELETE FROM nm_documents WHERE href = ?1 AND doc_date IS NULL AND file_key IS NULL')
+          .bind(href),
+      );
+    }
+  }
+
   // A script link whose whole text is a case number opens the CASE, not a
   // document ("btnCase" next to "btnDocument" in the court's lists). The
   // extension's handler files it as a document all the same; take it out.
