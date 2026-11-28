@@ -219,6 +219,21 @@ export async function enrichNetSync(db: D1Database, page: SentPage): Promise<voi
     }
   }
 
+  // A script link whose whole text is a case number opens the CASE, not a
+  // document ("btnCase" next to "btnDocument" in the court's lists). The
+  // extension's handler files it as a document all the same; take it out.
+  for (const l of page.docLinks || []) {
+    const text = String(l.text || '').trim();
+    const href = String(l.href || '');
+    if (/^javascript:/i.test(href) && CASE_LINE.test(text)) {
+      stmts.push(
+        db
+          .prepare('DELETE FROM nm_documents WHERE href = ?1 AND doc_date IS NULL AND file_key IS NULL')
+          .bind(href),
+      );
+    }
+  }
+
   if (stmts.length) await db.batch(stmts);
 }
 
