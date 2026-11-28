@@ -39,6 +39,10 @@ export function caseStatusView(
 export function caseSearchText(c: Case, clients: Client[]): string {
   const client = clients.find((x) => x.id === c.clientId) || ({} as Client);
   return [
+    // the office's own numbers ("CS-1017", "CLT-106") — what the table's first
+    // column shows, so a search for "1017" finds the case it is looking at
+    c.id,
+    c.clientId,
     client.name,
     client.nameAr,
     c.caseNumber,
