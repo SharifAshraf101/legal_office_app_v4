@@ -21,7 +21,9 @@ import { buildUpsert, LOAD_TABLES, safeParse, type Env } from './db';
 import { resolveTenant, type Ctx } from './tenant';
 import { handleNetMishpat } from '../../extensions/worker-snippet/netmishpat-ingest';
 import {
+  enrichHearings,
   enrichNetSync,
+  netSyncHearingsToCalendar,
   netSyncFile,
   netSyncFileToCase,
   netSyncFileToCaseRoute,
@@ -162,7 +164,10 @@ export default {
         // here must not turn the extension's "sent" into an error.
         if (sent && nm.ok) {
           try {
-            await enrichNetSync(env.DB, await sent.json());
+            const page = (await sent.json()) as Parameters<typeof enrichNetSync>[1];
+            await enrichNetSync(env.DB, page);
+            // the hearings report: its rows go into the office calendar
+            await enrichHearings(env, env.DB, page);
           } catch (e) {
             console.warn('[netsync] details step failed', e);
           }
@@ -1318,6 +1323,8 @@ async function handleSave(request: Request, env: Env, ctx: Ctx): Promise<Respons
       await netSyncRetryPending(env, ctx.db, {
         upload: (rel, bytes) => uploadToOfficeDropbox(env, rel, bytes),
       });
+      // …and a hearing waiting for the same case goes into the calendar
+      await netSyncHearingsToCalendar(env, ctx.db);
     } catch (e) {
       console.warn('[netsync] pending filing failed', e);
     }

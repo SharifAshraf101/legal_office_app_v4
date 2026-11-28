@@ -54,6 +54,7 @@ export async function netSyncOverview(env: Env, ctx: Ctx): Promise<Result> {
         ...base,
         ready: true,
         counts: counts.results[0] || {},
+        hearings: await netSyncHearings(ctx.db),
         documents: documents.results,
         cases: cases.results,
         snapshots: snapshots.results,
@@ -692,4 +693,248 @@ export async function netSyncPending(request: Request, env: Env): Promise<Result
     for (const r of rs.results || []) have.add(r.href);
   }
   return { status: 200, body: { ok: true, pending: hrefs.filter((h) => !have.has(h)) } };
+}
+
+// ---------------------------------------------------------------------------
+// Hearings.
+//
+// The court site's "הדיונים שלי" report lists the lawyer's hearings: date, hour,
+// court, case name, case number, kind of hearing, judge, status. When that page
+// is sent, each row is kept (nm_hearings) and entered in the office calendar
+// under its case — the case found by its court number, as for documents.
+//
+// The calendar keeps one hearing per case per day. A day that already has one
+// is left as it is; a hearing the court cancelled is not entered; one the
+// office deleted from its calendar is not brought back.
+// ---------------------------------------------------------------------------
+
+export type SittingRow = {
+  date: string; // 2026-12-03
+  time: string; // 10:00
+  court: string;
+  caseName: string;
+  caseNumber: string;
+  kind: string;
+  judge: string;
+  status: string;
+};
+
+const TIME_LINE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+const STATUS_WORD = /^(נקבע|בוטל|מבוטל|נדחה|התקיים|לא התקיים|הסתיים|נדחה ללא מועד)$/;
+const CANCELLED = /בוטל|נדחה|לא התקיים/;
+const COURT_CASE_IN_LINE = /\d{3,6}-\d{2}-\d{2}/;
+
+/** Rows of the hearings report: a date line, an hour line, then within a few
+ *  lines the case number; what follows is the kind, the judge and the status. */
+export function sittingsFromText(text: string): SittingRow[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  const out: SittingRow[] = [];
+  for (let i = 0; i + 1 < lines.length; i++) {
+    const d = DATE_LINE.exec(lines[i]);
+    const t = TIME_LINE.exec(lines[i + 1]);
+    if (!d || !t) continue;
+    let at = -1;
+    for (let j = i + 2; j <= i + 5 && j < lines.length; j++) {
+      if (DATE_LINE.test(lines[j])) break;
+      if (COURT_CASE_IN_LINE.test(lines[j])) {
+        at = j;
+        break;
+      }
+    }
+    if (at < 0) continue;
+    const before = lines.slice(i + 2, at);
+    const after: string[] = [];
+    for (let j = at + 1; j < lines.length && after.length < 4; j++) {
+      // the next row, or the grid's footer ("1 עד 1 מתוך 1")
+      if (DATE_LINE.test(lines[j]) || /מתוך/.test(lines[j])) break;
+      after.push(lines[j]);
+    }
+    const status = after.find((l) => STATUS_WORD.test(l)) || '';
+    const rest = after.filter((l) => l !== status);
+    out.push({
+      date: `${d[3]}-${d[2].padStart(2, '0')}-${d[1].padStart(2, '0')}`,
+      time: `${t[1].padStart(2, '0')}:${t[2]}`,
+      court: before[0] || '',
+      caseName: before.slice(1).join(' '),
+      caseNumber: (COURT_CASE_IN_LINE.exec(lines[at]) || [''])[0],
+      kind: rest[0] || '',
+      judge: rest.length > 1 ? rest[rest.length - 1] : '',
+      status,
+    });
+    i = at;
+  }
+  return out;
+}
+
+/** An Israel wall-clock day and hour → the true UTC instant (the calendar
+ *  stores UTC and shows Israel time). */
+export function israelToUtc(day: string, time: string): string {
+  const [y, m, d] = day.split('-').map(Number);
+  const [hh, mm] = time.split(':').map(Number);
+  for (const offset of [2, 3]) {
+    const guess = new Date(Date.UTC(y, m - 1, d, hh - offset, mm));
+    const shown = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Jerusalem',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(guess);
+    if (shown === `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`) return guess.toISOString();
+  }
+  return new Date(Date.UTC(y, m - 1, d, hh - 2, mm)).toISOString();
+}
+
+type HearingRecord = {
+  id: number;
+  case_number: string;
+  hearing_date: string;
+  hearing_time: string;
+  court: string | null;
+  hearing_type: string | null;
+  judge: string | null;
+  status: string | null;
+  event_id: string | null;
+};
+
+/** Enter one kept hearing in the calendar (or say why not). */
+async function hearingToCalendar(env: Env, db: D1Database, h: HearingRecord): Promise<string> {
+  const set = async (status: string, caseId: string | null, eventId: string | null) => {
+    await db
+      .prepare('UPDATE nm_hearings SET calendar_status = ?1, case_id = COALESCE(?2, case_id), event_id = COALESCE(?3, event_id) WHERE id = ?4')
+      .bind(status, caseId, eventId, h.id)
+      .run();
+    return status;
+  };
+  if (h.event_id) return 'added';
+  if (CANCELLED.test(h.status || '')) return set('cancelled', null, null);
+
+  const user = env.USER_ID;
+  const key = caseNumberKey(h.case_number);
+  const cases = await db
+    .prepare('SELECT source_id, client_source_id, case_number FROM cases WHERE user_id = ?1')
+    .bind(user)
+    .all<{ source_id: string; client_source_id: string | null; case_number: string | null }>();
+  const matches = (cases.results || []).filter((c) => caseNumberKey(c.case_number) === key);
+  if (matches.length === 0) return set('no_case', null, null);
+  if (matches.length > 1) return set('ambiguous', null, null);
+  const cs = matches[0];
+  const caseId = String(cs.source_id).toUpperCase();
+  const eventId = `EV-NM-${caseId}-${h.hearing_date.replace(/-/g, '')}`;
+
+  // Deleted by the office from its calendar: not brought back.
+  try {
+    const gone = await db
+      .prepare('SELECT 1 AS x FROM dismissed_events WHERE user_id = ?1 AND key IN (?2, ?3) LIMIT 1')
+      .bind(user, 'id:' + eventId, `hearing:${caseId}|${h.hearing_date}`)
+      .first();
+    if (gone) return set('dismissed', caseId, null);
+  } catch {
+    /* no such table yet = nothing was deleted */
+  }
+
+  // One hearing per case per day: a day that has one already is left alone.
+  const events = await db
+    .prepare(
+      `SELECT source_id, date_time FROM calendar_events
+        WHERE user_id = ?1 AND upper(case_source_id) = ?2 AND lower(type) LIKE 'hearing%'`,
+    )
+    .bind(user, caseId)
+    .all<{ source_id: string; date_time: string | null }>();
+  const dayOf = (v: string | null) => {
+    const raw = String(v || '');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const at = new Date(raw);
+    return isNaN(at.getTime())
+      ? ''
+      : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
+  };
+  const same = (events.results || []).find((e) => dayOf(e.date_time) === h.hearing_date);
+  if (same) return set('exists', caseId, null);
+
+  const now = new Date().toISOString();
+  const details = [h.hearing_type, h.court, h.judge && 'בפני ' + h.judge].filter(Boolean).join(' · ');
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO calendar_events
+         (id, user_id, source_id, case_source_id, client_source_id, title, title_ar,
+          date_time, description, description_ar, type, created_at, updated_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'hearingMeeting', ?11, ?11)`,
+    )
+    .bind(
+      crypto.randomUUID(),
+      user,
+      eventId,
+      cs.source_id,
+      cs.client_source_id,
+      h.hearing_type ? `דיון - ${h.hearing_type}` : 'דיון',
+      'جلسة',
+      israelToUtc(h.hearing_date, h.hearing_time || '09:00'),
+      'מועד הדיון יובא מיומן הדיונים בנט המשפט.' + (details ? ' ' + details : ''),
+      'أُدرج موعد الجلسة من جدول الجلسات في نت همشباط.',
+      now,
+    )
+    .run();
+  return set('added', caseId, eventId);
+}
+
+/** The hearings on a sent page: kept, and entered in the calendar. */
+export async function enrichHearings(env: Env, db: D1Database, page: SentPage): Promise<number> {
+  if (page.source === 'net-batei-hadin') return 0;
+  const rows = sittingsFromText(typeof page.text === 'string' ? page.text : '');
+  if (!rows.length) return 0;
+  const now = new Date().toISOString();
+  await db.batch(
+    rows.map((r) =>
+      db
+        .prepare(
+          `INSERT INTO nm_hearings
+             (source, case_number, hearing_date, hearing_time, court, case_name, hearing_type, judge, status, first_seen_at, last_seen_at)
+           VALUES ('net-hamishpat', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
+           ON CONFLICT (source, case_number, hearing_date, hearing_time) DO UPDATE SET
+             court = excluded.court, case_name = excluded.case_name, hearing_type = excluded.hearing_type,
+             judge = excluded.judge, status = excluded.status, last_seen_at = excluded.last_seen_at`,
+        )
+        .bind(r.caseNumber, r.date, r.time, r.court, r.caseName, r.kind, r.judge, r.status, now),
+    ),
+  );
+  return netSyncHearingsToCalendar(env, db);
+}
+
+/** Every kept hearing that is not in the calendar yet and could be now — after
+ *  a page was sent, and after a case was opened in the office's system. */
+export async function netSyncHearingsToCalendar(env: Env, db: D1Database): Promise<number> {
+  const waiting = await db
+    .prepare(
+      `SELECT id, case_number, hearing_date, hearing_time, court, hearing_type, judge, status, event_id
+         FROM nm_hearings
+        WHERE event_id IS NULL AND (calendar_status IS NULL OR calendar_status = 'no_case')
+          AND hearing_date >= date('now', '-1 day')
+        ORDER BY hearing_date LIMIT 40`,
+    )
+    .all<HearingRecord>();
+  let added = 0;
+  for (const h of waiting.results || []) {
+    if ((await hearingToCalendar(env, db, h)) === 'added') added++;
+  }
+  return added;
+}
+
+/** GET part of the overview: the hearings, soonest first. */
+export async function netSyncHearings(db: D1Database): Promise<unknown[]> {
+  try {
+    const rs = await db
+      .prepare(
+        `SELECT id, source, case_number, hearing_date, hearing_time, court, case_name, hearing_type, judge,
+                status, case_id, event_id, calendar_status, last_seen_at
+           FROM nm_hearings ORDER BY hearing_date DESC, hearing_time DESC LIMIT 300`,
+      )
+      .all();
+    return rs.results || [];
+  } catch (e) {
+    if (missingSchema(e)) return [];
+    throw e;
+  }
 }

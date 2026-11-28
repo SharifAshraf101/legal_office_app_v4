@@ -42,12 +42,28 @@ type CaseRow = {
   last_seen_url: string | null;
   last_seen_at: string | null;
 };
+type Hearing = {
+  id: number;
+  source: string;
+  case_number: string;
+  hearing_date: string;
+  hearing_time: string;
+  court: string | null;
+  case_name: string | null;
+  hearing_type: string | null;
+  judge: string | null;
+  status: string | null;
+  case_id: string | null;
+  event_id: string | null;
+  calendar_status: string | null;
+};
 type Snapshot = { id: number; source: string; url: string; title: string | null; created_at: string };
 type Overview = {
   configured: boolean;
   ready: boolean;
   counts?: { cases: number; documents: number; unreviewed: number; snapshots: number; last_sync: string | null };
   documents?: Doc[];
+  hearings?: Hearing[];
   cases?: CaseRow[];
   snapshots?: Snapshot[];
 };
@@ -85,6 +101,21 @@ const L = {
     tabDocs: 'כל המסמכים',
     tabCases: 'תיקים',
     tabPages: 'שליחות אחרונות',
+    tabHearings: 'דיונים',
+    colTime: 'שעה',
+    colCourt: 'בית משפט',
+    colKind: 'סוג דיון',
+    colJudge: 'בפני',
+    colStatus: 'סטטוס',
+    colCalendar: 'ביומן המשרד',
+    emptyHearings: 'עדיין לא נשלחו דיונים. בנט המשפט: "יומן דיונים" ← "הדיונים שלי" ← "הצגת דו"ח", ואז "שלח למערכת המשרד".',
+    hAdded: 'נוסף ליומן',
+    hExists: 'כבר ביומן באותו יום',
+    hNoCase: 'אין במערכת תיק עם מספר התיק הזה',
+    hAmbiguous: 'יש יותר מתיק אחד עם המספר הזה',
+    hCancelled: 'הדיון בוטל, לא הוכנס',
+    hDismissed: 'נמחק מהיומן על ידי המשרד',
+    hPast: 'דיון שעבר',
     tabSetup: 'התקנת התוסף',
     markAll: 'סמן הכל כנבדק',
     mark: 'נבדק',
@@ -152,6 +183,21 @@ const L = {
     tabDocs: 'كل المستندات',
     tabCases: 'الملفات',
     tabPages: 'آخر الإرسالات',
+    tabHearings: 'الجلسات',
+    colTime: 'الساعة',
+    colCourt: 'المحكمة',
+    colKind: 'نوع الجلسة',
+    colJudge: 'أمام',
+    colStatus: 'الحالة',
+    colCalendar: 'في تقويم المكتب',
+    emptyHearings: 'لم تُرسل جلسات بعد. في نت همشباط: "יומן דיונים" ← "הדיונים שלי" ← "הצגת דו"ח"، ثم "שלח למערכת המשרד".',
+    hAdded: 'أُضيفت إلى التقويم',
+    hExists: 'موجودة في التقويم في اليوم نفسه',
+    hNoCase: 'لا يوجد في النظام ملف بهذا الرقم',
+    hAmbiguous: 'يوجد أكثر من ملف بهذا الرقم',
+    hCancelled: 'الجلسة أُلغيت، لم تُدرج',
+    hDismissed: 'حذفها المكتب من التقويم',
+    hPast: 'جلسة سابقة',
     tabSetup: 'تثبيت الإضافة',
     markAll: 'تعليم الكل كمُراجَع',
     mark: 'تمت المراجعة',
@@ -196,7 +242,7 @@ const CMD_SQL =
 const CMD_SECRET = 'npx wrangler secret put NM_BRIDGE_TOKEN --config wrangler.v4.toml';
 const CMD_DEPLOY = 'npx wrangler deploy --config wrangler.v4.toml';
 
-type Tab = 'new' | 'docs' | 'cases' | 'pages' | 'setup';
+type Tab = 'new' | 'docs' | 'hearings' | 'cases' | 'pages' | 'setup';
 
 function when(iso: string | null | undefined): string {
   if (!iso) return '';
@@ -529,6 +575,7 @@ export function NetSyncScreen() {
               [
                 ['new', t.tabNew],
                 ['docs', t.tabDocs],
+                ['hearings', t.tabHearings],
                 ['cases', t.tabCases],
                 ['pages', t.tabPages],
                 ['setup', t.tabSetup],
@@ -596,6 +643,71 @@ export function NetSyncScreen() {
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+
+            {tab === 'hearings' &&
+              ((data.hearings || []).length === 0 ? (
+                <p className="ns-empty">{t.emptyHearings}</p>
+              ) : (
+                <div className="ns-table-wrap">
+                  <table className="ns-table">
+                    <thead>
+                      <tr>
+                        <th>{t.colDate}</th>
+                        <th>{t.colTime}</th>
+                        <th>{t.colCase}</th>
+                        <th>{t.colName}</th>
+                        <th>{t.colCourt}</th>
+                        <th>{t.colKind}</th>
+                        <th>{t.colJudge}</th>
+                        <th>{t.colStatus}</th>
+                        <th>{t.colCalendar}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(data.hearings || []).map((h) => {
+                        const st = h.calendar_status || '';
+                        const inCalendar = st === 'added' || st === 'exists';
+                        const label =
+                          st === 'added'
+                            ? t.hAdded
+                            : st === 'exists'
+                              ? t.hExists
+                              : st === 'no_case'
+                                ? t.hNoCase
+                                : st === 'ambiguous'
+                                  ? t.hAmbiguous
+                                  : st === 'cancelled'
+                                    ? t.hCancelled
+                                    : st === 'dismissed'
+                                      ? t.hDismissed
+                                      : t.hPast;
+                        return (
+                          <tr key={h.id} className={inCalendar ? 'ns-done' : ''}>
+                            <td dir="ltr">{h.hearing_date.split('-').reverse().join('.')}</td>
+                            <td dir="ltr">{h.hearing_time}</td>
+                            <td dir="ltr">{h.case_number}</td>
+                            <td>{h.case_name || ''}</td>
+                            <td>{h.court || ''}</td>
+                            <td>{h.hearing_type || ''}</td>
+                            <td>{h.judge || ''}</td>
+                            <td>{h.status || ''}</td>
+                            <td>
+                              {inCalendar ? (
+                                <span className="ns-filed">
+                                  <i className="fas fa-check" aria-hidden="true" /> {label}
+                                  {h.case_id ? <span dir="ltr"> · {h.case_id}</span> : null}
+                                </span>
+                              ) : (
+                                <small className="ns-sub ns-why">{label}</small>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
