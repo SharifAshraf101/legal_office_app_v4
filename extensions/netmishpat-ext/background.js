@@ -128,7 +128,16 @@ chrome.downloads.onCreated.addListener(async (item) => {
     let body = {};
     try { body = await res.json(); } catch (_) {}
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
-    await tellTab(tabId, body.linked ? "המסמך נשמר במערכת המשרד ✓" : "המסמך נשמר במערכת המשרד ✓ (ללא שיוך לתיק)", true);
+    // תיוק אוטומטי בתיק הלקוח – התשובה אומרת אם תויק, ואם לא – למה
+    const f = body.filing || {};
+    const st = String(f.status || "");
+    let text = body.linked ? "המסמך נשמר במערכת המשרד ✓" : "המסמך נשמר במערכת המשרד ✓ (ללא שיוך לתיק)";
+    if (st === "filed") text = `המסמך תויק בתיק ${f.caseId} (${f.docId}) ✓`;
+    else if (st.startsWith("duplicate:")) text = `המסמך נשמר ✓ – לא תויק: נראה שכבר מתויק בתיק (${st.slice(10)}). אפשר לתייק ממסך "סנכרון נט"`;
+    else if (st === "no_case") text = "המסמך נשמר ✓ – לא תויק: אין במערכת תיק עם מספר התיק הזה";
+    else if (st === "ambiguous") text = "המסמך נשמר ✓ – לא תויק: יש במערכת יותר מתיק אחד עם מספר התיק הזה";
+    else if (st.startsWith("error:")) text = "המסמך נשמר ✓ – התיוק בתיק נכשל, אפשר לנסות שוב ממסך \"סנכרון נט\"";
+    await tellTab(tabId, text, true);
   } catch (e) {
     await tellTab(tabId, "שמירת המסמך במערכת המשרד נכשלה: " + (e && e.message ? e.message : e), false);
   }

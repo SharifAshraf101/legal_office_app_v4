@@ -23,6 +23,8 @@ import { handleNetMishpat } from '../../extensions/worker-snippet/netmishpat-ing
 import {
   enrichNetSync,
   netSyncFile,
+  netSyncFileToCase,
+  netSyncFileToCaseRoute,
   netSyncOverview,
   netSyncReviewed,
   netSyncStoreFile,
@@ -170,6 +172,17 @@ export default {
     // The PDF of a document saved from the court's viewer (same bridge token).
     if (method === 'POST' && path === '/api/netmishpat/file') {
       const r = await netSyncStoreFile(request, env);
+      // Received: file it in the client's case straight away. A failure here
+      // never loses the document — it stays on the "סנכרון נט" screen.
+      if (r.status === 200 && typeof r.body.id === 'number') {
+        try {
+          r.body.filing = await netSyncFileToCase(env, env.DB, r.body.id, {
+            upload: (rel, bytes) => uploadToOfficeDropbox(env, rel, bytes),
+          });
+        } catch (e) {
+          console.warn('[netsync] filing failed', e);
+        }
+      }
       return json(r.body, request, env, r.status);
     }
 
@@ -919,6 +932,13 @@ if (method === 'POST' && path === '/api/whatsapp-messages') {
         for (const [k, v] of Object.entries(corsHeaders(request, env))) out.headers.set(k, v);
         return out;
       }
+      return json(r.body, request, env, r.status);
+    }
+    if (method === 'POST' && path === '/api/netmishpat/file-to-case') {
+      const b = (await request.json().catch(() => ({}))) as { id?: unknown; force?: unknown };
+      const r = await netSyncFileToCaseRoute(env, ctx, b, {
+        upload: (rel, bytes) => uploadToOfficeDropbox(env, rel, bytes),
+      });
       return json(r.body, request, env, r.status);
     }
     if (method === 'POST' && path === '/api/netmishpat/reviewed') {
@@ -3499,6 +3519,48 @@ async function handleUploadDocument(request: Request, env: Env, ctx: Ctx): Promi
   const relativePath =
     idx >= 0 ? finalDisplay.slice(idx + 1) : finalDisplay.replace(/^\/+/, '');
   return json({ ok: true, path: relativePath }, request, env);
+}
+
+// A file placed in the office's Dropbox by the Worker itself (no request from
+// the app): the same upload as above — add, never overwrite — answering the
+// filing-relative path Dropbox actually used.
+async function uploadToOfficeDropbox(
+  env: Env,
+  relPath: string,
+  bytes: ArrayBuffer,
+): Promise<{ ok: boolean; path?: string; error?: string }> {
+  const token = await getDropboxAccessToken(env);
+  if (!token) return { ok: false, error: 'dropbox_not_configured' };
+  const apiPath = dropboxApiPath(relPath, env.DROPBOX_BASE_FOLDER || '');
+  let res: Response | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 1200));
+    try {
+      res = await fetch('https://content.dropboxapi.com/2/files/upload', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + token,
+          'Content-Type': 'application/octet-stream',
+          'Dropbox-API-Arg': dropboxApiArgHeader({ path: apiPath, mode: 'add', autorename: true, mute: true }),
+        },
+        body: bytes,
+      });
+    } catch (e) {
+      console.warn('[worker dropbox] upload error', e);
+      res = null;
+      continue;
+    }
+    if (res.ok || (res.status !== 429 && res.status < 500)) break;
+  }
+  if (!res) return { ok: false, error: 'dropbox_unreachable' };
+  if (!res.ok) {
+    console.warn('[worker dropbox] upload failed', res.status, (await res.text().catch(() => '')).slice(0, 300));
+    return { ok: false, error: 'upload_failed_' + res.status };
+  }
+  const meta = (await res.json().catch(() => ({}))) as { path_display?: string; path_lower?: string };
+  const finalDisplay = meta.path_display || meta.path_lower || apiPath;
+  const idx = finalDisplay.toLowerCase().indexOf('/clients/');
+  return { ok: true, path: idx >= 0 ? finalDisplay.slice(idx + 1) : finalDisplay.replace(/^\/+/, '') };
 }
 
 // -----------------------------------------------------------------------

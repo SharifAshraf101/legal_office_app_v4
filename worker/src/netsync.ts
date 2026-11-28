@@ -34,7 +34,8 @@ export async function netSyncOverview(env: Env, ctx: Ctx): Promise<Result> {
       ctx.db.prepare(
         `SELECT id, href, title, case_number, source, first_seen_at, reviewed,
                 doc_date, doc_type, summary, case_name,
-                (file_key IS NOT NULL) AS has_file, file_size
+                (file_key IS NOT NULL) AS has_file, file_size,
+                filed_doc_id, filed_case_id, filing_status
            FROM nm_documents
           ORDER BY reviewed ASC, COALESCE(doc_date, substr(first_seen_at, 1, 10)) DESC, id ASC
           LIMIT 300`,
@@ -331,7 +332,8 @@ export async function netSyncStoreFile(request: Request, env: Env): Promise<Resu
         href,
       )
       .run();
-    return { status: 200, body: { ok: true, linked: true } };
+    const at = await db.prepare('SELECT id FROM nm_documents WHERE href = ?1').bind(href).first<{ id: number }>();
+    return { status: 200, body: { ok: true, linked: true, id: at ? at.id : null } };
   }
 
   // Saved without a known link (the viewer was opened some other way): kept
@@ -348,7 +350,8 @@ export async function netSyncStoreFile(request: Request, env: Env): Promise<Resu
     .prepare('UPDATE nm_documents SET file_key = ?1, file_size = ?2, file_at = ?3 WHERE href = ?4')
     .bind(key, bytes.byteLength, now, own)
     .run();
-  return { status: 200, body: { ok: true, linked: false } };
+  const at = await db.prepare('SELECT id FROM nm_documents WHERE href = ?1').bind(own).first<{ id: number }>();
+  return { status: 200, body: { ok: true, linked: false, id: at ? at.id : null } };
 }
 
 /** GET /api/netmishpat/file?id=…   (the office's session) — the stored PDF */
@@ -364,4 +367,219 @@ export async function netSyncFile(env: Env, ctx: Ctx, id: string): Promise<Respo
   return new Response(obj.body, {
     headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, no-store' },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Filing a received PDF in the client's case.
+//
+// The court's case number on the document's row is looked up among the
+// office's cases. One match: the PDF goes into that case's folder in the
+// office's Dropbox under the next DOC number, named like every filed document
+// ("CLT-127_CS-1056_<name>_DOC-364.pdf"), and its `documents` row is written —
+// from there it is a document of the case like any other (make.com summarises
+// it, the hearing sweep reads its dates).
+//
+// Nothing is filed on a guess: no case with that number, several cases with
+// it, or a document that looks already filed by hand (same kind, same days) —
+// each is recorded as the reason and left for the lawyer to decide on screen.
+// ---------------------------------------------------------------------------
+
+export type FilingDeps = {
+  /** Put the bytes at this filing-relative path ("Clients/…") in the office's
+   *  document storage; answers the path actually used. */
+  upload: (relPath: string, bytes: ArrayBuffer) => Promise<{ ok: boolean; path?: string; error?: string }>;
+};
+
+export type Filing = { status: string; docId?: string; caseId?: string };
+
+/** "תיק מס' 3392\2026" / "3392/2026" → "3392-2026"; "76695-10-26" stays. */
+export function caseNumberKey(raw: unknown): string {
+  const groups = String(raw ?? '').match(/\d+/g) || [];
+  return groups.length >= 2 ? groups.map((g) => String(Number(g))).join('-') : '';
+}
+
+function cleanSegment(name: string, fallback: string): string {
+  const clean = name
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120)
+    .trim();
+  return clean || fallback;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+type NmRow = {
+  id: number;
+  title: string | null;
+  case_number: string | null;
+  doc_date: string | null;
+  doc_type: string | null;
+  case_name: string | null;
+  file_key: string | null;
+  filed_doc_id: string | null;
+  filed_case_id: string | null;
+};
+
+export async function netSyncFileToCase(
+  env: Env,
+  db: D1Database,
+  nmId: number,
+  deps: FilingDeps,
+  force = false,
+): Promise<Filing> {
+  const nm = await db
+    .prepare(
+      `SELECT id, title, case_number, doc_date, doc_type, case_name, file_key, filed_doc_id, filed_case_id
+         FROM nm_documents WHERE id = ?1`,
+    )
+    .bind(nmId)
+    .first<NmRow>();
+  if (!nm) return { status: 'not_found' };
+  if (nm.filed_doc_id) {
+    return { status: 'filed', docId: nm.filed_doc_id, caseId: nm.filed_case_id || undefined };
+  }
+  if (!nm.file_key) return { status: 'no_file' };
+
+  const note = async (status: string): Promise<Filing> => {
+    await db.prepare('UPDATE nm_documents SET filing_status = ?1 WHERE id = ?2').bind(status, nmId).run();
+    return { status };
+  };
+
+  const key = caseNumberKey(nm.case_number);
+  if (!key) return note('no_case_number');
+
+  const user = env.USER_ID;
+  const cases = await db
+    .prepare('SELECT source_id, client_source_id, case_number, title FROM cases WHERE user_id = ?1')
+    .bind(user)
+    .all<{ source_id: string; client_source_id: string | null; case_number: string | null; title: string | null }>();
+  const matches = (cases.results || []).filter((c) => caseNumberKey(c.case_number) === key);
+  if (matches.length === 0) return note('no_case');
+  if (matches.length > 1) return note('ambiguous');
+  const cs = matches[0];
+  const caseId = String(cs.source_id).toUpperCase();
+  const clientId = String(cs.client_source_id || '').toUpperCase();
+
+  const docs = await db
+    .prepare(
+      `SELECT source_id, case_source_id, title, file_name, relative_path, date
+         FROM documents WHERE user_id = ?1`,
+    )
+    .bind(user)
+    .all<{
+      source_id: string;
+      case_source_id: string | null;
+      title: string | null;
+      file_name: string | null;
+      relative_path: string | null;
+      date: string | null;
+    }>();
+  const all = docs.results || [];
+  const ofCase = all.filter((d) => String(d.case_source_id || '').toUpperCase() === caseId);
+
+  const kind = (nm.doc_type || nm.title || 'מסמך').trim();
+  // Already in the case, filed by hand? The same kind of document, dated the
+  // court's day or up to three days after it (the day it was uploaded).
+  if (!force && nm.doc_date) {
+    const from = Date.parse(nm.doc_date);
+    const twin = ofCase.find((d) => {
+      const at = Date.parse(String(d.date || '').slice(0, 10));
+      if (Number.isNaN(at) || at < from || at > from + 3 * DAY_MS) return false;
+      return `${d.title || ''} ${d.file_name || ''}`.includes(kind);
+    });
+    if (twin) return note('duplicate:' + String(twin.source_id).toUpperCase());
+  }
+
+  // The next DOC number — over the ids and over the numbers carried in file
+  // names, since a row written from a path may not have its own id yet.
+  let max = 0;
+  for (const d of all) {
+    const own = /^DOC-(\d{1,6})$/i.exec(String(d.source_id || ''));
+    const inPath = /_DOC-(\d{1,6})\.[A-Za-z0-9]+$/i.exec(String(d.relative_path || ''));
+    for (const m of [own, inPath]) if (m && Number(m[1]) > max) max = Number(m[1]);
+  }
+  const docId = 'DOC-' + String(max + 1).padStart(3, '0');
+
+  // The case's folder: the one its documents are already in; a new case gets
+  // the folder the app itself would create.
+  let folder = '';
+  for (const d of ofCase) {
+    const rel = String(d.relative_path || '');
+    const m = /(?:^|\/)clients\/([^/]+)\/([^/]+)\/[^/]+$/i.exec(rel);
+    if (!m) continue;
+    const exact = /^Clients\//.test(rel); // written by the app, in its own spelling
+    if (!folder || exact) folder = `Clients/${m[1]}/${m[2]}`;
+    if (exact) break;
+  }
+  if (!folder) {
+    const title = (cs.title || '').trim();
+    folder =
+      'Clients/' +
+      (clientId ? cleanSegment(clientId, 'client').toLowerCase() + '/' : '') +
+      cleanSegment(title ? `${caseId} - ${title}` : caseId, 'case');
+  }
+
+  const day = nm.doc_date ? nm.doc_date.split('-').reverse().join('.') : '';
+  const stem = cleanSegment(
+    [kind, day].filter(Boolean).join(' ') + (nm.case_name ? ' - ' + nm.case_name : ''),
+    'מסמך',
+  );
+  const fileName =
+    [clientId, caseId, stem, docId]
+      .filter(Boolean)
+      .map((p) => cleanSegment(p, 'x'))
+      .join('_') + '.pdf';
+
+  const obj = await env.DOCS.get(nm.file_key);
+  if (!obj) return note('error:file_missing');
+  const up = await deps.upload(`${folder}/${fileName}`, await obj.arrayBuffer());
+  if (!up.ok) return note('error:' + String(up.error || 'upload_failed').slice(0, 80));
+
+  const now = new Date().toISOString();
+  await db.batch([
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO documents
+           (id, user_id, source_id, case_source_id, client_source_id, title, title_ar,
+            description, description_ar, file_name, relative_path, date, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?12)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        user,
+        docId,
+        cs.source_id,
+        cs.client_source_id,
+        stem,
+        'יובא מנט המשפט',
+        'استُورد من نت همشباط',
+        fileName,
+        up.path || `${folder}/${fileName}`,
+        nm.doc_date || now.slice(0, 10),
+        now,
+      ),
+    db
+      .prepare(
+        `UPDATE nm_documents SET filed_doc_id = ?1, filed_case_id = ?2, filed_at = ?3, filing_status = 'filed'
+          WHERE id = ?4`,
+      )
+      .bind(docId, caseId, now, nmId),
+  ]);
+  return { status: 'filed', docId, caseId };
+}
+
+/** POST /api/netmishpat/file-to-case  { id, force? }   (the office's session) */
+export async function netSyncFileToCaseRoute(
+  env: Env,
+  ctx: Ctx,
+  body: { id?: unknown; force?: unknown },
+  deps: FilingDeps,
+): Promise<Result> {
+  if (!isOperator(env, ctx)) return { status: 403, body: { error: 'not_available' } };
+  const id = Number(body.id);
+  if (!Number.isInteger(id)) return { status: 400, body: { error: 'id required' } };
+  const filing = await netSyncFileToCase(env, ctx.db, id, deps, body.force === true);
+  return { status: 200, body: { ok: filing.status === 'filed', filing } };
 }

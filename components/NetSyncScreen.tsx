@@ -30,6 +30,9 @@ type Doc = {
   case_name: string | null;
   has_file: number;
   file_size: number | null;
+  filed_doc_id: string | null;
+  filed_case_id: string | null;
+  filing_status: string | null;
 };
 type CaseRow = {
   case_number: string;
@@ -53,7 +56,19 @@ const WORKER_URL = (process.env.NEXT_PUBLIC_WORKER_URL || '').replace(/\/$/, '')
 
 const L = {
   he: {
-    intro: 'נתונים שנשלחו מנט המשפט ומנט בתי הדין באמצעות תוסף הדפדפן.',
+    intro:
+      'נתונים שנשלחו מנט המשפט ומנט בתי הדין באמצעות תוסף הדפדפן. מסמך שנשמר שם מתויק אוטומטית בתיק הלקוח לפי מספר התיק.',
+    colFiling: 'תיוק בתיק',
+    filed: 'תויק',
+    fileNow: 'תייק בתיק',
+    fileAnyway: 'תייק בכל זאת',
+    filing: 'מתייק…',
+    stDuplicate: 'נראה שכבר מתויק בתיק',
+    stNoCase: 'אין במערכת תיק עם מספר התיק הזה',
+    stNoNumber: 'אין מספר תיק למסמך',
+    stAmbiguous: 'יש יותר מתיק אחד עם המספר הזה',
+    stError: 'התיוק נכשל',
+    stWaiting: 'ממתין לקובץ',
     refresh: 'רענון',
     loading: 'טוען נתונים…',
     error: 'לא ניתן לטעון את הנתונים כרגע.',
@@ -106,7 +121,19 @@ const L = {
     copied: 'הועתק',
   },
   ar: {
-    intro: 'بيانات أُرسلت من نت همشباط ومن موقع المحاكم الشرعية عبر إضافة المتصفح.',
+    intro:
+      'بيانات أُرسلت من نت همشباط ومن موقع المحاكم الشرعية عبر إضافة المتصفح. المستند الذي يُحفظ هناك يُؤرشَف تلقائياً في ملف الموكل حسب رقم الملف.',
+    colFiling: 'الأرشفة في الملف',
+    filed: 'أُرشف',
+    fileNow: 'أرشِف في الملف',
+    fileAnyway: 'أرشِف على أي حال',
+    filing: 'جارٍ الأرشفة…',
+    stDuplicate: 'يبدو أنه مؤرشف في الملف',
+    stNoCase: 'لا يوجد في النظام ملف بهذا الرقم',
+    stNoNumber: 'لا يوجد رقم ملف للمستند',
+    stAmbiguous: 'يوجد أكثر من ملف بهذا الرقم',
+    stError: 'فشلت الأرشفة',
+    stWaiting: 'بانتظار الملف',
     refresh: 'تحديث',
     loading: 'جارٍ تحميل البيانات…',
     error: 'تعذّر تحميل البيانات حالياً.',
@@ -180,6 +207,7 @@ export function NetSyncScreen() {
   const [error, setError] = useState(false);
   const [tab, setTab] = useState<Tab>('new');
   const [copied, setCopied] = useState(false);
+  const [filingId, setFilingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setError(false);
@@ -252,6 +280,60 @@ export function NetSyncScreen() {
     }
   };
 
+  // File a received PDF in the client's case (the Worker matches the case by
+  // its court number). `force` files it although a similar document is there.
+  const fileToCase = async (id: number, force: boolean) => {
+    setFilingId(id);
+    try {
+      await fetch(WORKER_URL + '/api/netmishpat/file-to-case', {
+        method: 'POST',
+        headers: { ...officeAuthHeader(), 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id, force }),
+      });
+    } catch {
+      /* the reload below shows the stored state */
+    } finally {
+      await load();
+      setFilingId(null);
+    }
+  };
+
+  const filingCell = (d: Doc) => {
+    if (d.filed_doc_id) {
+      return (
+        <span className="ns-filed" dir="ltr">
+          <i className="fas fa-check" aria-hidden="true" /> {d.filed_case_id} · {d.filed_doc_id}
+        </span>
+      );
+    }
+    if (!d.has_file) return <span className="ns-muted">{t.stWaiting}</span>;
+    if (filingId === d.id) return <span className="ns-muted">{t.filing}</span>;
+    const st = d.filing_status || '';
+    const dup = st.startsWith('duplicate:');
+    const why = dup
+      ? `${t.stDuplicate} (${st.slice(10)})`
+      : st === 'no_case'
+        ? t.stNoCase
+        : st === 'no_case_number'
+          ? t.stNoNumber
+          : st === 'ambiguous'
+            ? t.stAmbiguous
+            : st.startsWith('error:')
+              ? t.stError
+              : '';
+    return (
+      <>
+        {why && <small className="ns-sub ns-why">{why}</small>}
+        {st !== 'no_case_number' && st !== 'ambiguous' && (
+          <button type="button" className="ns-btn" onClick={() => void fileToCase(d.id, dup)}>
+            {dup ? t.fileAnyway : t.fileNow}
+          </button>
+        )}
+      </>
+    );
+  };
+
   const copyUrl = async () => {
     try {
       await navigator.clipboard.writeText(WORKER_URL);
@@ -280,6 +362,7 @@ export function NetSyncScreen() {
               <th>{t.colCase}</th>
               <th>{t.colName}</th>
               <th>{t.colSource}</th>
+              <th>{t.colFiling}</th>
               <th />
             </tr>
           </thead>
@@ -307,6 +390,7 @@ export function NetSyncScreen() {
                 <td dir="ltr">{d.case_number || ''}</td>
                 <td>{d.case_name || ''}</td>
                 <td>{sourceName(d.source)}</td>
+                <td>{filingCell(d)}</td>
                 <td className="ns-actions">
                   <button
                     type="button"
