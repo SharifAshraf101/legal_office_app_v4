@@ -331,7 +331,7 @@ export function NetSyncScreen() {
               : '';
     return (
       <>
-        {why && <small className="ns-sub ns-why">{why}</small>}
+        {why && <small className={'ns-sub ns-why' + (dup ? ' ns-why-ok' : '')}>{why}</small>}
         {st !== 'no_case_number' && st !== 'ambiguous' && (
           <button type="button" className="ns-btn" onClick={() => void fileToCase(d.id, dup)}>
             {dup ? t.fileAnyway : t.fileNow}
@@ -375,7 +375,17 @@ export function NetSyncScreen() {
           </thead>
           <tbody>
             {rows.map((d) => (
-              <tr key={d.id} className={d.reviewed ? '' : 'ns-fresh'}>
+              <tr
+                key={d.id}
+                className={
+                  // in the case already — filed now, or found there from before
+                  d.filed_doc_id || (d.filing_status || '').startsWith('duplicate:')
+                    ? 'ns-done'
+                    : d.reviewed
+                      ? ''
+                      : 'ns-fresh'
+                }
+              >
                 <td dir="ltr">{d.doc_date ? d.doc_date.split('-').reverse().join('.') : when(d.first_seen_at)}</td>
                 <td>
                   {/* The court site opens a document with a script, not an

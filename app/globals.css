@@ -46422,6 +46422,10 @@ body.dark .ns-root { --ns-ink:#e8edf6; --ns-muted:#a3b0c4; --ns-line:#33415a; --
 .ns-table a:not(.ns-btn) { color:inherit; text-decoration:underline; text-underline-offset:3px; word-break:break-word; }
 .ns-table tr.ns-fresh td { background:var(--ns-new); }
 .ns-table tr.ns-fresh td:first-child { font-weight:600; }
+/* filed in the client's case: the whole row is green */
+.ns-table tr.ns-done td { background:#dff3e4; }
+.ns-table tr.ns-done td:first-child { box-shadow:inset 4px 0 0 #1e7e45; }
+[dir="rtl"] .ns-table tr.ns-done td:first-child { box-shadow:inset -4px 0 0 #1e7e45; }
 .ns-actions { text-align:end !important; width:1%; white-space:nowrap; }
 .ns-setup { padding:16px 20px; font-size:15px; line-height:1.6; }
 .ns-setup h3 { margin:0 0 8px; font-size:17px; }
@@ -46437,3 +46441,4 @@ body.dark .ns-root { --ns-ink:#e8edf6; --ns-muted:#a3b0c4; --ns-line:#33415a; --
 .ns-filed { display:inline-flex; align-items:center; gap:6px; font-weight:600; color:#1e7e45; white-space:nowrap; }
 .ns-muted { color:var(--ns-muted); font-size:12.5px; }
 .ns-why { display:inline-block; margin:0 0 4px; padding:2px 8px; border-radius:6px; background:#ffe45c; color:#3d3200; font-weight:600; }
+.ns-why.ns-why-ok { background:#bfe8c9; color:#14532d; }

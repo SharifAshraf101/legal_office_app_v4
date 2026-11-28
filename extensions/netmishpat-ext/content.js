@@ -147,11 +147,16 @@
 
   // ---- ייבוא אוטומטי של כל המסמכים שבעמוד (ראה background.js) ----
   const IS_VIEWER_PAGE = /\/Viewer\//i.test(location.pathname);
+  let sendError = ""; // למה ההודעה האחרונה לתוסף לא נענתה
   const send = (msg) =>
     new Promise((resolve) => {
       try {
-        chrome.runtime.sendMessage(msg, (r) => resolve(chrome.runtime.lastError ? null : r));
-      } catch (_) {
+        chrome.runtime.sendMessage(msg, (r) => {
+          if (chrome.runtime.lastError) sendError = chrome.runtime.lastError.message || "";
+          resolve(chrome.runtime.lastError ? null : r);
+        });
+      } catch (e) {
+        sendError = String(e && e.message ? e.message : e);
         resolve(null);
       }
     });
@@ -238,7 +243,7 @@
       const r = await send({ type: "NM_AUTO_START", items, path: location.pathname });
       if (!r || !r.ok) {
         auto.disabled = false;
-        return toast(r && r.error ? "נכשל: " + r.error : "התוסף עודכן ולא נטען מחדש: ↻ ב-chrome://extensions ואז F5 כאן", false, 12000);
+        return toast(r && r.error ? "נכשל: " + r.error : "אין תשובה מהתוסף – F5 בעמוד הזה (אם לא עוזר: ↻ ב-chrome://extensions). [" + sendError + "]", false, 12000);
       }
       if (!r.total) {
         auto.disabled = false;
@@ -350,19 +355,37 @@
     };
     // סמל ההורדה של שורה: הסמל האחרון בשורה (אחרי סמל ההצגה), או זה ששמו "הורדה".
     // השורה עצמה היא קישור לתיק, ולכן לוחצים על הסמל עצמו ולא על מה שעוטף אותו.
+    // הטבלה שם בנויה משני חלקים: השורה עם הטקסט, ולצידה עמודה "מוצמדת" נפרדת שבה
+    // הסמלים. שני החלקים של אותה שורה נושאים אותו מספר שורה.
+    const rowParts = (row) => {
+      for (const attr of ["row-id", "row-index", "aria-rowindex", "data-rowindex", "data-row-index"]) {
+        const v = row.getAttribute(attr);
+        if (v == null || v === "") continue;
+        const parts = [...document.querySelectorAll(`[${attr}="${CSS.escape(v)}"]`)];
+        if (parts.length > 1) return parts;
+      }
+      return [row];
+    };
     const downloadButton = (row) => {
+      const parts = rowParts(row);
+      const pick = (sel) =>
+        parts.flatMap((p) => [...p.querySelectorAll(sel)]).filter((el) => !clean(el.textContent) && !el.closest('input, label, [type="checkbox"]') && !el.matches('input'));
       const own = (el) =>
         [el.id, el.getAttribute("class"), el.getAttribute("title"), el.getAttribute("aria-label"), el.getAttribute("alt"), el.getAttribute("src"), el.getAttribute("href"), el.getAttribute("data-icon")]
           .filter(Boolean)
           .join(" ");
-      const icons = [
-        ...row.querySelectorAll('svg, img, i, mat-icon, button, [role="button"], [class*="icon" i], [class*="download" i]'),
-      ].filter((el) => !clean(el.textContent) && !el.closest('input, label, [type="checkbox"]'));
+      let icons = pick('svg, img, i, mat-icon, button, [role="button"], [class*="icon" i], [class*="download" i]');
+      // אין סמל מוכר: כל רכיב ריק מטקסט שנראה על המסך, בעמודה המוצמדת
+      if (!icons.length) {
+        icons = pick("*").filter((el) => !el.children.length && el.getClientRects().length > 0 && !parts.includes(el));
+      }
       const el = icons.find((x) => /download|הורד/i.test(own(x))) || icons[icons.length - 1];
       if (!el) return null;
       const wrap = el.closest('button, a, [role="button"]');
-      return wrap && wrap !== row && row.contains(wrap) && !clean(wrap.textContent) ? wrap : el;
+      return wrap && !parts.includes(wrap) && parts.some((p) => p.contains(wrap)) && !clean(wrap.textContent) ? wrap : el;
     };
+    const rowHtmlOf = (row) =>
+      rowParts(row).map((p) => p.outerHTML.replace(/\s+/g, " ").slice(0, 6000)).join("\n---\n");
     const press = (el) => el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
     const filingText = (f) => {
       const st = String((f && f.status) || "");
@@ -375,17 +398,77 @@
 
     let lastClick = null; // השורה שנלחצה לאחרונה
     let waiting = null;   // הייבוא האוטומטי מחכה לתוצאה של השורה הנוכחית
+    let blobsSeen = 0;    // כמה קבצים העמוד בנה מאז שנטען (לאבחון)
+    let reported = false;
+
+    // רכיב, וכל מה שעוטף אותו – לדיווח על מבנה העמוד כשמשהו לא עובד
+    const describeUp = (el) => {
+      const out = [];
+      for (let n = el, i = 0; n && n.nodeType === 1 && i < 12; n = n.parentElement, i++) {
+        out.push(`${n.tagName} ${[...n.attributes].map((a) => `${a.name}="${String(a.value).slice(0, 70)}"`).join(" ")}`.slice(0, 320));
+      }
+      return out.join("\n  < ");
+    };
+    // סמלי השורה יושבים בעמודה נפרדת מהטקסט שלה, ולכן השורה של לחיצה נקבעת לפי
+    // המקום על המסך: השורה שהגובה שלה כולל את נקודת הלחיצה.
+    const rowAtY = (y) =>
+      listRows().find((r) => {
+        const b = r.row.getBoundingClientRect();
+        return b.height > 0 && y >= b.top && y <= b.bottom;
+      });
 
     document.addEventListener(
       "click",
       (e) => {
-        const row = e.target && e.target.closest ? e.target.closest(ROWS) : null;
-        if (!row) return;
-        const hit = listRows().find((r) => r.row === row);
-        if (hit) lastClick = { ...hit, row: null, at: Date.now() };
+        const hit = rowAtY(e.clientY);
+        if (!hit) return;
+        const click = { ...hit, row: null, at: Date.now() };
+        lastClick = click;
+        // לחיצה על סמל (לא על הטקסט של השורה) שלא הביאה PDF תוך 20 שניות: מדווחים
+        // פעם אחת איך הסמל בנוי, כדי שאפשר יהיה לתקן.
+        const box = e.target.getBoundingClientRect ? e.target.getBoundingClientRect() : { width: 999 };
+        if (reported || box.width > 80 || hit.row.contains(e.target)) return;
+        const seenBefore = blobsSeen;
+        const target = describeUp(e.target);
+        setTimeout(() => {
+          if (lastClick !== click || reported) return;
+          reported = true;
+          send({ type: "NM_PAGE_DIAG", diag: `SHARIA NO PDF after click; blobs ${seenBefore}->${blobsSeen}; trusted=${e.isTrusted}\n${target}` });
+        }, 20000);
       },
       true
     );
+
+    // נקודת הלחיצה של חץ ההורדה בשורה: מבין הסמלים הקטנים שנמצאים בגובה השורה,
+    // זה ששמו "הורדה", ואם אין שם – השמאלי ביותר (החץ נמצא משמאל לסמל ההצגה).
+    const downloadPoint = (row) => {
+      const b = row.getBoundingClientRect();
+      const sig = (el) =>
+        [el.id, el.getAttribute("class"), el.getAttribute("title"), el.getAttribute("aria-label"), el.getAttribute("alt"), el.getAttribute("src"), el.getAttribute("data-icon"), el.getAttribute("mattooltip")]
+          .filter(Boolean)
+          .join(" ");
+      const cands = [...document.querySelectorAll('svg, img, i, button, a, [role="button"], mat-icon, [class*="icon" i]')].filter((el) => {
+        if (el.matches("input") || el.closest("label") || String(el.getAttribute("class") || "").includes("nm-bridge")) return false;
+        if (clean(el.textContent)) return false;
+        const r = el.getBoundingClientRect();
+        const cy = r.top + r.height / 2;
+        return r.width >= 8 && r.width <= 64 && r.height >= 8 && r.height <= 64 && cy > b.top && cy < b.bottom;
+      });
+      if (!cands.length) return null;
+      const left = (el) => el.getBoundingClientRect().left;
+      const picked = cands.find((x) => /download|הורד/i.test(sig(x))) || cands.reduce((a, c) => (left(c) < left(a) ? c : a));
+      const r = picked.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      // מה שעכבר אמיתי היה פוגע בו בנקודה הזו
+      return { x, y, picked, el: document.elementFromPoint(x, y) || picked };
+    };
+    const pressAt = (p) => {
+      for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
+        const Ev = type.startsWith("pointer") ? PointerEvent : MouseEvent;
+        p.el.dispatchEvent(new Ev(type, { bubbles: true, cancelable: true, composed: true, view: window, clientX: p.x, clientY: p.y, button: 0 }));
+      }
+    };
 
     const toBase64 = (blob) =>
       new Promise((resolve, reject) => {
@@ -398,6 +481,7 @@
     window.addEventListener("message", async (e) => {
       if (e.source !== window || !e.data || e.data.__nmBridgeBlob !== true) return;
       const blob = e.data.blob;
+      blobsSeen++;
       const click = lastClick;
       if (!(blob instanceof Blob) || !click || Date.now() - click.at > 60000) return;
       const done = (r) => {
@@ -420,7 +504,7 @@
           text: click.kind,
           context: `${click.date}\n${click.kind}\n${click.caseNo}\n${click.parties}`,
         });
-        done(r || { ok: false, error: "התוסף עודכן ולא נטען מחדש (↻ ואז F5)" });
+        done(r || { ok: false, error: "אין תשובה מהתוסף – F5 בעמוד הזה [" + sendError + "]" });
       } catch (err) {
         done({ ok: false, error: String(err && err.message ? err.message : err) });
       }
@@ -450,7 +534,7 @@
       const p = await send({ type: "NM_PENDING", hrefs: rows.map((r) => r.href) });
       if (!p || !p.ok) {
         auto.disabled = false;
-        return toast(p && p.error ? "נכשל: " + p.error : "התוסף עודכן ולא נטען מחדש: ↻ ב-chrome://extensions ואז F5 כאן", false, 12000);
+        return toast(p && p.error ? "נכשל: " + p.error : "אין תשובה מהתוסף – F5 בעמוד הזה (אם לא עוזר: ↻ ב-chrome://extensions). [" + sendError + "]", false, 12000);
       }
       const want = new Set(p.pending);
       const queue = rows.filter((r) => want.has(r.href));
@@ -463,17 +547,30 @@
       stopped = false;
       bar.hidden = false;
       const startPath = location.pathname;
-      const rowHtml = queue[0].row.outerHTML.replace(/\s+/g, " ").slice(0, 12000);
+      const rowHtml = rowHtmlOf(queue[0].row);
       for (let i = 0; i < queue.length && !stopped; i++) {
         barText.textContent = `מייבא החלטה ${i + 1} מתוך ${queue.length}… (${summary()})`;
         const item = queue[i];
-        const btn = item.row.isConnected ? downloadButton(item.row) : null;
-        if (!btn) { s.failed++; s.note = "לא נמצא סמל ההורדה בשורה"; continue; }
+        let btn = null;
+        if (item.row.isConnected) {
+          item.row.scrollIntoView({ block: "center" });
+          await pause(400);
+          btn = downloadPoint(item.row);
+        }
+        if (!btn) {
+          s.failed++;
+          s.note = "לא נמצא סמל ההורדה בשורה; מבנה השורה נשלח לבדיקה";
+          await send({ type: "NM_PAGE_DIAG", diag: `SHARIA ROW no button ${startPath}\n${rowHtml}` });
+          break;
+        }
+        if (i === 0) {
+          await send({ type: "NM_PAGE_DIAG", diag: `SHARIA PICK\npicked: ${describeUp(btn.picked)}\nat point: ${describeUp(btn.el)}` });
+        }
         const result = new Promise((resolve) => {
           waiting = resolve;
           setTimeout(() => { if (waiting === resolve) { waiting = null; resolve({ ok: false, error: "הקובץ לא נוצר" }); } }, 45000);
         });
-        press(btn);
+        pressAt(btn);
         const r = await result;
         if (!r.ok) { s.failed++; s.note = r.error; }
         else if (r.filing && r.filing.status === "filed") s.filed++;
